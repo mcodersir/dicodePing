@@ -1,2 +1,2 @@
 Release v0.1.2
-Triggered after cleanup of local publishing files and restoration of the complete Windows/Android release workflow.
+Second trigger through a merged pull request so GitHub Actions receives a real push event on main.
