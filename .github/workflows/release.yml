@@ -2,27 +2,30 @@ name: Release
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
   push:
     tags:
       - "v*"
-    branches:
-      - main
-    paths:
-      - ".github/release-trigger.txt"
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-v0.1.2
   cancel-in-progress: false
 
 jobs:
   windows:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Build Windows executable
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -54,6 +57,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Build Android APKs
     runs-on: ubuntu-latest
     defaults:
@@ -61,6 +65,8 @@ jobs:
         working-directory: dicodePing_android
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -96,6 +102,7 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Publish GitHub Release
     needs: [windows, android]
     runs-on: ubuntu-latest
@@ -103,6 +110,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
