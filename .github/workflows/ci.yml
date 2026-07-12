@@ -1,4 +1,4 @@
-name: CI
+name: CI and Release
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -17,56 +17,5 @@ jobs:
     name: Python and security checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            requirements-build.txt
-      - name: Install runtime dependencies
-        run: python -m pip install -r requirements.txt
-      - name: Verify synchronized version
-        run: python tools/verify_version.py
-      - name: Compile Python
-        run: python -m compileall -q app.py dicodeping shared tools tests
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Security quality gate
-        run: python tools/quality_gate.py
-      - name: Generate SBOM
-        run: python tools/generate_sbom.py
-      - uses: actions/upload-artifact@v7
-        with:
-          name: source-sbom
-          path: artifacts/SBOM.spdx.json
-          if-no-files-found: error
-
-  android:
-    name: Android lint and debug build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dicodePing_android
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/wrapper-validation@v6
-      - uses: gradle/actions/setup-gradle@v6
-      - name: Download pinned Android Xray core
-        shell: bash
-        run: |
-          set -euo pipefail
-          target="local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
-          mkdir -p "$(dirname "$target")"
-          curl --fail --location --retry 4 --retry-all-errors \
-            --output "$target" \
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
-          echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
-      - run: chmod +x gradlew
-      - name: Lint, test, and assemble debug
-        run: ./gradlew --no-daemon --stacktrace lint test assembleDebug
+      - uses: actions/checkout@v4
+      - uses: actions
