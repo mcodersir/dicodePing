@@ -67,18 +67,42 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "ir.dicode.ping"
+        applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
+        versionCode = 4
         versionName = "0.1.2"
         multiDexEnabled = true
+
+        ndk {
+            abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        }
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = false
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
+            isDebuggable = false
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = false
         }
     }
 
@@ -104,8 +128,6 @@ tasks.matching { it.name == "preBuild" }.configureEach {
 }
 
 dependencies {
-    // The core is resolved as a normal Maven AAR instead of a dynamically generated file dependency.
-    // This avoids AGP's "Null extracted folder for artifact" failure.
     implementation("ir.dicode.local:libv2ray:$coreVersion@aar") {
         isTransitive = false
     }
