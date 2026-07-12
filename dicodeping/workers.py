@@ -17,6 +17,19 @@ from .xray import XrayManager
 LOGGER = get_logger("workers")
 
 
+def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
+    """Require both a reachable endpoint and Xray TUN counter movement."""
+    before_upload, before_download = manager.traffic_stats()
+    if not is_any_url_reachable_parallel(HEALTH_URLS, timeout=5.0, attempts=3):
+        return False
+    for _ in range(6):
+        time.sleep(0.35)
+        upload, download = manager.traffic_stats()
+        if upload > before_upload or download > before_download:
+            return True
+    return False
+
+
 class TaskThread(QThread):
     stage = Signal(str)
     progress = Signal(int, int)
@@ -110,12 +123,12 @@ class ConnectThread(TaskThread):
             )
             self.progress.emit(72, 100)
             self.stage.emit(tr(self.language, "checking_connection"))
-            if not is_any_url_reachable_parallel(HEALTH_URLS, timeout=5.0, attempts=3):
+            if not _tunnel_passes_real_traffic(self.manager):
                 self.manager.stop()
                 raise RuntimeError(
-                    "اتصال ساخته شد اما اینترنت از مسیر جدید پاسخ نداد"
+                    "اتصال ساخته شد اما ترافیک واقعی از مسیر Xray عبور نکرد"
                     if self.language != "en"
-                    else "The tunnel started, but the internet did not respond through it."
+                    else "The tunnel started, but real traffic did not pass through Xray."
                 )
             self.progress.emit(100, 100)
             self.success.emit(self.server)
