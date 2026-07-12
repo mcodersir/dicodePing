@@ -17,10 +17,31 @@ LOGGER = get_logger("service")
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
 
+MIN_TRUSTED_AUTO_PING_MS = 70
+MAX_TRUSTED_AUTO_PING_MS = 5_000
+_UNKNOWN_COUNTRIES = {"", "unknown", "نامشخص", "n/a", "-"}
 
-def _sort_key(server: ServerRecord) -> tuple[int, int, int, str]:
+
+def _has_trusted_location(server: ServerRecord) -> bool:
+    return (
+        len(server.country_code.strip()) == 2
+        and server.country.strip().casefold() not in _UNKNOWN_COUNTRIES
+        and bool(server.ip and server.ip != "dns")
+    )
+
+
+def _has_trusted_ping(value: int | None) -> bool:
+    return value is not None and MIN_TRUSTED_AUTO_PING_MS <= value <= MAX_TRUSTED_AUTO_PING_MS
+
+
+def _is_auto_candidate(server: ServerRecord) -> bool:
+    return server.status == "online" and _has_trusted_ping(server.ping_ms) and _has_trusted_location(server)
+
+
+def _sort_key(server: ServerRecord) -> tuple[int, int, int, int, str]:
     return (
         0 if server.favorite else 1,
+        0 if _is_auto_candidate(server) else 1,
         server.ping_ms if server.ping_ms is not None else 999999,
         server.source_order,
         server.name.casefold(),
@@ -70,7 +91,6 @@ class ServerService:
         ping_results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_callback)
         ping_map = {item.key: item for item in ping_results}
 
-        # Keep responsive configs first, but retain unresponsive ones for manual mode.
         endpoints.sort(
             key=lambda item: (
                 0 if ping_map.get(item[1].host) and ping_map[item[1].host].ping_ms is not None else 1,
@@ -93,11 +113,13 @@ class ServerService:
         for server_id, endpoint, entry in selected:
             per_source_index[entry.source_id] += 1
             ping = ping_map.get(endpoint.host)
-            ping_ms = ping.ping_ms if ping else None
+            raw_ping_ms = ping.ping_ms if ping else None
             ip = ping.ip if ping else ""
             geo = geo_map.get(ip, {})
             country = str(geo.get("country") or tr(language, "unknown"))
-            code = str(geo.get("country_code") or "")
+            code = str(geo.get("country_code") or "").upper()
+            location_ok = len(code) == 2 and country.strip().casefold() not in _UNKNOWN_COUNTRIES
+            ping_ms = raw_ping_ms if _has_trusted_ping(raw_ping_ms) and location_ok else None
             index = per_source_index[entry.source_id]
             if language != "en":
                 label = f"سرور {country} • {index:02d}"
@@ -185,14 +207,36 @@ class ServerService:
             server.asn = str(geo.get("asn") or server.asn)
             server.geo_provider = str(geo.get("geo_provider") or server.geo_provider)
             server.geo_confidence = str(geo.get("geo_confidence") or server.geo_confidence)
+        for server in records:
+            if not (_has_trusted_ping(server.ping_ms) and _has_trusted_location(server)):
+                server.ping_ms = None
+                server.status = "unverified"
         records.sort(key=_sort_key)
         self.store.save_servers(records)
         return records
 
-    def best_server(self, records: list[ServerRecord] | None = None) -> ServerRecord | None:
+    def auto_candidates(self, records: list[ServerRecord] | None = None) -> list[ServerRecord]:
         candidates = records if records is not None else self.store.load_servers()
-        online = [server for server in candidates if server.status == "online" and server.ping_ms is not None]
-        return min(online, key=lambda server: server.ping_ms or 999999) if online else None
+        return sorted(
+            (server for server in candidates if _is_auto_candidate(server)),
+            key=lambda server: (server.ping_ms or 999999, server.failures, server.source_order),
+        )
+
+    def best_server(self, records: list[ServerRecord] | None = None) -> ServerRecord | None:
+        candidates = self.auto_candidates(records)
+        return candidates[0] if candidates else None
+
+    def mark_probe_failed(self, server_id: str) -> None:
+        records = self.store.load_servers()
+        for server in records:
+            if server.id == server_id:
+                server.status = "unverified"
+                server.ping_ms = None
+                server.failures += 1
+                server.last_checked = utc_now()
+                break
+        records.sort(key=_sort_key)
+        self.store.save_servers(records)
 
     def update_connected(self, server_id: str) -> None:
         records = self.store.load_servers()
