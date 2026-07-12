@@ -144,7 +144,7 @@ tasks.matching { it.name == "preBuild" }.configureEach {
     dependsOn(verifyCore)
 }
 
-tasks.matching { it.name == "validateSigningRelease" }.configureEach {
+tasks.matching { it.name in setOf("preReleaseBuild", "validateSigningRelease", "assembleRelease") }.configureEach {
     doFirst {
         if (!releaseSigningReady) {
             throw GradleException(
