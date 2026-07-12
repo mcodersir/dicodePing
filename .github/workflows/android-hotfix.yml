@@ -1,10 +1,14 @@
-name: Android v0.1.2 Compatibility Hotfix
+name: v0.1.2 Auto-Connect Hotfix
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "dicodePing_android/**"
+      - "dicodeping/**"
+      - "tests/**"
+      - "tools/**"
+      - "docs/releases/v0.1.2.md"
       - ".github/workflows/android-hotfix.yml"
   workflow_dispatch:
 
@@ -12,12 +16,51 @@ permissions:
   contents: write
 
 concurrency:
-  group: android-v0.1.2-hotfix
+  group: v0.1.2-auto-connect-hotfix
   cancel-in-progress: false
 
 jobs:
-  build-and-replace:
-    name: Build and replace Android APK
+  windows:
+    name: Build Windows hotfix
+    if: github.event_name != 'pull_request' || github.head_ref == 'fix/android-7-universal-install'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+      - name: Verify and test source
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/verify_version.py
+          python -m compileall -q app.py dicodeping shared tools tests
+          python -m unittest discover -s tests -v
+          python tools/quality_gate.py
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/build_windows.py --skip-install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-windows-hotfix
+          path: release/dicodePing-v0.1.2-windows.exe
+          if-no-files-found: error
+
+  android:
+    name: Build Android hotfix
     if: github.event_name != 'pull_request' || github.head_ref == 'fix/android-7-universal-install'
     runs-on: ubuntu-latest
     defaults:
@@ -31,7 +74,6 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/wrapper-validation@v4
       - uses: gradle/actions/setup-gradle@v4
-
       - name: Download and verify pinned Android Xray core
         shell: bash
         run: |
@@ -42,12 +84,9 @@ jobs:
             --output "$target" \
             "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
           echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
-
       - run: chmod +x gradlew
-
       - name: Lint, test, and build universal signed APK
         run: ./gradlew --no-daemon --stacktrace lint test assembleRelease
-
       - name: Verify APK compatibility
         shell: bash
         run: |
@@ -59,27 +98,42 @@ jobs:
           done
           mkdir -p release
           cp "$apk" release/dicodePing-v0.1.2-android.apk
-
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-android-compatible
+          name: dicodePing-android-hotfix
           path: dicodePing_android/release/dicodePing-v0.1.2-android.apk
           if-no-files-found: error
 
-      - name: Replace Android asset in v0.1.2 release
-        if: github.event_name != 'pull_request' || github.head_ref == 'fix/android-7-universal-install'
+  publish:
+    name: Replace v0.1.2 release assets
+    if: github.event_name != 'pull_request' || github.head_ref == 'fix/android-7-universal-install'
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+      - name: Replace Windows and Android assets
         shell: bash
-        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          cp dicodePing_android/release/dicodePing-v0.1.2-android.apk release-assets/
-          gh release download v0.1.2 --pattern "dicodePing-v0.1.2-windows.exe" --dir release-assets
+          cp downloaded-artifacts/dicodePing-windows-hotfix/dicodePing-v0.1.2-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-android-hotfix/dicodePing-v0.1.2-android.apk release-assets/
           (
             cd release-assets
             sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
           )
-          gh release upload v0.1.2 release-assets/dicodePing-v0.1.2-android.apk --clobber
-          gh release upload v0.1.2 release-assets/SHA256SUMS --clobber
+          gh release upload v0.1.2 \
+            release-assets/dicodePing-v0.1.2-windows.exe \
+            release-assets/dicodePing-v0.1.2-android.apk \
+            release-assets/SHA256SUMS \
+            --clobber
+          gh release edit v0.1.2 \
+            --title "dicodePing v0.1.2 — First Public Release" \
+            --notes-file docs/releases/v0.1.2.md
