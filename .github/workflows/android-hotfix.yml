@@ -1,6 +1,15 @@
 name: v0.1.2 Auto-Connect Hotfix
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "dicodePing_android/**"
+      - "dicodeping/**"
+      - "tests/**"
+      - "tools/**"
+      - "docs/releases/v0.1.2.md"
+      - ".github/workflows/android-hotfix.yml"
   pull_request:
     branches: [main]
     paths:
@@ -16,7 +25,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: v0.1.2-auto-connect-hotfix
+  group: v0.1.2-auto-connect-hotfix-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
