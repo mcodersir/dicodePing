@@ -67,7 +67,6 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        // New final package id avoids signature conflicts with earlier test builds.
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 35
@@ -75,7 +74,6 @@ android {
         versionName = "0.1.2"
         multiDexEnabled = true
 
-        // Produce one universal APK for Android 7+ across common phone/tablet ABIs.
         ndk {
             abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
@@ -95,7 +93,9 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
+            isDebuggable = false
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
