@@ -3,7 +3,7 @@
 
 # dicodePing
 
-**کلاینت سریع و متن‌باز Windows و Android برای اتصال مبتنی بر Xray**
+**کلاینت سریع و متن‌باز Windows و Android برای اتصال مبتنی بر Xray**  
 **A fast, open-source Xray connectivity client for Windows and Android**
 
 [![CI](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml/badge.svg)](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml)
@@ -14,7 +14,7 @@
 [دانلود آخرین نسخه](https://github.com/mcodersir/dicodePing/releases/latest) ·
 [مستندات فارسی](docs/README.fa.md) ·
 [English documentation](docs/README.en.md) ·
-[صفحهٔ مستندات](https://mcodersir.github.io/dicodePing/)
+[صفحه مستندات](https://mcodersir.github.io/dicodePing/)
 
 </div>
 
@@ -22,37 +22,51 @@
 
 ## فارسی
 
-dicodePing برای انتخاب سرور فقط به ICMP یا بازشدن پورت اکتفا نمی‌کند. تست واقعی اتصال از داخل مسیر SOCKS/Xray انجام می‌شود تا سروری انتخاب شود که عملاً توان عبور ترافیک را دارد. رابط ویندوز با PySide6 و نسخهٔ Android با Kotlin ساخته شده‌اند.
+dicodePing یک کلاینت متن‌باز Windows و Android برای مدیریت و اتصال به کانفیگ‌های مبتنی بر Xray است. بررسی نهایی سرورها از داخل مسیر واقعی Xray انجام می‌شود؛ بنابراین باز بودن پورت یا پاسخ ICMP به تنهایی به‌عنوان اتصال سالم در نظر گرفته نمی‌شود.
 
 ### امکانات اصلی
 
 - دریافت و مدیریت subscription و کانفیگ‌های پشتیبانی‌شده
-- سنجش TCP اولیه و تست HTTPS واقعی از داخل مسیر پراکسی
+- سنجش TCP اولیه و تست واقعی HTTPS از داخل مسیر پراکسی
 - انتخاب خودکار سرور بر اساس latency، jitter و سلامت اتصال
-- TUN/VPN برای Windows و Android، همراه با مسیر IPv6 در Android
+- TUN/VPN برای Windows و Android با پشتیبانی IPv4 و IPv6 در Android
+- نمایش وضعیت اتصال، پینگ و آمار دانلود و آپلود
+- امکان تعریف دامنه‌ها و برنامه‌های خارج از تونل
 - رابط فارسی و انگلیسی، حالت روشن و تاریک و انیمیشن‌های سبک
 - اجرای عملیات شبکه خارج از thread رابط کاربری
-- ساخت خودکار EXE و APK با GitHub Actions
-- انتشار SHA-256، SBOM با قالب SPDX و GitHub artifact attestation
-- آیکون یکسان در EXE، taskbar، Alt+Tab و پنجرهٔ Windows
+- بررسی نسخه و SHA-256 هسته‌های Xray، Wintun و Android هنگام ساخت
 
-### نصب
+### دانلود و نصب
 
-نسخهٔ آماده را از صفحهٔ [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
+نسخه آماده را از صفحه [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
 
-- **Windows:** فایل `dicodePing-v0.1.2-windows.exe`
-- **Android قابل نصب:** فایل `dicodePing-v0.1.2-android-debug-signed.apk`
-- **Android release unsigned:** برای امضای نهایی با کلید خصوصی مالک پروژه
+- **Windows:** `dicodePing-v0.1.2-windows.exe`
+- **Android:** `dicodePing-v0.1.2-android.apk`
 
-برای بررسی اصالت فایل، `SHA256SUMS` همان Release را بررسی کنید. جزئیات کامل در [مستندات فارسی](docs/README.fa.md) آمده است.
+برای بررسی اصالت فایل‌ها، مقدار آن‌ها را با `SHA256SUMS` همان Release مقایسه کنید.
 
 ## English
 
-dicodePing does not treat ICMP or a successful TCP socket as proof that a profile works. It performs the final health check through the actual SOCKS/Xray path, then ranks usable servers by latency, jitter, and failure state.
+dicodePing is an open-source Windows and Android client for managing and connecting to Xray-based profiles. Final server validation runs through the actual Xray path instead of relying only on ICMP or an open TCP port.
 
-The Windows client is built with PySide6; the Android client is native Kotlin. GitHub Actions builds both platforms and publishes checksums, an SPDX SBOM, and artifact attestations.
+### Highlights
 
-See the [English documentation](docs/README.en.md), [security policy](SECURITY.md), and [latest release](https://github.com/mcodersir/dicodePing/releases/latest).
+- Subscription and supported-profile management
+- Real HTTPS checks through the active proxy path
+- Automatic selection based on latency, jitter, and connection health
+- Windows TUN and Android VPN connectivity
+- IPv4 and IPv6 routing on Android
+- Live connection, latency, download, and upload statistics
+- Domain and application bypass controls
+- Persian and English interfaces with light and dark themes
+- Version-pinned and SHA-256-verified native dependencies
+
+### Downloads
+
+- **Windows:** `dicodePing-v0.1.2-windows.exe`
+- **Android:** `dicodePing-v0.1.2-android.apk`
+
+Verify downloaded files using the accompanying `SHA256SUMS` file.
 
 ## Build locally
 
@@ -76,7 +90,7 @@ cd dicodePing_android
 ./gradlew --no-daemon lint test assembleDebug
 ```
 
-The Windows build pins Xray-core `26.7.11` and Wintun `0.14.1`. The Android build pins AndroidLibXrayLite `26.6.2` as described in [`dicodePing_android/README.md`](dicodePing_android/README.md). CI downloads each native dependency from its upstream release and verifies SHA-256 before packaging.
+The Windows build pins Xray-core `26.7.11` and Wintun `0.14.1`. The Android build pins AndroidLibXrayLite `26.6.2`. Native dependencies are downloaded from upstream releases and verified before packaging.
 
 ## License and responsibility
 
