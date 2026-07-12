@@ -11,6 +11,17 @@ if str(ROOT) not in sys.path:
 from dicodeping.xray import ensure_wintun, ensure_xray
 
 
+def _configure_utf8_console() -> None:
+    """Keep Persian progress and error messages safe on Windows CI consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except Exception:
+                pass
+
+
 def prepare_core() -> Path:
     target = ROOT / "core"
     target.mkdir(parents=True, exist_ok=True)
@@ -36,6 +47,7 @@ def prepare_core() -> Path:
 
 
 def main() -> int:
+    _configure_utf8_console()
     try:
         prepare_core()
     except Exception as exc:

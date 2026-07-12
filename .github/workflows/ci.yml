@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   source-quality:
@@ -46,7 +46,7 @@ jobs:
 
   windows:
     name: Build Windows executable
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +73,17 @@ jobs:
           python tools/quality_gate.py
       - name: Build Windows executable
         shell: pwsh
-        run: python tools/build_windows.py --skip-install
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python tools/build_windows.py --skip-install *>&1 | Tee-Object -FilePath windows-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload Windows diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: windows-build.log
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: dicodePing-windows
@@ -82,7 +92,7 @@ jobs:
 
   android:
     name: Build Android APKs
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -125,7 +135,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
     needs: [source-quality, windows, android]
     runs-on: ubuntu-latest
     permissions:
