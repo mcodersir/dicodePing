@@ -2,13 +2,8 @@ name: Release
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-  push:
-    tags:
-      - "v*"
+  pull_request_target:
+    types: [closed]
 
 permissions:
   contents: read
@@ -19,13 +14,13 @@ concurrency:
 
 jobs:
   windows:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     name: Build Windows executable
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -57,7 +52,7 @@ jobs:
           if-no-files-found: error
 
   android:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     name: Build Android APKs
     runs-on: ubuntu-latest
     defaults:
@@ -66,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: main
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -102,7 +97,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     name: Publish GitHub Release
     needs: [windows, android]
     runs-on: ubuntu-latest
@@ -111,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
