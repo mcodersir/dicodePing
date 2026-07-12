@@ -21,4 +21,161 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Verify synchronized version
+        run: python tools/verify_version.py
+      - name: Compile Python
+        run: python -m compileall -q app.py dicodeping shared tools tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Security quality gate
+        run: python tools/quality_gate.py
+      - name: Generate SBOM
+        run: python tools/generate_sbom.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-sbom
+          path: artifacts/SBOM.spdx.json
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows executable
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+      - name: Verify source version
+        shell: pwsh
+        run: python tools/verify_version.py
+      - name: Run source checks
+        shell: pwsh
+        run: |
+          python -m compileall -q app.py dicodeping shared tools tests
+          python -m unittest discover -s tests -v
+          python tools/quality_gate.py
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/build_windows.py --skip-install *>&1 | Tee-Object -FilePath windows-build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload Windows diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: windows-build.log
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-windows
+          path: release/dicodePing-v0.1.2-windows.exe
+          if-no-files-found: error
+
+  android:
+    name: Build Android APK
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dicodePing_android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Download and verify pinned Android Xray core
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
+          mkdir -p "$(dirname "$target")"
+          curl --fail --location --retry 4 --retry-all-errors \
+            --output "$target" \
+            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
+          echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
+      - run: chmod +x gradlew
+      - name: Lint, test, and build APK
+        run: ./gradlew --no-daemon --stacktrace lint test assembleDebug
+      - name: Collect Android installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk release/dicodePing-v0.1.2-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-android
+          path: dicodePing_android/release/dicodePing-v0.1.2-android.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    if: github.event_name != 'pull_request'
+    needs: [source-quality, windows, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp downloaded-artifacts/dicodePing-windows/dicodePing-v0.1.2-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-android/dicodePing-v0.1.2-android.apk release-assets/
+          python tools/generate_sbom.py
+          cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
+          cp THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
+          zip -q -r release-assets/dicodePing-v0.1.2-licenses.zip LICENSE THIRD_PARTY_NOTICES.md licenses
+          (
+            cd release-assets
+            sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
+          )
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.2
+          target_commitish: main
+          name: dicodePing v0.1.2 — First Public Release
+          body_path: docs/releases/v0.1.2.md
+          generate_release_notes: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/dicodePing-v0.1.2-windows.exe
+            release-assets/dicodePing-v0.1.2-android.apk
+            release-assets/SHA256SUMS
+            release-assets/SBOM.spdx.json
+            release-assets/THIRD_PARTY_NOTICES.md
+            release-assets/dicodePing-v0.1.2-licenses.zip
