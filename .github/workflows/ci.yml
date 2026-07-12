@@ -93,12 +93,18 @@ jobs:
           if-no-files-found: error
 
   android:
-    name: Build Android APK
+    name: Build one universal JKS-signed Android APK
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: dicodePing_android
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dicodePing-release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPECTED_CERT_SHA256: 0A:48:33:17:EE:0B:D0:E2:AE:A4:8D:2B:E7:2C:30:F2:06:D3:CC:EB:3F:17:8E:A1:8C:A2:2A:17:D6:CD:FC:C0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -107,6 +113,27 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/wrapper-validation@v4
       - uses: gradle/actions/setup-gradle@v4
+      - name: Restore Android release JKS
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+      - name: Verify signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(keytool -list -v \
+            -keystore "$ANDROID_KEYSTORE_PATH" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" | awk -F': ' '/SHA256:/{print $2; exit}')"
+          test "$actual" = "$EXPECTED_CERT_SHA256"
       - name: Download and verify pinned Android Xray core
         shell: bash
         run: |
@@ -118,14 +145,21 @@ jobs:
             "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
           echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
       - run: chmod +x gradlew
-      - name: Lint, test, and build APK
-        run: ./gradlew --no-daemon --stacktrace lint test assembleDebug
-      - name: Collect Android installer
+      - name: Lint, test, and build release APK
+        run: ./gradlew --no-daemon --stacktrace lint test assembleRelease
+      - name: Verify one universal signed APK
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t apks < <(find app/build/outputs/apk/release -type f -name '*.apk' -print)
+          test "${#apks[@]}" -eq 1
+          apk="${apks[0]}"
+          jarsigner -verify -strict -certs "$apk" >/dev/null
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            unzip -l "$apk" | grep -q "lib/$abi/"
+          done
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/dicodePing-v0.1.2-android.apk
+          cp "$apk" release/dicodePing-v0.1.2-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: dicodePing-android
@@ -162,20 +196,26 @@ jobs:
             cd release-assets
             sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
           )
-      - name: Publish release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.2
-          target_commitish: main
-          name: dicodePing v0.1.2 — First Public Release
-          body_path: docs/releases/v0.1.2.md
-          generate_release_notes: false
-          make_latest: true
-          fail_on_unmatched_files: true
-          files: |
-            release-assets/dicodePing-v0.1.2-windows.exe
-            release-assets/dicodePing-v0.1.2-android.apk
-            release-assets/SHA256SUMS
-            release-assets/SBOM.spdx.json
-            release-assets/THIRD_PARTY_NOTICES.md
-            release-assets/dicodePing-v0.1.2-licenses.zip
+      - name: Replace release assets with one Android APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v0.1.2 --json assets --jq '.assets[].name' | while IFS= read -r asset; do
+            case "$asset" in
+              *.apk) gh release delete-asset v0.1.2 "$asset" --yes ;;
+            esac
+          done
+          gh release upload v0.1.2 \
+            release-assets/dicodePing-v0.1.2-windows.exe \
+            release-assets/dicodePing-v0.1.2-android.apk \
+            release-assets/SHA256SUMS \
+            release-assets/SBOM.spdx.json \
+            release-assets/THIRD_PARTY_NOTICES.md \
+            release-assets/dicodePing-v0.1.2-licenses.zip \
+            --clobber
+          gh release edit v0.1.2 \
+            --title "dicodePing v0.1.2 — First Public Release" \
+            --notes-file docs/releases/v0.1.2.md \
+            --latest
