@@ -1,0 +1,8 @@
+Download:
+https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar
+
+Rename the downloaded file to:
+libv2ray-26.6.2.aar
+
+Place it in this exact folder, next to libv2ray-26.6.2.pom.
+Then Sync Gradle and build again.

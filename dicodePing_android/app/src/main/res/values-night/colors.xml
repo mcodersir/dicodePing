@@ -1,0 +1,22 @@
+<resources>
+    <color name="brand">#6C8CFF</color>
+    <color name="brand_container">#1B294B</color>
+    <color name="on_brand_container">#DCE5FF</color>
+    <color name="app_background">#090E15</color>
+    <color name="surface_card">#121A26</color>
+    <color name="surface_card_alt">#172131</color>
+    <color name="surface_nav">#0F1621</color>
+    <color name="outline_soft">#26344A</color>
+    <color name="text_primary">#F4F7FC</color>
+    <color name="text_secondary">#9DAEC6</color>
+    <color name="text_tertiary">#71839D</color>
+    <color name="outline_subtle">#1C283A</color>
+    <color name="success">#50D890</color>
+    <color name="warning">#F5B955</color>
+    <color name="danger">#FF7A88</color>
+    <color name="transparent">#00000000</color>
+    <color name="input_surface">#101824</color>
+    <color name="input_outline">#233148</color>
+    <color name="skeleton_base">#1A2534</color>
+    <color name="skeleton_highlight">#26364A</color>
+</resources>

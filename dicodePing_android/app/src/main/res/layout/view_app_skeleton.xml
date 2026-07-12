@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="60dp"
+    android:importantForAccessibility="no"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <View
+        android:id="@+id/skeletonAppIcon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/skeleton_round"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/skeletonCheck"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="@drawable/skeleton"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/skeletonAppName"
+        android:layout_width="0dp"
+        android:layout_height="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="18dp"
+        android:background="@drawable/skeleton"
+        app:layout_constraintBottom_toTopOf="@id/skeletonAppPackage"
+        app:layout_constraintEnd_toStartOf="@id/skeletonCheck"
+        app:layout_constraintStart_toEndOf="@id/skeletonAppIcon"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <View
+        android:id="@+id/skeletonAppPackage"
+        android:layout_width="0dp"
+        android:layout_height="9dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="40dp"
+        android:background="@drawable/skeleton"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/skeletonCheck"
+        app:layout_constraintStart_toEndOf="@id/skeletonAppIcon"
+        app:layout_constraintTop_toBottomOf="@id/skeletonAppName" />
+</androidx.constraintlayout.widget.ConstraintLayout>

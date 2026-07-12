@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+release/
+downloaded-artifacts/
+release-assets/
+artifacts/*.json
+*.spec.bak
+
+# Android / Gradle
+.gradle/
+.kotlin/
+.idea/
+**/build/
+local.properties
+captures/
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+
+# Native runtime files are fetched from pinned upstream releases during build.
+core/xray.exe
+core/xray
+core/wintun.dll
+core/geoip.dat
+core/geosite.dat
+core/*.zip
+core/*.dgst
+
+# Signing material and secrets
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+*.log

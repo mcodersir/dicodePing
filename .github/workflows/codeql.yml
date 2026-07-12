@@ -1,0 +1,70 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "21 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  packages: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, java-kotlin]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Validate Gradle wrapper
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Set up Gradle
+        if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@v6
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Download pinned Android Xray core
+        if: matrix.language == 'java-kotlin'
+        working-directory: dicodePing_android
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
+          mkdir -p "$(dirname "$target")"
+          curl --fail --location --retry 4 --retry-all-errors \
+            --output "$target" \
+            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
+          echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
+
+      - name: Build Android for CodeQL
+        if: matrix.language == 'java-kotlin'
+        working-directory: dicodePing_android
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - uses: github/codeql-action/analyze@v4

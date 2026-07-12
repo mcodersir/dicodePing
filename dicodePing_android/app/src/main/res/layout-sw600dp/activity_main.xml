@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background">
+
+    <FrameLayout
+        android:id="@+id/fragmentHost"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        app:layout_constraintBottom_toTopOf="@id/navContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/navContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/surface_nav"
+        android:orientation="vertical"
+        android:paddingTop="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/outline_soft" />
+
+        <LinearLayout
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp">
+
+            <FrameLayout
+                android:id="@+id/navHome"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:contentDescription="@string/nav_home"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navHomeIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_nav_item"
+                    android:contentDescription="@null"
+                    android:duplicateParentState="true"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_home"
+                    app:tint="@color/nav_item_tint" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/navServers"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:contentDescription="@string/nav_servers"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navServersIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_nav_item"
+                    android:contentDescription="@null"
+                    android:duplicateParentState="true"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_servers"
+                    app:tint="@color/nav_item_tint" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/navSettings"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:contentDescription="@string/nav_settings"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navSettingsIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_nav_item"
+                    android:contentDescription="@null"
+                    android:duplicateParentState="true"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_settings"
+                    app:tint="@color/nav_item_tint" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/navAbout"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:contentDescription="@string/nav_about"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navAboutIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_nav_item"
+                    android:contentDescription="@null"
+                    android:duplicateParentState="true"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_info"
+                    app:tint="@color/nav_item_tint" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

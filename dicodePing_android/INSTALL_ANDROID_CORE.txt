@@ -1,0 +1,12 @@
+dicodePing Android uses AndroidLibXrayLite 26.6.2.
+
+Download:
+https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar
+
+Expected SHA-256:
+367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e
+
+Install as:
+local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar
+
+The Gradle preBuild check validates the SHA-256, AAR structure, classes.jar, and native libraries before compilation.

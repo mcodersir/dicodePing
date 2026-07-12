@@ -1,0 +1,134 @@
+<resources>
+
+
+    <style name="Theme.DicodePing" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorPrimaryContainer">@color/brand_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_brand_container</item>
+        <item name="colorSurface">@color/app_background</item>
+        <item name="colorSurfaceContainer">@color/surface_card</item>
+        <item name="colorSurfaceContainerHigh">@color/surface_card_alt</item>
+        <item name="colorOutline">@color/outline_soft</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:fontFamily">@font/vazirmatn</item>
+        <item name="fontFamily">@font/vazirmatn</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/surface_nav</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.DicodePing.Dialog</item>
+        <item name="bottomNavigationStyle">@style/Widget.DicodePing.BottomNavigation</item>
+    </style>
+
+    <style name="Theme.DicodePing.SplashActivity" parent="Theme.DicodePing">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowBackground">@color/app_background</item>
+    </style>
+
+    <style name="ThemeOverlay.DicodePing.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:fontFamily">@font/vazirmatn</item>
+        <item name="fontFamily">@font/vazirmatn</item>
+        <item name="colorSurface">@color/surface_card</item>
+    </style>
+
+    <style name="Widget.DicodePing.TextInput" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
+        <item name="boxBackgroundColor">@color/input_surface</item>
+        <item name="boxCornerRadiusTopStart">14dp</item>
+        <item name="boxCornerRadiusTopEnd">14dp</item>
+        <item name="boxCornerRadiusBottomStart">14dp</item>
+        <item name="boxCornerRadiusBottomEnd">14dp</item>
+        <item name="boxStrokeColor">@color/brand</item>
+        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxStrokeWidthFocused">1dp</item>
+        <item name="hintTextColor">@color/text_secondary</item>
+        <item name="startIconTint">@color/text_tertiary</item>
+        <item name="endIconTint">@color/text_tertiary</item>
+    </style>
+
+    <style name="TextAppearance.DicodePing.Nav" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:fontFamily">@font/vazirmatn</item>
+        <item name="fontFamily">@font/vazirmatn</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearance.DicodePing.Nav.Active" parent="TextAppearance.DicodePing.Nav">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.DicodePing.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/surface_nav</item>
+        <item name="itemIconTint">@color/nav_item_tint</item>
+        <item name="itemTextColor">@color/nav_item_tint</item>
+        <item name="itemTextAppearanceActive">@style/TextAppearance.DicodePing.Nav.Active</item>
+        <item name="itemTextAppearanceInactive">@style/TextAppearance.DicodePing.Nav</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/surface_card</item>
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/outline_soft</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Card.Compact" parent="Widget.DicodePing.Card">
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Card.Flat" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/surface_card_alt</item>
+        <item name="cardCornerRadius">14dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Button.Primary" parent="Widget.Material3.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">14dp</item>
+        <item name="strokeColor">@color/outline_soft</item>
+        <item name="android:textColor">@color/brand</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Button.OutlineCompact" parent="Widget.DicodePing.Button.Secondary" />
+
+    <style name="Widget.DicodePing.ServerCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/surface_card</item>
+        <item name="cardCornerRadius">18dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/outline_soft</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.IconButton" parent="Widget.DicodePing.Button.Secondary">
+        <item name="android:minWidth">48dp</item>
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+    </style>
+
+    <style name="Widget.DicodePing.Button.ServerAction" parent="Widget.DicodePing.Button.Primary" />
+
+
+</resources>

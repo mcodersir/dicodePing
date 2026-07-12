@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">dicodePing</string>
+    <string name="brand_title">dicodePing</string>
+    <string name="brand_subtitle">Fast access for developers and technology users</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_servers">Servers</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_about">About</string>
+
+    <string name="ready_to_connect">Ready to connect</string>
+    <string name="connected">Connected</string>
+    <string name="connecting">Connecting</string>
+    <string name="connection_error">Connection error</string>
+    <string name="connection_status_hint">Choose a server and start a simple, fast connection.</string>
+    <string name="preparing_vpn">Preparing the VPN interface…</string>
+    <string name="connection_active">Connection verified and active</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="connect">Connect</string>
+    <string name="connect_best">Connect automatically</string>
+    <string name="percent_value">%1$d%%</string>
+
+    <string name="refresh_servers">Refresh</string>
+    <string name="ping_servers">Real test</string>
+    <string name="saved_servers">Saved servers</string>
+    <string name="healthy_servers">Healthy servers</string>
+    <string name="best_ping">Best ping</string>
+    <string name="recommended_server">Connection server</string>
+    <string name="no_server">No server is available</string>
+    <string name="session_download">Downloaded</string>
+    <string name="session_upload">Uploaded</string>
+    <string name="connected_ping">Connection ping</string>
+    <string name="connection_overview">Connection overview</string>
+
+    <string name="all_servers">All servers</string>
+    <string name="servers_subtitle">Search, test and connect to available servers</string>
+    <string name="search_servers">Search server name or location</string>
+    <string name="connect_selected">Connect selected server</string>
+    <string name="server_location">Estimated IP location</string>
+    <string name="source">Source</string>
+    <string name="generic_server">Server</string>
+    <string name="selected_server">Selected</string>
+    <string name="favorite_server">Add to favorites</string>
+    <string name="server_results_count">%1$d servers</string>
+    <string name="home_ready_title">Simple, fast connection is ready</string>
+    <string name="home_connecting_title">Establishing connection</string>
+    <string name="home_connected_title">Connection is active</string>
+    <string name="home_error_title">Connection could not be established</string>
+    <string name="secure_server">Server details</string>
+
+    <string name="settings_subtitle">Connection, routing, sources and appearance</string>
+    <string name="settings_connection">Connection</string>
+    <string name="settings_bypass">Routing</string>
+    <string name="settings_sources">Sources</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="language">Language</string>
+    <string name="theme">Theme</string>
+    <string name="connection_mode">Connection mode</string>
+    <string name="connection_mode_help">Automatic chooses the lowest healthy ping. Manual uses your selected server.</string>
+    <string name="automatic">Automatic</string>
+    <string name="manual">Manual</string>
+    <string name="dark">Dark</string>
+    <string name="light">Light</string>
+    <string name="system_default">System</string>
+    <string name="bypass_domains">Sites outside the tunnel</string>
+    <string name="bypass_domains_hint">example.com</string>
+    <string name="bypass_domains_help">Enter one domain per line. These domains use the direct route instead of the proxy.</string>
+    <string name="save_bypass">Save direct-site rules</string>
+    <string name="settings_saved">Settings saved</string>
+
+    <string name="server_sources">Server sources</string>
+    <string name="add_source">Add source</string>
+    <string name="edit_source">Edit source</string>
+    <string name="source_name">Source name</string>
+    <string name="source_url">Subscription URL</string>
+    <string name="save">Save</string>
+    <string name="invalid_source">Enter a name and a valid HTTPS URL.</string>
+
+    <string name="about_text">A lightweight client that provides a simple and fast connection path. It does not guarantee the security or privacy of third-party servers; use and server selection are the user’s responsibility.</string>
+    <string name="developer">Developer</string>
+    <string name="github">GitHub</string>
+    <string name="telegram">Official software channel</string>
+    <string name="version">Version</string>
+    <string name="responsibility">Use of this software and imported subscriptions is the user\'s responsibility.</string>
+
+    <string name="no_server_title">No selectable server</string>
+    <string name="no_server_message">Refresh the server list or select a server in manual mode.</string>
+    <string name="vpn_channel">VPN connection</string>
+    <string name="vpn_permission_required">Android VPN permission has not been granted.</string>
+    <string name="vpn_establish_failed">Android could not create the VPN interface.</string>
+    <string name="core_unavailable">The connection core is missing from this build. Rebuild the app while connected to the internet.</string>
+    <string name="vpn_permission_failed_title">VPN permission was not applied</string>
+    <string name="vpn_permission_failed_message">Android did not confirm VPN access. On MIUI or HyperOS, remove any previous dicodePing VPN permission, force-stop the app, then open it again and approve the system VPN dialog.</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="delete_source">Delete source</string>
+    <string name="starting_connection_core">Starting connection…</string>
+    <string name="invalid_server_config">This server is unavailable. Choose another server.</string>
+    <string name="connection_failed_retry">Connection failed. Try another server.</string>
+    <string name="verifying_connection">Verifying real internet access through the selected server…</string>
+    <string name="connection_verified">Connection verified through the selected server</string>
+    <string name="server_unreachable">The selected server started but could not pass a real internet test. Try another server.</string>
+    <string name="connection_lost">The selected server stopped passing real internet traffic. Connect to another server.</string>
+
+    <string name="splash_subtitle">Simple, fast and lightweight connection</string>
+    <string name="splash_preparing">Preparing the app…</string>
+    <string name="splash_updating_servers">Updating the server list…</string>
+    <string name="splash_testing_servers">Checking server health…</string>
+    <string name="splash_locating_servers">Completing server details…</string>
+
+    <string name="bypass_apps_title">Apps outside the VPN</string>
+    <string name="bypass_apps_help">Selected apps use the original internet connection and bypass the tunnel. Changes apply on the next connection.</string>
+    <string name="choose_bypass_apps">Choose apps</string>
+    <string name="search_apps">Search apps</string>
+    <string name="bypass_apps_dialog_help">Select apps that should not use the VPN.</string>
+    <string name="bypass_app_toggle">Toggle app</string>
+    <string name="no_apps_found">No app found</string>
+    <string name="connect_selected_short">Connect</string>
+    <string name="server_cache_note">The server list refreshes every two days; manual refresh is always available.</string>
+    <plurals name="bypass_apps_count">
+        <item quantity="one">%d app selected</item>
+        <item quantity="other">%d apps selected</item>
+    </plurals>
+    <string name="selected_connection_server">Selected connection server</string>
+    <string name="automatic_connection_server">Automatic connection server</string>
+    <string name="connected_server">Connected server</string>
+    <string name="select_server_for_connection">Select a server from the Servers page.</string>
+    <string name="server_details">Server details</string>
+    <string name="server_temporarily_unavailable">Temporarily unavailable</string>
+    <string name="server_temporarily_unavailable_short">Unavailable</string>
+    <string name="connect_target_server">Connect to this server</string>
+    <string name="search_server">Search by server name or location</string>
+    <string name="test_real">Real test</string>
+
+    <string name="share_logs">Share diagnostic log</string>
+    <string name="clear_logs">Clear log</string>
+    <string name="logs_cleared">Diagnostic log cleared</string>
+    <string name="log_share_failed">Could not share the diagnostic log</string>
+    <string name="server_change_locked">Disconnect before changing the server</string>
+    <string name="navigation_home">Home</string>
+    <string name="connecting_server">Connecting server</string>
+</resources>

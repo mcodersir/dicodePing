@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ always creates a platform launch screen. Make it visually blank and
+         identical to the custom splash so users perceive a single splash screen. -->
+    <style name="Theme.DicodePing.SplashActivity" parent="Theme.DicodePing">
+        <item name="android:windowSplashScreenBackground">@color/app_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_transparent</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/app_background</item>
+        <item name="android:windowBackground">@color/app_background</item>
+    </style>
+</resources>

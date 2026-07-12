@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.DicodePing.ServerCard"
+    android:layout_width="match_parent"
+    android:layout_height="116dp"
+    android:importantForAccessibility="no">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="14dp">
+
+        <View
+            android:id="@+id/skeletonFlag"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/skeleton_round"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/skeletonPing"
+            android:layout_width="72dp"
+            android:layout_height="30dp"
+            android:background="@drawable/skeleton"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/skeletonTitle"
+            android:layout_width="0dp"
+            android:layout_height="13dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/skeleton"
+            app:layout_constraintEnd_toStartOf="@id/skeletonPing"
+            app:layout_constraintStart_toEndOf="@id/skeletonFlag"
+            app:layout_constraintTop_toTopOf="@id/skeletonFlag" />
+
+        <View
+            android:id="@+id/skeletonLocation"
+            android:layout_width="0dp"
+            android:layout_height="10dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/skeleton"
+            app:layout_constraintEnd_toStartOf="@id/skeletonPing"
+            app:layout_constraintStart_toEndOf="@id/skeletonFlag"
+            app:layout_constraintTop_toBottomOf="@id/skeletonTitle" />
+
+        <View
+            android:layout_width="92dp"
+            android:layout_height="10dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="9dp"
+            android:background="@drawable/skeleton"
+            app:layout_constraintStart_toEndOf="@id/skeletonFlag"
+            app:layout_constraintTop_toBottomOf="@id/skeletonLocation" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

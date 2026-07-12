@@ -1,0 +1,94 @@
+package ir.dicode.ping.data
+
+import android.content.Context
+import org.json.JSONArray
+import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
+
+class SettingsStore(context: Context) {
+    private val prefs = context.getSharedPreferences("dicodeping", Context.MODE_PRIVATE)
+
+    var language: String
+        get() = prefs.getString("language", "fa") ?: "fa"
+        set(value) = prefs.edit().putString("language", value).apply()
+    var theme: String
+        get() = prefs.getString("theme", "dark") ?: "dark"
+        set(value) = prefs.edit().putString("theme", value).apply()
+    var connectionMode: String
+        get() = prefs.getString("connection_mode", "auto") ?: "auto"
+        set(value) = prefs.edit().putString("connection_mode", value).apply()
+    var selectedServerId: String
+        get() = prefs.getString("selected_server", "") ?: ""
+        set(value) = prefs.edit().putString("selected_server", value).apply()
+    var bypassDomains: String
+        get() = prefs.getString("bypass_domains", "") ?: ""
+        set(value) = prefs.edit().putString("bypass_domains", value).apply()
+    var bypassApps: Set<String>
+        get() = prefs.getStringSet("bypass_apps", emptySet())?.toSet().orEmpty()
+        set(value) = prefs.edit().putStringSet("bypass_apps", value.toSet()).apply()
+    var lastServerRefreshAt: Long
+        get() = prefs.getLong("last_server_refresh_at", 0L)
+        set(value) = prefs.edit().putLong("last_server_refresh_at", value).apply()
+
+    fun isServerRefreshDue(now: Long = System.currentTimeMillis()): Boolean {
+        if (loadServers().isEmpty()) return true
+        val last = lastServerRefreshAt
+        return last <= 0L || now - last >= SERVER_REFRESH_INTERVAL_MS
+    }
+
+    fun loadSources(): MutableList<SourceDefinition> {
+        val raw = prefs.getString("sources", null)
+        val list = mutableListOf<SourceDefinition>()
+        if (!raw.isNullOrBlank()) runCatching {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) list += SourceDefinition.fromJson(arr.getJSONObject(i))
+        }
+        val default = list.firstOrNull { it.isDefault || it.id == "default" }
+        if (default == null) list.add(0, defaultSource(language))
+        else {
+            default.enabled = true
+            default.name = default.name.ifBlank { if (language == "en") "Primary source" else "منبع اصلی" }
+        }
+        list.sortBy { it.order }
+        list.forEachIndexed { i, s -> s.order = i }
+        return list
+    }
+
+    fun saveSources(sources: List<SourceDefinition>) {
+        val arr = JSONArray()
+        sources.sortedBy { it.order }.forEach { arr.put(it.toJson()) }
+        prefs.edit().putString("sources", arr.toString()).apply()
+    }
+
+    fun loadServers(): List<ServerRecord> {
+        val raw = prefs.getString("servers", "[]") ?: "[]"
+        return runCatching {
+            val arr = JSONArray(raw)
+            List(arr.length()) { ServerRecord.fromJson(arr.getJSONObject(it)) }
+        }.getOrDefault(emptyList())
+    }
+
+    fun saveServers(servers: List<ServerRecord>) {
+        val arr = JSONArray(); servers.forEach { arr.put(it.toJson()) }
+        prefs.edit().putString("servers", arr.toString()).apply()
+    }
+
+    companion object {
+        const val DEFAULT_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
+        val SERVER_REFRESH_INTERVAL_MS: Long = TimeUnit.DAYS.toMillis(2)
+
+        fun defaultSource(language: String = "fa") = SourceDefinition(
+            "default",
+            if (language == "en") "Primary source" else "منبع اصلی",
+            DEFAULT_URL,
+            0,
+            true,
+            true,
+        )
+
+        fun idForUrl(url: String): String {
+            val hash = MessageDigest.getInstance("SHA-256").digest(url.trim().toByteArray())
+            return "src-" + hash.take(6).joinToString("") { "%02x".format(it) }
+        }
+    }
+}

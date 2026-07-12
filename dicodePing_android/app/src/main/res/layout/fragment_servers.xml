@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:id="@+id/serverTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/all_servers"
+                android:textColor="@color/text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toStartOf="@id/serverCount"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+            <TextView
+                android:id="@+id/serverCount"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_brand_pill"
+                android:gravity="center"
+                android:minWidth="52dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="0"
+                android:textColor="@color/brand"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@id/serverTitle"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/serverTitle" />
+            <TextView
+                android:id="@+id/serverSubtitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/servers_subtitle"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/serverTitle" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.DicodePing.Card.Compact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="10dp">
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/searchInput"
+                    style="@style/Widget.DicodePing.TextInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/search_server"
+                    app:startIconDrawable="@drawable/ic_search">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:singleLine="true"
+                        android:textSize="12sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="7dp"
+                    android:scrollbars="none">
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/sourceChips"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:singleLine="true"
+                        app:singleSelection="true" />
+                </HorizontalScrollView>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="7dp"
+                    android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/refresh"
+                        style="@style/Widget.DicodePing.Button.ServerAction"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:text="@string/refresh_servers"
+                        app:icon="@drawable/ic_servers" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/pingAll"
+                        style="@style/Widget.DicodePing.Button.OutlineCompact"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="@string/test_real"
+                        app:icon="@drawable/ic_bolt" />
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/connectSelected"
+                    style="@style/Widget.DicodePing.Button.OutlineCompact"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="7dp"
+                    android:text="@string/connect_selected" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="7dp"
+            android:max="100"
+            android:visibility="gone"
+            app:indicatorColor="@color/brand"
+            app:trackColor="@color/surface_card_alt" />
+
+        <LinearLayout
+            android:id="@+id/skeleton"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:visibility="gone">
+            <include
+                layout="@layout/view_server_skeleton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+            <include
+                layout="@layout/view_server_skeleton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+            <include
+                layout="@layout/view_server_skeleton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/empty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/no_server"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/serverList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingTop="8dp"
+            android:paddingBottom="12dp" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
