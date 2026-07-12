@@ -46,7 +46,7 @@ jobs:
 
   windows:
     name: Build Windows executable
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +75,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
           python tools/build_windows.py --skip-install *>&1 | Tee-Object -FilePath windows-build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload Windows diagnostics
@@ -87,12 +89,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dicodePing-windows
-          path: release/*.exe
+          path: release/dicodePing-v0.1.2-windows.exe
           if-no-files-found: error
 
   android:
-    name: Build Android APKs
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
+    name: Build Android APK
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -116,26 +118,23 @@ jobs:
             "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
           echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
       - run: chmod +x gradlew
-      - name: Lint, test, and build APKs
-        run: ./gradlew --no-daemon --stacktrace lint test assembleDebug assembleRelease
-      - name: Collect Android release files
+      - name: Lint, test, and build APK
+        run: ./gradlew --no-daemon --stacktrace lint test assembleDebug
+      - name: Collect Android installer
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/dicodePing-v0.1.2-android-debug-signed.apk
-          unsigned="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
-          test -n "$unsigned"
-          cp "$unsigned" release/dicodePing-v0.1.2-android-release-unsigned.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release/dicodePing-v0.1.2-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: dicodePing-android
-          path: dicodePing_android/release/*.apk
+          path: dicodePing_android/release/dicodePing-v0.1.2-android.apk
           if-no-files-found: error
 
   publish:
     name: Publish GitHub Release
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/force-v0.1.2'
+    if: github.event_name != 'pull_request'
     needs: [source-quality, windows, android]
     runs-on: ubuntu-latest
     permissions:
@@ -148,28 +147,35 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts
-      - name: Collect release files and checksums
+      - name: Prepare release assets
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          find downloaded-artifacts -type f \( -name '*.exe' -o -name '*.apk' \) -exec cp -v '{}' release-assets/ \;
+          cp downloaded-artifacts/dicodePing-windows/dicodePing-v0.1.2-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-android/dicodePing-v0.1.2-android.apk release-assets/
           python tools/generate_sbom.py
           cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
           cp THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
           zip -q -r release-assets/dicodePing-v0.1.2-licenses.zip LICENSE THIRD_PARTY_NOTICES.md licenses
           (
             cd release-assets
-            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
           )
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.2
           target_commitish: main
-          name: dicodePing v0.1.2
+          name: dicodePing v0.1.2 — First Public Release
           body_path: docs/releases/v0.1.2.md
-          generate_release_notes: true
+          generate_release_notes: false
           make_latest: true
           fail_on_unmatched_files: true
-          files: release-assets/*
+          files: |
+            release-assets/dicodePing-v0.1.2-windows.exe
+            release-assets/dicodePing-v0.1.2-android.apk
+            release-assets/SHA256SUMS
+            release-assets/SBOM.spdx.json
+            release-assets/THIRD_PARTY_NOTICES.md
+            release-assets/dicodePing-v0.1.2-licenses.zip
