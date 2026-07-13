@@ -4,7 +4,10 @@ import statistics
 from typing import Iterable
 
 
-MIN_VALID_LATENCY_MS = 20
+# A successful TCP handshake can genuinely be below 20 ms on a nearby relay.
+# Do not discard it: v2rayNG-style delay tests show the measured delay and
+# leave the caller to decide whether that server is suitable for auto-select.
+MIN_VALID_LATENCY_MS = 1
 MAX_VALID_LATENCY_MS = 5000
 
 
