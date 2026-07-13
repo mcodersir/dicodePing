@@ -141,6 +141,16 @@
             app:indicatorColor="@color/brand"
             app:trackColor="@color/surface_card_alt" />
 
+        <TextView
+            android:id="@+id/progressStage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/skeleton"
             android:layout_width="match_parent"

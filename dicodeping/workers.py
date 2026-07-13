@@ -19,6 +19,10 @@ from .xray import XrayManager
 LOGGER = get_logger("workers")
 
 
+class TaskCancelled(Exception):
+    """Internal cooperative-cancellation signal for background list jobs."""
+
+
 def _flush_windows_dns() -> None:
     if os.name != "nt":
         return
@@ -65,12 +69,18 @@ class TaskThread(QThread):
     failed = Signal(str)
 
     def emit_progress(self, current: int, total: int) -> None:
+        self.checkpoint()
         self.progress.emit(max(0, current), max(total, 1))
 
     def emit_scaled(self, start: int, end: int, current: int, total: int) -> None:
+        self.checkpoint()
         total = max(total, 1)
         ratio = min(1.0, max(0.0, current / total))
         self.progress.emit(int(round(start + (end - start) * ratio)), 100)
+
+    def checkpoint(self) -> None:
+        if self.isInterruptionRequested():
+            raise TaskCancelled()
 
 
 class DiscoverThread(TaskThread):
@@ -82,12 +92,14 @@ class DiscoverThread(TaskThread):
 
     def run(self) -> None:
         try:
+            self.checkpoint()
             configs = discover_config_entries(
                 self.sources,
                 stage=self.stage.emit,
                 progress=lambda current, total: self.emit_scaled(0, 22, current, total),
                 language=self.language,
             )
+            self.checkpoint()
             servers = self.service.build_and_save(
                 configs,
                 stage=self.stage.emit,
@@ -95,8 +107,11 @@ class DiscoverThread(TaskThread):
                 ping_progress=lambda current, total: self.emit_scaled(22, 72, current, total),
                 geo_progress=lambda current, total: self.emit_scaled(72, 100, current, total),
             )
+            self.checkpoint()
             self.progress.emit(100, 100)
             self.success.emit(servers)
+        except TaskCancelled:
+            LOGGER.info("Background task cancelled: %s", type(self).__name__)
         except Exception as exc:
             LOGGER.exception("Background task failed: %s", type(self).__name__)
             self.failed.emit(str(exc))
@@ -110,14 +125,18 @@ class RefreshThread(TaskThread):
 
     def run(self) -> None:
         try:
+            self.checkpoint()
             servers = self.service.refresh_saved(
                 stage=self.stage.emit,
                 language=self.language,
                 ping_progress=lambda current, total: self.emit_scaled(0, 68, current, total),
                 geo_progress=lambda current, total: self.emit_scaled(68, 100, current, total),
             )
+            self.checkpoint()
             self.progress.emit(100, 100)
             self.success.emit(servers)
+        except TaskCancelled:
+            LOGGER.info("Background task cancelled: %s", type(self).__name__)
         except Exception as exc:
             LOGGER.exception("Background task failed: %s", type(self).__name__)
             self.failed.emit(str(exc))

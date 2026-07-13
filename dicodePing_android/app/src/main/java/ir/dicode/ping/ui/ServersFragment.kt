@@ -90,7 +90,17 @@ class ServersFragment : Fragment() {
                     vm.repo.progress.collect { progress ->
                         binding.progress.visibility = if (progress.active) View.VISIBLE else View.GONE
                         binding.progress.progress = progress.percent
-                        val showSkeleton = progress.active && progress.stage in setOf("download", "ping", "geo")
+                        binding.progressStage.visibility = if (progress.active) View.VISIBLE else View.GONE
+                        binding.progressStage.text = when (progress.stage) {
+                            "download" -> getString(R.string.stage_downloading, progress.done, progress.total)
+                            "geo" -> getString(R.string.stage_location, progress.done, progress.total)
+                            "ping" -> getString(R.string.stage_ping, progress.done, progress.total)
+                            else -> progress.message
+                        }
+                        // Keep populated rows visible during location/ping stages so results
+                        // animate in-place. Skeletons are only useful before first download.
+                        val showSkeleton = progress.active && progress.stage == "download" &&
+                            vm.repo.servers.value.isEmpty()
                         binding.skeleton.visibility = if (showSkeleton) View.VISIBLE else View.GONE
                         binding.serverList.visibility = if (showSkeleton) View.INVISIBLE else View.VISIBLE
                         binding.refresh.isEnabled = !progress.active

@@ -4,6 +4,8 @@ import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.DiffUtil
@@ -100,6 +102,23 @@ class ServerAdapter(
 
     private fun bindPing(binding: ItemServerBinding, server: ServerRecord) {
         val context = binding.root.context
+        binding.ping.clearAnimation()
+        binding.ping.alpha = 1f
+        if (server.testState == ServerRecord.TEST_RUNNING) {
+            val color = ContextCompat.getColor(context, R.color.brand)
+            binding.ping.text = context.getString(R.string.testing_server)
+            binding.ping.setTextColor(color)
+            binding.ping.background = GradientDrawable().apply {
+                cornerRadius = dp(binding.ping, 12).toFloat()
+                setColor(ColorUtils.setAlphaComponent(color, 28))
+            }
+            binding.ping.startAnimation(AlphaAnimation(1f, 0.35f).apply {
+                duration = 520
+                repeatCount = Animation.INFINITE
+                repeatMode = Animation.REVERSE
+            })
+            return
+        }
         val (colorRes, label) = when (val delay = server.pingMs) {
             null -> R.color.text_secondary to context.getString(R.string.server_temporarily_unavailable)
             in 1..180 -> R.color.success to "$delay ms"
@@ -113,6 +132,11 @@ class ServerAdapter(
             cornerRadius = dp(binding.ping, 12).toFloat()
             setColor(ColorUtils.setAlphaComponent(color, 28))
         }
+    }
+
+    override fun onViewRecycled(holder: Holder) {
+        holder.binding.ping.clearAnimation()
+        super.onViewRecycled(holder)
     }
 
     private fun dp(view: View, value: Int): Int =

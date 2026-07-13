@@ -34,6 +34,7 @@ class AppRepository private constructor(context: Context) {
     private val geo = GeoResolver()
     private val proxyProbe = CoreBridge(app)
     private val refreshMutex = Mutex()
+    private val liveUpdateMutex = Mutex()
 
     val sources = MutableStateFlow(settings.loadSources().toList())
     val servers = MutableStateFlow(
@@ -77,13 +78,15 @@ class AppRepository private constructor(context: Context) {
             if (snapshot.isEmpty()) return@withLock
             if (refreshDue || snapshot.none(::isAutoEligible)) {
                 val startup = rankStartupCandidates(snapshot)
-                pingAndLocate(startup, mergeWithExisting = true)
+                locateServers(startup, mergeWithExisting = true)
+                pingServers(startup)
                 val tested = startup.asSequence().map { it.id }.toHashSet()
                 val remaining = servers.value.filterNot { it.id in tested }
                 if (remaining.isNotEmpty()) {
                     scope.launch {
                         refreshMutex.withLock {
-                            pingAndLocate(remaining, mergeWithExisting = true)
+                            locateServers(remaining, mergeWithExisting = true)
+                            pingServers(remaining)
                         }
                     }
                 }
@@ -99,11 +102,10 @@ class AppRepository private constructor(context: Context) {
                 refreshServersInternal()
                 val snapshot = servers.value
                 if (snapshot.isEmpty()) return@withLock
-                val startup = rankStartupCandidates(snapshot)
-                pingAndLocate(startup, mergeWithExisting = true)
-                val tested = startup.asSequence().map { it.id }.toHashSet()
-                val remaining = servers.value.filterNot { it.id in tested }
-                if (remaining.isNotEmpty()) pingAndLocate(remaining, mergeWithExisting = true)
+                // Manual refresh is intentionally one visible, deterministic pipeline:
+                // download -> location -> bounded concurrent real proxy tests.
+                locateServers(snapshot, mergeWithExisting = true)
+                pingServers(servers.value)
             }
         }
     }
@@ -115,38 +117,39 @@ class AppRepository private constructor(context: Context) {
         val discovered = mutableListOf<ServerRecord>()
         var successfulSources = 0
 
-        enabled.forEachIndexed { sourceIndex, source ->
-            progress.value = ProgressState(true, "download", sourceIndex, enabled.size, source.name)
-            runCatching {
-                val text = downloader.download(source.url) { read, total ->
-                    val local = if (total > 0) ((read * 100) / total).toInt() else 0
-                    progress.value = ProgressState(
-                        true,
-                        "download",
-                        sourceIndex * 100 + local,
-                        enabled.size * 100,
-                        source.name,
-                    )
-                }
-                ConfigParser.decodeSubscription(text).forEach { raw ->
-                    ConfigParser.parse(raw)?.let { parsed ->
-                        discovered += ServerRecord(
-                            id = idForRaw(raw),
-                            raw = raw,
-                            name = parsed.name,
-                            protocol = parsed.protocol.uppercase(),
-                            host = parsed.host,
-                            port = parsed.port,
-                            sourceId = source.id,
-                            sourceName = source.name,
-                        )
+        progress.value = ProgressState(true, "download", 0, enabled.size, "Downloading servers")
+        val completed = AtomicInteger(0)
+        val downloadSem = Semaphore(DOWNLOAD_CONCURRENCY)
+        val sourceResults = coroutineScope {
+            enabled.mapIndexed { sourceIndex, source ->
+                async(Dispatchers.IO) {
+                    downloadSem.withPermit {
+                        val downloadResult = runCatching {
+                            val text = downloader.download(source.url) { _, _ -> Unit }
+                            ConfigParser.decodeSubscription(text).mapNotNull { raw ->
+                                ConfigParser.parse(raw)?.let { parsed ->
+                                    ServerRecord(
+                                        id = idForRaw(raw), raw = raw, name = parsed.name,
+                                        protocol = parsed.protocol.uppercase(), host = parsed.host,
+                                        port = parsed.port, sourceId = source.id, sourceName = source.name,
+                                    )
+                                }
+                            }
+                        }.onFailure {
+                            AppLog.w("Repository", "Source failed: ${source.name}", it)
+                            error.value = "${source.name}: ${it.message}"
+                        }
+                        val rows = downloadResult.getOrDefault(emptyList())
+                        val done = completed.incrementAndGet()
+                        progress.value = ProgressState(true, "download", done, enabled.size, source.name)
+                        Triple(sourceIndex, rows, downloadResult.isSuccess)
                     }
                 }
-                successfulSources++
-            }.onFailure {
-                AppLog.w("Repository", "Source failed: ${source.name}", it)
-                error.value = "${source.name}: ${it.message}"
-            }
+            }.awaitAll()
+        }.sortedBy { it.first }
+        sourceResults.forEach { (_, rows, success) ->
+            discovered += rows
+            if (success) successfulSources++
         }
 
         if (discovered.isNotEmpty()) {
@@ -171,7 +174,9 @@ class AppRepository private constructor(context: Context) {
                     )
                 } ?: fresh
             }
-            servers.value = sortServers(unique)
+            // Keep source order stable until the final ping stage. This prevents rows from
+            // jumping while location and latency results arrive.
+            servers.value = unique
             settings.saveServers(servers.value)
             if (successfulSources > 0) settings.lastServerRefreshAt = System.currentTimeMillis()
         } else if (servers.value.isEmpty()) {
@@ -213,11 +218,17 @@ class AppRepository private constructor(context: Context) {
     fun pingAll() {
         if (!progress.value.active) {
             AppLog.i("Repository", "Real server test requested for ${servers.value.size} servers")
-            scope.launch { refreshMutex.withLock { pingAndLocate(servers.value, mergeWithExisting = true) } }
+            scope.launch {
+                refreshMutex.withLock {
+                    val missingLocation = servers.value.filter { it.ip.isBlank() || it.countryCode.isBlank() }
+                    if (missingLocation.isNotEmpty()) locateServers(missingLocation, mergeWithExisting = true)
+                    pingServers(servers.value)
+                }
+            }
         }
     }
 
-    private suspend fun pingAndLocate(
+    private suspend fun locateServers(
         input: List<ServerRecord>,
         mergeWithExisting: Boolean = false,
     ) = coroutineScope {
@@ -228,47 +239,27 @@ class AppRepository private constructor(context: Context) {
         }
 
         try {
-            val done = AtomicInteger(0)
-            val sem = Semaphore(4)
-            val pinged = input.map { server ->
+            progress.value = ProgressState(true, "geo", 0, total, "Resolving server locations")
+            val dnsDone = AtomicInteger(0)
+            val dnsSem = Semaphore(DNS_CONCURRENCY)
+            val resolved = input.map { server ->
                 async(Dispatchers.IO) {
-                    sem.withPermit {
+                    dnsSem.withPermit {
                         val ip = runCatching {
                             InetAddress.getByName(server.host).hostAddress.orEmpty()
                         }.getOrDefault("")
-                        val delay = runCatching {
-                            proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
-                        }.getOrDefault(-1L)
-
-                        val pingMs = delay
-                            .takeIf { it in 1..60_000 }
-                            ?.coerceAtMost(Int.MAX_VALUE.toLong())
-                            ?.toInt()
                         progress.value = ProgressState(
-                            true,
-                            "ping",
-                            done.incrementAndGet(),
-                            total,
-                            server.name,
+                            true, "geo", dnsDone.incrementAndGet(), total, server.name,
                         )
-                        server.copy(
-                            ip = ip,
-                            pingMs = pingMs,
-                            pingKind = if (pingMs != null) REAL_PROXY_PING else "",
-                            healthy = pingMs != null,
-                        )
+                        server.copy(ip = ip)
                     }
                 }
             }.awaitAll()
+            applyServerUpdates(resolved, mergeWithExisting, sort = false)
 
-            applyServerUpdates(pinged, mergeWithExisting)
-
-            val byIp = pinged
-                .filter { it.healthy && it.ip.isNotBlank() }
-                .map { it.ip }
-                .distinct()
+            val byIp = resolved.filter { it.ip.isNotBlank() }.map { it.ip }.distinct()
             val geoDone = AtomicInteger(0)
-            val geoSem = Semaphore(6)
+            val geoSem = Semaphore(GEO_CONCURRENCY)
             val geoByIp = byIp.map { ip ->
                 async(Dispatchers.IO) {
                     geoSem.withPermit {
@@ -277,7 +268,7 @@ class AppRepository private constructor(context: Context) {
                             true,
                             "geo",
                             geoDone.incrementAndGet(),
-                            byIp.size,
+                            byIp.size.coerceAtLeast(1),
                             ip,
                         )
                         ip to result
@@ -285,7 +276,7 @@ class AppRepository private constructor(context: Context) {
                 }
             }.awaitAll().toMap()
 
-            val located = pinged.map { server ->
+            val located = resolved.map { server ->
                 geoByIp[server.ip]?.let { g ->
                     server.copy(
                         country = g.country,
@@ -298,20 +289,94 @@ class AppRepository private constructor(context: Context) {
                     )
                 } ?: server
             }
-            applyServerUpdates(located, mergeWithExisting)
+            applyServerUpdates(located, mergeWithExisting, sort = false)
         } finally {
             progress.value = ProgressState()
         }
     }
 
-    private fun applyServerUpdates(updated: List<ServerRecord>, mergeWithExisting: Boolean) {
+    private suspend fun pingServers(input: List<ServerRecord>) = coroutineScope {
+        if (input.isEmpty()) return@coroutineScope
+        val inputIds = input.mapTo(HashSet()) { it.id }
+        // Emit testing state without reordering. Existing rows remain visible and selected.
+        liveUpdateMutex.withLock {
+            servers.value = servers.value.map { current ->
+                if (current.id in inputIds) current.copy(
+                    pingMs = null, pingKind = "", healthy = false,
+                    testState = ServerRecord.TEST_RUNNING,
+                ) else current
+            }
+        }
+
+        try {
+            val done = AtomicInteger(0)
+            val sem = Semaphore(REAL_PROBE_CONCURRENCY)
+            progress.value = ProgressState(true, "ping", 0, input.size, "Testing servers")
+            input.map { server ->
+                async(Dispatchers.IO) {
+                    sem.withPermit {
+                        val delay = runCatching {
+                            proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
+                        }.getOrDefault(-1L)
+                        val pingMs = delay.takeIf { it in 1..60_000 }
+                            ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
+                        val updated = server.copy(
+                            pingMs = pingMs,
+                            pingKind = if (pingMs != null) REAL_PROXY_PING else "",
+                            healthy = pingMs != null,
+                            testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                        )
+                        liveUpdateMutex.withLock {
+                            servers.value = servers.value.map { current ->
+                                if (current.id == updated.id) updated.copy(
+                                    ip = current.ip.ifBlank { updated.ip },
+                                    country = current.country.ifBlank { updated.country },
+                                    countryCode = current.countryCode.ifBlank { updated.countryCode },
+                                    region = current.region.ifBlank { updated.region },
+                                    city = current.city.ifBlank { updated.city },
+                                    isp = current.isp.ifBlank { updated.isp },
+                                    asn = current.asn.ifBlank { updated.asn },
+                                    geoConfidence = current.geoConfidence.ifBlank { updated.geoConfidence },
+                                    favorite = current.favorite,
+                                ) else current
+                            }
+                        }
+                        progress.value = ProgressState(
+                            true, "ping", done.incrementAndGet(), input.size, server.name,
+                        )
+                    }
+                }
+            }.awaitAll()
+            liveUpdateMutex.withLock {
+                servers.value = sortServers(servers.value)
+                settings.saveServers(servers.value)
+            }
+        } finally {
+            liveUpdateMutex.withLock {
+                servers.value = servers.value.map { current ->
+                    if (current.testState == ServerRecord.TEST_RUNNING) {
+                        current.copy(testState = ServerRecord.TEST_FAILED)
+                    } else {
+                        current
+                    }
+                }
+            }
+            progress.value = ProgressState()
+        }
+    }
+
+    private fun applyServerUpdates(
+        updated: List<ServerRecord>,
+        mergeWithExisting: Boolean,
+        sort: Boolean = true,
+    ) {
         val next = if (mergeWithExisting) {
             val byId = updated.associateBy { it.id }
             servers.value.map { current -> byId[current.id] ?: current }
         } else {
             updated
         }
-        servers.value = sortServers(next)
+        servers.value = if (sort) sortServers(next) else next
         settings.saveServers(servers.value)
     }
 
@@ -410,6 +475,10 @@ class AppRepository private constructor(context: Context) {
         private const val STARTUP_REAL_PROBE_LIMIT = 18
         private const val STARTUP_PREFILTER_CONCURRENCY = 24
         private const val STARTUP_CONNECT_TIMEOUT_MS = 900
+        private const val DOWNLOAD_CONCURRENCY = 4
+        private const val DNS_CONCURRENCY = 32
+        private const val GEO_CONCURRENCY = 8
+        private const val REAL_PROBE_CONCURRENCY = 12
 
         @Volatile
         private var instance: AppRepository? = null

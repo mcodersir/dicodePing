@@ -7,10 +7,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc5_changes_only_release_sequence(self) -> None:
+    def test_android_rc6_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 8", gradle)
+        repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
+        adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
+        self.assertIn("versionCode = 9", gradle)
         self.assertIn('versionName = "0.1.3"', gradle)
+        refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
+        self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
+        self.assertLess(refresh.index("locateServers("), refresh.index("pingServers("))
+        self.assertIn("REAL_PROBE_CONCURRENCY = 12", repository)
+        self.assertIn("testState = ServerRecord.TEST_RUNNING", repository)
+        self.assertIn("Animation.INFINITE", adapter)
+
+    def test_desktop_workers_cancel_cooperatively(self) -> None:
+        workers = (ROOT / "dicodeping/workers.py").read_text(encoding="utf-8")
+        runtime = (ROOT / "dicodeping/rc6_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("class TaskCancelled", workers)
+        self.assertIn("self.isInterruptionRequested()", workers)
+        self.assertIn("event.ignore()", runtime)
+        self.assertIn("worker.finished.connect", runtime)
 
     def test_windows_startup_owns_preparation(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")

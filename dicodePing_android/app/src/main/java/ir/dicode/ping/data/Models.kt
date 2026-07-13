@@ -44,6 +44,8 @@ data class ServerRecord(
     var geoConfidence: String = "",
     var healthy: Boolean = false,
     var favorite: Boolean = false,
+    /** Ephemeral UI state; deliberately not persisted between app launches. */
+    var testState: String = TEST_IDLE,
 ) {
     fun toJson() = JSONObject().apply {
         put("id", id); put("raw", raw); put("name", name); put("protocol", protocol)
@@ -63,8 +65,12 @@ data class ServerRecord(
             ip=o.optString("ip"), country=o.optString("country"), countryCode=o.optString("countryCode"),
             region=o.optString("region"), city=o.optString("city"), isp=o.optString("isp"),
             asn=o.optString("asn"), geoConfidence=o.optString("geoConfidence"),
-            healthy=o.optBoolean("healthy"), favorite=o.optBoolean("favorite")
+            healthy=o.optBoolean("healthy"), favorite=o.optBoolean("favorite"), testState=TEST_IDLE
         )
+
+        const val TEST_IDLE = "idle"
+        const val TEST_RUNNING = "running"
+        const val TEST_FAILED = "failed"
     }
 }
 
