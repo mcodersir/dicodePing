@@ -19,4 +19,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt
-      - run:
+      - run: python tools/verify_version.py
+      -
