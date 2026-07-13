@@ -1,0 +1,169 @@
+name: v0.1.3-rc.3 Pre-release Publish
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/release-v013-rc3-trigger.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v013-rc3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source:
+    name: Source tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python tools/verify_version.py
+      - run: python -m compileall -q app.py app_rc2.py app_rc3.py dicodeping shared tools tests
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/quality_gate.py
+
+  windows:
+    name: Build Windows 0.1.3 rc.3
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+      - shell: pwsh
+        run: |
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/verify_version.py
+          python -m unittest discover -s tests -v
+          python tools/quality_gate.py
+          python tools/build_windows.py --skip-install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-v0.1.3-windows-rc3
+          path: release/dicodePing-v0.1.3-windows.exe
+          if-no-files-found: error
+
+  android:
+    name: Build one universal JKS-signed Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dicodePing_android
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dicodePing-release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPECTED_CERT_SHA256: 0A:48:33:17:EE:0B:D0:E2:AE:A4:8D:2B:E7:2C:30:F2:06:D3:CC:EB:3F:17:8E:A1:8C:A2:2A:17:D6:CD:FC:C0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore stable Android release JKS
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+      - name: Verify stable signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | awk -F': ' '/SHA256:/{print $2; exit}')"
+          test "$actual" = "$EXPECTED_CERT_SHA256"
+      - name: Download pinned Android Xray core
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
+          mkdir -p "$(dirname "$target")"
+          curl --fail --location --retry 4 --retry-all-errors --output "$target" "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
+          echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
+      - name: Build signed universal release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace lint test assembleRelease
+          mapfile -t apks < <(find app/build/outputs/apk/release -type f -name '*.apk' -print)
+          test "${#apks[@]}" -eq 1
+          apk="${apks[0]}"
+          jarsigner -verify -strict -certs "$apk" >/dev/null
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            unzip -l "$apk" | grep -q "lib/$abi/"
+          done
+          mkdir -p release
+          cp "$apk" release/dicodePing-v0.1.3-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-v0.1.3-android-rc3
+          path: dicodePing_android/release/dicodePing-v0.1.3-android.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish v0.1.3-rc.3
+    needs:
+      - source
+      - windows
+      - android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp downloaded-artifacts/dicodePing-v0.1.3-windows-rc3/dicodePing-v0.1.3-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-v0.1.3-android-rc3/dicodePing-v0.1.3-android.apk release-assets/
+          cd release-assets
+          sha256sum dicodePing-v0.1.3-windows.exe dicodePing-v0.1.3-android.apk > SHA256SUMS
+      - name: Publish GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.3-rc.3
+          target_commitish: main
+          name: dicodePing v0.1.3-rc.3 — Pre-release
+          body_path: docs/releases/v0.1.3-rc.3.md
+          prerelease: true
+          draft: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/dicodePing-v0.1.3-windows.exe
+            release-assets/dicodePing-v0.1.3-android.apk
+            release-assets/SHA256SUMS
