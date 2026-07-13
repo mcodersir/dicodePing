@@ -30,12 +30,22 @@ def _tcp_samples(ip: str, port: int, attempts: int = 3, timeout: float = 1.4) ->
 
 
 def _probe_server(key: str, host: str, port: int):
+    """Measure one profile endpoint, the same way a TCP-delay test does.
+
+    Profiles sharing a hostname may use different ports, so the probe key must
+    be the profile id (not the hostname).  A median of several handshakes makes
+    the refresh button stable while still preserving valid low-latency results.
+    """
     addresses = net_module.resolve_all_ipv4(host)[:4]
     choices: list[tuple[int, str]] = []
-    for ip in addresses:
-        tcp = median_latency(_tcp_samples(ip, port))
-        if tcp is not None:
-            choices.append((tcp, ip))
+    direct_routes = net_module.install_direct_host_routes(addresses)
+    try:
+        for ip in addresses:
+            tcp = median_latency(_tcp_samples(ip, port))
+            if tcp is not None:
+                choices.append((tcp, ip))
+    finally:
+        net_module.remove_direct_host_routes(direct_routes)
     if not choices:
         return net_module.PingResult(key, None, addresses[0] if addresses else "dns")
     trusted = [row for row in choices if service_module.MIN_TRUSTED_AUTO_PING_MS <= row[0] <= service_module.MAX_TRUSTED_AUTO_PING_MS]
@@ -48,13 +58,17 @@ def _install_service_patch() -> None:
 
     def refresh(self, *args, **kwargs):
         records = self.store.load_servers()
-        port_map = {server.host: int(server.port or 443) for server in records if server.host}
-        items = list(dict.fromkeys(server.host for server in records if server.host))
+        # Do not collapse by hostname: subscriptions commonly place multiple
+        # distinct profiles behind one domain on separate ports.
+        items = [(server.id, server.host, int(server.port or 443)) for server in records if server.host]
         callback = kwargs.get("ping_progress") or kwargs.get("progress")
         results = []
         done = 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(48, len(items) or 1))) as pool:
-            futures = {pool.submit(_probe_server, host, host, port_map.get(host, 443)): host for host in items}
+            futures = {
+                pool.submit(_probe_server, server_id, host, port): server_id
+                for server_id, host, port in items
+            }
             for future in concurrent.futures.as_completed(futures):
                 try:
                     results.append(future.result())
@@ -65,11 +79,11 @@ def _install_service_patch() -> None:
                     callback(done, len(items))
         result_map = {result.key: result for result in results}
         for server in records:
-            result = result_map.get(server.host)
+            result = result_map.get(server.id)
             server.last_checked = service_module.utc_now()
             if result and result.ip:
                 server.ip = result.ip
-            if result and trusted_latency(result.ping_ms, service_module.MIN_TRUSTED_AUTO_PING_MS):
+            if result and trusted_latency(result.ping_ms):
                 server.ping_ms = result.ping_ms
                 server.status = "online"
                 server.failures = 0
@@ -149,7 +163,7 @@ def _install_ui_patch() -> None:
             if result and result.ping_ms is not None:
                 server.ping_ms = result.ping_ms
                 server.ip = result.ip or server.ip
-                server.status = "online" if trusted_latency(result.ping_ms, service_module.MIN_TRUSTED_AUTO_PING_MS) else "unverified"
+                server.status = "online" if trusted_latency(result.ping_ms) else "unverified"
                 self.store.save_servers(self.servers)
                 self.render_servers()
                 self.footer_state.setText(f"{server.name}: {result.ping_ms} ms")
@@ -176,7 +190,10 @@ def _install_ui_patch() -> None:
         for row in range(self.table.rowCount()):
             button = self.table.cellWidget(row, 6)
             if button:
-                button.setMinimumWidth(84)
+                # Keep the Persian label intact; on small windows the table
+                # scrolls horizontally instead of clipping the action.
+                button.setMinimumWidth(108)
+                button.setMinimumHeight(34)
 
     def resize(self, event):
         original_resize(self, event)
