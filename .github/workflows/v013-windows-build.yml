@@ -1,23 +1,40 @@
-name: v0.1.3 Windows Build
+name: Build Windows rc.3
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  source:
-    name: Source tests
-    runs-on: ubuntu-latest
+  build:
+    name: Build Windows installer
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -r requirements.txt
-      - run: python tools/verify_version.py
-      -
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+      - name: Validate and build
+        shell: pwsh
+        run: |
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/verify_version.py
+          python -m unittest discover -s tests -v
+          python tools/quality_gate.py
+          python tools/build_windows.py --skip-install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dicodePing-v0.1.3-rc.3-windows
+          path: release/dicodePing-v0.1.3-windows.exe
+          if-no-files-found: error
