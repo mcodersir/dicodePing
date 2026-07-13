@@ -1,1 +1,1 @@
-v0.1.3-rc.2 Windows discovery, ping, naming, home selection, and disconnect UX release trigger.
+v0.1.3-rc.2 release execution: Windows naming, detection, geolocation, routed ping, Home selection, and asynchronous disconnect fixes.
