@@ -1,0 +1,2 @@
+dicodePing v0.1.3-rc.1
+Build Windows 0.1.3 and one universal JKS-signed Android 0.1.3 APK, then publish the verified pre-release.
