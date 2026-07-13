@@ -45,12 +45,15 @@ def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
     if not manager.connected:
         return False
     _flush_windows_dns()
-    waits = (0.15, 0.35, 0.7, 1.2)
+    # Race several endpoints once.  Repeating long 5.5-second probes made a
+    # healthy Windows TUN look broken whenever a single public endpoint was
+    # filtered or slow.
+    waits = (0.2, 0.6, 1.0)
     for wait in waits:
         time.sleep(wait)
         if not manager.connected:
             return False
-        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=5.5, attempts=2):
+        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=3.2, attempts=1):
             return True
     return False
 
