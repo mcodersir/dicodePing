@@ -1,4 +1,4 @@
-name: Build Windows rc.4
+name: Build Windows rc.5
 
 on:
   workflow_dispatch:
@@ -35,6 +35,6 @@ jobs:
           python tools/build_windows.py --skip-install
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-v0.1.3-rc.4-windows
+          name: dicodePing-v0.1.3-rc.5-windows
           path: release/dicodePing-v0.1.3-windows.exe
           if-no-files-found: error

@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 from dicodeping.constants import DEFAULT_SUBSCRIPTION_URL, XRAY_VERSION
 from dicodeping.discovery import normalize_subscription_urls
-from dicodeping.models import DiscoveredConfig, SourceDefinition
-from dicodeping.net import PingResult
+from dicodeping.models import DiscoveredConfig
+from dicodeping.net import PingResult, resolve_all_ips, resolve_all_ipv4
 from dicodeping.protocols import blob_to_config, build_xray_outbound, decode_subscription, normalize_key, parse_endpoint
 from dicodeping.service import ServerService
 from dicodeping.sources import normalize_sources, serialize_sources
@@ -21,6 +21,7 @@ from dicodeping.xray import (
     TUN_NAME,
     XrayManager,
     _parse_sha256_digest,
+    _core_version_matches,
     _pinned_asset_url,
     build_tun_config,
     ensure_wintun,
@@ -51,6 +52,23 @@ class FakeGeo:
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_endpoint_resolution_keeps_ipv6_for_tcp_probes(self) -> None:
+        rows = [
+            (2, 1, 6, "", ("192.0.2.1", 0)),
+            (10, 1, 6, "", ("2001:db8::1", 0, 0, 0)),
+        ]
+        with patch("dicodeping.net.socket.getaddrinfo", return_value=rows):
+            self.assertEqual(resolve_all_ips("example.test"), ["192.0.2.1", "2001:db8::1"])
+            self.assertEqual(resolve_all_ipv4("example.test"), ["192.0.2.1"])
+
+    def test_xray_core_version_must_match_pinned_release(self) -> None:
+        current = subprocess.CompletedProcess([], 0, stdout=f"Xray {XRAY_VERSION} (test)", stderr="")
+        stale = subprocess.CompletedProcess([], 0, stdout="Xray 25.1.1 (test)", stderr="")
+        with patch("dicodeping.xray.subprocess.run", return_value=current):
+            self.assertTrue(_core_version_matches(Path("xray")))
+        with patch("dicodeping.xray.subprocess.run", return_value=stale):
+            self.assertFalse(_core_version_matches(Path("xray")))
+
     def test_xray_download_is_version_pinned_and_digest_parsed(self) -> None:
         with patch("dicodeping.xray._asset_name", return_value="Xray-windows-64.zip"):
             name, url = _pinned_asset_url()

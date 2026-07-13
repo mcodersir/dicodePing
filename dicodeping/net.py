@@ -18,6 +18,7 @@ from typing import Callable, Iterable
 from .constants import PING_ATTEMPTS, PING_TIMEOUT
 
 DownloadProgress = Callable[[int, int], None]
+MAX_TEXT_DOWNLOAD_BYTES = 16 * 1024 * 1024
 
 
 
@@ -137,6 +138,8 @@ def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | Non
             total = int(response.headers.get("Content-Length") or 0)
         except (TypeError, ValueError):
             total = 0
+        if total > MAX_TEXT_DOWNLOAD_BYTES:
+            raise RuntimeError("پاسخ منبع بیش از حد بزرگ است")
         chunks: list[bytes] = []
         received = 0
         if progress:
@@ -147,6 +150,8 @@ def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | Non
                 break
             chunks.append(chunk)
             received += len(chunk)
+            if received > MAX_TEXT_DOWNLOAD_BYTES:
+                raise RuntimeError("پاسخ منبع بیش از حد بزرگ است")
             if progress:
                 progress(received, total)
         if progress:
@@ -198,9 +203,9 @@ def is_any_url_reachable_parallel(
     return False
 
 
-def resolve_all_ipv4(host: str) -> list[str]:
+def resolve_all_ips(host: str) -> list[str]:
     try:
-        infos = socket.getaddrinfo(host, None, socket.AF_INET, socket.SOCK_STREAM)
+        infos = socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
     except OSError:
         return []
     result: list[str] = []
@@ -211,6 +216,10 @@ def resolve_all_ipv4(host: str) -> list[str]:
         if value and value not in result:
             result.append(value)
     return result
+
+
+def resolve_all_ipv4(host: str) -> list[str]:
+    return [value for value in resolve_all_ips(host) if ":" not in value]
 
 
 def resolve_ipv4(host: str) -> str:

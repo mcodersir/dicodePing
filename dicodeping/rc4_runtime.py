@@ -4,11 +4,9 @@ import concurrent.futures
 import socket
 import time
 
-from PySide6.QtCore import Qt
-
 from . import net as net_module
 from . import service as service_module
-from .protocols import blob_to_config, parse_endpoint
+from .protocols import blob_to_config
 from .rc2_core import extract_display_name
 from .rc3_core import median_latency, trusted_latency
 from .rc4_core import preferred_display_name, usable_for_auto
@@ -28,9 +26,9 @@ def _tcp_samples(ip: str, port: int, attempts: int = 2, timeout: float = 0.9) ->
     return values
 
 
-def _probe_endpoint(host: str, port: int) -> tuple[int | None, str]:
+def _probe_endpoint(host: str, port: int, addresses: list[str] | None = None) -> tuple[int | None, str]:
     """Fast, real TCP handshake probe for one unique endpoint."""
-    addresses = net_module.resolve_all_ipv4(host)[:2]
+    addresses = list(addresses if addresses is not None else net_module.resolve_all_ips(host)[:2])
     choices: list[tuple[int, str]] = []
     for ip in addresses:
         latency = median_latency(_tcp_samples(ip, port))
@@ -66,19 +64,29 @@ def _install_service_patch() -> None:
         callback = kwargs.get("ping_progress") or kwargs.get("progress")
         results: dict[tuple[str, int], tuple[int | None, str]] = {}
         done = 0
+        resolved = {endpoint: net_module.resolve_all_ips(endpoint[0])[:2] for endpoint in endpoints}
+        direct_routes = net_module.install_direct_host_routes(
+            ip for addresses in resolved.values() for ip in addresses
+        )
         # Deduplicating endpoints removes repeated DNS/TCP work from subscriptions
         # that expose the same relay under several display names.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(64, len(endpoints) or 1))) as pool:
-            futures = {pool.submit(_probe_endpoint, host, port): (host, port) for host, port in endpoints}
-            for future in concurrent.futures.as_completed(futures):
-                endpoint = futures[future]
-                try:
-                    results[endpoint] = future.result()
-                except Exception:
-                    results[endpoint] = (None, "")
-                done += 1
-                if callback:
-                    callback(done, len(endpoints))
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(64, len(endpoints) or 1))) as pool:
+                futures = {
+                    pool.submit(_probe_endpoint, host, port, resolved[(host, port)]): (host, port)
+                    for host, port in endpoints
+                }
+                for future in concurrent.futures.as_completed(futures):
+                    endpoint = futures[future]
+                    try:
+                        results[endpoint] = future.result()
+                    except Exception:
+                        results[endpoint] = (None, "")
+                    done += 1
+                    if callback:
+                        callback(done, len(endpoints))
+        finally:
+            net_module.remove_direct_host_routes(direct_routes)
 
         for endpoint, servers in by_endpoint.items():
             ping_ms, ip = results.get(endpoint, (None, ""))

@@ -51,6 +51,7 @@ from .constants import ASSET_DIR, DEFAULT_SUBSCRIPTION_URL, LOG_FILE, MAX_CUSTOM
 from .diagnostics import get_logger
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition
+from .protocols import blob_to_config, config_to_blob, set_display_name
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
@@ -2085,6 +2086,10 @@ class MainWindow(QMainWindow):
         for item in self.servers:
             if item.id == server_id:
                 item.name = value[:80]
+                try:
+                    item.config_blob = config_to_blob(set_display_name(blob_to_config(item.config_blob), item.name))
+                except Exception:
+                    pass
                 break
         self.store.save_servers(self.servers)
         self.render_servers()

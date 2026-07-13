@@ -5,7 +5,7 @@ from typing import Callable, Iterable
 
 from .constants import MAX_SAVED_SERVERS
 from .diagnostics import get_logger
-from .geo import GeoResolver, flag_from_code
+from .geo import GeoResolver
 from .i18n import tr
 from .models import DiscoveredConfig, ServerRecord, utc_now
 from .net import ping_many

@@ -7,6 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
+    def test_android_rc5_changes_only_release_sequence(self) -> None:
+        gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn("versionCode = 8", gradle)
+        self.assertIn('versionName = "0.1.3"', gradle)
+
     def test_windows_startup_owns_preparation(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")

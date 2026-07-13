@@ -139,6 +139,8 @@ class ConnectThread(TaskThread):
 
     def run(self) -> None:
         try:
+            if self.isInterruptionRequested():
+                return
             self.stage.emit(tr(self.language, "starting_tun"))
             self.progress.emit(20, 100)
             self.manager.start(
@@ -149,6 +151,9 @@ class ConnectThread(TaskThread):
                 endpoint_host=self.server.host,
                 endpoint_port=self.server.port,
             )
+            if self.isInterruptionRequested():
+                self.manager.stop()
+                return
             self.progress.emit(72, 100)
             self.stage.emit(tr(self.language, "checking_connection"))
             if not _tunnel_passes_real_traffic(self.manager):
@@ -158,15 +163,22 @@ class ConnectThread(TaskThread):
                     if self.language != "en"
                     else "The TUN route was not ready or the server did not provide valid internet access. Try another server."
                 )
+            if self.isInterruptionRequested():
+                self.manager.stop()
+                return
             self.progress.emit(100, 100)
             self.success.emit(self.server)
         except Exception as exc:
+            if self.isInterruptionRequested():
+                self.manager.stop()
+                return
             LOGGER.exception("Background task failed: %s", type(self).__name__)
             self.failed.emit(str(exc))
 
 
 class ConnectionMonitorThread(QThread):
     updated = Signal(object)
+    connection_lost = Signal()
 
     def __init__(self, manager: XrayManager) -> None:
         super().__init__()
@@ -203,7 +215,15 @@ class ConnectionMonitorThread(QThread):
             if changed:
                 self.updated.emit({"upload": last_upload, "download": last_download, "ping": last_ping})
 
+            connection_ended = False
             for _ in range(4):
-                if self.isInterruptionRequested() or not self.manager.connected:
+                if self.isInterruptionRequested():
                     return
+                if not self.manager.connected:
+                    connection_ended = True
+                    break
                 self.msleep(50)
+            if connection_ended:
+                break
+        if not self.isInterruptionRequested() and not self.manager.connected:
+            self.connection_lost.emit()

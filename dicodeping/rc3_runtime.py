@@ -9,14 +9,12 @@ from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QPushButton
 
 from . import net as net_module
 from . import service as service_module
-from .models import DiscoveredConfig
-from .protocols import blob_to_config, parse_endpoint
 from .rc3_core import median_latency, trusted_latency
 
 _PATCHED = False
 
 
-def _tcp_samples(ip: str, port: int, attempts: int = 3, timeout: float = 1.4) -> list[int]:
+def _tcp_samples(ip: str, port: int, attempts: int = 2, timeout: float = 0.9) -> list[int]:
     values: list[int] = []
     for _ in range(max(1, attempts)):
         started = time.perf_counter()
@@ -25,7 +23,6 @@ def _tcp_samples(ip: str, port: int, attempts: int = 3, timeout: float = 1.4) ->
                 values.append(max(1, int(round((time.perf_counter() - started) * 1000))))
         except OSError:
             pass
-        time.sleep(0.04)
     return values
 
 
@@ -36,7 +33,7 @@ def _probe_server(key: str, host: str, port: int):
     be the profile id (not the hostname).  A median of several handshakes makes
     the refresh button stable while still preserving valid low-latency results.
     """
-    addresses = net_module.resolve_all_ipv4(host)[:4]
+    addresses = net_module.resolve_all_ips(host)[:2]
     choices: list[tuple[int, str]] = []
     direct_routes = net_module.install_direct_host_routes(addresses)
     try:
@@ -54,8 +51,6 @@ def _probe_server(key: str, host: str, port: int):
 
 
 def _install_service_patch() -> None:
-    original_refresh = service_module.ServerService.refresh_saved
-
     def refresh(self, *args, **kwargs):
         records = self.store.load_servers()
         # Do not collapse by hostname: subscriptions commonly place multiple
@@ -160,14 +155,21 @@ def _install_ui_patch() -> None:
         self._selected_ping_thread = thread
 
         def finished(result):
+            server.last_checked = service_module.utc_now()
             if result and result.ping_ms is not None:
                 server.ping_ms = result.ping_ms
                 server.ip = result.ip or server.ip
                 server.status = "online" if trusted_latency(result.ping_ms) else "unverified"
+                server.failures = 0 if server.status == "online" else server.failures + 1
                 self.store.save_servers(self.servers)
                 self.render_servers()
                 self.footer_state.setText(f"{server.name}: {result.ping_ms} ms")
             else:
+                server.ping_ms = None
+                server.status = "unverified"
+                server.failures += 1
+                self.store.save_servers(self.servers)
+                self.render_servers()
                 self.footer_state.setText("پاسخی دریافت نشد" if self.language != "en" else "No response")
             self.selected_ping_button.setText("پینگ سرور انتخاب‌شده" if self.language != "en" else "Ping selected server")
             self.selected_ping_button.setEnabled(True)

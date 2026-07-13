@@ -8,10 +8,9 @@ from PySide6.QtCore import QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
 
-from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, VERSION
+from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RUNTIME_DIR, VERSION
 from dicodeping.diagnostics import configure_logging, get_logger
 from dicodeping.discovery import discover_config_entries
-from dicodeping.models import ServerRecord
 from dicodeping.service import ServerService
 from dicodeping.sources import normalize_sources, serialize_sources
 from dicodeping.storage import JsonStore
@@ -152,7 +151,16 @@ _SINGLE_INSTANCE_HANDLE = None
 def acquire_single_instance() -> bool:
     global _SINGLE_INSTANCE_HANDLE
     if not is_windows():
-        return True
+        try:
+            import fcntl
+
+            lock_path = RUNTIME_DIR / "instance.lock"
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            _SINGLE_INSTANCE_HANDLE = lock_path.open("a+")
+            fcntl.flock(_SINGLE_INSTANCE_HANDLE.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except (OSError, ImportError):
+            return False
     try:
         import ctypes
 
@@ -196,20 +204,23 @@ def choose_persian_font() -> QFont:
 def main() -> int:
     configure_logging()
     LOGGER.info("Application startup requested")
-    if is_windows() and not is_admin():
+    if not is_admin():
         if relaunch_as_admin():
             return 0
-        try:
-            import ctypes
+        if is_windows():
+            try:
+                import ctypes
 
-            ctypes.windll.user32.MessageBoxW(
-                0,
-                "برای ساخت رابط TUN باید برنامه با دسترسی Administrator اجرا شود.",
-                "دسترسی مدیر",
-                0x10,
-            )
-        except Exception:
-            print("Administrator access is required.")
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "برای ساخت رابط TUN باید برنامه با دسترسی Administrator اجرا شود.",
+                    "دسترسی مدیر",
+                    0x10,
+                )
+            except Exception:
+                print("Administrator access is required.")
+        else:
+            print("Root access is required to create the Linux TUN interface. Run with sudo or install PolicyKit.")
         return 1
 
     if not acquire_single_instance():

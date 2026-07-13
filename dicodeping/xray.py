@@ -11,6 +11,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 import uuid
@@ -33,7 +34,7 @@ from .constants import (
     XRAY_VERSION,
 )
 from .i18n import tr
-from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ipv4, resolve_ipv4
+from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ips
 from .protocols import build_xray_outbound, parse_endpoint
 
 TUN_NAME = "dicodePing-TUN"
@@ -85,15 +86,38 @@ def is_admin() -> bool:
 
 
 def relaunch_as_admin() -> bool:
-    if not is_windows() or is_admin():
+    if is_admin():
         return False
-    executable = sys.executable
-    if getattr(sys, "frozen", False):
-        parameters = subprocess.list2cmdline(sys.argv[1:])
-    else:
-        parameters = subprocess.list2cmdline([str(Path(sys.argv[0]).resolve()), *sys.argv[1:]])
-    result = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, parameters, str(APP_ROOT), 1)
-    return int(result) > 32
+    if is_windows():
+        executable = sys.executable
+        if getattr(sys, "frozen", False):
+            parameters = subprocess.list2cmdline(sys.argv[1:])
+        else:
+            parameters = subprocess.list2cmdline([str(Path(sys.argv[0]).resolve()), *sys.argv[1:]])
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, parameters, str(APP_ROOT), 1)
+        return int(result) > 32
+
+    # Linux TUN creation needs CAP_NET_ADMIN. Prefer the desktop's PolicyKit
+    # prompt and preserve only the display/session variables needed by Qt.
+    pkexec = shutil.which("pkexec")
+    if not pkexec:
+        return False
+    command = [sys.executable, *sys.argv[1:]] if getattr(sys, "frozen", False) else [
+        sys.executable,
+        str(Path(sys.argv[0]).resolve()),
+        *sys.argv[1:],
+    ]
+    environment = [
+        f"DISPLAY={os.environ.get('DISPLAY', '')}",
+        f"XAUTHORITY={os.environ.get('XAUTHORITY', '')}",
+        f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY', '')}",
+        f"XDG_RUNTIME_DIR={os.environ.get('XDG_RUNTIME_DIR', '')}",
+    ]
+    try:
+        subprocess.Popen([pkexec, "env", *environment, *command], start_new_session=True)
+        return True
+    except OSError:
+        return False
 
 
 def _creation_flags() -> int:
@@ -159,7 +183,22 @@ def _kill_pid_tree(pid: int) -> None:
                 creationflags=_creation_flags(),
             )
         else:
-            os.kill(pid, 15)
+            group = os.getpgid(pid)
+            if group == pid:
+                os.killpg(group, 15)
+            else:
+                os.kill(pid, 15)
+            for _ in range(10):
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.05)
+            else:
+                if group == pid:
+                    os.killpg(group, 9)
+                else:
+                    os.kill(pid, 9)
     except Exception:
         pass
 
@@ -204,6 +243,8 @@ def _asset_name() -> str:
 
 def _download_file(url: str, target: Path, timeout: float = 90.0) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_suffix(target.suffix + ".part")
+    partial.unlink(missing_ok=True)
     request = urllib.request.Request(
         url,
         headers={
@@ -213,8 +254,15 @@ def _download_file(url: str, target: Path, timeout: float = 90.0) -> None:
         },
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=timeout) as response, target.open("wb") as output:
-        shutil.copyfileobj(response, output)
+    try:
+        with opener.open(request, timeout=timeout) as response, partial.open("wb") as output:
+            shutil.copyfileobj(response, output)
+        if partial.stat().st_size <= 0:
+            raise RuntimeError("فایل دانلودشده خالی است")
+        partial.replace(target)
+    except Exception:
+        partial.unlink(missing_ok=True)
+        raise
 
 
 def _pinned_asset_url() -> tuple[str, str]:
@@ -267,13 +315,17 @@ def _copy_bundled_core_to_user_dir() -> None:
     for name in ("xray.exe", "xray", "geoip.dat", "geosite.dat", "wintun.dll"):
         source = BUNDLED_CORE_DIR / name
         destination = CORE_DIR / name
+        if not source.exists():
+            continue
         # Always refresh Wintun from the executable bundle. A previous build may
         # have left a missing, truncated, or wrong-architecture DLL in AppData.
-        must_copy = name == "wintun.dll" or not destination.exists() or destination.stat().st_size != source.stat().st_size
-        if source.exists() and must_copy:
+        must_copy = name in {"xray.exe", "xray", "wintun.dll"} or not destination.exists() or destination.stat().st_size != source.stat().st_size
+        if must_copy:
             try:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, destination)
+                if name in {"xray", "xray.exe"} and not is_windows():
+                    destination.chmod(0o755)
             except Exception:
                 pass
 
@@ -286,9 +338,28 @@ def find_xray() -> Path | None:
     if found:
         candidates.append(Path(found))
     for candidate in candidates:
-        if candidate.exists() and candidate.is_file():
+        if candidate.exists() and candidate.is_file() and (is_windows() or os.access(candidate, os.X_OK)):
             return candidate
     return None
+
+
+def _core_version_matches(executable: Path) -> bool:
+    try:
+        result = subprocess.run(
+            [str(executable), "version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=5,
+            cwd=str(executable.parent),
+            creationflags=_creation_flags(),
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        match = re.search(r"(?i)\bXray\s+(\d+\.\d+\.\d+)\b", output)
+        return result.returncode == 0 and bool(match) and match.group(1) == XRAY_VERSION
+    except Exception:
+        return False
 
 
 def _wintun_arch_folder() -> str:
@@ -303,7 +374,11 @@ def _wintun_arch_folder() -> str:
 
 
 def _verify_sha256(path: Path, expected: str, artifact: str = "artifact") -> None:
-    digest = hashlib.sha256(path.read_bytes()).hexdigest().lower()
+    hasher = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    digest = hasher.hexdigest().lower()
     if digest != expected.lower():
         raise RuntimeError(f"هش SHA-256 بسته {artifact} معتبر نیست")
 
@@ -353,7 +428,7 @@ def ensure_wintun(executable: Path, progress: Callable[[str], None] | None = Non
 
 def ensure_xray(progress: Callable[[str], None] | None = None, force_download: bool = False, language: str = "fa") -> Path:
     existing = None if force_download else find_xray()
-    if existing:
+    if existing and _core_version_matches(existing):
         ensure_wintun(existing, progress=progress, language=language)
         return existing
     if progress:
@@ -485,6 +560,7 @@ class XrayManager:
         self.connected_ip = ""
         self.connected_port = 0
         self._direct_routes: list[str] = []
+        self._cancel_start = threading.Event()
         atexit.register(self.stop)
 
     @property
@@ -524,8 +600,11 @@ class XrayManager:
         endpoint_port: int = 0,
     ) -> None:
         self.stop()
+        self._cancel_start.clear()
         cleanup_stale_owned_process()
         executable = ensure_xray(progress, language=language)
+        if self._cancel_start.is_set():
+            raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         wintun = ensure_wintun(executable, progress=progress, language=language)
         if is_windows() and (not wintun or not wintun.exists()):
             raise RuntimeError("wintun.dll کنار xray.exe قرار نگرفت")
@@ -533,7 +612,7 @@ class XrayManager:
         endpoint = parse_endpoint(raw_config)
         self.connected_host = endpoint_host or (endpoint.host if endpoint else "")
         self.connected_port = int(endpoint_port or (endpoint.port if endpoint else 0) or 0)
-        endpoint_ips = resolve_all_ipv4(self.connected_host) if self.connected_host else []
+        endpoint_ips = resolve_all_ips(self.connected_host) if self.connected_host else []
         self.connected_ip = endpoint_ips[0] if endpoint_ips else ""
         if endpoint_ips:
             self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
@@ -549,6 +628,9 @@ class XrayManager:
             raise
 
         validation = self._validate(executable, self.config_path)
+        if self._cancel_start.is_set():
+            self.stop()
+            raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         validation_text = (validation.stderr or validation.stdout or "").strip()
         if validation.returncode != 0 and any(token in validation_text.lower() for token in ("tun", "autosystemroutingtable", "unknown protocol")):
             try:
@@ -582,10 +664,14 @@ class XrayManager:
                 encoding="utf-8",
                 errors="ignore",
                 creationflags=_creation_flags(),
+                start_new_session=not is_windows(),
             )
         except Exception:
             self.stop()
             raise
+        if self._cancel_start.is_set():
+            self.stop()
+            raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         PID_FILE.write_text(
             json.dumps(
                 {
@@ -681,6 +767,7 @@ class XrayManager:
             return None
 
     def stop(self) -> None:
+        self._cancel_start.set()
         process = self.process
         self.process = None
         if process and process.poll() is None:
@@ -689,6 +776,10 @@ class XrayManager:
                 process.wait(timeout=2.5)
             except Exception:
                 _kill_pid_tree(process.pid)
+                try:
+                    process.wait(timeout=1.0)
+                except Exception:
+                    pass
         try:
             if self.log_handle:
                 self.log_handle.close()

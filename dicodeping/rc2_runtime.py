@@ -237,6 +237,8 @@ def _install_ui_patch():
                 payload.setdefault("download", download)
                 self.updated.emit(payload)
             self.msleep(250)
+        if not self.isInterruptionRequested() and not self.manager.connected:
+            self.connection_lost.emit()
     ConnectionMonitorThread.run = monitor_run
 
     def init(self, *args, **kwargs):
