@@ -22,7 +22,7 @@ concurrency:
 jobs:
   source-quality:
     name: Source quality and tests
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
 
   windows:
     name: Build Windows 0.1.3
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +83,7 @@ jobs:
 
   android:
     name: Build universal JKS-signed Android 0.1.3
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -157,7 +157,7 @@ jobs:
 
   publish:
     name: Publish v0.1.3-rc.1 pre-release
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     needs: [source-quality, windows, android]
     runs-on: ubuntu-latest
     permissions:
