@@ -20,4 +20,5 @@ jobs:
     name: Source tests
     runs-on: ubuntu-latest
     steps:
-      - uses:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@
