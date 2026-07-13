@@ -1,0 +1,51 @@
+name: Normalize v0.1.2 Android Release Asset
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-apk-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: normalize-v0.1.2-android-release
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Keep exactly one Android APK
+    if: github.event_name != 'pull_request' || github.head_ref == 'fix/stable-android-jks-signing'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove duplicate Android APK assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          target="dicodePing-v0.1.2-android.apk"
+          assets="$(gh release view v0.1.2 --json assets --jq '.assets[].name')"
+
+          if ! grep -Fxq "$target" <<< "$assets"; then
+            echo "Required Android asset is missing: $target" >&2
+            exit 1
+          fi
+
+          while IFS= read -r asset; do
+            case "$asset" in
+              *.apk)
+                if [ "$asset" != "$target" ]; then
+                  gh release delete-asset v0.1.2 "$asset" --yes
+                fi
+                ;;
+            esac
+          done <<< "$assets"
+
+          mapfile -t remaining < <(gh release view v0.1.2 --json assets --jq '.assets[].name | select(endswith(".apk"))')
+          test "${#remaining[@]}" -eq 1
+          test "${remaining[0]}" = "$target"
+          echo "Only $target remains in release v0.1.2."

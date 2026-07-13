@@ -1,21 +1,28 @@
-name: CI and Release
+name: v0.1.3 Pre-release
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+    paths:
+      - "dicodeping/**"
+      - "dicodePing_android/**"
+      - "tools/**"
+      - "tests/**"
+      - "docs/releases/v0.1.3-rc.1.md"
+      - ".github/workflows/prerelease-v0.1.3.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: ci-release-${{ github.workflow }}-${{ github.ref }}
+  group: v0.1.3-rc1-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   source-quality:
-    name: Python and security checks
+    name: Source quality and tests
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,27 +33,18 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-build.txt
-      - name: Install runtime dependencies
-        run: python -m pip install -r requirements.txt
+      - run: python -m pip install -r requirements.txt
       - name: Verify synchronized version
         run: python tools/verify_version.py
-      - name: Compile Python
-        run: python -m compileall -q app.py dicodeping shared tools tests
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Security quality gate
-        run: python tools/quality_gate.py
-      - name: Generate SBOM
-        run: python tools/generate_sbom.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: source-sbom
-          path: artifacts/SBOM.spdx.json
-          if-no-files-found: error
+      - name: Compile and test
+        run: |
+          python -m compileall -q app.py dicodeping shared tools tests
+          python -m unittest discover -s tests -v
+          python tools/quality_gate.py
 
   windows:
-    name: Build Windows executable
-    if: github.event_name != 'pull_request'
+    name: Build Windows 0.1.3
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,39 +60,30 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
-      - name: Verify source version
-        shell: pwsh
-        run: python tools/verify_version.py
-      - name: Run source checks
+      - name: Verify and test source
         shell: pwsh
         run: |
+          $env:PYTHONUTF8 = '1'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/verify_version.py
           python -m compileall -q app.py dicodeping shared tools tests
           python -m unittest discover -s tests -v
           python tools/quality_gate.py
       - name: Build Windows executable
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Continue'
           $env:PYTHONUTF8 = '1'
           $env:PYTHONIOENCODING = 'utf-8'
-          python tools/build_windows.py --skip-install *>&1 | Tee-Object -FilePath windows-build.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Upload Windows diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build-log
-          path: windows-build.log
-          if-no-files-found: warn
+          python tools/build_windows.py --skip-install
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-windows
-          path: release/dicodePing-v0.1.2-windows.exe
+          name: dicodePing-v0.1.3-windows
+          path: release/dicodePing-v0.1.3-windows.exe
           if-no-files-found: error
 
   android:
-    name: Build one universal JKS-signed Android APK
-    if: github.event_name != 'pull_request'
+    name: Build universal JKS-signed Android 0.1.3
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -145,9 +134,9 @@ jobs:
             "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
           echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
       - run: chmod +x gradlew
-      - name: Lint, test, and build release APK
+      - name: Lint, test, and build one release APK
         run: ./gradlew --no-daemon --stacktrace lint test assembleRelease
-      - name: Verify one universal signed APK
+      - name: Verify universal signed APK
         shell: bash
         run: |
           set -euo pipefail
@@ -159,63 +148,48 @@ jobs:
             unzip -l "$apk" | grep -q "lib/$abi/"
           done
           mkdir -p release
-          cp "$apk" release/dicodePing-v0.1.2-android.apk
+          cp "$apk" release/dicodePing-v0.1.3-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-android
-          path: dicodePing_android/release/dicodePing-v0.1.2-android.apk
+          name: dicodePing-v0.1.3-android
+          path: dicodePing_android/release/dicodePing-v0.1.3-android.apk
           if-no-files-found: error
 
   publish:
-    name: Publish GitHub Release
-    if: github.event_name != 'pull_request'
+    name: Publish v0.1.3-rc.1 pre-release
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/v0.1.3-rc1'
     needs: [source-quality, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts
-      - name: Prepare release assets
+      - name: Collect and checksum installers
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          cp downloaded-artifacts/dicodePing-windows/dicodePing-v0.1.2-windows.exe release-assets/
-          cp downloaded-artifacts/dicodePing-android/dicodePing-v0.1.2-android.apk release-assets/
-          python tools/generate_sbom.py
-          cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
-          cp THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
-          zip -q -r release-assets/dicodePing-v0.1.2-licenses.zip LICENSE THIRD_PARTY_NOTICES.md licenses
+          cp downloaded-artifacts/dicodePing-v0.1.3-windows/dicodePing-v0.1.3-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-v0.1.3-android/dicodePing-v0.1.3-android.apk release-assets/
           (
             cd release-assets
-            sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
+            sha256sum dicodePing-v0.1.3-windows.exe dicodePing-v0.1.3-android.apk > SHA256SUMS
           )
-      - name: Replace release assets with one Android APK
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh release view v0.1.2 --json assets --jq '.assets[].name' | while IFS= read -r asset; do
-            case "$asset" in
-              *.apk) gh release delete-asset v0.1.2 "$asset" --yes ;;
-            esac
-          done
-          gh release upload v0.1.2 \
-            release-assets/dicodePing-v0.1.2-windows.exe \
-            release-assets/dicodePing-v0.1.2-android.apk \
-            release-assets/SHA256SUMS \
-            release-assets/SBOM.spdx.json \
-            release-assets/THIRD_PARTY_NOTICES.md \
-            release-assets/dicodePing-v0.1.2-licenses.zip \
-            --clobber
-          gh release edit v0.1.2 \
-            --title "dicodePing v0.1.2 — First Public Release" \
-            --notes-file docs/releases/v0.1.2.md \
-            --latest
+      - name: Publish pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.3-rc.1
+          target_commitish: release/v0.1.3-rc1
+          name: dicodePing v0.1.3-rc.1 — Pre-release
+          body_path: docs/releases/v0.1.3-rc.1.md
+          prerelease: true
+          draft: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/dicodePing-v0.1.3-windows.exe
+            release-assets/dicodePing-v0.1.3-android.apk
+            release-assets/SHA256SUMS

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import time
 
 from PySide6.QtCore import QThread, Signal
@@ -17,15 +19,38 @@ from .xray import XrayManager
 LOGGER = get_logger("workers")
 
 
+def _flush_windows_dns() -> None:
+    if os.name != "nt":
+        return
+    try:
+        subprocess.run(
+            ["ipconfig", "/flushdns"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    except Exception:
+        pass
+
+
 def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
-    """Require both a reachable endpoint and Xray TUN counter movement."""
-    before_upload, before_download = manager.traffic_stats()
-    if not is_any_url_reachable_parallel(HEALTH_URLS, timeout=5.0, attempts=3):
+    """Validate real internet access after TUN routing is active.
+
+    Xray's StatsService can legitimately return zero during startup on Windows.
+    Requiring an immediate counter delta caused healthy tunnels to be rejected.
+    The actual routed HTTP requests are therefore authoritative; counters remain
+    display-only telemetry.
+    """
+    if not manager.connected:
         return False
-    for _ in range(6):
-        time.sleep(0.35)
-        upload, download = manager.traffic_stats()
-        if upload > before_upload or download > before_download:
+    _flush_windows_dns()
+    waits = (0.15, 0.35, 0.7, 1.2)
+    for wait in waits:
+        time.sleep(wait)
+        if not manager.connected:
+            return False
+        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=5.5, attempts=2):
             return True
     return False
 
@@ -126,9 +151,9 @@ class ConnectThread(TaskThread):
             if not _tunnel_passes_real_traffic(self.manager):
                 self.manager.stop()
                 raise RuntimeError(
-                    "اتصال ساخته شد اما ترافیک واقعی از مسیر Xray عبور نکرد"
+                    "مسیر TUN آماده نشد یا سرور پاسخ اینترنتی معتبر نداد؛ یک سرور دیگر امتحان کنید"
                     if self.language != "en"
-                    else "The tunnel started, but real traffic did not pass through Xray."
+                    else "The TUN route was not ready or the server did not provide valid internet access. Try another server."
                 )
             self.progress.emit(100, 100)
             self.success.emit(self.server)

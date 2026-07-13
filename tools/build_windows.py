@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.1.3"
 APP_NAME = "dicodePing"
 
 
@@ -56,7 +56,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     if missing:
         raise FileNotFoundError("Missing required build files:\n- " + "\n- ".join(missing))
 
-    separator = os.pathsep  # ';' on Windows; avoids CMD parsing entirely.
+    separator = os.pathsep
     command = [
         python,
         "-m",

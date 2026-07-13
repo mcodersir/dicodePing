@@ -50,8 +50,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val server = pendingServer ?: return@registerForActivityResult
         pendingServer = null
 
-        // MIUI/HyperOS can return an unreliable resultCode. VpnService.prepare()
-        // is the authoritative check after the system consent screen closes.
         lifecycleScope.launch {
             var granted = false
             for (attempt in 0 until 4) {
@@ -94,8 +92,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         currentPageId = 0
-        showPage(restoredPage)
-
+        showPage(restoredPage, animate = false)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -152,7 +149,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         }
     }
 
-    private fun showPage(id: Int) {
+    private fun showPage(id: Int, animate: Boolean = true) {
         val tag = pageTag(id)
         val existing = supportFragmentManager.findFragmentByTag(tag)
         if (id == currentPageId && existing?.isVisible == true) return
@@ -161,6 +158,9 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         currentPageId = id
         val target = existing ?: createPage(id)
         val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
+        if (animate) {
+            transaction.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
 
         supportFragmentManager.fragments.forEach { fragment ->
             if (fragment.isAdded && fragment !== target) {
