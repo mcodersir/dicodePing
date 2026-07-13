@@ -7,7 +7,7 @@ from pathlib import Path
 APP_ID = "ir.dicode.dicodePing"
 APP_NAME = "dicodePing"
 PRODUCT_NAME_FA = "dicodePing"
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 XRAY_VERSION = "26.7.11"
