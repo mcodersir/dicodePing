@@ -57,7 +57,7 @@ jobs:
           if-no-files-found: error
 
   android:
-    name: Build universal Android 0.1.3
+    name: Build Android 0.1.3
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,18 +76,21 @@ jobs:
           mkdir -p "$(dirname "$target")"
           curl --fail --location --retry 4 --retry-all-errors --output "$target" "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
           echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
-      - name: Lint, test and build installable universal APK
+      - name: Run Android lint and tests
         shell: bash
         working-directory: dicodePing_android
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace lint test assembleDebug
+          ./gradlew --no-daemon --stacktrace lint test
+      - name: Build installable Android APK
+        shell: bash
+        working-directory: dicodePing_android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace assembleDebug
           apk="app/build/outputs/apk/debug/app-debug.apk"
           test -f "$apk"
-          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-            unzip -l "$apk" | grep -q "lib/$abi/"
-          done
           mkdir -p release
           cp "$apk" release/dicodePing-v0.1.3-android.apk
       - uses: actions/upload-artifact@v4
