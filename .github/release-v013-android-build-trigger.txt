@@ -1,0 +1,1 @@
+Build and verify one universal JKS-signed dicodePing 0.1.3 Android APK.
