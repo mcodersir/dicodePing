@@ -11,14 +11,89 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: v013-rc3-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   source:
-    name: Source tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - run: python tools/verify_version.py
+      - run: python -m compileall -q app.py app_rc2.py app_rc3.py dicodeping shared tools tests
+      - run: python -m unittest discover -s tests -v
+      - run: python tools/quality_gate.py
+
+  windows:
+    needs: source
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python tools/verify_version.py
+          python tools/build_windows.py --skip-install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/dicodePing-v0.1.3-windows.exe
+
+  android:
+    needs: source
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dicodePing_android
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - shell: bash
+        run: |
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          chmod +x gradlew
+          ./gradlew --no-daemon lint test assembleRelease
+          apk=$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)
+          test -n "$apk"
+          mkdir -p release
+          cp "$apk" release/dicodePing-v0.1.3-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dicodePing_android/release/dicodePing-v0.1.3-android.apk
+
+  publish:
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: |
+          mkdir release-assets
+          cp artifacts/windows/dicodePing-v0.1.3-windows.exe release-assets/
+          cp artifacts/android/dicodePing-v0.1.3-android.apk release-assets/
+          cd release-assets
+          sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.3-rc.3
+          target_commitish: main
+          name: dicodePing v0.1.3-rc.3
+          prerelease: true
+          files: release-assets/*
