@@ -1,1 +1,1 @@
-Trigger Android v0.1.3 smoke workflow before enabling the full Android release build.
+Trigger full dicodePing v0.1.3-rc.1 Windows, Android and GitHub pre-release pipeline.
