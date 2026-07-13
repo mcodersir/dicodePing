@@ -96,11 +96,16 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace lint test assembleRelease
+          ./gradlew --no-daemon --console=plain lint test assembleRelease
           mapfile -t apks < <(find app/build/outputs/apk/release -type f -name '*.apk' -print)
           test "${#apks[@]}" -eq 1
           apk="${apks[0]}"
-          jarsigner -verify -strict -certs "$apk" >/dev/null
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          verify_output="$($apksigner verify --verbose --print-certs "$apk")"
+          printf '%s\n' "$verify_output"
+          actual_cert="$(printf '%s\n' "$verify_output" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print toupper($2); exit}' | sed 's/../&:/g;s/:$//')"
+          test "$actual_cert" = "0A:48:33:17:EE:0B:D0:E2:AE:A4:8D:2B:E7:2C:30:F2:06:D3:CC:EB:3F:17:8E:A1:8C:A2:2A:17:D6:CD:FC:C0"
           for abi in armeabi-v7a arm64-v8a x86 x86_64; do
             unzip -l "$apk" | grep -q "lib/$abi/"
           done
