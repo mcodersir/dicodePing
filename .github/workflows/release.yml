@@ -45,7 +45,7 @@ jobs:
       - name: Build Windows executable
         shell: pwsh
         run: python tools/build_windows.py --skip-install
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dicodePing-windows
           path: release/*.exe
@@ -90,7 +90,7 @@ jobs:
           unsigned="$(find app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           test -n "$unsigned"
           cp "$unsigned" release/dicodePing-v0.1.2-android-release-unsigned.apk
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dicodePing-android
           path: dicodePing_android/release/*.apk
