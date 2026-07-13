@@ -18,7 +18,7 @@ jobs:
     name: Build Windows executable
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: actions/setup-python@v5
@@ -59,7 +59,7 @@ jobs:
       run:
         working-directory: dicodePing_android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: actions/setup-java@v4
@@ -104,7 +104,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - uses: actions/setup-python@v5
