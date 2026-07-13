@@ -41,11 +41,14 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app.py"
+    entrypoint = root / "app_rc2.py"
 
     required_paths = [
         root / "requirements-build.txt",
         entrypoint,
+        root / "app.py",
+        root / "dicodeping" / "rc2_core.py",
+        root / "dicodeping" / "rc2_runtime.py",
         assets,
         assets / "app.ico",
         root / "tools" / "windows_version_info.txt",
