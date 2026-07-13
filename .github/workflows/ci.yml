@@ -46,7 +46,7 @@ jobs:
 
   windows:
     name: Build Windows executable
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,13 +88,13 @@ jobs:
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-windows
-          path: release/dicodePing-v0.1.2-windows.exe
+          name: dicodePing-v0.1.3-windows
+          path: release/dicodePing-v0.1.3-windows.exe
           if-no-files-found: error
 
   android:
     name: Build one universal JKS-signed Android APK
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -159,25 +159,22 @@ jobs:
             unzip -l "$apk" | grep -q "lib/$abi/"
           done
           mkdir -p release
-          cp "$apk" release/dicodePing-v0.1.2-android.apk
+          cp "$apk" release/dicodePing-v0.1.3-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-android
-          path: dicodePing_android/release/dicodePing-v0.1.2-android.apk
+          name: dicodePing-v0.1.3-android
+          path: dicodePing_android/release/dicodePing-v0.1.3-android.apk
           if-no-files-found: error
 
   publish:
-    name: Publish GitHub Release
-    if: github.event_name != 'pull_request'
+    name: Publish v0.1.3-rc.1 pre-release
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     needs: [source-quality, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
           path: downloaded-artifacts
@@ -186,36 +183,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          cp downloaded-artifacts/dicodePing-windows/dicodePing-v0.1.2-windows.exe release-assets/
-          cp downloaded-artifacts/dicodePing-android/dicodePing-v0.1.2-android.apk release-assets/
-          python tools/generate_sbom.py
-          cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
-          cp THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
-          zip -q -r release-assets/dicodePing-v0.1.2-licenses.zip LICENSE THIRD_PARTY_NOTICES.md licenses
+          cp downloaded-artifacts/dicodePing-v0.1.3-windows/dicodePing-v0.1.3-windows.exe release-assets/
+          cp downloaded-artifacts/dicodePing-v0.1.3-android/dicodePing-v0.1.3-android.apk release-assets/
           (
             cd release-assets
-            sha256sum dicodePing-v0.1.2-windows.exe dicodePing-v0.1.2-android.apk > SHA256SUMS
+            sha256sum dicodePing-v0.1.3-windows.exe dicodePing-v0.1.3-android.apk > SHA256SUMS
           )
-      - name: Replace release assets with one Android APK
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh release view v0.1.2 --json assets --jq '.assets[].name' | while IFS= read -r asset; do
-            case "$asset" in
-              *.apk) gh release delete-asset v0.1.2 "$asset" --yes ;;
-            esac
-          done
-          gh release upload v0.1.2 \
-            release-assets/dicodePing-v0.1.2-windows.exe \
-            release-assets/dicodePing-v0.1.2-android.apk \
-            release-assets/SHA256SUMS \
-            release-assets/SBOM.spdx.json \
-            release-assets/THIRD_PARTY_NOTICES.md \
-            release-assets/dicodePing-v0.1.2-licenses.zip \
-            --clobber
-          gh release edit v0.1.2 \
-            --title "dicodePing v0.1.2 — First Public Release" \
-            --notes-file docs/releases/v0.1.2.md \
-            --latest
+      - name: Publish pre-release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.3-rc.1
+          target_commitish: release/v0.1.3-rc1
+          name: dicodePing v0.1.3-rc.1 — Pre-release
+          body_path: docs/releases/v0.1.3-rc.1.md
+          prerelease: true
+          draft: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/dicodePing-v0.1.3-windows.exe
+            release-assets/dicodePing-v0.1.3-android.apk
+            release-assets/SHA256SUMS
