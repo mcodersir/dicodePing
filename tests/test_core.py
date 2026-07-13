@@ -140,7 +140,6 @@ class ProtocolTests(unittest.TestCase):
         self.assertIn("https://example.com/sub", rows)
         self.assertNotIn("bad", rows)
 
-
     def test_wintun_is_extracted_next_to_xray(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -167,7 +166,6 @@ class ProtocolTests(unittest.TestCase):
                 result = ensure_wintun(executable)
             self.assertEqual(result, core / "wintun.dll")
             self.assertEqual(result.read_bytes(), payload)
-
 
     def test_source_order_and_default_are_preserved(self) -> None:
         settings = {
@@ -202,12 +200,24 @@ class ProtocolTests(unittest.TestCase):
         store = FakeStore()
         service = ServerService(store)
         service.geo = FakeGeo()
-        with patch("dicodeping.service.ping_many", return_value=[PingResult("example.com", 45, "1.2.3.4")]):
+        with patch("dicodeping.service.ping_many", return_value=[PingResult("example.com", 105, "1.2.3.4")]):
             records = service.build_and_save([raw_one, raw_two])
         self.assertEqual(len(records), 2)
-        self.assertTrue(all(record.ping_ms == 45 for record in records))
+        self.assertTrue(all(record.ping_ms == 105 for record in records))
+        self.assertTrue(all(record.status == "online" for record in records))
         decoded = [blob_to_config(record.config_blob) for record in records]
         self.assertTrue(all("source-channel" not in item and "another-source" not in item for item in decoded))
+
+    def test_implausible_sub_70_ping_is_not_auto_eligible(self) -> None:
+        raw = "vless://11111111-1111-1111-1111-111111111111@example.com:443?security=tls#fake-ping"
+        store = FakeStore()
+        service = ServerService(store)
+        service.geo = FakeGeo()
+        with patch("dicodeping.service.ping_many", return_value=[PingResult("example.com", 7, "1.2.3.4")]):
+            records = service.build_and_save([raw], language="en")
+        self.assertEqual(records[0].status, "unverified")
+        self.assertIsNone(records[0].ping_ms)
+        self.assertIsNone(service.best_server(records))
 
 
 if __name__ == "__main__":
