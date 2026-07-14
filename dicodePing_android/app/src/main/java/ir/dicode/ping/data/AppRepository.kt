@@ -331,17 +331,17 @@ class AppRepository private constructor(context: Context) {
                 batch.map { server ->
                     async(Dispatchers.IO) {
                         sem.withPermit {
-                        val delay = runCatching {
-                            proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
-                        }.getOrDefault(-1L)
-                        val pingMs = delay.takeIf { it in 1..60_000 }
-                            ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
-                        val updated = server.copy(
-                            pingMs = pingMs,
-                            pingKind = if (pingMs != null) REAL_PROXY_PING else "",
-                            healthy = pingMs != null,
-                            testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
-                        )
+                            val delay = runCatching {
+                                proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
+                            }.getOrDefault(-1L)
+                            val pingMs = delay.takeIf { it in 1..60_000 }
+                                ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
+                            val updated = server.copy(
+                                pingMs = pingMs,
+                                pingKind = if (pingMs != null) REAL_PROXY_PING else "",
+                                healthy = pingMs != null,
+                                testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                            )
                             if (countProgress) {
                                 progress.value = ProgressState(
                                     true, "ping", done.incrementAndGet(), input.size, server.name,
