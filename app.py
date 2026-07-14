@@ -202,7 +202,8 @@ def choose_persian_font() -> QFont:
 
 
 def main() -> int:
-    configure_logging()
+    settings = JsonStore().load_settings()
+    configure_logging(bool(settings.get("diagnostic_logging", False)), str(settings.get("log_level", "INFO")))
     LOGGER.info("Application startup requested")
     if not is_admin():
         if relaunch_as_admin():
@@ -245,7 +246,6 @@ def main() -> int:
     if not application_icon.isNull():
         app.setWindowIcon(application_icon)
     app.setFont(choose_persian_font())
-    settings = JsonStore().load_settings()
     language = "en" if settings.get("language") == "en" else "fa"
     app.setLayoutDirection(Qt.LeftToRight if language == "en" else Qt.RightToLeft)
 

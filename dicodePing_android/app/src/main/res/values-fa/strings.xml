@@ -14,7 +14,7 @@
     <string name="connecting">در حال اتصال</string>
     <string name="connection_error">خطای اتصال</string>
     <string name="connection_status_hint">یک سرور انتخاب کنید و اتصال ساده و سریع را شروع کنید.</string>
-    <string name="preparing_vpn">در حال آماده‌سازی رابط VPN…</string>
+    <string name="preparing_vpn">در حال آماده‌سازی اتصال…</string>
     <string name="connection_active">اتصال تاییدشده و فعال است</string>
     <string name="disconnect">قطع اتصال</string>
     <string name="connect">اتصال</string>
@@ -63,7 +63,7 @@
     <string name="dark">تیره</string>
     <string name="light">روشن</string>
     <string name="system_default">سیستم</string>
-    <string name="bypass_domains">سایت‌های خارج از تونل</string>
+    <string name="bypass_domains">سایت‌های خارج از اتصال برنامه</string>
     <string name="bypass_domains_hint">example.com</string>
     <string name="bypass_domains_help">هر دامنه را در یک خط بنویسید. ترافیک این دامنه‌ها مستقیم می‌رود و فیلترشکن روی آن‌ها اعمال نمی‌شود.</string>
     <string name="save_bypass">ذخیره قوانین سایت‌های مستقیم</string>
@@ -86,12 +86,12 @@
 
     <string name="no_server_title">سرور قابل انتخاب نیست</string>
     <string name="no_server_message">فهرست سرورها را تازه‌سازی کنید یا در حالت دستی یک سرور انتخاب کنید.</string>
-    <string name="vpn_channel">اتصال VPN</string>
-    <string name="vpn_permission_required">مجوز VPN اندروید صادر نشده است.</string>
-    <string name="vpn_establish_failed">اندروید نتوانست رابط VPN را ایجاد کند.</string>
-    <string name="core_unavailable">هسته اتصال در این بیلد موجود نیست. برنامه را هنگام اتصال به اینترنت دوباره بیلد کنید.</string>
-    <string name="vpn_permission_failed_title">مجوز VPN اعمال نشد</string>
-    <string name="vpn_permission_failed_message">اندروید دسترسی VPN را تایید نکرد. در MIUI یا HyperOS مجوز VPN قبلی dicodePing را حذف کنید، برنامه را توقف اجباری کنید، دوباره بازش کنید و پنجره سیستمی VPN را تایید کنید.</string>
+    <string name="vpn_channel">اتصال امن</string>
+    <string name="vpn_permission_required">مجوز اتصال اندروید صادر نشده است.</string>
+    <string name="vpn_establish_failed">اندروید نتوانست اتصال را ایجاد کند.</string>
+    <string name="core_unavailable">بخش اتصال در این نسخه موجود نیست. برنامه را هنگام اتصال به اینترنت دوباره نصب کنید.</string>
+    <string name="vpn_permission_failed_title">مجوز اتصال اعمال نشد</string>
+    <string name="vpn_permission_failed_message">اندروید دسترسی را تایید نکرد. در MIUI یا HyperOS مجوز اتصال قبلی dicodePing را حذف کنید، برنامه را توقف اجباری کنید، دوباره بازش کنید و پنجره سیستمی اندروید را تایید کنید.</string>
     <string name="move_up">انتقال به بالا</string>
     <string name="move_down">انتقال به پایین</string>
     <string name="delete_source">حذف منبع</string>
@@ -109,11 +109,11 @@
     <string name="splash_testing_servers">در حال بررسی سلامت سرورها…</string>
     <string name="splash_locating_servers">در حال تکمیل اطلاعات سرورها…</string>
 
-    <string name="bypass_apps_title">برنامه‌های خارج از VPN</string>
-    <string name="bypass_apps_help">برنامه‌های انتخاب‌شده مستقیم از اینترنت اصلی استفاده می‌کنند و از تونل عبور نمی‌کنند. تغییرات از اتصال بعدی اعمال می‌شود.</string>
+    <string name="bypass_apps_title">برنامه‌های خارج از اتصال برنامه</string>
+    <string name="bypass_apps_help">برنامه‌های انتخاب‌شده مستقیم از اینترنت اصلی استفاده می‌کنند. تغییرات از اتصال بعدی اعمال می‌شود.</string>
     <string name="choose_bypass_apps">انتخاب برنامه‌ها</string>
     <string name="search_apps">جستجوی نام برنامه</string>
-    <string name="bypass_apps_dialog_help">برنامه‌هایی را انتخاب کنید که نباید VPN روی آن‌ها اعمال شود.</string>
+    <string name="bypass_apps_dialog_help">برنامه‌هایی را انتخاب کنید که باید از اینترنت اصلی استفاده کنند.</string>
     <string name="bypass_app_toggle">تغییر وضعیت برنامه</string>
     <string name="no_apps_found">برنامه‌ای پیدا نشد</string>
     <string name="connect_selected_short">اتصال</string>
@@ -140,6 +140,7 @@
     <string name="share_logs">اشتراک لاگ تشخیصی</string>
     <string name="clear_logs">پاک کردن لاگ</string>
     <string name="logs_cleared">لاگ تشخیصی پاک شد</string>
+    <string name="diagnostic_logging">ثبت گزارش عیب‌یابی (پیش‌فرض خاموش)</string>
     <string name="log_share_failed">اشتراک لاگ تشخیصی انجام نشد</string>
     <string name="server_change_locked">برای تغییر سرور ابتدا اتصال را قطع کنید</string>
     <string name="navigation_home">خانه</string>

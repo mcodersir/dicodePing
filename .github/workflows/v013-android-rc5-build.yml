@@ -1,4 +1,4 @@
-name: Build Android rc.6
+name: Build Android rc.7
 
 on:
   workflow_dispatch:
@@ -45,9 +45,9 @@ jobs:
           apk="app/build/outputs/apk/release/app-release.apk"
           test -f "$apk"
           mkdir -p release
-          cp "$apk" release/dicodePing-v0.1.3-rc.6-android.apk
+          cp "$apk" release/dicodePing-v0.1.3-rc.7-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-v0.1.3-rc.6-android
-          path: dicodePing_android/release/dicodePing-v0.1.3-rc.6-android.apk
+          name: dicodePing-v0.1.3-rc.7-android
+          path: dicodePing_android/release/dicodePing-v0.1.3-rc.7-android.apk
           if-no-files-found: error

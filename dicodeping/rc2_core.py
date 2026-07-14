@@ -18,11 +18,16 @@ def clean_display_name(value: str | None) -> str:
     text = urllib.parse.unquote(html.unescape(str(value or "")))
     text = _BIDI.sub("", text)
     text = " ".join(text.split()).strip(" -_|•")
-    return "" if text.casefold() in _UNKNOWN else text[:96]
+    return "" if text.casefold() in _UNKNOWN else text
 
 
 def extract_display_name(raw: str) -> str:
     value = str(raw or "").strip()
+    decoded = urllib.parse.unquote(html.unescape(value))
+    if "#" in decoded:
+        fragment = clean_display_name(decoded.rsplit("#", 1)[1])
+        if fragment:
+            return fragment
     if value.lower().startswith("vmess://"):
         try:
             data = value[8:].replace("-", "+").replace("_", "/")
@@ -35,7 +40,7 @@ def extract_display_name(raw: str) -> str:
         except Exception:
             return ""
     try:
-        return clean_display_name(urllib.parse.urlsplit(value).fragment)
+        return clean_display_name(urllib.parse.urlsplit(decoded).fragment)
     except Exception:
         return clean_display_name(value.rsplit("#", 1)[1] if "#" in value else "")
 

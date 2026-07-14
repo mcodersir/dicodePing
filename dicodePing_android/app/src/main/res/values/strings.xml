@@ -14,7 +14,7 @@
     <string name="connecting">Connecting</string>
     <string name="connection_error">Connection error</string>
     <string name="connection_status_hint">Choose a server and start a simple, fast connection.</string>
-    <string name="preparing_vpn">Preparing the VPN interface…</string>
+    <string name="preparing_vpn">Preparing the connection…</string>
     <string name="connection_active">Connection verified and active</string>
     <string name="disconnect">Disconnect</string>
     <string name="connect">Connect</string>
@@ -63,7 +63,7 @@
     <string name="dark">Dark</string>
     <string name="light">Light</string>
     <string name="system_default">System</string>
-    <string name="bypass_domains">Sites outside the tunnel</string>
+    <string name="bypass_domains">Sites excluded from the connection</string>
     <string name="bypass_domains_hint">example.com</string>
     <string name="bypass_domains_help">Enter one domain per line. These domains use the direct route instead of the proxy.</string>
     <string name="save_bypass">Save direct-site rules</string>
@@ -86,12 +86,12 @@
 
     <string name="no_server_title">No selectable server</string>
     <string name="no_server_message">Refresh the server list or select a server in manual mode.</string>
-    <string name="vpn_channel">VPN connection</string>
-    <string name="vpn_permission_required">Android VPN permission has not been granted.</string>
-    <string name="vpn_establish_failed">Android could not create the VPN interface.</string>
+    <string name="vpn_channel">Secure connection</string>
+    <string name="vpn_permission_required">Android has not granted connection permission.</string>
+    <string name="vpn_establish_failed">Android could not create the connection.</string>
     <string name="core_unavailable">The connection core is missing from this build. Rebuild the app while connected to the internet.</string>
-    <string name="vpn_permission_failed_title">VPN permission was not applied</string>
-    <string name="vpn_permission_failed_message">Android did not confirm VPN access. On MIUI or HyperOS, remove any previous dicodePing VPN permission, force-stop the app, then open it again and approve the system VPN dialog.</string>
+    <string name="vpn_permission_failed_title">Connection permission was not applied</string>
+    <string name="vpn_permission_failed_message">Android did not confirm access. On MIUI or HyperOS, remove the previous dicodePing connection permission, force-stop the app, open it again, and approve the Android system dialog.</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
     <string name="delete_source">Delete source</string>
@@ -109,11 +109,11 @@
     <string name="splash_testing_servers">Checking server health…</string>
     <string name="splash_locating_servers">Completing server details…</string>
 
-    <string name="bypass_apps_title">Apps outside the VPN</string>
-    <string name="bypass_apps_help">Selected apps use the original internet connection and bypass the tunnel. Changes apply on the next connection.</string>
+    <string name="bypass_apps_title">Apps excluded from the connection</string>
+    <string name="bypass_apps_help">Selected apps use the original internet connection. Changes apply on the next connection.</string>
     <string name="choose_bypass_apps">Choose apps</string>
     <string name="search_apps">Search apps</string>
-    <string name="bypass_apps_dialog_help">Select apps that should not use the VPN.</string>
+    <string name="bypass_apps_dialog_help">Select apps that should use the original internet connection.</string>
     <string name="bypass_app_toggle">Toggle app</string>
     <string name="no_apps_found">No app found</string>
     <string name="connect_selected_short">Connect</string>
@@ -140,6 +140,7 @@
     <string name="share_logs">Share diagnostic log</string>
     <string name="clear_logs">Clear log</string>
     <string name="logs_cleared">Diagnostic log cleared</string>
+    <string name="diagnostic_logging">Enable diagnostic reporting (off by default)</string>
     <string name="log_share_failed">Could not share the diagnostic log</string>
     <string name="server_change_locked">Disconnect before changing the server</string>
     <string name="navigation_home">Home</string>

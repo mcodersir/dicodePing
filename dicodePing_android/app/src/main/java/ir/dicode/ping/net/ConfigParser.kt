@@ -16,7 +16,7 @@ object ConfigParser {
         if (!text.take(1000).contains("://")) {
             decodeBase64(text.filterNot(Char::isWhitespace))?.let { if (it.contains("://")) text = it }
         }
-        return regex.findAll(Uri.decode(text)).map { it.value.trimEnd(')', ']', '}', '"', '\'', '>', '،', ',', '.', ';') }
+        return regex.findAll(text).map { it.value.trimEnd(')', ']', '}', '"', '\'', '>') }
             .distinctBy(::normalizeKey).toList()
     }
 
@@ -36,7 +36,7 @@ object ConfigParser {
         val port = if (uri.port > 0) uri.port else 443
         val credential = Uri.decode(uri.encodedUserInfo.orEmpty()).substringBefore(':').ifBlank { return null }
         val q = uri.queryParameterNames.associateWith { uri.getQueryParameter(it).orEmpty() }
-        val name = Uri.decode(uri.fragment ?: "").ifBlank { "${protocol.uppercase()} • $host" }
+        val name = fragmentName(raw).ifBlank { "Server" }
         val stream = buildStream(q)
         val settings = if (protocol == "vless") JSONObject().put("vnext", JSONArray().put(
             JSONObject().put("address", host).put("port", port).put("users", JSONArray().put(
@@ -53,7 +53,8 @@ object ConfigParser {
     }
 
     private fun parseVmess(raw: String): ParsedNode? {
-        val obj = JSONObject(decodeBase64(raw.substringAfter("vmess://")) ?: return null)
+        val payload = raw.substringAfter("vmess://").substringBefore('#')
+        val obj = JSONObject(decodeBase64(payload) ?: return null)
         val host = obj.optString("add").ifBlank { obj.optString("address") }
         val port = obj.optString("port", "443").toIntOrNull() ?: 443
         val user = JSONObject().put("id", obj.optString("id")).put("alterId", obj.optInt("aid", 0))
@@ -67,7 +68,9 @@ object ConfigParser {
         q["alpn"] = obj.optString("alpn"); q["fp"] = obj.optString("fp"); q["headerType"] = obj.optString("type")
         val outbound = JSONObject().put("tag", "proxy").put("protocol", "vmess").put("settings", settings)
             .put("streamSettings", buildStream(q)).put("mux", JSONObject().put("enabled", false))
-        return ParsedNode(raw, "vmess", obj.optString("ps").ifBlank { "VMess • $host" }, host, port, outbound)
+        return ParsedNode(raw, "vmess", fragmentName(raw).ifBlank {
+            obj.optString("ps").ifBlank { "Server" }
+        }, host, port, outbound)
     }
 
     private fun parseShadowsocks(raw: String): ParsedNode? {
@@ -88,7 +91,7 @@ object ConfigParser {
             JSONObject().put("address", host).put("port", port).put("method", method).put("password", password).put("level", 8)
         ))
         val outbound = JSONObject().put("tag", "proxy").put("protocol", "shadowsocks").put("settings", settings)
-        val name = Uri.decode(raw.substringAfter('#', "")).ifBlank { "Shadowsocks • $host" }
+        val name = fragmentName(raw).ifBlank { "Server" }
         return ParsedNode(raw, "ss", name, host, port, outbound)
     }
 
@@ -133,4 +136,12 @@ object ConfigParser {
     }.getOrNull()
 
     private fun normalizeKey(raw: String): String = raw.substringBefore('#')
+
+    private fun fragmentName(raw: String): String {
+        val decoded = Uri.decode(raw).substringAfterLast('#', "")
+        return URLDecoder.decode(decoded, StandardCharsets.UTF_8.name())
+            .replace(Regex("[\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
 }

@@ -12,24 +12,37 @@ object AppLog {
     private const val TAG_ROOT = "dicodePing"
     private val lock = Any()
     @Volatile private var appContext: Context? = null
+    @Volatile private var enabled = false
     private val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
     fun init(context: Context) {
         appContext = context.applicationContext
+        enabled = context.getSharedPreferences("dicodeping", Context.MODE_PRIVATE)
+            .getBoolean("diagnostic_logging", false)
         i("App", "Diagnostic logging initialized")
     }
 
+    fun setEnabled(context: Context, value: Boolean) {
+        appContext = context.applicationContext
+        enabled = value
+        if (!value) clear(context)
+        else i("App", "Diagnostic logging enabled")
+    }
+
     fun i(tag: String, message: String) {
+        if (!enabled) return
         Log.i("$TAG_ROOT/$tag", message)
         write("INFO", tag, message, null)
     }
 
     fun w(tag: String, message: String, error: Throwable? = null) {
+        if (!enabled) return
         Log.w("$TAG_ROOT/$tag", message, error)
         write("WARN", tag, message, error)
     }
 
     fun e(tag: String, message: String, error: Throwable? = null) {
+        if (!enabled) return
         Log.e("$TAG_ROOT/$tag", message, error)
         write("ERROR", tag, message, error)
     }
@@ -52,7 +65,6 @@ object AppLog {
         synchronized(lock) {
             logFile(context)?.delete()
         }
-        i("App", "Diagnostic log cleared")
     }
 
     private fun write(level: String, tag: String, message: String, error: Throwable?) {

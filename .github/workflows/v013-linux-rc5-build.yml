@@ -1,4 +1,4 @@
-name: Build Linux rc.6
+name: Build Linux rc.7
 
 on:
   workflow_dispatch:
@@ -39,8 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/dicodeping-smoke
-          tar -xzf release/dicodePing-v0.1.3-rc.6-linux-x86_64.tar.gz -C /tmp/dicodeping-smoke
-          binary="/tmp/dicodeping-smoke/dicodePing-v0.1.3-rc.6-linux-x86_64/dicodePing"
+          tar -xzf release/dicodePing-v0.1.3-rc.7-linux-x86_64.tar.gz -C /tmp/dicodeping-smoke
+          binary="/tmp/dicodeping-smoke/dicodePing-v0.1.3-rc.7-linux-x86_64/dicodePing"
           set +e
           sudo env QT_QPA_PLATFORM=offscreen XDG_CONFIG_HOME=/tmp/dicodeping-smoke/config timeout 12s "$binary"
           status=$?
@@ -48,6 +48,6 @@ jobs:
           test "$status" -eq 124
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-v0.1.3-rc.6-linux-x86_64
-          path: release/dicodePing-v0.1.3-rc.6-linux-x86_64.tar.gz
+          name: dicodePing-v0.1.3-rc.7-linux-x86_64
+          path: release/dicodePing-v0.1.3-rc.7-linux-x86_64.tar.gz
           if-no-files-found: error

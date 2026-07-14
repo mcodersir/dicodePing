@@ -23,6 +23,7 @@ import ir.dicode.ping.data.SourceDefinition
 import ir.dicode.ping.databinding.DialogAppBypassBinding
 import ir.dicode.ping.databinding.DialogSourceBinding
 import ir.dicode.ping.databinding.FragmentSettingsBinding
+import ir.dicode.ping.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +50,11 @@ class SettingsFragment : Fragment() {
         binding.mode.check(if (store.connectionMode == "manual") R.id.modeManual else R.id.modeAuto)
         binding.mode.addOnButtonCheckedListener { _, id, checked ->
             if (checked) vm.repo.setConnectionMode(if (id == R.id.modeManual) "manual" else "auto")
+        }
+        binding.diagnosticLogging.isChecked = store.diagnosticLogging
+        binding.diagnosticLogging.setOnCheckedChangeListener { _, enabled ->
+            store.diagnosticLogging = enabled
+            AppLog.setEnabled(requireContext(), enabled)
         }
 
         binding.bypassDomains.setText(store.bypassDomains)

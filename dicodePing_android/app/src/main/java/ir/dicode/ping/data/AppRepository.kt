@@ -310,11 +310,17 @@ class AppRepository private constructor(context: Context) {
 
         try {
             val done = AtomicInteger(0)
-            val sem = Semaphore(REAL_PROBE_CONCURRENCY)
             progress.value = ProgressState(true, "ping", 0, input.size, "Testing servers")
-            input.map { server ->
-                async(Dispatchers.IO) {
-                    sem.withPermit {
+
+            suspend fun runBatch(
+                batch: List<ServerRecord>,
+                concurrency: Int,
+                countProgress: Boolean,
+            ): List<ServerRecord> = coroutineScope {
+                val sem = Semaphore(concurrency)
+                batch.map { server ->
+                    async(Dispatchers.IO) {
+                        sem.withPermit {
                         val delay = runCatching {
                             proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
                         }.getOrDefault(-1L)
@@ -341,12 +347,33 @@ class AppRepository private constructor(context: Context) {
                                 ) else current
                             }
                         }
-                        progress.value = ProgressState(
-                            true, "ping", done.incrementAndGet(), input.size, server.name,
-                        )
+                            if (countProgress) {
+                                progress.value = ProgressState(
+                                    true, "ping", done.incrementAndGet(), input.size, server.name,
+                                )
+                            }
+                            updated
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            val firstPass = mutableListOf<ServerRecord>()
+            input.chunked(REAL_PROBE_PAGE_SIZE).forEach { page ->
+                firstPass += runBatch(page, REAL_PROBE_CONCURRENCY, countProgress = true)
+            }
+            val failed = firstPass.filterNot { it.healthy }
+            if (failed.isNotEmpty()) {
+                val failedIds = failed.mapTo(HashSet()) { it.id }
+                liveUpdateMutex.withLock {
+                    servers.value = servers.value.map { current ->
+                        if (current.id in failedIds) current.copy(testState = ServerRecord.TEST_RUNNING) else current
                     }
                 }
-            }.awaitAll()
+                failed.chunked(RETRY_PROBE_PAGE_SIZE).forEach { page ->
+                    runBatch(page, RETRY_PROBE_CONCURRENCY, countProgress = false)
+                }
+            }
             liveUpdateMutex.withLock {
                 servers.value = sortServers(servers.value)
                 settings.saveServers(servers.value)
@@ -479,6 +506,9 @@ class AppRepository private constructor(context: Context) {
         private const val DNS_CONCURRENCY = 32
         private const val GEO_CONCURRENCY = 8
         private const val REAL_PROBE_CONCURRENCY = 12
+        private const val REAL_PROBE_PAGE_SIZE = 36
+        private const val RETRY_PROBE_CONCURRENCY = 6
+        private const val RETRY_PROBE_PAGE_SIZE = 12
 
         @Volatile
         private var instance: AppRepository? = null

@@ -44,13 +44,12 @@ def decode_subscription(text: str) -> list[str]:
 
 def extract_configs(text: str) -> list[str]:
     text = html.unescape(text)
-    text = urllib.parse.unquote(text)
     text = re.sub(r"[\u200c\u200f\u202a-\u202e]", "", text)
     out: list[str] = []
     seen: set[str] = set()
     for regex in CONFIG_REGEXES:
         for match in regex.findall(text):
-            raw = match.strip().rstrip(")]}\"'<>،,.;")
+            raw = match.strip().rstrip(")]}\"'<>")
             key = normalize_key(raw)
             if key and key not in seen:
                 seen.add(key)
@@ -62,7 +61,7 @@ def normalize_key(raw: str) -> str:
     raw = raw.strip()
     if raw.lower().startswith("vmess://"):
         try:
-            obj = json.loads(b64_decode_text(raw[len("vmess://") :]))
+            obj = json.loads(b64_decode_text(raw[len("vmess://") :].split("#", 1)[0]))
             obj.pop("ps", None)
             return "vmess://" + json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
         except Exception:
@@ -132,7 +131,7 @@ def parse_endpoint(raw: str) -> Endpoint | None:
                 return None
             return Endpoint(raw, parsed.scheme.lower(), parsed.hostname, parsed.port or 443)
         if lower.startswith("vmess://"):
-            obj = json.loads(b64_decode_text(raw[len("vmess://") :]))
+            obj = json.loads(b64_decode_text(raw[len("vmess://") :].split("#", 1)[0]))
             host = obj.get("add") or obj.get("address") or obj.get("server")
             port = parse_int(obj.get("port"), 443)
             if not host or not valid_port(port):
@@ -298,7 +297,7 @@ def build_xray_outbound(raw: str) -> dict[str, Any] | None:
                 "streamSettings": build_stream_settings(parsed, query),
             }
         if lower.startswith("vmess://"):
-            obj = json.loads(b64_decode_text(raw[len("vmess://") :]))
+            obj = json.loads(b64_decode_text(raw[len("vmess://") :].split("#", 1)[0]))
             host = obj.get("add") or obj.get("address") or obj.get("server")
             user_id = str(obj.get("id") or "")
             if not host or not user_id:
@@ -352,9 +351,9 @@ def build_xray_outbound(raw: str) -> dict[str, Any] | None:
 def set_display_name(raw: str, name: str) -> str:
     if raw.lower().startswith("vmess://"):
         try:
-            obj = json.loads(b64_decode_text(raw[len("vmess://") :]))
+            obj = json.loads(b64_decode_text(raw[len("vmess://") :].split("#", 1)[0]))
             obj["ps"] = name
-            return "vmess://" + b64_encode_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")), True)
+            return "vmess://" + b64_encode_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")), True) + "#" + urllib.parse.quote(name)
         except Exception:
             return raw
     return raw.split("#", 1)[0] + "#" + urllib.parse.quote(name)

@@ -123,6 +123,14 @@
                                     android:layout_weight="1"
                                     android:text="@string/manual" />
                             </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/diagnosticLogging"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:text="@string/diagnostic_logging"
+                                android:textColor="@color/text_primary" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>

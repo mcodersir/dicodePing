@@ -29,6 +29,9 @@ class SettingsStore(context: Context) {
     var lastServerRefreshAt: Long
         get() = prefs.getLong("last_server_refresh_at", 0L)
         set(value) = prefs.edit().putLong("last_server_refresh_at", value).apply()
+    var diagnosticLogging: Boolean
+        get() = prefs.getBoolean("diagnostic_logging", false)
+        set(value) = prefs.edit().putBoolean("diagnostic_logging", value).apply()
 
     fun isServerRefreshDue(now: Long = System.currentTimeMillis()): Boolean {
         if (loadServers().isEmpty()) return true

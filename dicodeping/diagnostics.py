@@ -9,28 +9,28 @@ from .constants import LOG_FILE
 
 _LOGGER_NAME = "dicodeping"
 _configured = False
+_handler: RotatingFileHandler | None = None
+_enabled = False
+_original_excepthook = sys.excepthook
 
 
-def configure_logging() -> logging.Logger:
-    global _configured
+def configure_logging(enabled: bool = False, level: str = "INFO") -> logging.Logger:
+    global _configured, _handler, _enabled
     logger = logging.getLogger(_LOGGER_NAME)
-    if _configured:
-        return logger
-
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG if str(level).upper() == "DEBUG" else logging.INFO)
     logger.propagate = False
-
-    handler = RotatingFileHandler(
-        LOG_FILE,
-        maxBytes=2 * 1024 * 1024,
-        backupCount=3,
-        encoding="utf-8",
-    )
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s | %(levelname)s | %(threadName)s | %(name)s | %(message)s")
-    )
-    logger.addHandler(handler)
+    if _handler:
+        logger.removeHandler(_handler)
+        _handler.close()
+        _handler = None
+    logger.handlers = [handler for handler in logger.handlers if isinstance(handler, logging.NullHandler)]
+    if enabled:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _handler = RotatingFileHandler(LOG_FILE, maxBytes=1024 * 1024, backupCount=1, encoding="utf-8")
+        _handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(threadName)s | %(name)s | %(message)s"))
+        logger.addHandler(_handler)
+    elif not logger.handlers:
+        logger.addHandler(logging.NullHandler())
 
     def excepthook(exc_type, exc_value, exc_traceback):
         if issubclass(exc_type, KeyboardInterrupt):
@@ -39,12 +39,23 @@ def configure_logging() -> logging.Logger:
         logger.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
-    sys.excepthook = excepthook
+    if enabled:
+        sys.excepthook = excepthook
+    else:
+        sys.excepthook = _original_excepthook
+    _enabled = enabled
     _configured = True
-    logger.info("Diagnostic logging initialized: %s", Path(LOG_FILE))
+    if enabled:
+        logger.info("Diagnostic logging initialized: %s", Path(LOG_FILE))
     return logger
 
 
+def diagnostics_enabled() -> bool:
+    return _enabled
+
+
 def get_logger(name: str | None = None) -> logging.Logger:
-    configure_logging()
+    root = logging.getLogger(_LOGGER_NAME)
+    if not root.handlers:
+        root.addHandler(logging.NullHandler())
     return logging.getLogger(f"{_LOGGER_NAME}.{name}" if name else _LOGGER_NAME)

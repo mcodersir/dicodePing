@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizeGrip,
+    QSpinBox,
     QStackedWidget,
     QTabBar,
     QTabWidget,
@@ -184,12 +185,12 @@ def build_stylesheet(theme: str) -> str:
     QPushButton#tableAction {{ min-height: 40px; max-height: 40px; padding: 0 13px; }}
     QPushButton#pinButton {{ min-width: 40px; max-width: 40px; min-height: 40px; max-height: 40px; padding: 0; border-radius: 10px; font-size: 18px; color: {c['accent']}; }}
 
-    QLineEdit, QComboBox, QPlainTextEdit {{
+    QLineEdit, QComboBox, QPlainTextEdit, QSpinBox {{
         min-height: 44px; padding: 0 13px; background: {c['surface2']}; color: {c['text']};
         border: 1px solid {c['border2']}; border-radius: 10px; selection-background-color: {c['accent']};
     }}
-    QLineEdit:hover, QComboBox:hover, QPlainTextEdit:hover {{ border-color: {c['muted2']}; }}
-    QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {{ border: 1px solid {c['accent']}; background: {c['surface']}; }}
+    QLineEdit:hover, QComboBox:hover, QPlainTextEdit:hover, QSpinBox:hover {{ border-color: {c['muted2']}; }}
+    QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QSpinBox:focus {{ border: 1px solid {c['accent']}; background: {c['surface']}; }}
     QPlainTextEdit {{ padding: 10px 12px; min-height: 170px; }}
     QComboBox::drop-down {{ border: 0; width: 30px; }}
     QComboBox QAbstractItemView {{
@@ -1236,6 +1237,8 @@ class MainWindow(QMainWindow):
         tabs.setObjectName("settingsTabs")
         tabs.setDocumentMode(True)
         tabs.setMovable(False)
+        tabs.tabBar().setUsesScrollButtons(True)
+        tabs.tabBar().setElideMode(Qt.ElideRight)
         self.settings_tabs = tabs
         layout.addWidget(tabs, 1)
 
@@ -1257,6 +1260,7 @@ class MainWindow(QMainWindow):
         behavior_layout.setSpacing(12)
         behavior_layout.addWidget(self._section_label(self.t("connection_behavior")))
         mode_row = QHBoxLayout()
+        self.settings_mode_row = mode_row
         mode_text = QVBoxLayout()
         mode_label = QLabel(self.t("connection_mode"))
         mode_label.setObjectName("muted")
@@ -1272,7 +1276,8 @@ class MainWindow(QMainWindow):
         self.connection_mode_combo.addItem(self.t("mode_manual"), "manual")
         mode = self.settings.get("connection_mode", "auto")
         self.connection_mode_combo.setCurrentIndex(max(0, self.connection_mode_combo.findData(mode)))
-        self.connection_mode_combo.setMinimumWidth(260)
+        self.connection_mode_combo.setMinimumWidth(160)
+        self.connection_mode_combo.setMaximumWidth(280)
         mode_row.addWidget(self.connection_mode_combo)
         behavior_layout.addLayout(mode_row)
         self.auto_connect_checkbox = QCheckBox(self.t("auto_connect_after_update"))
@@ -1333,6 +1338,7 @@ class MainWindow(QMainWindow):
         sources_layout.addWidget(source_help)
 
         input_row = QHBoxLayout()
+        self.source_input_row = input_row
         input_row.setSpacing(8)
         self.subscription_name_input = QLineEdit()
         self.subscription_name_input.setPlaceholderText(self.t("source_name_placeholder"))
@@ -1394,6 +1400,7 @@ class MainWindow(QMainWindow):
         appearance_layout.setSpacing(12)
         appearance_layout.addWidget(self._section_label(self.t("appearance_language")))
         appearance_row = QHBoxLayout()
+        self.settings_appearance_row = appearance_row
         theme_box = QVBoxLayout()
         theme_label = QLabel(self.t("theme"))
         theme_label.setObjectName("muted")
@@ -1421,6 +1428,54 @@ class MainWindow(QMainWindow):
         appearance_layout.addWidget(restart_note)
         appearance_tab_layout.insertWidget(appearance_tab_layout.count() - 1, appearance)
         tabs.addTab(appearance_tab, self.t("settings_tab_appearance"))
+
+        # Performance and diagnostics tab
+        advanced_tab, advanced_layout = tab_page()
+        advanced = QFrame()
+        advanced.setObjectName("settingCard")
+        advanced_form = QVBoxLayout(advanced)
+        advanced_form.setContentsMargins(18, 16, 18, 18)
+        advanced_form.setSpacing(12)
+        advanced_form.addWidget(self._section_label(self.t("performance_diagnostics")))
+
+        def number_option(label_key: str, setting_key: str, minimum: int, maximum: int, default: int, suffix: str = "") -> QSpinBox:
+            row = QHBoxLayout()
+            label = QLabel(self.t(label_key))
+            label.setObjectName("muted")
+            label.setWordWrap(True)
+            field = QSpinBox()
+            field.setRange(minimum, maximum)
+            field.setValue(int(self.settings.get(setting_key, default) or default))
+            if suffix:
+                field.setSuffix(suffix)
+            field.setMinimumWidth(120)
+            row.addWidget(label, 1)
+            row.addWidget(field)
+            advanced_form.addLayout(row)
+            return field
+
+        self.test_concurrency_spin = number_option("parallel_tests", "test_concurrency", 4, 48, 28)
+        self.test_batch_spin = number_option("test_batch_size", "test_batch_size", 8, 96, 48)
+        self.test_timeout_spin = number_option("test_timeout", "test_timeout_ms", 400, 3000, 950, " ms")
+        self.auto_retry_spin = number_option("auto_retry_count", "auto_retry_limit", 2, 12, 8)
+        self.retry_failed_checkbox = QCheckBox(self.t("retry_failed_tests"))
+        self.retry_failed_checkbox.setChecked(bool(self.settings.get("retry_failed_tests", True)))
+        advanced_form.addWidget(self.retry_failed_checkbox)
+        self.diagnostic_logging_checkbox = QCheckBox(self.t("diagnostic_logging"))
+        self.diagnostic_logging_checkbox.setChecked(bool(self.settings.get("diagnostic_logging", False)))
+        advanced_form.addWidget(self.diagnostic_logging_checkbox)
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItem(self.t("log_normal"), "INFO")
+        self.log_level_combo.addItem(self.t("log_detailed"), "DEBUG")
+        self.log_level_combo.setCurrentIndex(max(0, self.log_level_combo.findData(self.settings.get("log_level", "INFO"))))
+        self.log_level_combo.setEnabled(self.diagnostic_logging_checkbox.isChecked())
+        self.diagnostic_logging_checkbox.toggled.connect(self.log_level_combo.setEnabled)
+        advanced_form.addWidget(self.log_level_combo)
+        clear_logs = QPushButton(self.t("clear_logs"))
+        clear_logs.clicked.connect(lambda: LOG_FILE.unlink(missing_ok=True))
+        advanced_form.addWidget(clear_logs, alignment=Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
+        advanced_layout.insertWidget(advanced_layout.count() - 1, advanced)
+        tabs.addTab(advanced_tab, self.t("settings_tab_advanced"))
 
         # Local data tab
         data_tab, data_tab_layout = tab_page()
@@ -2420,6 +2475,13 @@ class MainWindow(QMainWindow):
         self.settings["bypass_domains"] = bypass_domains
         self.bypass_domains_input.setPlainText("\n".join(bypass_domains))
         self.settings["language"] = self.language_combo.currentData()
+        self.settings["test_concurrency"] = self.test_concurrency_spin.value()
+        self.settings["test_batch_size"] = self.test_batch_spin.value()
+        self.settings["test_timeout_ms"] = self.test_timeout_spin.value()
+        self.settings["auto_retry_limit"] = self.auto_retry_spin.value()
+        self.settings["retry_failed_tests"] = self.retry_failed_checkbox.isChecked()
+        self.settings["diagnostic_logging"] = self.diagnostic_logging_checkbox.isChecked()
+        self.settings["log_level"] = self.log_level_combo.currentData()
         selected_theme = str(self.theme_combo.currentData())
         self.apply_theme(selected_theme, save=False)
 

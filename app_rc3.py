@@ -5,12 +5,14 @@ from dicodeping.rc3_runtime import install_rc3_patches
 from dicodeping.rc4_runtime import install_rc4_patches
 from dicodeping.rc5_runtime import install_rc5_patches
 from dicodeping.rc6_runtime import install_rc6_patches
+from dicodeping.rc7_runtime import install_rc7_patches
 
 install_rc2_patches()
 install_rc3_patches()
 install_rc4_patches()
 install_rc5_patches()
 install_rc6_patches()
+install_rc7_patches()
 
 from app import main  # noqa: E402
 

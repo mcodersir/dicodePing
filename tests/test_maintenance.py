@@ -7,16 +7,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc6_release_sequence_and_pipeline(self) -> None:
+    def test_android_rc7_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 9", gradle)
+        self.assertIn("versionCode = 10", gradle)
         self.assertIn('versionName = "0.1.3"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
         self.assertLess(refresh.index("locateServers("), refresh.index("pingServers("))
         self.assertIn("REAL_PROBE_CONCURRENCY = 12", repository)
+        self.assertIn("RETRY_PROBE_CONCURRENCY = 6", repository)
         self.assertIn("testState = ServerRecord.TEST_RUNNING", repository)
         self.assertIn("Animation.INFINITE", adapter)
 

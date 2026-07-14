@@ -33,11 +33,13 @@ from .constants import (
     XRAY_RELEASE_BASE,
     XRAY_VERSION,
 )
+from .diagnostics import diagnostics_enabled, get_logger
 from .i18n import tr
 from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ips
 from .protocols import build_xray_outbound, parse_endpoint
 
 TUN_NAME = "dicodePing-TUN"
+LOGGER = get_logger("connection")
 
 
 def normalize_bypass_domains(values: list[str] | tuple[str, ...] | str | None) -> list[str]:
@@ -258,7 +260,7 @@ def _download_file(url: str, target: Path, timeout: float = 90.0) -> None:
         with opener.open(request, timeout=timeout) as response, partial.open("wb") as output:
             shutil.copyfileobj(response, output)
         if partial.stat().st_size <= 0:
-            raise RuntimeError("فایل دانلودشده خالی است")
+            raise RuntimeError("فایل اتصال دریافت‌شده معتبر نیست")
         partial.replace(target)
     except Exception:
         partial.unlink(missing_ok=True)
@@ -284,7 +286,7 @@ def _parse_sha256_digest(text: str) -> str:
     candidates = re.findall(r"(?i)(?<![a-f0-9])([a-f0-9]{64})(?![a-f0-9])", text)
     if len(candidates) == 1:
         return candidates[0].lower()
-    raise RuntimeError("هش SHA-256 بسته Xray در فایل امضای رسمی پیدا نشد")
+    raise RuntimeError("اعتبار بسته اتصال تأیید نشد")
 
 
 def _extract_core(archive: Path, target_dir: Path) -> Path:
@@ -301,7 +303,7 @@ def _extract_core(archive: Path, target_dir: Path) -> Path:
                 shutil.copyfileobj(source, output)
     executable = target_dir / executable_name
     if not executable.exists():
-        raise RuntimeError("فایل اجرایی Xray داخل بسته نبود")
+        raise RuntimeError("بسته اتصال ناقص است")
     try:
         executable.chmod(0o755)
     except Exception:
@@ -380,7 +382,7 @@ def _verify_sha256(path: Path, expected: str, artifact: str = "artifact") -> Non
             hasher.update(chunk)
     digest = hasher.hexdigest().lower()
     if digest != expected.lower():
-        raise RuntimeError(f"هش SHA-256 بسته {artifact} معتبر نیست")
+        raise RuntimeError("اعتبار فایل اتصال تأیید نشد")
 
 
 def ensure_wintun(executable: Path, progress: Callable[[str], None] | None = None, force_download: bool = False, language: str = "fa") -> Path | None:
@@ -416,13 +418,13 @@ def ensure_wintun(executable: Path, progress: Callable[[str], None] | None = Non
             None,
         )
         if not source_name:
-            raise RuntimeError("فایل wintun.dll داخل بسته رسمی پیدا نشد")
+            raise RuntimeError("یکی از فایل‌های لازم اتصال پیدا نشد")
         destination.parent.mkdir(parents=True, exist_ok=True)
         with package.open(source_name) as source, destination.open("wb") as output:
             shutil.copyfileobj(source, output)
     archive.unlink(missing_ok=True)
     if not destination.exists() or destination.stat().st_size < 50_000:
-        raise RuntimeError("فایل Wintun آماده نشد")
+        raise RuntimeError("بخش اتصال آماده نشد")
     return destination
 
 
@@ -560,6 +562,8 @@ class XrayManager:
         self.connected_ip = ""
         self.connected_port = 0
         self._direct_routes: list[str] = []
+        self._active_log_file = LOG_FILE
+        self._retain_log = False
         self._cancel_start = threading.Event()
         atexit.register(self.stop)
 
@@ -580,12 +584,11 @@ class XrayManager:
             creationflags=_creation_flags(),
         )
 
-    @staticmethod
-    def _read_log_tail(limit: int = 1800) -> str:
+    def _read_log_tail(self, limit: int = 1800) -> str:
         try:
-            if not LOG_FILE.exists():
+            if not self._active_log_file.exists():
                 return ""
-            text = LOG_FILE.read_text(encoding="utf-8", errors="ignore")
+            text = self._active_log_file.read_text(encoding="utf-8", errors="ignore")
             return text[-limit:].strip()
         except Exception:
             return ""
@@ -607,7 +610,7 @@ class XrayManager:
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         wintun = ensure_wintun(executable, progress=progress, language=language)
         if is_windows() and (not wintun or not wintun.exists()):
-            raise RuntimeError("wintun.dll کنار xray.exe قرار نگرفت")
+            raise RuntimeError("یکی از بخش‌های لازم اتصال آماده نشد")
 
         endpoint = parse_endpoint(raw_config)
         self.connected_host = endpoint_host or (endpoint.host if endpoint else "")
@@ -642,17 +645,20 @@ class XrayManager:
                 pass
         if validation.returncode != 0:
             error = (validation_text or "کانفیگ Xray نامعتبر است")[-1200:]
+            LOGGER.error("Connection configuration validation failed: %s", error)
             self.stop()
-            raise RuntimeError(error)
+            raise RuntimeError("تنظیمات این سرور برای اتصال قابل استفاده نیست" if language != "en" else "This server cannot be used for a connection")
 
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self._retain_log = diagnostics_enabled()
+        self._active_log_file = LOG_FILE if self._retain_log else RUNTIME_DIR / "connection-session.log"
+        self._active_log_file.parent.mkdir(parents=True, exist_ok=True)
         try:
-            if LOG_FILE.exists() and LOG_FILE.stat().st_size > 2_000_000:
-                LOG_FILE.write_text("", encoding="utf-8")
+            if self._active_log_file.exists() and (not self._retain_log or self._active_log_file.stat().st_size > 2_000_000):
+                self._active_log_file.write_text("", encoding="utf-8")
         except Exception:
             pass
-        log_start_offset = LOG_FILE.stat().st_size if LOG_FILE.exists() else 0
-        self.log_handle = LOG_FILE.open("a", encoding="utf-8")
+        log_start_offset = self._active_log_file.stat().st_size if self._active_log_file.exists() else 0
+        self.log_handle = self._active_log_file.open("a", encoding="utf-8")
         self.executable = executable
         try:
             self.process = subprocess.Popen(
@@ -690,7 +696,7 @@ class XrayManager:
                 break
             recent = ""
             try:
-                with LOG_FILE.open("r", encoding="utf-8", errors="ignore") as handle:
+                with self._active_log_file.open("r", encoding="utf-8", errors="ignore") as handle:
                     handle.seek(log_start_offset)
                     recent = handle.read().lower()
             except Exception:
@@ -704,10 +710,9 @@ class XrayManager:
         if self.process.poll() is not None:
             code = self.process.returncode
             tail = self._read_log_tail()
+            LOGGER.error("Connection process stopped with code %s: %s", code, tail[-1100:])
             self.stop()
-            if "wintun.dll" in tail.lower():
-                raise RuntimeError(f"Wintun بارگذاری نشد. فایل باید کنار xray.exe باشد.\n\n{tail[-900:]}")
-            raise RuntimeError(f"هسته اتصال متوقف شد (کد {code}).\n\n{tail[-1100:]}" if tail else f"هسته اتصال متوقف شد (کد {code}). گزارش در {LOG_FILE}")
+            raise RuntimeError("بخش اتصال آماده نشد؛ در صورت تکرار، گزارش عیب‌یابی را فعال کنید" if language != "en" else "The connection could not start; enable diagnostic logging if this repeats")
 
     def traffic_stats(self) -> tuple[int, int]:
         if not self.connected or not self.executable or not self.api_port:
@@ -786,6 +791,11 @@ class XrayManager:
         except Exception:
             pass
         self.log_handle = None
+        if not self._retain_log:
+            try:
+                self._active_log_file.unlink(missing_ok=True)
+            except Exception:
+                pass
         try:
             PID_FILE.unlink(missing_ok=True)
         except Exception:
