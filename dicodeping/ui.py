@@ -1154,13 +1154,18 @@ class MainWindow(QMainWindow):
         self.filter_edit.setClearButtonEnabled(True)
         self.filter_edit.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
         self.filter_edit.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
-        self.filter_edit.textChanged.connect(self.render_servers)
+        # ``render_servers`` is extended by the release runtime layers.  On
+        # PySide6 6.10, connecting a signal directly to that rebound method can
+        # raise an internal ``im_func`` AttributeError during window creation.
+        # Keep the Qt callback a plain function and resolve the current method
+        # only when the filter actually changes.
+        self.filter_edit.textChanged.connect(lambda _text: self.render_servers())
         toolbar_layout.addWidget(self.filter_edit, 1)
         self.filter_status_combo = QComboBox()
         self.filter_status_combo.addItem(self.t("filter_all"), "all")
         self.filter_status_combo.addItem(self.t("filter_responsive"), "online")
         self.filter_status_combo.addItem(self.t("filter_unverified"), "unverified")
-        self.filter_status_combo.currentIndexChanged.connect(self.render_servers)
+        self.filter_status_combo.currentIndexChanged.connect(lambda _index: self.render_servers())
         toolbar_layout.addWidget(self.filter_status_combo)
         layout.addWidget(toolbar)
 

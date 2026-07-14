@@ -51,6 +51,12 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("splash.close()", app)
         self.assertIn("--startup-smoke-test", app)
 
+    def test_rc9_filter_callbacks_do_not_bind_a_runtime_patched_method(self) -> None:
+        ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
+        self.assertIn("textChanged.connect(lambda _text: self.render_servers())", ui)
+        self.assertIn("currentIndexChanged.connect(lambda _index: self.render_servers())", ui)
+        self.assertNotIn("textChanged.connect(self.render_servers)", ui)
+
     def test_rc9_packaged_desktop_smoke_tests_require_success(self) -> None:
         windows = (ROOT / ".github/workflows/v013-windows-build.yml").read_text(encoding="utf-8")
         linux = (ROOT / ".github/workflows/v013-linux-rc5-build.yml").read_text(encoding="utf-8")
