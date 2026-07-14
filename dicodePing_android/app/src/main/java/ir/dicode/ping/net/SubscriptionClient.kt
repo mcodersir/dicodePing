@@ -35,6 +35,17 @@ class SubscriptionClient {
         }
     }
 
+    suspend fun revision(url: String): String = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(url).head().header("User-Agent", "dicodePing-Android").build()
+        runCatching {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use ""
+                listOf(response.header("ETag"), response.header("Last-Modified"), response.header("Content-Length"))
+                    .joinToString("|") { it.orEmpty() }
+            }
+        }.getOrDefault("")
+    }
+
     private companion object {
         const val MAX_SUBSCRIPTION_BYTES = 16L * 1024L * 1024L
     }

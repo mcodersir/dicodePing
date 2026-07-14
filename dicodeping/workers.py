@@ -120,6 +120,10 @@ class DiscoverThread(TaskThread):
 
 
 class RefreshThread(TaskThread):
+    # A refresh must not make the table look empty.  Individual results are
+    # delivered to the UI as they arrive; the final success signal only applies
+    # the sorted order.
+    record_updated = Signal(object)
     def __init__(self, service: ServerService, language: str = "fa") -> None:
         super().__init__()
         self.service = service
@@ -133,6 +137,7 @@ class RefreshThread(TaskThread):
                 language=self.language,
                 ping_progress=lambda current, total: self.emit_scaled(0, 68, current, total),
                 geo_progress=lambda current, total: self.emit_scaled(68, 100, current, total),
+                record_progress=lambda record: self.record_updated.emit(record),
             )
             self.checkpoint()
             self.progress.emit(100, 100)

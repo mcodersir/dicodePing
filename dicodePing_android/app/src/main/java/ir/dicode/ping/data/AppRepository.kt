@@ -58,36 +58,23 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
-    /**
-     * Prepares a trustworthy automatic target before leaving the splash screen.
-     * First launch and the two-day refresh both download, perform a real Xray HTTP
-     * probe, and resolve location for a bounded candidate set. Remaining servers
-     * continue in the background after at least one usable choice is ready.
-     */
+    /** First launch is prepared on the splash; cached lists open immediately. */
     suspend fun initialize() = withContext(Dispatchers.IO) {
         refreshMutex.withLock {
-            val refreshDue = settings.isServerRefreshDue()
-            if (refreshDue) {
-                AppLog.i("Repository", "Startup server refresh is due")
+            // A timed refresh used to perform download, geolocation and every
+            // probe before MainActivity could be shown.  It made opening the app
+            // look frozen and also hid the user's cached server list.
+            if (servers.value.isEmpty()) {
+                AppLog.i("Repository", "First launch: preparing initial servers")
                 refreshServersInternal()
-            } else {
-                AppLog.i("Repository", "Startup cache is fresh")
-            }
-
-            val snapshot = servers.value
-            if (snapshot.isEmpty()) return@withLock
-            if (refreshDue || snapshot.none(::isAutoEligible)) {
-                val startup = rankStartupCandidates(snapshot)
+                val startup = rankStartupCandidates(servers.value)
                 locateServers(startup, mergeWithExisting = true)
                 pingServers(startup)
                 val tested = startup.asSequence().map { it.id }.toHashSet()
                 val remaining = servers.value.filterNot { it.id in tested }
                 if (remaining.isNotEmpty()) {
                     scope.launch {
-                        refreshMutex.withLock {
-                            locateServers(remaining, mergeWithExisting = true)
-                            pingServers(remaining)
-                        }
+                        refreshMutex.withLock { locateServers(remaining, mergeWithExisting = true); pingServers(remaining) }
                     }
                 }
             }
@@ -106,8 +93,31 @@ class AppRepository private constructor(context: Context) {
                 // download -> location -> bounded concurrent real proxy tests.
                 locateServers(snapshot, mergeWithExisting = true)
                 pingServers(servers.value)
+                rememberSourceRevisions()
             }
         }
+    }
+
+    /** Returns changed source names.  The initial check establishes a baseline. */
+    suspend fun subscriptionUpdates(): List<SourceDefinition> = withContext(Dispatchers.IO) {
+        val previous = settings.sourceRevisions
+        val observed = mutableMapOf<String, String>()
+        val changed = sources.value.filter { it.enabled }.filter { source ->
+            val revision = downloader.revision(source.url)
+            if (revision.isBlank()) false else {
+                observed[source.id] = revision
+                previous[source.id]?.let { it != revision } ?: false
+            }
+        }
+        if (previous.isEmpty() && observed.isNotEmpty()) settings.sourceRevisions = observed
+        changed
+    }
+
+    private suspend fun rememberSourceRevisions() {
+        val observed = sources.value.filter { it.enabled }.mapNotNull { source ->
+            downloader.revision(source.url).takeIf { it.isNotBlank() }?.let { source.id to it }
+        }.toMap()
+        if (observed.isNotEmpty()) settings.sourceRevisions = observed
     }
 
     private suspend fun refreshServersInternal() {
@@ -332,21 +342,6 @@ class AppRepository private constructor(context: Context) {
                             healthy = pingMs != null,
                             testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
                         )
-                        liveUpdateMutex.withLock {
-                            servers.value = servers.value.map { current ->
-                                if (current.id == updated.id) updated.copy(
-                                    ip = current.ip.ifBlank { updated.ip },
-                                    country = current.country.ifBlank { updated.country },
-                                    countryCode = current.countryCode.ifBlank { updated.countryCode },
-                                    region = current.region.ifBlank { updated.region },
-                                    city = current.city.ifBlank { updated.city },
-                                    isp = current.isp.ifBlank { updated.isp },
-                                    asn = current.asn.ifBlank { updated.asn },
-                                    geoConfidence = current.geoConfidence.ifBlank { updated.geoConfidence },
-                                    favorite = current.favorite,
-                                ) else current
-                            }
-                        }
                             if (countProgress) {
                                 progress.value = ProgressState(
                                     true, "ping", done.incrementAndGet(), input.size, server.name,
@@ -360,7 +355,11 @@ class AppRepository private constructor(context: Context) {
 
             val firstPass = mutableListOf<ServerRecord>()
             input.chunked(REAL_PROBE_PAGE_SIZE).forEach { page ->
-                firstPass += runBatch(page, REAL_PROBE_CONCURRENCY, countProgress = true)
+                val results = runBatch(page, REAL_PROBE_CONCURRENCY, countProgress = true)
+                firstPass += results
+                // One list emission per page keeps RecyclerView smooth while
+                // preserving the visible order and current selection.
+                liveUpdateMutex.withLock { applyServerUpdates(results, true, sort = false, persist = false) }
             }
             val failed = firstPass.filterNot { it.healthy }
             if (failed.isNotEmpty()) {
@@ -371,7 +370,8 @@ class AppRepository private constructor(context: Context) {
                     }
                 }
                 failed.chunked(RETRY_PROBE_PAGE_SIZE).forEach { page ->
-                    runBatch(page, RETRY_PROBE_CONCURRENCY, countProgress = false)
+                    val results = runBatch(page, RETRY_PROBE_CONCURRENCY, countProgress = false)
+                    liveUpdateMutex.withLock { applyServerUpdates(results, true, sort = false, persist = false) }
                 }
             }
             liveUpdateMutex.withLock {
@@ -396,15 +396,28 @@ class AppRepository private constructor(context: Context) {
         updated: List<ServerRecord>,
         mergeWithExisting: Boolean,
         sort: Boolean = true,
+        persist: Boolean = true,
     ) {
         val next = if (mergeWithExisting) {
             val byId = updated.associateBy { it.id }
-            servers.value.map { current -> byId[current.id] ?: current }
+            servers.value.map { current -> byId[current.id]?.let { incoming ->
+                incoming.copy(
+                    ip = incoming.ip.ifBlank { current.ip },
+                    country = incoming.country.ifBlank { current.country },
+                    countryCode = incoming.countryCode.ifBlank { current.countryCode },
+                    region = incoming.region.ifBlank { current.region },
+                    city = incoming.city.ifBlank { current.city },
+                    isp = incoming.isp.ifBlank { current.isp },
+                    asn = incoming.asn.ifBlank { current.asn },
+                    geoConfidence = incoming.geoConfidence.ifBlank { current.geoConfidence },
+                    favorite = current.favorite,
+                )
+            } ?: current }
         } else {
             updated
         }
         servers.value = if (sort) sortServers(next) else next
-        settings.saveServers(servers.value)
+        if (persist) settings.saveServers(servers.value)
     }
 
     private fun isAutoEligible(server: ServerRecord): Boolean =

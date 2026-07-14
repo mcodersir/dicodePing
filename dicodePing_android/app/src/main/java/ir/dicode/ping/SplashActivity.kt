@@ -10,6 +10,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ir.dicode.ping.data.AppRepository
 import ir.dicode.ping.data.ProgressState
 import ir.dicode.ping.data.SettingsStore
@@ -56,7 +57,22 @@ class SplashActivity : ComponentActivity() {
             withTimeoutOrNull(45_000) { repo.initialize() }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < 650) delay(650 - elapsed)
-            openMain()
+            val changed = withTimeoutOrNull(5_000) { repo.subscriptionUpdates() }.orEmpty()
+            if (changed.isEmpty() || isFinishing) {
+                openMain()
+            } else {
+                val names = changed.take(3).joinToString("، ") { it.name }
+                MaterialAlertDialogBuilder(this@SplashActivity)
+                    .setTitle(R.string.subscription_update_title)
+                    .setMessage(getString(R.string.subscription_update_message, names))
+                    .setNegativeButton(R.string.update_later) { _, _ -> openMain() }
+                    .setPositiveButton(R.string.update_now) { _, _ ->
+                        repo.refreshAll()
+                        openMain()
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
         }
     }
 

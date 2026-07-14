@@ -2,6 +2,7 @@ package ir.dicode.ping.data
 
 import android.content.Context
 import org.json.JSONArray
+import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
@@ -32,6 +33,15 @@ class SettingsStore(context: Context) {
     var diagnosticLogging: Boolean
         get() = prefs.getBoolean("diagnostic_logging", false)
         set(value) = prefs.edit().putBoolean("diagnostic_logging", value).apply()
+    var sourceRevisions: Map<String, String>
+        get() = runCatching {
+            val json = JSONObject(prefs.getString("source_revisions", "{}") ?: "{}")
+            json.keys().asSequence().associateWith { json.optString(it) }
+        }.getOrDefault(emptyMap())
+        set(value) {
+            val json = JSONObject(); value.forEach { (id, revision) -> json.put(id, revision) }
+            prefs.edit().putString("source_revisions", json.toString()).apply()
+        }
 
     fun isServerRefreshDue(now: Long = System.currentTimeMillis()): Boolean {
         if (loadServers().isEmpty()) return true

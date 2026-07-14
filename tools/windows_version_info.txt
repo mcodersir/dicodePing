@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct('CompanyName', 'Dicode'),
           StringStruct('FileDescription', 'dicodePing - Windows and Android connectivity client'),
-          StringStruct('FileVersion', '0.1.3.0'),
+          StringStruct('FileVersion', '0.1.4.0'),
           StringStruct('InternalName', 'dicodePing'),
           StringStruct('LegalCopyright', 'Copyright (c) dicodePing contributors'),
           StringStruct('OriginalFilename', 'dicodePing.exe'),
           StringStruct('ProductName', 'dicodePing'),
-          StringStruct('ProductVersion', '0.1.3.0')
+          StringStruct('ProductVersion', '0.1.4.0')
         ]
       )
     ]),

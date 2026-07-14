@@ -6,8 +6,8 @@ import traceback
 from typing import Any
 from pathlib import Path
 
-from PySide6.QtCore import QThread, QTimer, Qt, Signal
-from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtCore import QThread, QTimer, Qt, Signal, QUrl
+from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QVBoxLayout, QWidget
 
 from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RUNTIME_DIR, VERSION
@@ -16,6 +16,7 @@ from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
 from dicodeping.sources import normalize_sources, serialize_sources
 from dicodeping.storage import JsonStore
 from dicodeping.ui import MainWindow
+from dicodeping.updates import check_source_updates, find_application_update
 from dicodeping.windows_integration import apply_native_window_icon, set_process_app_user_model_id
 from dicodeping.xray import cleanup_stale_owned_process, is_admin, is_windows, relaunch_as_admin
 
@@ -118,6 +119,27 @@ class StartupPrepareThread(QThread):
             except Exception:
                 LOGGER.exception("Startup cache recovery failed")
         self.ready.emit(cached, settings, startup_error, refresh_due)
+
+
+class UpdateCheckThread(QThread):
+    """Network-only update check, intentionally outside the startup gate."""
+    ready = Signal(object, object)
+
+    def __init__(self, settings: dict[str, Any], language: str) -> None:
+        super().__init__()
+        self.settings = dict(settings)
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            sources = normalize_sources(self.settings, self.language)
+            changed, observed = check_source_updates(sources, self.settings.get("source_revisions"))
+            platform = "windows" if is_windows() else "linux"
+            release = find_application_update(VERSION, platform)
+            self.ready.emit((changed, observed), release)
+        except Exception:
+            LOGGER.info("Update check unavailable", exc_info=True)
+            self.ready.emit(([], {}), None)
 
 
 _SINGLE_INSTANCE_HANDLE = None
@@ -267,7 +289,7 @@ def main() -> int:
     if screen:
         splash.move(screen.availableGeometry().center() - splash.rect().center())
 
-    state: dict[str, Any] = {"window": None, "worker": None}
+    state: dict[str, Any] = {"window": None, "worker": None, "update_worker": None}
     gate = StartupGate()
     worker = StartupPrepareThread(language)
     state["worker"] = worker
@@ -320,6 +342,50 @@ def main() -> int:
                         window.start_scan()
 
                 QTimer.singleShot(650, start_deferred_refresh)
+
+                def check_updates() -> None:
+                    if not window.isVisible():
+                        return
+                    update_worker = UpdateCheckThread(window.settings, window.language)
+                    state["update_worker"] = update_worker
+
+                    def offer(source_data: object, release: object) -> None:
+                        changed, observed = source_data if isinstance(source_data, tuple) else ([], {})
+                        if observed and not window.settings.get("source_revisions"):
+                            window.settings["source_revisions"] = observed
+                            window.store.save_settings(window.settings)
+                        if changed:
+                            names = "، ".join(item.name for item in changed[:3])
+                            answer = QMessageBox.question(
+                                window, APP_NAME,
+                                (f"به‌روزرسانی منبع سرورها آماده است ({names}). اکنون دریافت شود؟"
+                                 if window.language != "en" else
+                                 f"A server source update is available ({names}). Download it now?"),
+                                QMessageBox.Yes | QMessageBox.No,
+                                QMessageBox.Yes,
+                            )
+                            if answer == QMessageBox.Yes:
+                                window.settings["source_revisions"] = observed
+                                window.store.save_settings(window.settings)
+                                window.start_scan()
+                        if release:
+                            answer = QMessageBox.question(
+                                window, APP_NAME,
+                                (f"نسخه {release.tag} آماده است. صفحه دریافت باز شود؟"
+                                 if window.language != "en" else
+                                 f"Version {release.tag} is available. Open the download page?"),
+                                QMessageBox.Yes | QMessageBox.No,
+                                QMessageBox.Yes,
+                            )
+                            if answer == QMessageBox.Yes:
+                                QDesktopServices.openUrl(QUrl(release.asset_url))
+
+                    update_worker.ready.connect(offer)
+                    update_worker.finished.connect(update_worker.deleteLater)
+                    update_worker.start()
+
+                # The UI is already usable; a slow network must never delay it.
+                QTimer.singleShot(900, check_updates)
 
             QTimer.singleShot(80, hydrate_and_refresh)
         except Exception as exc:

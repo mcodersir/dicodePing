@@ -1864,12 +1864,35 @@ class MainWindow(QMainWindow):
         if not self.servers:
             self.start_scan()
             return
-        self._busy_list_task = True
+        # Keep the current rows visible while their response times are updated.
+        # Discovery still uses the skeleton, but a ping refresh is incremental.
+        self._busy_list_task = False
         self.set_busy(True, self.t("refreshing_saved"))
         worker = RefreshThread(self.service, self.language)
+        worker.record_updated.connect(self.refresh_record_updated)
         worker.success.connect(lambda servers: self.refresh_finished(list(servers), auto))
         worker.failed.connect(self.task_failed)
         self.bind_worker(worker)
+
+    def refresh_record_updated(self, server: object) -> None:
+        """Patch one visible row without resetting filtering or selection."""
+        if not isinstance(server, ServerRecord):
+            return
+        for index, current in enumerate(self.servers):
+            if current.id == server.id:
+                self.servers[index] = server
+                break
+        else:
+            return
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 1)
+            if not item or item.data(Qt.UserRole) != server.id:
+                continue
+            ping = self.table.item(row, 4)
+            if ping:
+                ping.setText(f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable"))
+                ping.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+            break
 
     def refresh_finished(self, servers: list[ServerRecord], auto: bool) -> None:
         self.servers = servers

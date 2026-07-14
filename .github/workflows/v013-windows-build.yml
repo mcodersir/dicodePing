@@ -1,4 +1,4 @@
-name: Build Windows rc.9
+name: Build Windows rc.1
 
 on:
   workflow_dispatch:
@@ -37,30 +37,30 @@ jobs:
           python -m unittest discover -s tests -v
           python tools/quality_gate.py
           python tools/build_windows.py --skip-install
-          Move-Item -Force release/dicodePing-v0.1.3-windows.exe release/dicodePing-v0.1.3-rc.9-windows.exe
+          Move-Item -Force release/dicodePing-v0.1.4-windows.exe release/dicodePing-v0.1.4-rc.1-windows.exe
       - name: Smoke-test packaged GUI startup
         shell: pwsh
         run: |
           $env:QT_QPA_PLATFORM = 'offscreen'
           $env:APPDATA = Join-Path $env:RUNNER_TEMP 'dicodeping-smoke'
           $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP 'dicodeping-startup-report.txt'
-          $process = Start-Process -FilePath 'release/dicodePing-v0.1.3-rc.9-windows.exe' -ArgumentList '--startup-smoke-test' -Wait -PassThru
+          $process = Start-Process -FilePath 'release/dicodePing-v0.1.4-rc.1-windows.exe' -ArgumentList '--startup-smoke-test' -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
             throw "Packaged GUI startup failed with exit code $($process.ExitCode)"
           }
       - uses: actions/upload-artifact@v4
         with:
-          name: dicodePing-v0.1.3-rc.9-windows
-          path: release/dicodePing-v0.1.3-rc.9-windows.exe
+          name: dicodePing-v0.1.4-rc.1-windows
+          path: release/dicodePing-v0.1.4-rc.1-windows.exe
           if-no-files-found: error
       - name: Publish Windows asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.3-rc.9
+          tag_name: v0.1.4-rc.1
           target_commitish: main
-          name: dicodePing v0.1.3-rc.9
-          body_path: docs/releases/v0.1.3-rc.9.md
+          name: dicodePing v0.1.4-rc.1
+          body_path: docs/releases/v0.1.4-rc.1.md
           prerelease: true
           fail_on_unmatched_files: true
-          files: release/dicodePing-v0.1.3-rc.9-windows.exe
+          files: release/dicodePing-v0.1.4-rc.1-windows.exe

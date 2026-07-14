@@ -145,4 +145,10 @@
     <string name="server_change_locked">Disconnect before changing the server</string>
     <string name="navigation_home">Home</string>
     <string name="connecting_server">Connecting server</string>
+    <string name="subscription_update_title">Server update available</string>
+    <string name="subscription_update_message">Updates are available for %1$s. Download them now?</string>
+    <string name="update_now">Update</string>
+    <string name="update_later">Later</string>
+    <string name="app_update_title">Version %1$s is available</string>
+    <string name="app_update_message">Open the release download now?</string>
 </resources>

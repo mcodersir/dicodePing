@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.content.res.Configuration
 import android.net.VpnService
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -36,6 +37,7 @@ import ir.dicode.ping.ui.SettingsFragment
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.util.PublicServerLabel
+import ir.dicode.ping.net.ReleaseUpdateChecker
 import ir.dicode.ping.vpn.DicodeVpnService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -93,6 +95,18 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         currentPageId = 0
         showPage(restoredPage, animate = false)
+        lifecycleScope.launch {
+            ReleaseUpdateChecker.newerThan(BuildConfig.VERSION_NAME)?.let { release ->
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(getString(R.string.app_update_title, release.tag))
+                    .setMessage(R.string.app_update_message)
+                    .setNegativeButton(R.string.update_later, null)
+                    .setPositiveButton(R.string.update_now) { _, _ ->
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.assetUrl)))
+                    }
+                    .show()
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

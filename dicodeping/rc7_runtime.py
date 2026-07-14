@@ -38,7 +38,7 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
     return min(choices, default=(None, addresses[0] if addresses else ""), key=lambda item: item[0] or 999_999)
 
 
-def _test_records(records: list[ServerRecord], settings: dict, callback=None) -> list[ServerRecord]:
+def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
     concurrency = bounded_int(settings.get("test_concurrency"), 28, 4, 48)
     page_size = bounded_int(settings.get("test_batch_size"), 48, 8, 96)
     timeout = bounded_int(settings.get("test_timeout_ms"), 950, 400, 3000) / 1000.0
@@ -60,6 +60,20 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
     results: dict[tuple[str, int], tuple[int | None, str]] = {}
     done = 0
 
+    def apply_endpoint(key):
+        """Apply one completed endpoint immediately, keeping duplicate rows in sync."""
+        latency, ip = results.get(key, (None, ""))
+        now = service_module.utc_now()
+        for row in by_endpoint[key]:
+            row.last_checked = now
+            row.ip = ip or row.ip
+            if trusted_latency(latency):
+                row.ping_ms, row.status, row.failures = latency, "online", 0
+            else:
+                row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
+            if record_callback:
+                record_callback(row)
+
     def run_page(page, workers, attempt_timeout):
         nonlocal done
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, len(page) or 1)) as pool:
@@ -73,6 +87,7 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
                     results[key] = future.result()
                 except Exception:
                     results[key] = (None, resolved[key][0] if resolved[key] else "")
+                apply_endpoint(key)
                 done += 1
                 if callback:
                     callback(min(done, len(endpoints)), max(1, len(endpoints)))
@@ -93,16 +108,6 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
     finally:
         net_module.remove_direct_host_routes(routes)
 
-    now = service_module.utc_now()
-    for endpoint, rows in by_endpoint.items():
-        latency, ip = results.get(endpoint, (None, ""))
-        for row in rows:
-            row.last_checked = now
-            row.ip = ip or row.ip
-            if trusted_latency(latency):
-                row.ping_ms, row.status, row.failures = latency, "online", 0
-            else:
-                row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
     return records
 
 
@@ -157,7 +162,12 @@ def _install_service_patch() -> None:
 
     def refresh(self, *args, **kwargs):
         records = self.store.load_servers()
-        _test_records(records, self.store.load_settings(), kwargs.get("ping_progress") or kwargs.get("progress"))
+        _test_records(
+            records,
+            self.store.load_settings(),
+            kwargs.get("ping_progress") or kwargs.get("progress"),
+            kwargs.get("record_progress"),
+        )
         _apply_geo(self, records, kwargs.get("geo_progress") or kwargs.get("progress"))
         for row in records:
             try:

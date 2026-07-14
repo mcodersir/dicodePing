@@ -145,4 +145,10 @@
     <string name="server_change_locked">برای تغییر سرور ابتدا اتصال را قطع کنید</string>
     <string name="navigation_home">خانه</string>
     <string name="connecting_server">سرور در حال اتصال</string>
+    <string name="subscription_update_title">به‌روزرسانی سرورها آماده است</string>
+    <string name="subscription_update_message">برای %1$s به‌روزرسانی وجود دارد. اکنون دریافت شود؟</string>
+    <string name="update_now">به‌روزرسانی</string>
+    <string name="update_later">بعداً</string>
+    <string name="app_update_title">نسخه %1$s آماده است</string>
+    <string name="app_update_message">صفحه دریافت نسخه جدید باز شود؟</string>
 </resources>
