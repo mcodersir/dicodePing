@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import sys
-import time
 from typing import Any
 
 from PySide6.QtCore import QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QIcon
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QProgressBar, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QVBoxLayout, QWidget
 
 from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RUNTIME_DIR, VERSION
 from dicodeping.diagnostics import configure_logging, get_logger
-from dicodeping.discovery import discover_config_entries
-from dicodeping.service import ServerService
+from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
 from dicodeping.sources import normalize_sources, serialize_sources
 from dicodeping.storage import JsonStore
 from dicodeping.ui import MainWindow
@@ -81,7 +79,7 @@ class StartupSplash(QWidget):
 
 class StartupPrepareThread(QThread):
     stage = Signal(int, str, str)
-    ready = Signal(object, object, str)
+    ready = Signal(object, object, str, bool)
 
     def __init__(self, language: str) -> None:
         super().__init__()
@@ -89,60 +87,34 @@ class StartupPrepareThread(QThread):
 
     def run(self) -> None:
         store = JsonStore()
-        service = ServerService(store)
-        settings = store.load_settings()
-        cached = store.load_servers()
+        settings: dict[str, Any] = {}
+        cached: list[Any] = []
         startup_error = ""
+        refresh_due = True
         try:
             self.stage.emit(8, "در حال بارگذاری تنظیمات...", "Loading settings...")
+            settings = store.load_settings()
+            cached = store.load_servers()
             sources = normalize_sources(settings, self.language)
             settings["sources"] = serialize_sources(sources)
             settings.pop("custom_subscriptions", None)
-
-            last_refresh = float(settings.get("last_server_refresh_at", 0) or 0)
-            due = not cached or (time.time() - last_refresh) >= SERVER_REFRESH_INTERVAL_SECONDS
-            if due:
-                enabled = [source for source in sources if source.enabled]
-                self.stage.emit(15, "در حال دریافت سرورها...", "Downloading servers...")
-                entries = discover_config_entries(
-                    enabled,
-                    stage=lambda text: self.stage.emit(22, text, text),
-                    progress=lambda current, total: self.stage.emit(
-                        15 + int(22 * max(0, current) / max(1, total)),
-                        "در حال دریافت سرورها...",
-                        "Downloading servers...",
-                    ),
-                    language=self.language,
-                )
-                servers = service.build_and_save(
-                    entries,
-                    stage=lambda text: self.stage.emit(48, text, text),
-                    language=self.language,
-                    ping_progress=lambda current, total: self.stage.emit(
-                        40 + int(30 * max(0, current) / max(1, total)),
-                        "در حال سنجش پاسخ سرورها...",
-                        "Testing server response...",
-                    ),
-                    geo_progress=lambda current, total: self.stage.emit(
-                        70 + int(22 * max(0, current) / max(1, total)),
-                        "در حال تشخیص موقعیت سرورها...",
-                        "Resolving server locations...",
-                    ),
-                )
-                cached = servers
-                settings["last_server_refresh_at"] = int(time.time())
-                LOGGER.info("Startup refresh completed: %d servers", len(cached))
-            else:
-                self.stage.emit(82, "در حال استفاده از اطلاعات ذخیره شده...", "Using cached server data...")
-                LOGGER.info("Startup cache is fresh: %d servers", len(cached))
-
+            refresh_due = server_refresh_due(
+                len(cached),
+                settings.get("last_server_refresh_at", 0),
+                interval_seconds=SERVER_REFRESH_INTERVAL_SECONDS,
+            )
             store.save_settings(settings)
+            self.stage.emit(82, "در حال بارگذاری اطلاعات ذخیره شده...", "Loading cached server data...")
             self.stage.emit(96, "در حال آماده سازی رابط...", "Preparing interface...")
         except Exception as exc:
             LOGGER.exception("Startup preparation failed")
             startup_error = str(exc)
-            cached = cached or store.load_servers()
-        self.ready.emit(cached, settings, startup_error)
+            try:
+                settings = settings or store.load_settings()
+                cached = cached or store.load_servers()
+            except Exception:
+                LOGGER.exception("Startup cache recovery failed")
+        self.ready.emit(cached, settings, startup_error, refresh_due)
 
 
 _SINGLE_INSTANCE_HANDLE = None
@@ -202,10 +174,14 @@ def choose_persian_font() -> QFont:
 
 
 def main() -> int:
-    settings = JsonStore().load_settings()
+    smoke_mode = "--startup-smoke-test" in sys.argv
+    try:
+        settings = JsonStore().load_settings()
+    except Exception:
+        settings = {}
     configure_logging(bool(settings.get("diagnostic_logging", False)), str(settings.get("log_level", "INFO")))
     LOGGER.info("Application startup requested")
-    if not is_admin():
+    if not smoke_mode and not is_admin():
         if relaunch_as_admin():
             return 0
         if is_windows():
@@ -224,7 +200,7 @@ def main() -> int:
             print("Root access is required to create the Linux TUN interface. Run with sudo or install PolicyKit.")
         return 1
 
-    if not acquire_single_instance():
+    if not smoke_mode and not acquire_single_instance():
         try:
             import ctypes
 
@@ -233,10 +209,12 @@ def main() -> int:
             pass
         return 0
 
-    cleanup_stale_owned_process()
+    if not smoke_mode:
+        cleanup_stale_owned_process()
     set_app_id()
 
-    app = QApplication(sys.argv)
+    qt_args = [argument for argument in sys.argv if argument != "--startup-smoke-test"]
+    app = QApplication(qt_args)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
     app.setApplicationVersion(VERSION)
@@ -249,6 +227,29 @@ def main() -> int:
     language = "en" if settings.get("language") == "en" else "fa"
     app.setLayoutDirection(Qt.LeftToRight if language == "en" else Qt.RightToLeft)
 
+    if smoke_mode:
+        try:
+            smoke_settings = dict(settings)
+            smoke_settings.update({"language": "en", "accepted_disclaimer": True})
+            window = MainWindow(
+                preloaded_servers=[],
+                preloaded_settings=smoke_settings,
+                startup_prepared=True,
+            )
+            window.show()
+        except Exception:
+            LOGGER.exception("Packaged startup smoke test failed")
+            return 2
+
+        def finish_smoke_test() -> None:
+            visible = window.isVisible()
+            window._is_closing = True
+            window.close()
+            app.exit(0 if visible else 3)
+
+        QTimer.singleShot(700, finish_smoke_test)
+        return app.exec()
+
     splash = StartupSplash(language)
     if not application_icon.isNull():
         splash.setWindowIcon(application_icon)
@@ -258,34 +259,95 @@ def main() -> int:
         splash.move(screen.availableGeometry().center() - splash.rect().center())
 
     state: dict[str, Any] = {"window": None, "worker": None}
+    gate = StartupGate()
     worker = StartupPrepareThread(language)
     state["worker"] = worker
     worker.stage.connect(lambda value, fa, en: splash.set_stage(value, fa, en, language))
 
-    def prepared(servers: object, prepared_settings: object, startup_error: str) -> None:
-        rows = list(servers) if isinstance(servers, list) else []
+    watchdog = QTimer()
+    watchdog.setSingleShot(True)
+    watchdog.setInterval(4000)
+
+    def prepared(
+        servers: object,
+        prepared_settings: object,
+        startup_error: str,
+        refresh_due: bool,
+    ) -> None:
+        if not gate.claim():
+            return
+        watchdog.stop()
+        rows = startup_rows(servers)
         loaded_settings = dict(prepared_settings) if isinstance(prepared_settings, dict) else settings
-        window = MainWindow(
-            preloaded_servers=rows,
-            preloaded_settings=loaded_settings,
-            startup_prepared=True,
-            startup_error=startup_error,
-        )
-        state["window"] = window
-        splash.set_stage(100, "آماده", "Ready", language)
-        window.show()
-        if is_windows():
-            # Force the native HWND icon after creation. This complements the
-            # application/window QIcon and fixes generic taskbar icons for the
-            # frameless elevated PyInstaller build on Windows 10/11.
-            QTimer.singleShot(0, lambda: apply_native_window_icon(window, ASSET_DIR / "app.ico"))
-        splash.close()
-        worker.quit()
+        try:
+            # Hydrate cached rows after the window becomes responsive. Building
+            # a large table inside this signal used to freeze the splash.
+            window = MainWindow(
+                preloaded_servers=[],
+                preloaded_settings=loaded_settings,
+                startup_prepared=True,
+                startup_error=startup_error,
+            )
+            state["window"] = window
+            splash.set_stage(100, "آماده", "Ready", language)
+            window.show()
+            if is_windows():
+                QTimer.singleShot(0, lambda: apply_native_window_icon(window, ASSET_DIR / "app.ico"))
+
+            def hydrate_and_refresh() -> None:
+                try:
+                    window.servers = rows
+                    window.render_servers()
+                except Exception:
+                    LOGGER.exception("Deferred server list hydration failed")
+
+                def start_deferred_refresh() -> None:
+                    if not window.isVisible():
+                        return
+                    if not window.settings.get("accepted_disclaimer"):
+                        QTimer.singleShot(500, start_deferred_refresh)
+                        return
+                    if refresh_due and not window.worker and not window.manager.connected:
+                        window.start_scan()
+
+                QTimer.singleShot(650, start_deferred_refresh)
+
+            QTimer.singleShot(80, hydrate_and_refresh)
+        except Exception as exc:
+            LOGGER.exception("Main window initialization failed")
+            splash.close()
+            message = (
+                "راه‌اندازی رابط ناموفق بود. برنامه را دوباره اجرا کنید."
+                if language != "en"
+                else "The interface could not start. Please restart the application."
+            )
+            QMessageBox.critical(None, APP_NAME, f"{message}\n\n{exc}")
+            QTimer.singleShot(0, lambda: app.exit(2))
+        finally:
+            # The splash must always have a terminal path, including UI errors.
+            splash.close()
+
+    def preparation_timed_out() -> None:
+        LOGGER.warning("Startup preparation timed out; opening the interface with safe defaults")
+        prepared([], settings, "Startup preparation timed out", True)
+
+    def worker_finished() -> None:
+        if state.get("worker") is worker:
+            state["worker"] = None
         worker.deleteLater()
-        state["worker"] = None
 
     worker.ready.connect(prepared)
+    worker.finished.connect(worker_finished)
+    watchdog.timeout.connect(preparation_timed_out)
     worker.start()
+    watchdog.start()
+
+    def stop_startup_worker() -> None:
+        if worker.isRunning():
+            worker.requestInterruption()
+            worker.wait(500)
+
+    app.aboutToQuit.connect(stop_startup_worker)
     return app.exec()
 
 

@@ -7,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc8_release_sequence_and_pipeline(self) -> None:
+    def test_android_rc9_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 11", gradle)
+        self.assertIn("versionCode = 12", gradle)
         self.assertIn('versionName = "0.1.3"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -38,6 +38,25 @@ class MaintenanceTests(unittest.TestCase):
         after_start = ui.split("def _after_start", 1)[1].split("def apply_theme", 1)[0]
         self.assertNotIn("start_scan(", after_start)
         self.assertNotIn("start_refresh(", after_start)
+
+    def test_rc9_startup_cannot_be_held_by_network_or_ui_failure(self) -> None:
+        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        startup_worker = app.split("class StartupPrepareThread", 1)[1].split("_SINGLE_INSTANCE_HANDLE", 1)[0]
+        self.assertNotIn("discover_config_entries", startup_worker)
+        self.assertNotIn("ServerService", startup_worker)
+        self.assertIn("StartupGate()", app)
+        self.assertIn("watchdog.setInterval(4000)", app)
+        self.assertIn("preloaded_servers=[]", app)
+        self.assertIn("finally:", app)
+        self.assertIn("splash.close()", app)
+        self.assertIn("--startup-smoke-test", app)
+
+    def test_rc9_packaged_desktop_smoke_tests_require_success(self) -> None:
+        windows = (ROOT / ".github/workflows/v013-windows-build.yml").read_text(encoding="utf-8")
+        linux = (ROOT / ".github/workflows/v013-linux-rc5-build.yml").read_text(encoding="utf-8")
+        self.assertIn("--startup-smoke-test", windows)
+        self.assertIn("--startup-smoke-test", linux)
+        self.assertNotIn('test "$status" -eq 124', linux)
 
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
