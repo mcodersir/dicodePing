@@ -19,7 +19,7 @@ env:
 
 jobs:
   windows:
-    name: Windows build and startup validation
+    name: Build Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v
+      - uses
