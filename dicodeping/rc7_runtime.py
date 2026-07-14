@@ -16,6 +16,7 @@ from .protocols import blob_to_config, config_to_blob, normalize_key, parse_endp
 from .rc2_core import extract_display_name
 from .rc3_core import median_latency, trusted_latency
 from .rc7_core import batches, bounded_int, diverse_auto_candidates
+from .rc8_core import geo_lookup_ips, unresolved_retry_hosts
 
 _PATCHED = False
 
@@ -47,9 +48,13 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
         if row.host and row.port:
             by_endpoint[(row.host, row.port)].append(row)
     endpoints = list(by_endpoint)
+    def resolve_hosts(hosts):
+        unique = list(dict.fromkeys(hosts))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(unique) or 1)) as resolver_pool:
+            return dict(zip(unique, resolver_pool.map(lambda host: net_module.resolve_all_ips(host)[:2], unique)))
+
     hosts = list(dict.fromkeys(host for host, _ in endpoints))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(hosts) or 1)) as resolver_pool:
-        host_results = dict(zip(hosts, resolver_pool.map(lambda host: net_module.resolve_all_ips(host)[:2], hosts)))
+    host_results = resolve_hosts(hosts)
     resolved = {key: host_results.get(key[0], []) for key in endpoints}
     routes = net_module.install_direct_host_routes(ip for values in resolved.values() for ip in values if ":" not in ip)
     results: dict[tuple[str, int], tuple[int | None, str]] = {}
@@ -77,6 +82,11 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
             run_page(page, concurrency, timeout)
         failed = [key for key in endpoints if results.get(key, (None, ""))[0] is None]
         if retry_failed and failed:
+            retry_hosts = unresolved_retry_hosts(failed, resolved)
+            if retry_hosts:
+                host_results.update(resolve_hosts(retry_hosts))
+                for key in failed:
+                    resolved[key] = host_results.get(key[0], [])
             # Like v2rayN: retry the failed portion with smaller pages/concurrency.
             for page in batches(failed, max(4, page_size // 2)):
                 run_page(page, max(3, concurrency // 2), min(3.0, timeout * 1.5))
@@ -97,7 +107,9 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None) ->
 
 
 def _apply_geo(service, records, callback=None):
-    ips = list(dict.fromkeys(row.ip for row in records if row.ip))
+    # Looking up dead rows added dozens of slow public requests without adding
+    # useful information to the UI. Cached location stays intact on failures.
+    ips = geo_lookup_ips(records)
     located = service.geo.resolve_many(ips, callback=callback)
     for row in records:
         data = located.get(row.ip, {})
@@ -232,7 +244,9 @@ def _install_ui_patch() -> None:
         original_summary(self)
         label = getattr(self, "home_best_name", None)
         if label and label.text():
-            full = label.toolTip() or label.text()
+            # original_summary just wrote the current full name. A previous
+            # tooltip must never override a newly selected server.
+            full = label.text()
             label.setToolTip(full)
             width = max(120, label.width() - 8)
             label.setText(QFontMetrics(label.font()).elidedText(full, Qt.ElideRight, width))
@@ -255,8 +269,9 @@ def _install_ui_patch() -> None:
         configure_logging(bool(self.settings.get("diagnostic_logging", False)), str(self.settings.get("log_level", "INFO")))
 
     def close(self, event):
-        QApplication.instance().removeEventFilter(self)
         original_close(self, event)
+        if event.isAccepted():
+            QApplication.instance().removeEventFilter(self)
 
     MainWindow.__init__ = init
     MainWindow.eventFilter = event_filter

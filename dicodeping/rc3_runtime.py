@@ -114,7 +114,12 @@ class _SelectedPingThread(QThread):
         self.server = server
 
     def run(self):
-        result = _probe_server(self.server.id, self.server.host, int(self.server.port or 443))
+        try:
+            result = _probe_server(self.server.id, self.server.host, int(self.server.port or 443))
+        except Exception:
+            # Always emit completion so the UI cannot leave the button disabled
+            # forever after an unexpected resolver/platform error.
+            result = net_module.PingResult(self.server.id, None, "")
         self.done.emit(result)
 
 

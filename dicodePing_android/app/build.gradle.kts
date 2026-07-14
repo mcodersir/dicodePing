@@ -81,7 +81,7 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 35
-        versionCode = 10
+        versionCode = 11
         versionName = "0.1.3"
         multiDexEnabled = true
 

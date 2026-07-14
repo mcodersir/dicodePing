@@ -58,6 +58,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         root / "dicodeping" / "rc6_runtime.py",
         root / "dicodeping" / "rc7_core.py",
         root / "dicodeping" / "rc7_runtime.py",
+        root / "dicodeping" / "rc8_core.py",
+        root / "dicodeping" / "rc8_runtime.py",
         assets,
         assets / "app.ico",
         root / "tools" / "windows_version_info.txt",

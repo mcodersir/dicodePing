@@ -7,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc7_release_sequence_and_pipeline(self) -> None:
+    def test_android_rc8_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 10", gradle)
+        self.assertIn("versionCode = 11", gradle)
         self.assertIn('versionName = "0.1.3"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -43,6 +43,20 @@ class MaintenanceTests(unittest.TestCase):
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
         self.assertNotIn("server.protocol", ui)
         self.assertIn("self.table = QTableWidget(0, 7)", ui)
+
+    def test_rc8_desktop_bug_fixes_are_wired(self) -> None:
+        ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
+        rc7 = (ROOT / "dicodeping/rc7_runtime.py").read_text(encoding="utf-8")
+        rc8 = (ROOT / "dicodeping/rc8_runtime.py").read_text(encoding="utf-8")
+        workers = (ROOT / "dicodeping/workers.py").read_text(encoding="utf-8")
+
+        self.assertIn("self.table.blockSignals(True)", ui)
+        self.assertIn("self._worker_finished(worker)", ui)
+        self.assertIn("full = label.text()", rc7)
+        self.assertIn("geo_lookup_ips(records)", rc7)
+        self.assertIn("QHeaderView.Fixed", rc8)
+        self.assertIn("self.table.viewport().width()", rc8)
+        self.assertIn("waits = (0.25, 0.7)", workers)
 
     def test_android_connection_lock_and_diagnostics(self) -> None:
         servers = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServersFragment.kt").read_text(encoding="utf-8")

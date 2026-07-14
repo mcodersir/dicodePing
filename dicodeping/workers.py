@@ -52,12 +52,14 @@ def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
     # Race several endpoints once.  Repeating long 5.5-second probes made a
     # healthy Windows TUN look broken whenever a single public endpoint was
     # filtered or slow.
-    waits = (0.2, 0.6, 1.0)
+    # Two short rounds are enough to cover Windows route propagation. The old
+    # three-round sequence could hold every failed auto candidate for ~12 s.
+    waits = (0.25, 0.7)
     for wait in waits:
         time.sleep(wait)
         if not manager.connected:
             return False
-        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=3.2, attempts=1):
+        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=2.6, attempts=1):
             return True
     return False
 
@@ -178,9 +180,9 @@ class ConnectThread(TaskThread):
             if not _tunnel_passes_real_traffic(self.manager):
                 self.manager.stop()
                 raise RuntimeError(
-                    "مسیر TUN آماده نشد یا سرور پاسخ اینترنتی معتبر نداد؛ یک سرور دیگر امتحان کنید"
+                    "اتصال آماده نشد یا سرور پاسخ اینترنتی معتبر نداد؛ یک سرور دیگر امتحان کنید"
                     if self.language != "en"
-                    else "The TUN route was not ready or the server did not provide valid internet access. Try another server."
+                    else "The connection was not ready or the server did not provide valid internet access. Try another server."
                 )
             if self.isInterruptionRequested():
                 self.manager.stop()

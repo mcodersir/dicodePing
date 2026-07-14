@@ -1146,6 +1146,7 @@ class MainWindow(QMainWindow):
         toolbar = QFrame()
         toolbar.setObjectName("toolbarCard")
         toolbar_layout = QHBoxLayout(toolbar)
+        self.server_toolbar_layout = toolbar_layout
         toolbar_layout.setContentsMargins(12, 10, 12, 10)
         toolbar_layout.setSpacing(10)
         self.filter_edit = QLineEdit()
@@ -1437,9 +1438,11 @@ class MainWindow(QMainWindow):
         advanced_form.setContentsMargins(18, 16, 18, 18)
         advanced_form.setSpacing(12)
         advanced_form.addWidget(self._section_label(self.t("performance_diagnostics")))
+        self.settings_advanced_rows = []
 
         def number_option(label_key: str, setting_key: str, minimum: int, maximum: int, default: int, suffix: str = "") -> QSpinBox:
             row = QHBoxLayout()
+            self.settings_advanced_rows.append(row)
             label = QLabel(self.t(label_key))
             label.setObjectName("muted")
             label.setWordWrap(True)
@@ -1601,8 +1604,6 @@ class MainWindow(QMainWindow):
 
     def open_log_location(self) -> None:
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        if not LOG_FILE.exists():
-            LOG_FILE.touch()
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE.parent)))
 
     def _after_start(self) -> None:
@@ -1724,10 +1725,16 @@ class MainWindow(QMainWindow):
         self.worker = worker
         worker.stage.connect(self._set_stage_text)
         worker.progress.connect(self.update_progress)
-        worker.finished.connect(self._worker_finished)
+        worker.finished.connect(lambda worker=worker: self._worker_finished(worker))
         worker.start()
 
-    def _worker_finished(self) -> None:
+    def _worker_finished(self, finished_worker=None) -> None:
+        from .rc8_core import is_current_worker
+
+        # A delayed finished signal from an older task must not clear a newer
+        # worker and re-enable controls in the middle of that task.
+        if not is_current_worker(self.worker, finished_worker):
+            return
         self.worker = None
         if not self.manager.connected:
             self._stop_connect_animation()
@@ -1981,6 +1988,11 @@ class MainWindow(QMainWindow):
         if self._busy_list_task:
             self.server_stack.setCurrentIndex(2)
             return
+        current_item = self.table.item(self.table.currentRow(), 1) if self.table.currentRow() >= 0 else None
+        selected_id = str(current_item.data(Qt.UserRole) if current_item else "") or str(
+            self.settings.get("selected_server_id", "")
+        )
+        self.table.blockSignals(True)
         self.render_source_tabs()
         rows = self._filtered_servers()
         online = sum(1 for server in self.servers if server.status == "online" and server.ping_ms is not None)
@@ -2038,19 +2050,19 @@ class MainWindow(QMainWindow):
             connect.clicked.connect(lambda _=False, sid=server.id: self.connect_by_id(sid))
             self.table.setCellWidget(row, 6, connect)
             self.table.setRowHeight(row, 64)
-        saved_id = str(self.settings.get("selected_server_id", ""))
-        if saved_id:
+        if selected_id:
             self._restoring_server_selection = True
             try:
                 for row in range(self.table.rowCount()):
                     item = self.table.item(row, 1)
-                    if item and item.data(Qt.UserRole) == saved_id:
+                    if item and item.data(Qt.UserRole) == selected_id:
                         self.table.selectRow(row)
                         break
             finally:
                 self._restoring_server_selection = False
         self.server_count_label.setText(self.t("shown_count", shown=len(rows), total=len(self.servers), online=online))
         self.table.setUpdatesEnabled(True)
+        self.table.blockSignals(False)
         self.server_stack.setCurrentIndex(0 if rows else 1)
         self._render_home_summary()
         self.update_connection_ui()
