@@ -22,7 +22,11 @@ object ReleaseUpdateChecker {
                 (0 until releases.length()).mapNotNull { index ->
                     val item = releases.getJSONObject(index)
                     val tag = item.optString("tag_name")
-                    if (compare(version(tag), version(current)) <= 0) null else {
+                    val candidate = version(tag)
+                    val currentVersion = version(current)
+                    val sameSeriesCandidate = !current.contains("-rc.") &&
+                        candidate.take(3) == currentVersion.take(3) && candidate[3] == 0
+                    if (compare(candidate, currentVersion) <= 0 && !sameSeriesCandidate) null else {
                         val assets = item.optJSONArray("assets") ?: JSONArray()
                         val asset = (0 until assets.length()).map { assets.getJSONObject(it) }
                             .firstOrNull { it.optString("name").contains("-android.apk") }

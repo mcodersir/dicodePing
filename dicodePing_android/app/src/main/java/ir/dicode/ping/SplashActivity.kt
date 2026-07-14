@@ -2,6 +2,7 @@ package ir.dicode.ping
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +17,8 @@ import ir.dicode.ping.data.ProgressState
 import ir.dicode.ping.data.SettingsStore
 import ir.dicode.ping.databinding.ActivitySplashBinding
 import ir.dicode.ping.util.LocaleHelper
+import ir.dicode.ping.net.AppRelease
+import ir.dicode.ping.net.ReleaseUpdateChecker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -57,22 +60,47 @@ class SplashActivity : ComponentActivity() {
             withTimeoutOrNull(45_000) { repo.initialize() }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < 650) delay(650 - elapsed)
-            val changed = withTimeoutOrNull(5_000) { repo.subscriptionUpdates() }.orEmpty()
-            if (changed.isEmpty() || isFinishing) {
-                openMain()
-            } else {
-                val names = changed.take(3).joinToString("، ") { it.name }
-                MaterialAlertDialogBuilder(this@SplashActivity)
-                    .setTitle(R.string.subscription_update_title)
-                    .setMessage(getString(R.string.subscription_update_message, names))
-                    .setNegativeButton(R.string.update_later) { _, _ -> openMain() }
-                    .setPositiveButton(R.string.update_now) { _, _ ->
-                        repo.refreshAll()
-                        openMain()
-                    }
-                    .setCancelable(false)
-                    .show()
+            val release = withTimeoutOrNull(3_000) {
+                ReleaseUpdateChecker.newerThan(BuildConfig.RELEASE_VERSION)
             }
+            val changed = withTimeoutOrNull(4_000) { repo.subscriptionUpdates() }.orEmpty()
+            showStartupPrompts(release, changed, repo)
+        }
+    }
+
+    private fun showStartupPrompts(
+        release: AppRelease?,
+        changed: List<ir.dicode.ping.data.SourceDefinition>,
+        repo: AppRepository,
+    ) {
+        if (isFinishing) return
+        if (release != null) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.app_update_title, release.tag))
+                .setMessage(R.string.app_update_message)
+                .setNegativeButton(R.string.update_later) { _, _ -> showStartupPrompts(null, changed, repo) }
+                .setPositiveButton(R.string.update_now) { _, _ ->
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.assetUrl)))
+                    showStartupPrompts(null, changed, repo)
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+        if (changed.isNotEmpty()) {
+            val names = changed.take(3).joinToString("، ") { it.name }
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.subscription_update_title)
+                .setMessage(getString(R.string.subscription_update_message, names))
+                .setNegativeButton(R.string.update_later) { _, _ -> openMain() }
+                .setPositiveButton(R.string.update_now) { _, _ ->
+                    repo.refreshAll()
+                    openMain()
+                }
+                .setCancelable(false)
+                .show()
+        } else {
+            openMain()
         }
     }
 

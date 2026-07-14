@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from .models import SourceDefinition
+from .constants import DEFAULT_SUBSCRIPTION_MIRRORS
 
 RELEASES_URL = "https://api.github.com/repos/mcodersir/dicodePing/releases"
 _VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?$")
@@ -41,7 +42,12 @@ def find_application_update(current_version: str, platform: str, timeout: float 
     for row in rows:
         tag = str(row.get("tag_name") or "")
         candidate = _version(tag)
-        if candidate <= current:
+        same_series_candidate = (
+            "-rc." not in str(current_version).lower()
+            and candidate[:3] == current[:3]
+            and candidate[3] == 0
+        )
+        if candidate <= current and not same_series_candidate:
             continue
         assets = row.get("assets") if isinstance(row.get("assets"), list) else []
         asset = next((item for item in assets if token and token in str(item.get("name") or "")), None)
@@ -56,13 +62,19 @@ def find_application_update(current_version: str, platform: str, timeout: float 
 
 
 def source_revision(source: SourceDefinition, timeout: float = 2.5) -> str:
-    request = urllib.request.Request(source.url, method="HEAD", headers={"User-Agent": "dicodePing"})
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            headers = response.headers
-            return "|".join((headers.get("ETag", ""), headers.get("Last-Modified", ""), headers.get("Content-Length", "")))
-    except Exception:
-        return ""
+    candidates = DEFAULT_SUBSCRIPTION_MIRRORS if source.is_default or source.id == "default" else (source.url,)
+    for url in dict.fromkeys(candidates):
+        request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "dicodePing"})
+        for opener in (urllib.request.build_opener(), urllib.request.build_opener(urllib.request.ProxyHandler({}))):
+            try:
+                with opener.open(request, timeout=timeout) as response:
+                    headers = response.headers
+                    revision = "|".join((headers.get("ETag", ""), headers.get("Last-Modified", ""), headers.get("Content-Length", "")))
+                    if revision.strip("|"):
+                        return revision
+            except Exception:
+                continue
+    return ""
 
 
 def check_source_updates(

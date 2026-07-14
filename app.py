@@ -10,7 +10,7 @@ from PySide6.QtCore import QThread, QTimer, Qt, Signal, QUrl
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QVBoxLayout, QWidget
 
-from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RUNTIME_DIR, VERSION
+from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RELEASE_VERSION, RUNTIME_DIR, VERSION
 from dicodeping.diagnostics import configure_logging, get_logger
 from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
 from dicodeping.sources import normalize_sources, serialize_sources
@@ -135,7 +135,7 @@ class UpdateCheckThread(QThread):
             sources = normalize_sources(self.settings, self.language)
             changed, observed = check_source_updates(sources, self.settings.get("source_revisions"))
             platform = "windows" if is_windows() else "linux"
-            release = find_application_update(VERSION, platform)
+            release = find_application_update(RELEASE_VERSION, platform)
             self.ready.emit((changed, observed), release)
         except Exception:
             LOGGER.info("Update check unavailable", exc_info=True)
@@ -384,8 +384,10 @@ def main() -> int:
                     update_worker.finished.connect(update_worker.deleteLater)
                     update_worker.start()
 
-                # The UI is already usable; a slow network must never delay it.
-                QTimer.singleShot(900, check_updates)
+                # Start while the splash is still visible.  A watchdog closes
+                # it soon after, so an unavailable update service cannot hold
+                # the interface hostage.
+                QTimer.singleShot(0, check_updates)
 
             QTimer.singleShot(80, hydrate_and_refresh)
         except Exception as exc:
@@ -399,8 +401,9 @@ def main() -> int:
             QMessageBox.critical(None, APP_NAME, f"{message}\n\n{exc}")
             QTimer.singleShot(0, lambda: app.exit(2))
         finally:
-            # The splash must always have a terminal path, including UI errors.
-            splash.close()
+            # Give the short update check a chance to present on the splash;
+            # do not ever wait indefinitely for the network.
+            QTimer.singleShot(2600, splash.close)
 
     def preparation_timed_out() -> None:
         LOGGER.warning("Startup preparation timed out; opening the interface with safe defaults")
