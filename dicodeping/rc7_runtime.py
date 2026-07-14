@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import concurrent.futures
 import socket
 import time
 from collections import defaultdict
@@ -13,7 +12,6 @@ from . import net as net_module
 from . import service as service_module
 from .models import DiscoveredConfig, ServerRecord
 from .protocols import blob_to_config, config_to_blob, normalize_key, parse_endpoint, record_id
-from .xray import probe_outbound_delay
 from .rc2_core import extract_display_name
 from .rc3_core import median_latency, trusted_latency
 from .rc7_core import batches, bounded_int, diverse_auto_candidates
@@ -40,59 +38,37 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
 
 
 def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
-    # A TCP handshake only proves that a port accepts packets; it does not
-    # prove that the Xray configuration works.  Probe real HTTP traffic through
-    # a temporary SOCKS inbound, as v2rayNG/v2rayN do for a usable latency.
-    concurrency = min(8, bounded_int(settings.get("test_concurrency"), 6, 2, 8))
-    page_size = bounded_int(settings.get("test_batch_size"), 18, 4, 32)
-    timeout = max(2.4, bounded_int(settings.get("test_timeout_ms"), 1600, 800, 5000) / 1000.0)
-    retry_failed = bool(settings.get("retry_failed_tests", True))
-    rows = [row for row in records if row.config_blob]
-    results: dict[str, int | None] = {}
-    done = 0
+    # The server list is a latency view, not a connection test.  Starting a
+    # temporary core for every item included startup/proxy negotiation in the
+    # number and produced inflated, unstable values.  Measure ICMP Echo
+    # directly, once per host, exactly as the native Windows ping path does.
+    # A real connection is still validated only when the user connects.
+    del settings
+    rows = [row for row in records if row.host]
+    hosts = list(dict.fromkeys(row.host for row in rows))
+    results = {
+        item.key: item
+        for item in net_module.ping_many(
+            [(host, host) for host in hosts], workers=min(64, max(1, len(hosts))), callback=callback
+        )
+    }
 
     def apply_row(row: ServerRecord) -> None:
-        latency = results.get(row.id)
+        result = results.get(row.host)
+        latency = result.ping_ms if result else None
         now = service_module.utc_now()
         row.last_checked = now
         if trusted_latency(latency):
-            # Refresh the resolved endpoint with every verified probe.  Old
-            # cached DNS answers were the common cause of wrong locations.
-            addresses = net_module.resolve_all_ips(row.host)
-            if addresses:
-                row.ip = addresses[0]
+            if result and result.ip and result.ip != "dns":
+                row.ip = result.ip
             row.ping_ms, row.status, row.failures = latency, "online", 0
         else:
             row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
         if record_callback:
             record_callback(row)
 
-    def run_page(page, workers, attempt_timeout):
-        nonlocal done
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, len(page) or 1)) as pool:
-            futures = {
-                pool.submit(probe_outbound_delay, blob_to_config(row.config_blob), attempt_timeout): row
-                for row in page
-            }
-            for future in concurrent.futures.as_completed(futures):
-                row = futures[future]
-                try:
-                    results[row.id] = future.result()
-                except Exception:
-                    results[row.id] = None
-                apply_row(row)
-                done += 1
-                if callback:
-                    callback(min(done, len(rows)), max(1, len(rows)))
-
-    for page in batches(rows, page_size):
-        run_page(page, concurrency, timeout)
-    failed = [row for row in rows if results.get(row.id) is None]
-    if retry_failed and failed:
-        # Retry only failed profiles at lower concurrency, avoiding bursts that
-        # can make healthy servers look slow on Windows.
-        for page in batches(failed, max(2, page_size // 2)):
-            run_page(page, max(2, concurrency // 2), min(5.0, timeout * 1.5))
+    for row in rows:
+        apply_row(row)
 
     return records
 

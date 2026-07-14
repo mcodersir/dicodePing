@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import unittest
+from pathlib import Path
 
 from dicodeping.models import ServerRecord
 from dicodeping.protocols import extract_configs, parse_endpoint
@@ -34,6 +35,13 @@ class Rc7Tests(unittest.TestCase):
         ]
         result = diverse_auto_candidates(rows, limit=3)
         self.assertEqual([row.id for row in result], ["b", "c"])
+
+    def test_server_list_uses_direct_icmp_once_per_host(self) -> None:
+        runtime = (Path(__file__).resolve().parents[1] / "dicodeping" / "rc7_runtime.py").read_text(encoding="utf-8")
+        test_records = runtime.split("def _test_records", 1)[1].split("\ndef _apply_geo", 1)[0]
+        self.assertIn("net_module.ping_many", test_records)
+        self.assertIn("dict.fromkeys(row.host for row in rows)", test_records)
+        self.assertNotIn("probe_outbound_delay", test_records)
 
 
 if __name__ == "__main__":
