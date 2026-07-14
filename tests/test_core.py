@@ -52,6 +52,20 @@ class FakeGeo:
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_default_subscription_uses_cache_after_network_failure(self) -> None:
+        from unittest.mock import patch
+        from dicodeping.discovery import _fetch_subscription, _subscription_cache_path
+        from dicodeping.models import SourceDefinition
+
+        source = SourceDefinition("default-test", "Test", DEFAULT_SUBSCRIPTION_URL, 0, True, True)
+        path = _subscription_cache_path(source)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("vless://uuid@example.com:443?security=tls#cached", encoding="utf-8")
+        with patch("dicodeping.discovery.fetch_text", side_effect=OSError("DNS unavailable")):
+            rows = _fetch_subscription(source)
+        self.assertEqual(rows, ["vless://uuid@example.com:443?security=tls#cached"])
+        path.unlink(missing_ok=True)
+
     def test_endpoint_resolution_keeps_ipv6_for_tcp_probes(self) -> None:
         rows = [
             (2, 1, 6, "", ("192.0.2.1", 0)),

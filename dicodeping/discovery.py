@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import concurrent.futures
 import threading
+from pathlib import Path
 from typing import Callable
 
-from .constants import DEFAULT_SUBSCRIPTION_FALLBACK, DEFAULT_SUBSCRIPTION_URL, MAX_DISCOVERY_CONFIGS
+from .constants import CACHE_DIR, DEFAULT_SUBSCRIPTION_MIRRORS, DEFAULT_SUBSCRIPTION_URL, MAX_DISCOVERY_CONFIGS
 from .i18n import tr
 from .models import DiscoveredConfig, SourceDefinition
 from .net import fetch_text
@@ -26,9 +27,36 @@ def normalize_subscription_urls(custom_urls: list[str] | tuple[str, ...] | None 
     return rows
 
 
+def _subscription_cache_path(source: SourceDefinition) -> Path:
+    safe_id = "".join(char for char in source.id if char.isalnum() or char in ("-", "_")) or "source"
+    return CACHE_DIR / "subscriptions" / f"{safe_id}.txt"
+
+
 def _fetch_subscription(source: SourceDefinition, progress: Callable[[int, int], None] | None = None) -> list[str]:
-    text = fetch_text(source.url, timeout=28, progress=progress)
-    return [raw for raw in decode_subscription(text) if parse_endpoint(raw)]
+    candidates = (DEFAULT_SUBSCRIPTION_MIRRORS if source.is_default or source.id == "default" else (source.url,))
+    errors: list[str] = []
+    for url in dict.fromkeys(candidates):
+        try:
+            text = fetch_text(url, timeout=16, progress=progress)
+            rows = [raw for raw in decode_subscription(text) if parse_endpoint(raw)]
+            if not rows:
+                raise RuntimeError("source returned no usable configs")
+            path = _subscription_cache_path(source)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+            return rows
+        except Exception as exc:
+            errors.append(str(exc))
+    # A previously verified subscription is safer than replacing a live list
+    # with nothing when DNS or a temporary CDN outage occurs.
+    try:
+        cached = _subscription_cache_path(source).read_text(encoding="utf-8")
+        rows = [raw for raw in decode_subscription(cached) if parse_endpoint(raw)]
+        if rows:
+            return rows
+    except OSError:
+        pass
+    raise RuntimeError("; ".join(errors[-2:]) or "subscription download failed")
 
 
 def discover_config_entries(
@@ -85,19 +113,6 @@ def discover_config_entries(
             except Exception as exc:
                 rows = []
                 errors.append(f"{source.name}: {exc}")
-                if source.is_default or source.id == "default":
-                    try:
-                        mirror = SourceDefinition(
-                            id=source.id,
-                            name=source.name,
-                            url=DEFAULT_SUBSCRIPTION_FALLBACK,
-                            order=source.order,
-                            enabled=True,
-                            is_default=True,
-                        )
-                        rows = _fetch_subscription(mirror, lambda current, total, sid=source.id: report(sid, current, total))
-                    except Exception as fallback_exc:
-                        errors.append(f"fallback: {fallback_exc}")
             rows_by_source[source.id] = rows
             complete(source.id)
 

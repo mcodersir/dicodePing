@@ -131,8 +131,22 @@ def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | Non
             "Cache-Control": "no-cache",
         },
     )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=timeout) as response:
+    # Subscription hosts can be unavailable to direct DNS on some Windows
+    # networks while a user-configured system proxy/PAC can reach them.  The
+    # previous code forcibly disabled that path and then reported an opaque
+    # getaddrinfo error. Try the OS proxy configuration first, then a direct
+    # connection for networks where a stale proxy is configured.
+    response = None
+    proxy_error: Exception | None = None
+    for opener in (urllib.request.build_opener(), urllib.request.build_opener(urllib.request.ProxyHandler({}))):
+        try:
+            response = opener.open(request, timeout=timeout)
+            break
+        except Exception as exc:
+            proxy_error = exc
+    if response is None:
+        raise proxy_error or RuntimeError("Unable to open subscription source")
+    with response:
         encoding = response.headers.get_content_charset() or "utf-8"
         try:
             total = int(response.headers.get("Content-Length") or 0)

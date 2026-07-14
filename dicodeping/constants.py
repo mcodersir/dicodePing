@@ -10,6 +10,12 @@ PRODUCT_NAME_FA = "dicodePing"
 VERSION = "0.1.4"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
+DEFAULT_SUBSCRIPTION_MIRRORS = (
+    DEFAULT_SUBSCRIPTION_URL,
+    "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/sub.txt",
+    DEFAULT_SUBSCRIPTION_FALLBACK,
+    "https://fastly.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt",
+)
 XRAY_VERSION = "26.7.11"
 XRAY_RELEASE_BASE = f"https://github.com/XTLS/Xray-core/releases/download/v{XRAY_VERSION}"
 WINTUN_VERSION = "0.14.1"
