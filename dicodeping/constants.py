@@ -11,7 +11,7 @@ VERSION = "0.1.4"
 # This is intentionally separate from the package version.  It lets release
 # candidates discover the next candidate without changing stable user-facing
 # version formatting.
-RELEASE_VERSION = "0.1.4-rc.4"
+RELEASE_VERSION = "0.1.4-rc.5"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 DEFAULT_SUBSCRIPTION_MIRRORS = (

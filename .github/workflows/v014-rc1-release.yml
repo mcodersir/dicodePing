@@ -1,4 +1,4 @@
-name: Release v0.1.4-rc.4
+name: Release v0.1.4-rc.5
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-v0.1.4-rc.4
+  group: release-v0.1.4-rc.5
   cancel-in-progress: false
 
 jobs:
@@ -27,12 +27,12 @@ jobs:
           python -m unittest discover -s tests -v
           python tools/quality_gate.py
           python tools/build_windows.py --skip-install
-          Move-Item release/dicodePing-v0.1.4-windows.exe release/dicodePing-v0.1.4-rc.4-windows.exe
+          Move-Item release/dicodePing-v0.1.4-windows.exe release/dicodePing-v0.1.4-rc.5-windows.exe
         shell: pwsh
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: release/dicodePing-v0.1.4-rc.4-windows.exe
+          path: release/dicodePing-v0.1.4-rc.5-windows.exe
           if-no-files-found: error
 
   linux:
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: release/dicodePing-v0.1.4-rc.4-linux-x86_64.tar.gz
+          path: release/dicodePing-v0.1.4-rc.5-linux-x86_64.tar.gz
           if-no-files-found: error
 
   android:
@@ -85,11 +85,11 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon lint test assembleRelease
           mkdir -p release
-          cp app/build/outputs/apk/release/app-release.apk release/dicodePing-v0.1.4-rc.4-android.apk
+          cp app/build/outputs/apk/release/app-release.apk release/dicodePing-v0.1.4-rc.5-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: dicodePing_android/release/dicodePing-v0.1.4-rc.4-android.apk
+          path: dicodePing_android/release/dicodePing-v0.1.4-rc.5-android.apk
           if-no-files-found: error
 
   publish:
@@ -108,10 +108,37 @@ jobs:
           (cd release-assets && sha256sum * > SHA256SUMS)
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.4-rc.4
+          tag_name: v0.1.4-rc.5
           target_commitish: main
-          name: dicodePing v0.1.4-rc.4
-          body_path: docs/releases/v0.1.4-rc.4.md
+          name: dicodePing v0.1.4-rc.5
+          body_path: docs/releases/v0.1.4-rc.5.md
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: release-assets/*
+
+  compatibility-bridge:
+    # RC.3 and older treated 0.1.4 as newer than any 0.1.4-rc.* tag.  This
+    # temporary higher-tagged release carries the exact RC.5 files so those
+    # installs receive one last update prompt and can migrate to the fixed
+    # updater. Current builds explicitly ignore this release by name.
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: |
+          mkdir release-assets
+          cp artifacts/windows/* release-assets/
+          cp artifacts/linux/* release-assets/
+          cp artifacts/android/* release-assets/
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.5-rc.0
+          target_commitish: main
+          name: Compatibility bridge — dicodePing v0.1.4-rc.5
+          body: این انتشار فقط برای رساندن اعلان به‌روزرسانی به نسخه‌های قدیمی است؛ فایل‌های آن دقیقاً نسخه v0.1.4-rc.5 هستند.
           prerelease: true
           fail_on_unmatched_files: true
           files: release-assets/*

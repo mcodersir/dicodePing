@@ -21,6 +21,7 @@ object ReleaseUpdateChecker {
                 val releases = JSONArray(response.body?.string().orEmpty())
                 (0 until releases.length()).mapNotNull { index ->
                     val item = releases.getJSONObject(index)
+                    if (item.optString("name").startsWith("Compatibility bridge")) return@mapNotNull null
                     val tag = item.optString("tag_name")
                     val candidate = version(tag)
                     val currentVersion = version(current)

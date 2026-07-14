@@ -40,6 +40,10 @@ def find_application_update(current_version: str, platform: str, timeout: float 
     best: tuple[tuple[int, int, int, int, int], ReleaseInfo] | None = None
     token = {"windows": "-windows.exe", "linux": "-linux-", "android": "-android.apk"}.get(platform, "")
     for row in rows:
+        # This one-time release exists only so pre-RC.4 clients can escape the
+        # old same-series comparison bug. New clients must never offer it.
+        if str(row.get("name") or "").startswith("Compatibility bridge"):
+            continue
         tag = str(row.get("tag_name") or "")
         candidate = _version(tag)
         same_series_candidate = (
