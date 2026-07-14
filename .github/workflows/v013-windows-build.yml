@@ -43,8 +43,12 @@ jobs:
         run: |
           $env:QT_QPA_PLATFORM = 'offscreen'
           $env:APPDATA = Join-Path $env:RUNNER_TEMP 'dicodeping-smoke'
-          & release/dicodePing-v0.1.3-rc.9-windows.exe --startup-smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "Packaged GUI startup failed with exit code $LASTEXITCODE" }
+          $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP 'dicodeping-startup-report.txt'
+          $process = Start-Process -FilePath 'release/dicodePing-v0.1.3-rc.9-windows.exe' -ArgumentList '--startup-smoke-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
+            throw "Packaged GUI startup failed with exit code $($process.ExitCode)"
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: dicodePing-v0.1.3-rc.9-windows

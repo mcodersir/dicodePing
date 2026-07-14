@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import sys
+import os
+import traceback
 from typing import Any
+from pathlib import Path
 
 from PySide6.QtCore import QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QIcon
@@ -239,6 +242,12 @@ def main() -> int:
             window.show()
         except Exception:
             LOGGER.exception("Packaged startup smoke test failed")
+            report_path = os.environ.get("DICODEPING_STARTUP_SMOKE_REPORT", "").strip()
+            if report_path:
+                try:
+                    Path(report_path).write_text(traceback.format_exc(), encoding="utf-8")
+                except OSError:
+                    pass
             return 2
 
         def finish_smoke_test() -> None:

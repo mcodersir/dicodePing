@@ -56,6 +56,9 @@ class MaintenanceTests(unittest.TestCase):
         linux = (ROOT / ".github/workflows/v013-linux-rc5-build.yml").read_text(encoding="utf-8")
         self.assertIn("--startup-smoke-test", windows)
         self.assertIn("--startup-smoke-test", linux)
+        self.assertIn("DICODEPING_STARTUP_SMOKE_REPORT", windows)
+        self.assertIn("DICODEPING_STARTUP_SMOKE_REPORT", linux)
+        self.assertIn("Start-Process", windows)
         self.assertNotIn('test "$status" -eq 124', linux)
 
     def test_windows_protocol_is_not_rendered(self) -> None:
