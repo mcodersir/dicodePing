@@ -40,6 +40,7 @@ from .protocols import build_xray_outbound, parse_endpoint
 
 TUN_NAME = "dicodePing-TUN"
 LOGGER = get_logger("connection")
+_PROBE_CORE_LOCK = threading.Lock()
 
 
 def normalize_bypass_domains(values: list[str] | tuple[str, ...] | str | None) -> list[str]:
@@ -548,6 +549,102 @@ def build_tun_config(
             "services": ["StatsService"],
         }
     return config
+
+
+def build_probe_config(raw_config: str, socks_port: int) -> dict[str, Any]:
+    """Build a short-lived SOCKS profile for a real outbound latency probe.
+
+    Unlike a TCP connect, this performs an HTTP request after the selected
+    proxy protocol and transport have completed.  It is the same meaningful
+    measurement used by modern Xray clients for server testing.
+    """
+    outbound = build_xray_outbound(raw_config)
+    if not outbound:
+        raise ValueError("Unsupported server configuration")
+    stream = outbound.setdefault("streamSettings", {})
+    if isinstance(stream, dict):
+        stream.setdefault("sockopt", {"domainStrategy": "UseIP"})
+    return {
+        "log": {"loglevel": "none"},
+        "dns": {"servers": ["1.1.1.1", "8.8.8.8"], "queryStrategy": "UseIP"},
+        "inbounds": [{
+            "listen": "127.0.0.1", "port": int(socks_port), "protocol": "socks",
+            "settings": {"auth": "noauth", "udp": False},
+        }],
+        "outbounds": [outbound, {"tag": "direct", "protocol": "freedom"}],
+        "routing": {"domainStrategy": "IPIfNonMatch"},
+    }
+
+
+def _socks_http_probe(port: int, host: str, path: str, timeout: float) -> int | None:
+    started = time.perf_counter()
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(b"\x05\x01\x00")
+            if sock.recv(2) != b"\x05\x00":
+                return None
+            encoded = host.encode("idna")
+            sock.sendall(b"\x05\x01\x00\x03" + bytes([len(encoded)]) + encoded + (80).to_bytes(2, "big"))
+            reply = sock.recv(4)
+            if len(reply) != 4 or reply[1] != 0:
+                return None
+            atyp = reply[3]
+            trailing = 4 if atyp == 1 else 16 if atyp == 4 else (sock.recv(1)[0] if atyp == 3 else 0)
+            if trailing:
+                sock.recv(trailing + 2)
+            request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: dicodePing\r\n\r\n".encode()
+            sock.sendall(request)
+            header = sock.recv(64)
+            if b" 204 " not in header and b" 200 " not in header:
+                return None
+            return max(1, int(round((time.perf_counter() - started) * 1000)))
+    except (OSError, ValueError):
+        return None
+
+
+def probe_outbound_delay(raw_config: str, timeout: float = 3.2) -> int | None:
+    """Measure verified proxy traffic without creating a TUN adapter."""
+    # First-use extraction/download must be serialized; concurrent probe jobs
+    # can otherwise race over the same core archive.
+    with _PROBE_CORE_LOCK:
+        executable = ensure_xray(language="en")
+    port = _free_local_port()
+    token = uuid.uuid4().hex
+    config_path = RUNTIME_DIR / f"probe-{token}.json"
+    process: subprocess.Popen[str] | None = None
+    try:
+        config_path.write_text(json.dumps(build_probe_config(raw_config, port), ensure_ascii=False), encoding="utf-8")
+        process = subprocess.Popen(
+            [str(executable), "run", "-config", str(config_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(executable.parent),
+            creationflags=_creation_flags(),
+            start_new_session=not is_windows(),
+        )
+        ready_until = time.monotonic() + min(2.0, timeout)
+        while time.monotonic() < ready_until and process.poll() is None:
+            result = _socks_http_probe(port, "www.gstatic.com", "/generate_204", min(1.3, timeout))
+            if result is not None:
+                return result
+            time.sleep(0.08)
+        if process.poll() is None:
+            return _socks_http_probe(port, "cp.cloudflare.com", "/generate_204", timeout)
+        return None
+    except Exception:
+        return None
+    finally:
+        if process and process.poll() is None:
+            try:
+                process.terminate()
+                process.wait(timeout=0.8)
+            except Exception:
+                _kill_pid_tree(process.pid)
+        try:
+            config_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 class XrayManager:

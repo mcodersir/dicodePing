@@ -52,6 +52,14 @@ class FakeGeo:
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_real_probe_profile_uses_local_socks_and_proxy_outbound(self) -> None:
+        from dicodeping.xray import build_probe_config
+
+        config = build_probe_config("vless://00000000-0000-0000-0000-000000000000@example.com:443?security=tls#test", 10808)
+        self.assertEqual(config["inbounds"][0]["protocol"], "socks")
+        self.assertEqual(config["inbounds"][0]["listen"], "127.0.0.1")
+        self.assertEqual(config["outbounds"][0]["tag"], "proxy")
+
     def test_default_subscription_uses_cache_after_network_failure(self) -> None:
         from unittest.mock import patch
         from dicodeping.discovery import _fetch_subscription, _subscription_cache_path

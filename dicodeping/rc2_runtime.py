@@ -204,8 +204,14 @@ class _DisconnectThread(QThread):
         super().__init__(parent)
         self.manager = manager
     def run(self):
-        self.manager.stop()
-        self.done.emit()
+        try:
+            self.manager.stop()
+        except Exception:
+            # Teardown is best effort: a stale driver/process must not take the
+            # GUI down when the user presses Disconnect.
+            service_module.LOGGER.exception("Connection teardown failed")
+        finally:
+            self.done.emit()
 
 
 def _install_ui_patch():
@@ -319,6 +325,8 @@ def _install_ui_patch():
         thread = _DisconnectThread(self.manager, self)
         self._disconnect_thread = thread
         def finish():
+            if self._disconnect_thread is not thread:
+                return
             self._disconnecting = False
             self.connected_id = ""
             self.live_metrics_card.setVisible(False)
@@ -329,9 +337,9 @@ def _install_ui_patch():
             self.render_servers()
             if show_message:
                 self.home_hero_detail.setText(self.t("disconnected"))
-            thread.deleteLater()
             self._disconnect_thread = None
         thread.done.connect(finish)
+        thread.finished.connect(thread.deleteLater)
         thread.start()
 
     MainWindow.__init__ = init

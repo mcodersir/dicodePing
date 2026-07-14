@@ -15,12 +15,36 @@ from .net import is_any_url_reachable_parallel
 from .protocols import blob_to_config
 from .service import ServerService
 from .xray import XrayManager
+from .xray import is_windows
+from .updates import check_source_updates, find_application_update
+from .sources import normalize_sources
+from .constants import RELEASE_VERSION
 
 LOGGER = get_logger("workers")
 
 
 class TaskCancelled(Exception):
     """Internal cooperative-cancellation signal for background list jobs."""
+
+
+class ApplicationUpdateThread(QThread):
+    """Short network check used by the About page without freezing the UI."""
+    ready = Signal(object, object)
+
+    def __init__(self, settings: dict, language: str = "fa") -> None:
+        super().__init__()
+        self.settings = dict(settings)
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            sources = normalize_sources(self.settings, self.language)
+            changed, observed = check_source_updates(sources, self.settings.get("source_revisions"))
+            release = find_application_update(RELEASE_VERSION, "windows" if is_windows() else "linux", timeout=3.0)
+            self.ready.emit((changed, observed), release)
+        except Exception:
+            LOGGER.info("Manual update check unavailable", exc_info=True)
+            self.ready.emit(([], {}), None)
 
 
 def _flush_windows_dns() -> None:

@@ -56,7 +56,7 @@ from .protocols import blob_to_config, config_to_blob, set_display_name
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
-from .workers import ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshThread
+from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshThread
 from .xray import XrayManager, normalize_bypass_domains
 
 LOGGER = get_logger("ui")
@@ -193,6 +193,8 @@ def build_stylesheet(theme: str) -> str:
     QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QSpinBox:focus {{ border: 1px solid {c['accent']}; background: {c['surface']}; }}
     QPlainTextEdit {{ padding: 10px 12px; min-height: 170px; }}
     QComboBox::drop-down {{ border: 0; width: 30px; }}
+    QSpinBox::up-button, QSpinBox::down-button {{ width: 0px; border: 0; background: transparent; }}
+    QSpinBox::up-arrow, QSpinBox::down-arrow {{ width: 0px; height: 0px; }}
     QComboBox QAbstractItemView {{
         background: {c['surface']}; color: {c['text']}; border: 1px solid {c['border2']};
         border-radius: 9px; selection-background-color: {c['selection']}; padding: 6px;
@@ -1572,6 +1574,11 @@ class MainWindow(QMainWindow):
         logs_button.setIcon(icon("info.svg"))
         logs_button.clicked.connect(self.open_log_location)
         links_layout.addWidget(logs_button)
+        update_button = QPushButton("بررسی به‌روزرسانی" if self.language != "en" else "Check for updates")
+        update_button.setObjectName("linkButton")
+        update_button.setIcon(icon("refresh.svg"))
+        update_button.clicked.connect(self.check_for_updates)
+        links_layout.addWidget(update_button)
         layout.addWidget(links)
 
         privacy = QFrame()
@@ -1610,6 +1617,43 @@ class MainWindow(QMainWindow):
     def open_log_location(self) -> None:
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE.parent)))
+
+    def check_for_updates(self) -> None:
+        if getattr(self, "_about_update_worker", None):
+            return
+        worker = ApplicationUpdateThread(self.settings, self.language)
+        self._about_update_worker = worker
+
+        def complete(source_data: object, release: object) -> None:
+            self._about_update_worker = None
+            changed, observed = source_data if isinstance(source_data, tuple) else ([], {})
+            if observed and not self.settings.get("source_revisions"):
+                self.settings["source_revisions"] = observed
+                self.store.save_settings(self.settings)
+            if release:
+                answer = AppDialog.confirm(
+                    self, self.t("about"),
+                    (f"نسخه {release.tag} آماده است. صفحه دریافت باز شود؟" if self.language != "en" else f"Version {release.tag} is available. Open download page?"),
+                    accept_text=("به‌روزرسانی" if self.language != "en" else "Update"), reject_text=self.t("later"),
+                )
+                if answer:
+                    QDesktopServices.openUrl(QUrl(release.asset_url))
+            elif changed:
+                answer = AppDialog.confirm(
+                    self, self.t("about"),
+                    ("به‌روزرسانی ساب‌ها آماده است. اکنون دریافت شود؟" if self.language != "en" else "Server source updates are available. Download now?"),
+                    accept_text=("به‌روزرسانی" if self.language != "en" else "Update"), reject_text=self.t("later"),
+                )
+                if answer:
+                    self.settings["source_revisions"] = observed
+                    self.store.save_settings(self.settings)
+                    self.start_scan()
+            else:
+                AppDialog.info(self, self.t("about"), "برنامه و ساب‌ها به‌روز هستند." if self.language != "en" else "The app and sources are up to date.", self.t("ok"))
+
+        worker.ready.connect(complete)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
 
     def _after_start(self) -> None:
         if not self.settings.get("accepted_disclaimer"):

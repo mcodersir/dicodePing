@@ -10,7 +10,7 @@ from .net import lookup_geo
 from .storage import JsonStore
 
 
-GEO_CACHE_SCHEMA = 3
+GEO_CACHE_SCHEMA = 4
 LOGGER = get_logger("geo")
 
 

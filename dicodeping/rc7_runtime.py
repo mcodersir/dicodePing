@@ -13,6 +13,7 @@ from . import net as net_module
 from . import service as service_module
 from .models import DiscoveredConfig, ServerRecord
 from .protocols import blob_to_config, config_to_blob, normalize_key, parse_endpoint, record_id
+from .xray import probe_outbound_delay
 from .rc2_core import extract_display_name
 from .rc3_core import median_latency, trusted_latency
 from .rc7_core import batches, bounded_int, diverse_auto_candidates
@@ -39,74 +40,59 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
 
 
 def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
-    concurrency = bounded_int(settings.get("test_concurrency"), 28, 4, 48)
-    page_size = bounded_int(settings.get("test_batch_size"), 48, 8, 96)
-    timeout = bounded_int(settings.get("test_timeout_ms"), 950, 400, 3000) / 1000.0
+    # A TCP handshake only proves that a port accepts packets; it does not
+    # prove that the Xray configuration works.  Probe real HTTP traffic through
+    # a temporary SOCKS inbound, as v2rayNG/v2rayN do for a usable latency.
+    concurrency = min(8, bounded_int(settings.get("test_concurrency"), 6, 2, 8))
+    page_size = bounded_int(settings.get("test_batch_size"), 18, 4, 32)
+    timeout = max(2.4, bounded_int(settings.get("test_timeout_ms"), 1600, 800, 5000) / 1000.0)
     retry_failed = bool(settings.get("retry_failed_tests", True))
-    by_endpoint: dict[tuple[str, int], list[ServerRecord]] = defaultdict(list)
-    for row in records:
-        if row.host and row.port:
-            by_endpoint[(row.host, row.port)].append(row)
-    endpoints = list(by_endpoint)
-    def resolve_hosts(hosts):
-        unique = list(dict.fromkeys(hosts))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(unique) or 1)) as resolver_pool:
-            return dict(zip(unique, resolver_pool.map(lambda host: net_module.resolve_all_ips(host)[:2], unique)))
-
-    hosts = list(dict.fromkeys(host for host, _ in endpoints))
-    host_results = resolve_hosts(hosts)
-    resolved = {key: host_results.get(key[0], []) for key in endpoints}
-    routes = net_module.install_direct_host_routes(ip for values in resolved.values() for ip in values if ":" not in ip)
-    results: dict[tuple[str, int], tuple[int | None, str]] = {}
+    rows = [row for row in records if row.config_blob]
+    results: dict[str, int | None] = {}
     done = 0
 
-    def apply_endpoint(key):
-        """Apply one completed endpoint immediately, keeping duplicate rows in sync."""
-        latency, ip = results.get(key, (None, ""))
+    def apply_row(row: ServerRecord) -> None:
+        latency = results.get(row.id)
         now = service_module.utc_now()
-        for row in by_endpoint[key]:
-            row.last_checked = now
-            row.ip = ip or row.ip
-            if trusted_latency(latency):
-                row.ping_ms, row.status, row.failures = latency, "online", 0
-            else:
-                row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
-            if record_callback:
-                record_callback(row)
+        row.last_checked = now
+        if trusted_latency(latency):
+            # Refresh the resolved endpoint with every verified probe.  Old
+            # cached DNS answers were the common cause of wrong locations.
+            addresses = net_module.resolve_all_ips(row.host)
+            if addresses:
+                row.ip = addresses[0]
+            row.ping_ms, row.status, row.failures = latency, "online", 0
+        else:
+            row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
+        if record_callback:
+            record_callback(row)
 
     def run_page(page, workers, attempt_timeout):
         nonlocal done
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(workers, len(page) or 1)) as pool:
             futures = {
-                pool.submit(_probe, host, port, resolved[(host, port)], attempt_timeout): (host, port)
-                for host, port in page
+                pool.submit(probe_outbound_delay, blob_to_config(row.config_blob), attempt_timeout): row
+                for row in page
             }
             for future in concurrent.futures.as_completed(futures):
-                key = futures[future]
+                row = futures[future]
                 try:
-                    results[key] = future.result()
+                    results[row.id] = future.result()
                 except Exception:
-                    results[key] = (None, resolved[key][0] if resolved[key] else "")
-                apply_endpoint(key)
+                    results[row.id] = None
+                apply_row(row)
                 done += 1
                 if callback:
-                    callback(min(done, len(endpoints)), max(1, len(endpoints)))
+                    callback(min(done, len(rows)), max(1, len(rows)))
 
-    try:
-        for page in batches(endpoints, page_size):
-            run_page(page, concurrency, timeout)
-        failed = [key for key in endpoints if results.get(key, (None, ""))[0] is None]
-        if retry_failed and failed:
-            retry_hosts = unresolved_retry_hosts(failed, resolved)
-            if retry_hosts:
-                host_results.update(resolve_hosts(retry_hosts))
-                for key in failed:
-                    resolved[key] = host_results.get(key[0], [])
-            # Like v2rayN: retry the failed portion with smaller pages/concurrency.
-            for page in batches(failed, max(4, page_size // 2)):
-                run_page(page, max(3, concurrency // 2), min(3.0, timeout * 1.5))
-    finally:
-        net_module.remove_direct_host_routes(routes)
+    for page in batches(rows, page_size):
+        run_page(page, concurrency, timeout)
+    failed = [row for row in rows if results.get(row.id) is None]
+    if retry_failed and failed:
+        # Retry only failed profiles at lower concurrency, avoiding bursts that
+        # can make healthy servers look slow on Windows.
+        for page in batches(failed, max(2, page_size // 2)):
+            run_page(page, max(2, concurrency // 2), min(5.0, timeout * 1.5))
 
     return records
 
@@ -211,8 +197,12 @@ def _install_ui_patch() -> None:
         header.setSectionResizeMode(6, QHeaderView.Fixed)
         self.table.setColumnWidth(6, 112)
         header.setMinimumSectionSize(72)
-        self.settings_tabs.tabBar().setUsesScrollButtons(True)
-        self.settings_tabs.tabBar().setElideMode(Qt.ElideRight)
+        # Keep Persian settings tabs visible instead of collapsing the first
+        # tab into the right-side overflow button.
+        settings_bar = self.settings_tabs.tabBar()
+        settings_bar.setUsesScrollButtons(False)
+        settings_bar.setExpanding(True)
+        settings_bar.setElideMode(Qt.ElideNone)
 
     def event_filter(self, obj, event):
         if self.isMaximized() or obj is not self:
@@ -245,6 +235,9 @@ def _install_ui_patch() -> None:
             layout = getattr(self, name, None)
             if layout:
                 layout.setDirection(QBoxLayout.TopToBottom if compact else QBoxLayout.LeftToRight)
+        if hasattr(self, "server_header_layout"):
+            # The subtitle needs its own full row before the action buttons.
+            self.server_header_layout.setDirection(QBoxLayout.TopToBottom if width < 1160 else QBoxLayout.LeftToRight)
         summary(self)
 
     def render(self):
