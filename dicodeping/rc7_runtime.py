@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QApplication, QBoxLayout, QHeaderView
+from PySide6.QtWidgets import QBoxLayout, QHeaderView
 
 from . import net as net_module
 from . import service as service_module
@@ -191,7 +191,11 @@ def _install_ui_patch() -> None:
     def init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
         self.setMinimumSize(600, 440)
-        QApplication.instance().installEventFilter(self)
+        # Installing this on QApplication made every widget event re-enter the
+        # filter. Calling obj.window() from that global hook can recurse on
+        # PySide6 6.10 and crash the process during its first show event.
+        # The native resize affordance only needs events from this window.
+        self.installEventFilter(self)
         self.table.setTextElideMode(Qt.ElideRight)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(6, QHeaderView.Fixed)
@@ -201,7 +205,7 @@ def _install_ui_patch() -> None:
         self.settings_tabs.tabBar().setElideMode(Qt.ElideRight)
 
     def event_filter(self, obj, event):
-        if self.isMaximized() or not hasattr(obj, "window") or obj.window() is not self:
+        if self.isMaximized() or obj is not self:
             return False
         if event.type() not in (QEvent.MouseMove, QEvent.MouseButtonPress):
             return False
@@ -271,7 +275,7 @@ def _install_ui_patch() -> None:
     def close(self, event):
         original_close(self, event)
         if event.isAccepted():
-            QApplication.instance().removeEventFilter(self)
+            self.removeEventFilter(self)
 
     MainWindow.__init__ = init
     MainWindow.eventFilter = event_filter

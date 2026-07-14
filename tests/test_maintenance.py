@@ -57,6 +57,13 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("currentIndexChanged.connect(lambda _index: self.render_servers())", ui)
         self.assertNotIn("textChanged.connect(self.render_servers)", ui)
 
+    def test_rc9_resize_filter_is_scoped_to_the_main_window(self) -> None:
+        runtime = (ROOT / "dicodeping/rc7_runtime.py").read_text(encoding="utf-8")
+        self.assertIn("self.installEventFilter(self)", runtime)
+        self.assertIn("self.removeEventFilter(self)", runtime)
+        self.assertNotIn("QApplication.instance().installEventFilter(self)", runtime)
+        self.assertIn("obj is not self", runtime)
+
     def test_rc9_packaged_desktop_smoke_tests_require_success(self) -> None:
         windows = (ROOT / ".github/workflows/v013-windows-build.yml").read_text(encoding="utf-8")
         linux = (ROOT / ".github/workflows/v013-linux-rc5-build.yml").read_text(encoding="utf-8")
