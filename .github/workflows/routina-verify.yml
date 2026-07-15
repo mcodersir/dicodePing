@@ -1,0 +1,39 @@
+name: Routina verify
+
+on:
+  push:
+    branches: [routina-offline-build]
+    paths:
+      - '.github/workflows/routina-verify.yml'
+      - 'routina-ci/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Checkout Routina
+        run: git clone --depth 1 https://github.com/SeyedTahaKhademi/routina-app.git routina
+      - name: Apply fixes
+        run: |
+          base64 -d routina-ci/routina-v4.patch.gz.b64 > /tmp/routina.patch.gz
+          gzip -dc /tmp/routina.patch.gz > /tmp/routina.patch
+          cd routina
+          git apply -p1 /tmp/routina.patch
+          chmod +x gradlew
+      - name: Build debug APK
+        working-directory: routina
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: routina-debug-apk
+          path: routina/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
