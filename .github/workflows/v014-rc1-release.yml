@@ -115,29 +115,3 @@ jobs:
           prerelease: true
           fail_on_unmatched_files: true
           files: release-assets/*
-
-  compatibility-bridge:
-    # Old clients had a same-series RC comparison bug. This higher temporary
-    # tag carries the exact 0.1.5-rc.1 files so those installs can migrate.
-    # Current clients explicitly ignore releases named Compatibility bridge.
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - run: |
-          mkdir release-assets
-          cp artifacts/windows/* release-assets/
-          cp artifacts/linux/* release-assets/
-          cp artifacts/android/* release-assets/
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.6-rc.0
-          target_commitish: main
-          name: Compatibility bridge — dicodePing v0.1.5-rc.1
-          body: این انتشار فقط برای رساندن اعلان به‌روزرسانی به نسخه‌های قدیمی است؛ فایل‌های آن دقیقاً نسخه v0.1.5-rc.1 هستند.
-          prerelease: true
-          fail_on_unmatched_files: true
-          files: release-assets/*
