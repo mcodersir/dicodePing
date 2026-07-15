@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import concurrent.futures
+import base64
+import json
 import threading
 from pathlib import Path
 from typing import Callable
 
-from .constants import CACHE_DIR, DEFAULT_SUBSCRIPTION_MIRRORS, DEFAULT_SUBSCRIPTION_URL, MAX_DISCOVERY_CONFIGS
+from .constants import ASSET_DIR, CACHE_DIR, DEFAULT_SUBSCRIPTION_MIRRORS, DEFAULT_SUBSCRIPTION_URL, MAX_DISCOVERY_CONFIGS
 from .i18n import tr
 from .models import DiscoveredConfig, SourceDefinition
 from .net import fetch_text
@@ -14,6 +16,7 @@ from .sources import source_id_for_url
 
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
+BUNDLED_DEFAULT_SUBSCRIPTION = ASSET_DIR / "default-subscription.txt"
 
 
 def normalize_subscription_urls(custom_urls: list[str] | tuple[str, ...] | None = None) -> list[str]:
@@ -32,21 +35,51 @@ def _subscription_cache_path(source: SourceDefinition) -> Path:
     return CACHE_DIR / "subscriptions" / f"{safe_id}.txt"
 
 
+def _decode_download_payload(text: str) -> str:
+    """Decode GitHub Contents API responses while preserving normal subscriptions."""
+    value = text.lstrip()
+    if not value.startswith("{"):
+        return text
+    try:
+        payload = json.loads(value)
+        encoded = payload.get("content") if isinstance(payload, dict) else None
+        if payload.get("encoding") == "base64" and isinstance(encoded, str):
+            return base64.b64decode("".join(encoded.split())).decode("utf-8", errors="ignore")
+    except (ValueError, TypeError):
+        pass
+    return text
+
+
+def _usable_download(url: str, progress: Callable[[int, int], None] | None) -> tuple[str, list[str]]:
+    text = _decode_download_payload(fetch_text(url, timeout=12, progress=progress))
+    rows = [raw for raw in decode_subscription(text) if parse_endpoint(raw)]
+    if not rows:
+        raise RuntimeError("source returned no usable configs")
+    return text, rows
+
+
 def _fetch_subscription(source: SourceDefinition, progress: Callable[[int, int], None] | None = None) -> list[str]:
     candidates = (DEFAULT_SUBSCRIPTION_MIRRORS if source.is_default or source.id == "default" else (source.url,))
     errors: list[str] = []
-    for url in dict.fromkeys(candidates):
-        try:
-            text = fetch_text(url, timeout=16, progress=progress)
-            rows = [raw for raw in decode_subscription(text) if parse_endpoint(raw)]
-            if not rows:
-                raise RuntimeError("source returned no usable configs")
+    urls = tuple(dict.fromkeys(candidates))
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(urls)))
+    futures = {executor.submit(_usable_download, url, progress): url for url in urls}
+    try:
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                text, rows = future.result()
+            except Exception as exc:
+                errors.append(f"{futures[future]}: {exc}")
+                continue
+            for pending in futures:
+                if pending is not future:
+                    pending.cancel()
             path = _subscription_cache_path(source)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
             return rows
-        except Exception as exc:
-            errors.append(str(exc))
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
     # A previously verified subscription is safer than replacing a live list
     # with nothing when DNS or a temporary CDN outage occurs.
     try:
@@ -56,6 +89,14 @@ def _fetch_subscription(source: SourceDefinition, progress: Callable[[int, int],
             return rows
     except OSError:
         pass
+    if source.is_default or source.id == "default":
+        try:
+            bundled = BUNDLED_DEFAULT_SUBSCRIPTION.read_text(encoding="utf-8")
+            rows = [raw for raw in decode_subscription(bundled) if parse_endpoint(raw)]
+            if rows:
+                return rows
+        except OSError:
+            pass
     raise RuntimeError("; ".join(errors[-2:]) or "subscription download failed")
 
 

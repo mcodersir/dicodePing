@@ -26,6 +26,7 @@ jobs:
           python tools/verify_version.py
           python -m unittest discover -s tests -v
           python tools/quality_gate.py
+          curl.exe --fail --location --retry 4 --output assets/default-subscription.txt "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
           python tools/build_windows.py --skip-install
           Move-Item release/dicodePing-v0.1.5-windows.exe release/dicodePing-v0.1.5-rc.1-windows.exe
         shell: pwsh
@@ -52,6 +53,7 @@ jobs:
           python tools/verify_version.py
           python -m unittest discover -s tests -v
           python tools/quality_gate.py
+          curl --fail --location --retry 4 --output assets/default-subscription.txt "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
           python tools/build_linux.py --skip-install
       - uses: actions/upload-artifact@v4
         with:

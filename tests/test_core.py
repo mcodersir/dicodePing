@@ -74,6 +74,27 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(rows, ["vless://uuid@example.com:443?security=tls#cached"])
         path.unlink(missing_ok=True)
 
+    def test_github_api_subscription_payload_is_decoded(self) -> None:
+        from dicodeping.discovery import _decode_download_payload
+
+        raw = "vless://uuid@example.com:443?security=tls#api"
+        payload = json.dumps({"encoding": "base64", "content": base64.b64encode(raw.encode()).decode()})
+        self.assertEqual(_decode_download_payload(payload), raw)
+
+    def test_bundled_default_is_used_when_network_and_cache_fail(self) -> None:
+        from dicodeping.discovery import _fetch_subscription
+        from dicodeping.models import SourceDefinition
+
+        source = SourceDefinition("default", "Default", DEFAULT_SUBSCRIPTION_URL, 0, True, True)
+        raw = "vless://uuid@example.com:443?security=tls#bundled"
+        with tempfile.TemporaryDirectory() as directory:
+            bundled = Path(directory) / "default-subscription.txt"
+            bundled.write_text(raw, encoding="utf-8")
+            with patch("dicodeping.discovery.fetch_text", side_effect=OSError("DNS unavailable")), \
+                 patch("dicodeping.discovery._subscription_cache_path", return_value=Path(directory) / "missing-cache.txt"), \
+                 patch("dicodeping.discovery.BUNDLED_DEFAULT_SUBSCRIPTION", bundled):
+                self.assertEqual(_fetch_subscription(source), [raw])
+
     def test_endpoint_resolution_keeps_ipv6_for_tcp_probes(self) -> None:
         rows = [
             (2, 1, 6, "", ("192.0.2.1", 0)),

@@ -16,6 +16,7 @@ DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeCo
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 DEFAULT_SUBSCRIPTION_MIRRORS = (
     DEFAULT_SUBSCRIPTION_URL,
+    "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/sub.txt?ref=main",
     "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/sub.txt",
     DEFAULT_SUBSCRIPTION_FALLBACK,
     "https://fastly.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt",
