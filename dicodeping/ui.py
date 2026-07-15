@@ -1481,6 +1481,22 @@ class MainWindow(QMainWindow):
         self.log_level_combo.setEnabled(self.diagnostic_logging_checkbox.isChecked())
         self.diagnostic_logging_checkbox.toggled.connect(self.log_level_combo.setEnabled)
         advanced_form.addWidget(self.log_level_combo)
+        log_path_title = QLabel(self.t("log_location"))
+        log_path_title.setObjectName("muted")
+        advanced_form.addWidget(log_path_title)
+        self.log_path_label = QLabel(str(LOG_FILE))
+        self.log_path_label.setObjectName("tiny")
+        self.log_path_label.setWordWrap(True)
+        self.log_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.log_path_label.setToolTip(str(LOG_FILE))
+        advanced_form.addWidget(self.log_path_label)
+        log_hint = QLabel(self.t("log_disabled_hint"))
+        log_hint.setObjectName("tiny")
+        log_hint.setWordWrap(True)
+        advanced_form.addWidget(log_hint)
+        open_logs = QPushButton(self.t("open_log_file"))
+        open_logs.clicked.connect(self.open_log_location)
+        advanced_form.addWidget(open_logs, alignment=Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
         clear_logs = QPushButton(self.t("clear_logs"))
         clear_logs.clicked.connect(lambda: LOG_FILE.unlink(missing_ok=True))
         advanced_form.addWidget(clear_logs, alignment=Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
@@ -1616,7 +1632,15 @@ class MainWindow(QMainWindow):
 
     def open_log_location(self) -> None:
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE.parent)))
+        if not LOG_FILE.exists():
+            message = (
+                "ثبت گزارش عیب یابی اکنون خاموش است. آن را از تنظیمات فعال و ذخیره کنید.\n"
+                if self.language != "en" else
+                "Diagnostic logging is currently disabled. Enable and save it in Settings.\n"
+            )
+            LOG_FILE.write_text(message, encoding="utf-8")
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE))):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE.parent)))
 
     def check_for_updates(self) -> None:
         if getattr(self, "_about_update_worker", None):

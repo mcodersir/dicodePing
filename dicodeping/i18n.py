@@ -111,7 +111,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "mode_manual": "دستی؛ انتخاب توسط کاربر",
         "mode_auto_help": "حالت خودکار فقط از سرورهای دارای پینگ واقعی کمترین مقدار را انتخاب می‌کند؛ حالت دستی اجازه آزمایش مستقیم همه سرورها را می‌دهد.",
         "auto_connect_after_update": "پس از به‌روزرسانی فهرست، خودکار متصل شود",
-        "auto_update_empty": "اگر فهرست خالی بود، هنگام شروع برنامه سرورها دریافت شوند",
+        "auto_update_empty": "هنگام شروع برنامه، منبع سرورها دریافت و فهرست تازه شود",
         "sources": "منابع سرور",
         "default_source": "منبع پیش‌فرض برنامه فعال است",
         "default_source_help": "کانفیگ‌ها مستقیماً از ساب پیش‌فرض دریافت می‌شوند و جستجوی کانال انجام نمی‌شود.",
@@ -208,6 +208,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "log_normal": "گزارش معمولی",
         "log_detailed": "گزارش کامل برای عیب‌یابی",
         "clear_logs": "پاک کردن گزارش‌ها",
+        "log_location": "محل ذخیره فایل گزارش",
+        "open_log_file": "باز کردن فایل گزارش",
+        "log_disabled_hint": "گزارش عیب یابی به صورت پیش فرض خاموش است؛ برای ثبت خطاها آن را فعال کنید و تنظیمات را ذخیره کنید.",
     },
     "en": {
         "product": "dicodePing",
@@ -316,7 +319,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "mode_manual": "Manual — user selection",
         "mode_auto_help": "Automatic mode ranks responsive servers and retries alternatives; manual mode uses your selected server.",
         "auto_connect_after_update": "Connect automatically after updating the list",
-        "auto_update_empty": "Fetch servers at startup when the list is empty",
+        "auto_update_empty": "Fetch and refresh the server list at startup",
         "sources": "Server sources",
         "default_source": "The built-in default source is enabled",
         "default_source_help": "Configs are fetched directly from the default subscription; no channel crawling is performed.",
@@ -414,6 +417,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "log_normal": "Normal diagnostic report",
         "log_detailed": "Detailed troubleshooting report",
         "clear_logs": "Clear diagnostic reports",
+        "log_location": "Diagnostic log file location",
+        "open_log_file": "Open diagnostic log file",
+        "log_disabled_hint": "Diagnostic logging is off by default. Enable it and save Settings to record errors.",
     },
 }
 

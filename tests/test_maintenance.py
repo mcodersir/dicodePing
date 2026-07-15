@@ -47,6 +47,16 @@ class MaintenanceTests(unittest.TestCase):
         self.assertLess(app_run.index("find_application_update"), app_run.index("check_source_updates"))
         self.assertLess(worker_run.index("find_application_update"), worker_run.index("check_source_updates"))
 
+    def test_splash_tracks_real_server_discovery_and_logs_are_visible(self) -> None:
+        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
+        self.assertIn("startup_scan.preview_ready.connect", app)
+        self.assertIn("Fetching and preparing servers", app)
+        self.assertIn('window.settings.get("auto_scan_empty", True)', app)
+        self.assertIn("QTimer.singleShot(12000, splash.close)", app)
+        self.assertIn("self.log_path_label = QLabel(str(LOG_FILE))", ui)
+        self.assertIn("QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE)))", ui)
+
     def test_rc9_startup_cannot_be_held_by_network_or_ui_failure(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
         startup_worker = app.split("class StartupPrepareThread", 1)[1].split("_SINGLE_INSTANCE_HANDLE", 1)[0]

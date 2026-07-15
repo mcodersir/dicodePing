@@ -340,8 +340,34 @@ def main() -> int:
                     if not window.settings.get("accepted_disclaimer"):
                         QTimer.singleShot(500, start_deferred_refresh)
                         return
-                    if refresh_due and not window.worker and not window.manager.connected:
+                    should_scan = (
+                        bool(window.settings.get("auto_scan_empty", True))
+                        or not rows
+                        or refresh_due
+                    )
+                    if should_scan and not window.worker and not window.manager.connected:
+                        splash.set_indeterminate(
+                            "در حال دریافت و آماده سازی سرورها...",
+                            "Fetching and preparing servers...",
+                            language,
+                        )
                         window.start_scan()
+                        startup_scan = window.worker
+                        if startup_scan:
+                            state["startup_scan"] = startup_scan
+                            startup_scan.stage.connect(
+                                lambda text: splash.set_indeterminate(text, text, language)
+                            )
+
+                            def server_rows_ready(*_args) -> None:
+                                splash.set_stage(100, "سرورها آماده شدند", "Servers are ready", language)
+                                QTimer.singleShot(180, splash.close)
+
+                            startup_scan.preview_ready.connect(server_rows_ready)
+                            startup_scan.success.connect(server_rows_ready)
+                            startup_scan.failed.connect(lambda _message: splash.close())
+                    elif rows:
+                        QTimer.singleShot(350, splash.close)
 
                 QTimer.singleShot(650, start_deferred_refresh)
 
@@ -403,9 +429,9 @@ def main() -> int:
             QMessageBox.critical(None, APP_NAME, f"{message}\n\n{exc}")
             QTimer.singleShot(0, lambda: app.exit(2))
         finally:
-            # Give the short update check a chance to present on the splash;
-            # do not ever wait indefinitely for the network.
-            QTimer.singleShot(2600, splash.close)
+            # Discovery is shown on the splash but can never hold the app
+            # indefinitely. The main window is already alive behind it.
+            QTimer.singleShot(12000, splash.close)
 
     def preparation_timed_out() -> None:
         LOGGER.warning("Startup preparation timed out; opening the interface with safe defaults")
