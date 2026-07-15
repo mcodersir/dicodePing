@@ -104,6 +104,15 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(resolve_all_ips("example.test"), ["192.0.2.1", "2001:db8::1"])
             self.assertEqual(resolve_all_ipv4("example.test"), ["192.0.2.1"])
 
+    def test_unresolved_ping_rows_do_not_repeat_blocking_dns(self) -> None:
+        from dicodeping.net import ping_many
+
+        with patch("dicodeping.net.resolve_ipv4", return_value=""), \
+             patch("dicodeping.net.icmp_ping") as probe:
+            result = ping_many([("one", "unresolved.example")], workers=1)
+        probe.assert_not_called()
+        self.assertEqual(result, [PingResult("one", None, "dns")])
+
     def test_xray_core_version_must_match_pinned_release(self) -> None:
         current = subprocess.CompletedProcess([], 0, stdout=f"Xray {XRAY_VERSION} (test)", stderr="")
         stale = subprocess.CompletedProcess([], 0, stdout="Xray 25.1.1 (test)", stderr="")

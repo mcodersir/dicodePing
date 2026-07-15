@@ -73,7 +73,7 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
     return records
 
 
-def _apply_geo(service, records, callback=None):
+def _apply_geo(service, records, callback=None, record_callback=None):
     # Looking up dead rows added dozens of slow public requests without adding
     # useful information to the UI. Cached location stays intact on failures.
     ips = geo_lookup_ips(records)
@@ -84,6 +84,8 @@ def _apply_geo(service, records, callback=None):
             value = data.get(field)
             if value:
                 setattr(row, field, str(value).upper() if field == "country_code" else str(value))
+        if record_callback:
+            record_callback(row)
 
 
 def _install_service_patch() -> None:
@@ -107,17 +109,44 @@ def _install_service_patch() -> None:
                 source_name=entry.source_name, source_order=entry.source_order,
                 favorite=previous.favorite if previous else False,
                 last_connected=previous.last_connected if previous else "",
+                ping_ms=previous.ping_ms if previous else None,
+                ip=previous.ip if previous else "",
+                country=previous.country if previous else ("Unknown" if kwargs.get("language") == "en" else "نامشخص"),
+                country_code=previous.country_code if previous else "",
+                region=previous.region if previous else "",
+                city=previous.city if previous else "",
+                isp=previous.isp if previous else "",
+                asn=previous.asn if previous else "",
+                geo_provider=previous.geo_provider if previous else "",
+                geo_confidence=previous.geo_confidence if previous else "",
+                status=previous.status if previous else "unverified",
             ))
             if len(records) >= 320:
                 break
         if not records:
             raise RuntimeError("No usable server was received" if kwargs.get("language") == "en" else "هیچ سرور قابل استفاده‌ای دریافت نشد")
+        # Parsed configs are already useful. Persist and expose them before DNS,
+        # latency and location enrichment so the UI can leave its skeleton even
+        # when a resolver/provider is slow or unavailable.
+        self.store.save_servers(records)
+        if kwargs.get("preview_progress"):
+            kwargs["preview_progress"](list(records))
         if kwargs.get("stage"):
             kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "testing_ping"))
-        _test_records(records, self.store.load_settings(), kwargs.get("ping_progress") or kwargs.get("progress"))
+        _test_records(
+            records,
+            self.store.load_settings(),
+            kwargs.get("ping_progress") or kwargs.get("progress"),
+            kwargs.get("record_progress"),
+        )
         if kwargs.get("stage"):
             kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "resolving_location"))
-        _apply_geo(self, records, kwargs.get("geo_progress") or kwargs.get("progress"))
+        _apply_geo(
+            self,
+            records,
+            kwargs.get("geo_progress") or kwargs.get("progress"),
+            kwargs.get("record_progress"),
+        )
         records.sort(key=service_module._sort_key)
         self.store.save_servers(records)
         return records
@@ -130,7 +159,12 @@ def _install_service_patch() -> None:
             kwargs.get("ping_progress") or kwargs.get("progress"),
             kwargs.get("record_progress"),
         )
-        _apply_geo(self, records, kwargs.get("geo_progress") or kwargs.get("progress"))
+        _apply_geo(
+            self,
+            records,
+            kwargs.get("geo_progress") or kwargs.get("progress"),
+            kwargs.get("record_progress"),
+        )
         for row in records:
             try:
                 row.name = extract_display_name(blob_to_config(row.config_blob)) or row.name

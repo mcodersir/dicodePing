@@ -1790,6 +1790,11 @@ class MainWindow(QMainWindow):
         self._set_scan_labels(False)
         self._sync_action_states(False)
         self.update_connection_ui()
+        # Row action buttons are created while a worker exists and are therefore
+        # disabled. Rebuild once after clearing the worker so they cannot remain
+        # disabled after a successful discovery/refresh.
+        if hasattr(self, "table") and self.servers:
+            self.render_servers()
 
     def _start_connect_animation(self, server_name: str) -> None:
         self._connecting_server_name = server_name
@@ -1886,9 +1891,20 @@ class MainWindow(QMainWindow):
         self._set_scan_labels(True)
         self.set_busy(True, self.t("getting_sources"))
         worker = DiscoverThread(self.service, self.current_sources(), self.language)
+        worker.preview_ready.connect(self.scan_preview_ready)
+        worker.record_updated.connect(self.refresh_record_updated)
         worker.success.connect(self.scan_finished)
         worker.failed.connect(self.task_failed)
         self.bind_worker(worker)
+
+    def scan_preview_ready(self, servers: object) -> None:
+        """Replace the skeleton as soon as configs are parsed; enrichment continues in-place."""
+        rows = list(servers) if isinstance(servers, (list, tuple)) else []
+        if not rows:
+            return
+        self.servers = rows
+        self._busy_list_task = False
+        self.render_servers()
 
     def scan_finished(self, servers: object) -> None:
         self.servers = list(servers)
@@ -1936,6 +1952,16 @@ class MainWindow(QMainWindow):
             if ping:
                 ping.setText(f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable"))
                 ping.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+            location = self.table.item(row, 2)
+            if location:
+                location.setText(self._server_location_text(server))
+            address = self.table.item(row, 3)
+            if address:
+                address.setText(server.ip or server.host or "—")
+            flag = self.table.cellWidget(row, 0)
+            if isinstance(flag, QLabel):
+                flag.setPixmap(country_flag_pixmap(server.country_code))
+                flag.setToolTip(server.country or self.t("unknown"))
             break
 
     def refresh_finished(self, servers: list[ServerRecord], auto: bool) -> None:

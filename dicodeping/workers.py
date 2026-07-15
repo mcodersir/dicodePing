@@ -110,6 +110,9 @@ class TaskThread(QThread):
 
 
 class DiscoverThread(TaskThread):
+    preview_ready = Signal(object)
+    record_updated = Signal(object)
+
     def __init__(self, service: ServerService, sources: list[SourceDefinition], language: str = "fa") -> None:
         super().__init__()
         self.service = service
@@ -132,6 +135,8 @@ class DiscoverThread(TaskThread):
                 language=self.language,
                 ping_progress=lambda current, total: self.emit_scaled(22, 72, current, total),
                 geo_progress=lambda current, total: self.emit_scaled(72, 100, current, total),
+                preview_progress=lambda rows: self.preview_ready.emit(rows),
+                record_progress=lambda record: self.record_updated.emit(record),
             )
             self.checkpoint()
             self.progress.emit(100, 100)

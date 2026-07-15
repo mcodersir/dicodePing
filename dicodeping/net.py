@@ -369,14 +369,41 @@ def ping_many(items: Iterable[tuple[str, str]], workers: int = 48, callback: Cal
     total = len(rows)
     results: list[PingResult] = []
     done = 0
-    resolved_rows = [(key, host, resolve_ipv4(host)) for key, host in rows]
+    # Windows DNS may spend many seconds per failed hostname. Resolving rows
+    # sequentially kept discovery behind the skeleton for minutes. Resolve the
+    # whole batch concurrently and stop waiting after a bounded window.
+    resolver = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(32, total)))
+    resolution_futures = {resolver.submit(resolve_ipv4, host): (key, host) for key, host in rows}
+    resolved_by_key: dict[str, str] = {}
+    done_futures, pending_futures = concurrent.futures.wait(
+        resolution_futures,
+        timeout=6.0,
+        return_when=concurrent.futures.ALL_COMPLETED,
+    )
+    for future in done_futures:
+        key, _host = resolution_futures[future]
+        try:
+            resolved_by_key[key] = future.result()
+        except Exception:
+            resolved_by_key[key] = ""
+    for future in pending_futures:
+        future.cancel()
+    resolver.shutdown(wait=False, cancel_futures=True)
+    resolved_rows = [(key, host, resolved_by_key.get(key, "")) for key, host in rows]
     # When TUN is active, direct /32 routes keep ICMP probes out of the tunnel.
     created_routes = install_direct_host_routes(ip for _, _, ip in resolved_rows if ip)
     try:
+        unresolved = [(key, host) for key, host, ip in resolved_rows if not ip]
+        for key, _host in unresolved:
+            results.append(PingResult(key, None, "dns"))
+            done += 1
+            if callback:
+                callback(done, total)
+        reachable_rows = [(key, host, ip) for key, host, ip in resolved_rows if ip]
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(workers, 96))) as executor:
             futures = {
                 executor.submit(icmp_ping, host, PING_ATTEMPTS, PING_TIMEOUT, ip): key
-                for key, host, ip in resolved_rows
+                for key, host, ip in reachable_rows
             }
             for future in concurrent.futures.as_completed(futures):
                 key = futures[future]
