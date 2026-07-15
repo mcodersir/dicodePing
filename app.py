@@ -132,10 +132,12 @@ class UpdateCheckThread(QThread):
 
     def run(self) -> None:
         try:
+            # An app update is time-sensitive at startup.  Do not make it wait
+            # for every subscription mirror before presenting the prompt.
+            platform = "windows" if is_windows() else "linux"
+            release = find_application_update(RELEASE_VERSION, platform, timeout=3.0)
             sources = normalize_sources(self.settings, self.language)
             changed, observed = check_source_updates(sources, self.settings.get("source_revisions"))
-            platform = "windows" if is_windows() else "linux"
-            release = find_application_update(RELEASE_VERSION, platform)
             self.ready.emit((changed, observed), release)
         except Exception:
             LOGGER.info("Update check unavailable", exc_info=True)

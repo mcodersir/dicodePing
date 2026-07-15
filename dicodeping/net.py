@@ -468,6 +468,24 @@ def _parse_ipwhois_app(data: dict) -> dict[str, str]:
     }
 
 
+def _parse_ipapi_is(data: dict) -> dict[str, str]:
+    location = data.get("location") or {}
+    company = data.get("company") or {}
+    asn = data.get("asn") or {}
+    code = str(location.get("country_code") or "").upper()
+    if not code:
+        return {}
+    return {
+        "country": str(location.get("country") or ""),
+        "country_code": code,
+        "region": str(location.get("state") or ""),
+        "city": str(location.get("city") or ""),
+        "isp": str(company.get("name") or ""),
+        "asn": str(asn.get("asn") or ""),
+        "geo_provider": "ipapi.is",
+    }
+
+
 def lookup_geo(ip: str, timeout: float = 5.5) -> dict[str, str]:
     """Resolve a best-effort network location using provider consensus.
 
@@ -482,6 +500,7 @@ def lookup_geo(ip: str, timeout: float = 5.5) -> dict[str, str]:
         (f"https://freeipapi.com/api/json/{ip}", _parse_freeipapi),
         (f"http://ip-api.com/json/{ip}?fields=status,country,countryCode,regionName,city,isp,org,as,query", _parse_ip_api),
         (f"https://ipwhois.app/json/{ip}", _parse_ipwhois_app),
+        (f"https://api.ipapi.is/?q={ip}", _parse_ipapi_is),
     )
 
     def query(item):

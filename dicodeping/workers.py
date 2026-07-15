@@ -38,9 +38,9 @@ class ApplicationUpdateThread(QThread):
 
     def run(self) -> None:
         try:
+            release = find_application_update(RELEASE_VERSION, "windows" if is_windows() else "linux", timeout=3.0)
             sources = normalize_sources(self.settings, self.language)
             changed, observed = check_source_updates(sources, self.settings.get("source_revisions"))
-            release = find_application_update(RELEASE_VERSION, "windows" if is_windows() else "linux", timeout=3.0)
             self.ready.emit((changed, observed), release)
         except Exception:
             LOGGER.info("Manual update check unavailable", exc_info=True)

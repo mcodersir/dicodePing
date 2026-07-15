@@ -662,6 +662,10 @@ class XrayManager:
         self._active_log_file = LOG_FILE
         self._retain_log = False
         self._cancel_start = threading.Event()
+        # stop() may be reached by the Disconnect action, a monitor callback
+        # and the process-exit handler at nearly the same time.  Serialize
+        # teardown so one caller never closes routes/files owned by another.
+        self._stop_lock = threading.RLock()
         atexit.register(self.stop)
 
     @property
@@ -869,48 +873,55 @@ class XrayManager:
             return None
 
     def stop(self) -> None:
-        self._cancel_start.set()
-        process = self.process
-        self.process = None
-        if process and process.poll() is None:
-            try:
-                process.terminate()
-                process.wait(timeout=2.5)
-            except Exception:
-                _kill_pid_tree(process.pid)
+        with self._stop_lock:
+            self._cancel_start.set()
+            process = self.process
+            self.process = None
+            if process and process.poll() is None:
                 try:
-                    process.wait(timeout=1.0)
+                    process.terminate()
+                    process.wait(timeout=2.5)
+                except Exception:
+                    _kill_pid_tree(process.pid)
+                    try:
+                        process.wait(timeout=1.0)
+                    except Exception:
+                        pass
+            try:
+                if self.log_handle:
+                    self.log_handle.close()
+            except Exception:
+                pass
+            self.log_handle = None
+            if not self._retain_log:
+                try:
+                    self._active_log_file.unlink(missing_ok=True)
                 except Exception:
                     pass
-        try:
-            if self.log_handle:
-                self.log_handle.close()
-        except Exception:
-            pass
-        self.log_handle = None
-        if not self._retain_log:
             try:
-                self._active_log_file.unlink(missing_ok=True)
+                PID_FILE.unlink(missing_ok=True)
             except Exception:
                 pass
-        try:
-            PID_FILE.unlink(missing_ok=True)
-        except Exception:
-            pass
-        if self.config_path:
+            if self.config_path:
+                try:
+                    self.config_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            self.config_path = None
+            if self._direct_routes:
+                try:
+                    remove_direct_host_routes(self._direct_routes)
+                except Exception:
+                    LOGGER.exception("Direct route cleanup failed")
+            self._direct_routes = []
+            self.executable = None
+            self.api_port = 0
+            self.connected_host = ""
+            self.connected_ip = ""
+            self.connected_port = 0
+            if process:
+                time.sleep(0.25)
             try:
-                self.config_path.unlink(missing_ok=True)
+                cleanup_named_tun()
             except Exception:
-                pass
-        self.config_path = None
-        if self._direct_routes:
-            remove_direct_host_routes(self._direct_routes)
-        self._direct_routes = []
-        self.executable = None
-        self.api_port = 0
-        self.connected_host = ""
-        self.connected_ip = ""
-        self.connected_port = 0
-        if process:
-            time.sleep(0.25)
-        cleanup_named_tun()
+                LOGGER.exception("TUN cleanup failed")

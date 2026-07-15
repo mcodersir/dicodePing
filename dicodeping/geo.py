@@ -10,7 +10,7 @@ from .net import lookup_geo
 from .storage import JsonStore
 
 
-GEO_CACHE_SCHEMA = 4
+GEO_CACHE_SCHEMA = 5
 LOGGER = get_logger("geo")
 
 
@@ -41,7 +41,7 @@ class GeoResolver:
         total = len(missing)
         done = 0
         if missing:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
                 futures = {executor.submit(lookup_geo, ip): ip for ip in missing}
                 for future in concurrent.futures.as_completed(futures):
                     ip = futures[future]

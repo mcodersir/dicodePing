@@ -2113,12 +2113,18 @@ class MainWindow(QMainWindow):
             pin_button.clicked.connect(lambda _=False, sid=server.id: self.toggle_favorite(sid))
             self.table.setCellWidget(row, 5, pin_button)
 
-            connect = QPushButton(self.t("connected") if server.id == self.connected_id else self.t("connect"))
+            restricted = self.service.is_restricted_location(server)
+            connect = QPushButton(
+                self.t("connected") if server.id == self.connected_id else
+                (self.t("server_disabled") if restricted else self.t("connect"))
+            )
             connect.setObjectName("tableAction")
             if server.id == self.connected_id:
                 connect.setProperty("kind", "primary")
             # Manual connection is allowed even when ICMP is blocked.
-            connect.setEnabled(server.id != self.connected_id and not self.manager.connected and not self.worker)
+            connect.setEnabled(not restricted and server.id != self.connected_id and not self.manager.connected and not self.worker)
+            if restricted:
+                connect.setToolTip(self.t("restricted_location_hint"))
             connect.clicked.connect(lambda _=False, sid=server.id: self.connect_by_id(sid))
             self.table.setCellWidget(row, 6, connect)
             self.table.setRowHeight(row, 64)
@@ -2282,7 +2288,7 @@ class MainWindow(QMainWindow):
 
     def connect_by_id(self, server_id: str) -> None:
         server = next((item for item in self.servers if item.id == server_id), None)
-        if server:
+        if server and not self.service.is_restricted_location(server):
             self.settings["selected_server_id"] = server.id
             self.settings["connection_mode"] = "manual"
             self.store.save_settings(self.settings)
@@ -2316,6 +2322,9 @@ class MainWindow(QMainWindow):
 
     def connect_server(self, server: ServerRecord) -> None:
         if self.worker or self.manager.connected:
+            return
+        if self.service.is_restricted_location(server):
+            AppDialog.info(self, self.t("server_disabled"), self.t("restricted_location_hint"), self.t("ok"))
             return
         LOGGER.info("Connection requested: id=%s host=%s port=%s", server.id, server.host, server.port)
         self.settings["selected_server_id"] = server.id

@@ -43,6 +43,12 @@ class Rc7Tests(unittest.TestCase):
         self.assertIn("dict.fromkeys(row.host for row in rows)", test_records)
         self.assertNotIn("probe_outbound_delay", test_records)
 
+    def test_auto_selection_keeps_the_70ms_and_location_rules(self) -> None:
+        runtime = (Path(__file__).resolve().parents[1] / "dicodeping" / "rc7_runtime.py").read_text(encoding="utf-8")
+        candidates = runtime.split("def auto_candidates", 1)[1].split("\n    service_module.ServerService", 1)[0]
+        self.assertIn("MIN_TRUSTED_AUTO_PING_MS", candidates)
+        self.assertIn("is_restricted_location", candidates)
+
 
 if __name__ == "__main__":
     unittest.main()

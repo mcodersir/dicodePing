@@ -120,7 +120,11 @@ def _install_service_patch() -> None:
         return records
 
     service_module.ServerService.refresh_saved = refresh
-    service_module._is_auto_candidate = lambda server: usable_for_auto(server.status, server.ping_ms)
+    service_module._is_auto_candidate = lambda server: (
+        usable_for_auto(server.status, server.ping_ms)
+        and service_module.MIN_TRUSTED_AUTO_PING_MS <= int(server.ping_ms or 0) <= service_module.MAX_TRUSTED_AUTO_PING_MS
+        and not service_module.is_restricted_location(server)
+    )
 
 
 def _install_ui_patch() -> None:

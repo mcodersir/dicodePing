@@ -114,14 +114,14 @@ def _install_ui_patch() -> None:
 
     def connect_by_id(self, server_id):
         server = next((item for item in self.servers if item.id == server_id), None)
-        if not server:
+        if not server or self.service.is_restricted_location(server):
             return
         self._rc5_set_manual_mode(server.id)
         connect_server(self, server)
 
     def connect_selected(self):
         server = self.selected_server()
-        if server:
+        if server and not self.service.is_restricted_location(server):
             self._rc5_set_manual_mode(server.id)
             connect_server(self, server)
 

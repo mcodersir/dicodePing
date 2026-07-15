@@ -20,6 +20,8 @@ ProgressCallback = Callable[[int, int], None]
 MIN_TRUSTED_AUTO_PING_MS = 70
 MAX_TRUSTED_AUTO_PING_MS = 5_000
 _UNKNOWN_COUNTRIES = {"", "unknown", "نامشخص", "n/a", "-"}
+_RESTRICTED_COUNTRY_CODES = {"IR"}
+_RESTRICTED_COUNTRY_NAMES = {"iran", "islamic republic of iran", "ایران", "جمهوری اسلامی ایران"}
 
 
 def _has_trusted_location(server: ServerRecord) -> bool:
@@ -34,8 +36,24 @@ def _has_trusted_ping(value: int | None) -> bool:
     return value is not None and MIN_TRUSTED_AUTO_PING_MS <= value <= MAX_TRUSTED_AUTO_PING_MS
 
 
+def is_restricted_location(server: ServerRecord) -> bool:
+    """Do not offer a locally located relay as a connection target.
+
+    Country code is authoritative when available.  The name check is only a
+    fallback for providers that returned a country name but omitted its code.
+    """
+    code = str(server.country_code or "").strip().upper()
+    country = str(server.country or "").strip().casefold()
+    return code in _RESTRICTED_COUNTRY_CODES or country in _RESTRICTED_COUNTRY_NAMES
+
+
 def _is_auto_candidate(server: ServerRecord) -> bool:
-    return server.status == "online" and _has_trusted_ping(server.ping_ms) and _has_trusted_location(server)
+    return (
+        server.status == "online"
+        and _has_trusted_ping(server.ping_ms)
+        and _has_trusted_location(server)
+        and not is_restricted_location(server)
+    )
 
 
 def _sort_key(server: ServerRecord) -> tuple[int, int, int, int, str]:

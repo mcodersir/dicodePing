@@ -142,7 +142,16 @@ def _install_service_patch() -> None:
 
     def auto_candidates(self, records=None):
         values = records if records is not None else self.store.load_servers()
-        eligible = [row for row in values if row.status == "online" and trusted_latency(row.ping_ms)]
+        # Keep the service policy as the single source of truth: it rejects
+        # sub-70 ms samples, missing locations and restricted locations.
+        eligible = [
+            row for row in values
+            if (
+                row.status == "online"
+                and service_module.MIN_TRUSTED_AUTO_PING_MS <= int(row.ping_ms or 0) <= service_module.MAX_TRUSTED_AUTO_PING_MS
+                and not service_module.is_restricted_location(row)
+            )
+        ]
         return diverse_auto_candidates(eligible, limit=12)
 
     service_module.ServerService.build_and_save = build

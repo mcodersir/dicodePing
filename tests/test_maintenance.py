@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 18", gradle)
+        self.assertIn("versionCode = 19", gradle)
         self.assertIn('versionName = "0.1.4"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -38,6 +38,14 @@ class MaintenanceTests(unittest.TestCase):
         after_start = ui.split("def _after_start", 1)[1].split("def apply_theme", 1)[0]
         self.assertNotIn("start_scan(", after_start)
         self.assertNotIn("start_refresh(", after_start)
+
+    def test_application_update_is_checked_before_subscription_revisions(self) -> None:
+        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        workers = (ROOT / "dicodeping" / "workers.py").read_text(encoding="utf-8")
+        app_run = app.split("class UpdateCheckThread", 1)[1].split("_SINGLE_INSTANCE_HANDLE", 1)[0]
+        worker_run = workers.split("class ApplicationUpdateThread", 1)[1].split("def _flush_windows_dns", 1)[0]
+        self.assertLess(app_run.index("find_application_update"), app_run.index("check_source_updates"))
+        self.assertLess(worker_run.index("find_application_update"), worker_run.index("check_source_updates"))
 
     def test_rc9_startup_cannot_be_held_by_network_or_ui_failure(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
