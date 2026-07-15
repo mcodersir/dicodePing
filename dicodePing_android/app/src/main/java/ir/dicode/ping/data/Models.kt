@@ -74,6 +74,25 @@ data class ServerRecord(
     }
 }
 
+object ServerPolicy {
+    const val MIN_AUTO_PING_MS = 70
+    private val restrictedCountryNames = setOf(
+        "iran", "islamic republic of iran", "ایران", "جمهوری اسلامی ایران",
+    )
+
+    fun isRestricted(server: ServerRecord): Boolean =
+        server.countryCode.trim().equals("IR", ignoreCase = true) ||
+            server.country.trim().lowercase() in restrictedCountryNames
+
+    fun isAutoEligible(server: ServerRecord): Boolean =
+        server.healthy &&
+            server.pingKind == "PROXY_HTTP" &&
+            server.pingMs != null &&
+            server.pingMs!! >= MIN_AUTO_PING_MS &&
+            server.countryCode.isNotBlank() &&
+            !isRestricted(server)
+}
+
 data class ProgressState(
     val active: Boolean = false,
     val stage: String = "",

@@ -24,6 +24,7 @@ class GeoResolver {
         // every server doubled refresh time and quickly hit public API rate limits.
         val resolved = ipWho(ip)?.copy(confidence = "single")
             ?: ipApiCo(ip)?.copy(confidence = "single")
+            ?: ipApiIs(ip)?.copy(confidence = "single")
             ?: GeoInfo(confidence = "unknown")
         if (resolved.countryCode.isNotBlank()) cache[ip] = resolved
         resolved
@@ -42,8 +43,20 @@ class GeoResolver {
             o.optString("org"), o.optString("asn"))
     }
 
+    private fun ipApiIs(ip: String): GeoInfo? = get("https://api.ipapi.is/?q=$ip")?.let { o ->
+        val location = o.optJSONObject("location") ?: return@let null
+        val company = o.optJSONObject("company") ?: JSONObject()
+        val asn = o.optJSONObject("asn") ?: JSONObject()
+        val code = location.optString("country_code")
+        if (code.isBlank()) return@let null
+        GeoInfo(
+            location.optString("country"), code, location.optString("state"), location.optString("city"),
+            company.optString("name"), asn.optString("asn"),
+        )
+    }
+
     private fun get(url: String): JSONObject? = runCatching {
-        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.3-rc.6").build()).execute().use {
+        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.5").build()).execute().use {
             if (!it.isSuccessful) return null
             JSONObject(it.body?.string().orEmpty())
         }

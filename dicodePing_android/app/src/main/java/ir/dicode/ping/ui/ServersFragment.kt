@@ -20,6 +20,7 @@ import ir.dicode.ping.R
 import ir.dicode.ping.databinding.FragmentServersBinding
 import ir.dicode.ping.vpn.VpnStateStore
 import ir.dicode.ping.vpn.VpnStatus
+import ir.dicode.ping.data.ServerPolicy
 import kotlinx.coroutines.launch
 
 class ServersFragment : Fragment() {
@@ -49,6 +50,9 @@ class ServersFragment : Fragment() {
             },
             onLocked = {
                 Snackbar.make(binding.root, R.string.server_change_locked, Snackbar.LENGTH_SHORT).show()
+            },
+            onRestricted = {
+                Snackbar.make(binding.root, R.string.restricted_server_message, Snackbar.LENGTH_SHORT).show()
             },
         )
         binding.serverList.apply {
@@ -83,7 +87,7 @@ class ServersFragment : Fragment() {
                     VpnStateStore.state.collect { state ->
                         adapter.notifyItemRangeChanged(0, adapter.itemCount)
                         val locked = state.status == VpnStatus.CONNECTED || state.status == VpnStatus.CONNECTING
-                        binding.connectSelected.isEnabled = !locked && !vm.repo.progress.value.active && vm.repo.selectedServer() != null
+                        binding.connectSelected.isEnabled = canConnectSelected(locked)
                     }
                 }
                 launch {
@@ -107,7 +111,7 @@ class ServersFragment : Fragment() {
                         binding.pingAll.isEnabled = !progress.active
                         val locked = VpnStateStore.state.value.status == VpnStatus.CONNECTED ||
                             VpnStateStore.state.value.status == VpnStatus.CONNECTING
-                        binding.connectSelected.isEnabled = !progress.active && !locked && vm.repo.selectedServer() != null
+                        binding.connectSelected.isEnabled = canConnectSelected(locked)
                         binding.refresh.alpha = if (progress.active) 0.6f else 1f
                         binding.pingAll.alpha = if (progress.active) 0.6f else 1f
                     }
@@ -163,7 +167,7 @@ class ServersFragment : Fragment() {
         binding.serverCount.text = getString(R.string.server_results_count, rows.size)
         val locked = VpnStateStore.state.value.status == VpnStatus.CONNECTED ||
             VpnStateStore.state.value.status == VpnStatus.CONNECTING
-        binding.connectSelected.isEnabled = !locked && !vm.repo.progress.value.active && vm.repo.selectedServer() != null
+        binding.connectSelected.isEnabled = canConnectSelected(locked)
         binding.empty.visibility = if (rows.isEmpty() && !vm.repo.progress.value.active) {
             View.VISIBLE
         } else {
@@ -173,6 +177,11 @@ class ServersFragment : Fragment() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+
+    private fun canConnectSelected(locked: Boolean): Boolean {
+        val selected = vm.repo.selectedServer()
+        return !locked && !vm.repo.progress.value.active && selected != null && !ServerPolicy.isRestricted(selected)
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

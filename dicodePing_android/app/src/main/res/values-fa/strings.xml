@@ -143,6 +143,8 @@
     <string name="diagnostic_logging">ثبت گزارش عیب‌یابی (پیش‌فرض خاموش)</string>
     <string name="log_share_failed">اشتراک لاگ تشخیصی انجام نشد</string>
     <string name="server_change_locked">برای تغییر سرور ابتدا اتصال را قطع کنید</string>
+    <string name="server_disabled">غیرفعال</string>
+    <string name="restricted_server_message">این سرور به دلیل تشخیص موقعیت ایران برای اتصال غیرفعال شده است.</string>
     <string name="navigation_home">خانه</string>
     <string name="connecting_server">سرور در حال اتصال</string>
     <string name="subscription_update_title">به‌روزرسانی سرورها آماده است</string>

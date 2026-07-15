@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ir.dicode.ping.data.ServerRecord
+import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.data.SettingsStore
 import ir.dicode.ping.databinding.ActivityMainBinding
 import ir.dicode.ping.ui.AboutFragment
@@ -37,7 +38,9 @@ import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.util.PublicServerLabel
 import ir.dicode.ping.vpn.DicodeVpnService
+import ir.dicode.ping.vpn.VpnStateStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(), ConnectionHost {
@@ -45,6 +48,9 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     private val vm: MainViewModel by viewModels()
     private var pendingServer: ServerRecord? = null
     private var currentPageId = 0
+    private val automaticQueue = ArrayDeque<ServerRecord>()
+    private var automaticAttemptId = ""
+    private var automaticRetryScheduled = false
 
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
         val server = pendingServer ?: return@registerForActivityResult
@@ -93,6 +99,19 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         currentPageId = 0
         showPage(restoredPage, animate = false)
+
+        lifecycleScope.launch {
+            VpnStateStore.state.collect { state ->
+                when {
+                    state.status == ir.dicode.ping.vpn.VpnStatus.CONNECTED &&
+                        state.serverId == automaticAttemptId -> clearAutomaticQueue()
+                    state.status == ir.dicode.ping.vpn.VpnStatus.ERROR &&
+                        state.serverId == automaticAttemptId &&
+                        automaticAttemptId.isNotBlank() &&
+                        !automaticRetryScheduled -> retryAutomaticConnection()
+                }
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -196,6 +215,17 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun connect(server: ServerRecord?) {
+        if (server == null && vm.repo.connectionMode.value == "auto") {
+            val candidates = vm.repo.automaticCandidates(AUTO_RETRY_LIMIT)
+            if (candidates.isNotEmpty()) {
+                clearAutomaticQueue()
+                automaticQueue.addAll(candidates.drop(1))
+                automaticAttemptId = candidates.first().id
+                prepareAndStart(candidates.first())
+                return
+            }
+        }
+
         val candidate = server ?: vm.repo.connectionTarget()
         if (candidate == null) {
             MaterialAlertDialogBuilder(this)
@@ -205,7 +235,20 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                 .show()
             return
         }
+        if (ServerPolicy.isRestricted(candidate)) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.server_disabled)
+                .setMessage(R.string.restricted_server_message)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
 
+        clearAutomaticQueue()
+        prepareAndStart(candidate)
+    }
+
+    private fun prepareAndStart(candidate: ServerRecord) {
         vm.repo.selectServer(candidate.id, userInitiated = false)
         val prepareIntent = runCatching { VpnService.prepare(this) }.getOrNull()
         if (prepareIntent != null) {
@@ -214,6 +257,25 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         } else {
             startVpn(candidate)
         }
+    }
+
+    private suspend fun retryAutomaticConnection() {
+        automaticRetryScheduled = true
+        delay(AUTO_RETRY_DELAY_MS)
+        val next = automaticQueue.removeFirstOrNull()
+        if (next == null) {
+            clearAutomaticQueue()
+        } else {
+            automaticAttemptId = next.id
+            prepareAndStart(next)
+        }
+        automaticRetryScheduled = false
+    }
+
+    private fun clearAutomaticQueue() {
+        automaticQueue.clear()
+        automaticAttemptId = ""
+        automaticRetryScheduled = false
     }
 
     private fun startVpn(server: ServerRecord) {
@@ -237,6 +299,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     private fun showVpnPermissionError() {
+        clearAutomaticQueue()
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.vpn_permission_failed_title)
             .setMessage(R.string.vpn_permission_failed_message)
@@ -246,6 +309,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     override fun disconnect() {
         AppLog.i("Main", "Disconnect requested")
+        clearAutomaticQueue()
         startService(
             Intent(applicationContext, DicodeVpnService::class.java)
                 .setAction(DicodeVpnService.ACTION_STOP)
@@ -254,6 +318,8 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     companion object {
         private const val KEY_CURRENT_PAGE = "current_page"
+        private const val AUTO_RETRY_LIMIT = 5
+        private const val AUTO_RETRY_DELAY_MS = 450L
     }
 }
 

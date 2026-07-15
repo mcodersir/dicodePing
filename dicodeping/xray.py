@@ -703,11 +703,15 @@ class XrayManager:
         endpoint_host: str = "",
         endpoint_port: int = 0,
     ) -> None:
-        self.stop()
-        self._cancel_start.clear()
+        # Every attempt owns a cancellation token. Clearing and reusing the
+        # old Event could erase a concurrent Disconnect request.
+        with self._stop_lock:
+            self.stop()
+            cancel_start = threading.Event()
+            self._cancel_start = cancel_start
         cleanup_stale_owned_process()
         executable = ensure_xray(progress, language=language)
-        if self._cancel_start.is_set():
+        if cancel_start.is_set():
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         wintun = ensure_wintun(executable, progress=progress, language=language)
         if is_windows() and (not wintun or not wintun.exists()):
@@ -732,7 +736,7 @@ class XrayManager:
             raise
 
         validation = self._validate(executable, self.config_path)
-        if self._cancel_start.is_set():
+        if cancel_start.is_set():
             self.stop()
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         validation_text = (validation.stderr or validation.stdout or "").strip()
@@ -776,7 +780,7 @@ class XrayManager:
         except Exception:
             self.stop()
             raise
-        if self._cancel_start.is_set():
+        if cancel_start.is_set():
             self.stop()
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         PID_FILE.write_text(

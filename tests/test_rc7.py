@@ -36,6 +36,21 @@ class Rc7Tests(unittest.TestCase):
         result = diverse_auto_candidates(rows, limit=3)
         self.assertEqual([row.id for row in result], ["b", "c"])
 
+    def test_favorite_does_not_override_a_better_automatic_server(self) -> None:
+        rows = [
+            ServerRecord(id="favorite", name="Favorite", protocol="VLESS", host="one.example", port=443, config_blob="a", ping_ms=140, status="online", favorite=True),
+            ServerRecord(id="fast", name="Fast", protocol="VLESS", host="two.example", port=443, config_blob="b", ping_ms=80, status="online"),
+        ]
+        self.assertEqual(diverse_auto_candidates(rows, limit=2)[0].id, "fast")
+
+    def test_auto_retry_uses_different_resolved_networks(self) -> None:
+        rows = [
+            ServerRecord(id="a", name="A", protocol="VLESS", host="one.example", port=443, config_blob="a", ping_ms=80, ip="1.2.3.4", status="online"),
+            ServerRecord(id="b", name="B", protocol="VLESS", host="alias.example", port=8443, config_blob="b", ping_ms=85, ip="1.2.3.4", status="online"),
+            ServerRecord(id="c", name="C", protocol="VLESS", host="two.example", port=443, config_blob="c", ping_ms=90, ip="5.6.7.8", status="online"),
+        ]
+        self.assertEqual([row.id for row in diverse_auto_candidates(rows, limit=3)], ["a", "c"])
+
     def test_server_list_uses_direct_icmp_once_per_host(self) -> None:
         runtime = (Path(__file__).resolve().parents[1] / "dicodeping" / "rc7_runtime.py").read_text(encoding="utf-8")
         test_records = runtime.split("def _test_records", 1)[1].split("\ndef _apply_geo", 1)[0]

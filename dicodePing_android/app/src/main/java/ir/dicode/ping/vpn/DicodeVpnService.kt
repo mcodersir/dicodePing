@@ -330,6 +330,7 @@ class DicodeVpnService : VpnService() {
         }
     }
 
+    @Synchronized
     private fun stopRuntime() {
         metricsJob?.cancel()
         metricsJob = null
@@ -350,10 +351,15 @@ class DicodeVpnService : VpnService() {
         startGeneration.incrementAndGet()
         startJob?.cancel()
         startJob = null
-        stopRuntime()
         VpnStateStore.state.value = VpnState()
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        // Native core shutdown can wait for internal threads. Keep it off the
+        // service main thread so Disconnect never freezes or triggers an ANR.
+        scope.launch {
+            stopRuntime()
+            currentName = ""
+            stopSelf()
+        }
     }
 
     private fun unwrapMessage(error: Throwable): String {

@@ -420,11 +420,7 @@ class AppRepository private constructor(context: Context) {
         if (persist) settings.saveServers(servers.value)
     }
 
-    private fun isAutoEligible(server: ServerRecord): Boolean =
-        server.healthy &&
-            server.pingKind == REAL_PROXY_PING &&
-            server.pingMs != null &&
-            server.countryCode.isNotBlank()
+    private fun isAutoEligible(server: ServerRecord): Boolean = ServerPolicy.isAutoEligible(server)
 
     private fun sortServers(rows: List<ServerRecord>) = rows.sortedWith(
         compareByDescending<ServerRecord> { it.favorite }
@@ -490,10 +486,23 @@ class AppRepository private constructor(context: Context) {
         serverById(selectedServerId.value)
 
     fun bestServer(): ServerRecord? =
-        servers.value.filter(::isAutoEligible).minByOrNull { it.pingMs!! }
+        automaticCandidates(1).firstOrNull()
+
+    fun automaticCandidates(limit: Int = 5): List<ServerRecord> {
+        val usedNetworks = hashSetOf<String>()
+        return servers.value.asSequence()
+            .filter(::isAutoEligible)
+            .sortedBy { it.pingMs }
+            .filter { server ->
+                val network = server.ip.ifBlank { server.host }.trim().lowercase()
+                network.isNotBlank() && usedNetworks.add(network)
+            }
+            .take(limit.coerceIn(1, 8))
+            .toList()
+    }
 
     fun connectionTarget(): ServerRecord? = if (connectionMode.value == "manual") {
-        selectedServer()
+        selectedServer()?.takeUnless(ServerPolicy::isRestricted)
     } else {
         bestServer()
     }

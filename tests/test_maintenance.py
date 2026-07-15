@@ -11,8 +11,8 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 19", gradle)
-        self.assertIn('versionName = "0.1.4"', gradle)
+        self.assertIn("versionCode = 20", gradle)
+        self.assertIn('versionName = "0.1.5"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
         self.assertLess(refresh.index("locateServers("), refresh.index("pingServers("))
@@ -106,8 +106,10 @@ class MaintenanceTests(unittest.TestCase):
         service = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt").read_text(encoding="utf-8")
         manifest = (ROOT / "dicodePing_android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
         self.assertIn("server_change_locked", servers)
-        self.assertIn("!progress.active && !locked", servers)
+        self.assertIn("canConnectSelected(locked)", servers)
+        self.assertIn("!ServerPolicy.isRestricted(selected)", servers)
         self.assertIn("addDisallowedApplication(packageName)", service)
+        self.assertIn("@Synchronized", service)
         self.assertIn("androidx.core.content.FileProvider", manifest)
 
     def test_android_uses_single_branded_custom_splash(self) -> None:

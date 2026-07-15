@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ir.dicode.ping.R
 import ir.dicode.ping.data.ServerRecord
+import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.databinding.ItemServerBinding
 import ir.dicode.ping.util.PublicServerLabel
 import java.util.Locale
@@ -24,6 +25,7 @@ class ServerAdapter(
     private val onFavorite: (ServerRecord) -> Unit,
     private val interactionLocked: () -> Boolean,
     private val onLocked: () -> Unit,
+    private val onRestricted: () -> Unit,
 ) : ListAdapter<ServerRecord, ServerAdapter.Holder>(object : DiffUtil.ItemCallback<ServerRecord>() {
     override fun areItemsTheSame(oldItem: ServerRecord, newItem: ServerRecord) = oldItem.id == newItem.id
     override fun areContentsTheSame(oldItem: ServerRecord, newItem: ServerRecord) = oldItem == newItem
@@ -46,6 +48,7 @@ class ServerAdapter(
             val context = root.context
             val isSelected = server.id == selected()
             val locked = interactionLocked()
+            val restricted = ServerPolicy.isRestricted(server)
             val fallback = server.city.ifBlank {
                 server.country.ifBlank { context.getString(R.string.generic_server) }
             }
@@ -73,11 +76,18 @@ class ServerAdapter(
             )
             favorite.contentDescription = context.getString(R.string.favorite_server)
 
-            root.alpha = if (locked && !isSelected) 0.62f else 1f
-            connect.isEnabled = !locked
-            connect.alpha = if (locked) 0.55f else 1f
+            root.alpha = if ((locked && !isSelected) || restricted) 0.62f else 1f
+            connect.isEnabled = !locked && !restricted
+            connect.alpha = if (locked || restricted) 0.55f else 1f
+            connect.text = context.getString(
+                if (restricted) R.string.server_disabled else R.string.connect_selected_short,
+            )
 
             root.setOnClickListener {
+                if (restricted) {
+                    onRestricted()
+                    return@setOnClickListener
+                }
                 if (interactionLocked()) {
                     onLocked()
                     return@setOnClickListener
@@ -89,6 +99,10 @@ class ServerAdapter(
                 if (current != RecyclerView.NO_POSITION) notifyItemChanged(current)
             }
             connect.setOnClickListener {
+                if (restricted) {
+                    onRestricted()
+                    return@setOnClickListener
+                }
                 if (interactionLocked()) {
                     onLocked()
                     return@setOnClickListener

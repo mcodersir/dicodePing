@@ -9,8 +9,8 @@ import sys
 import tarfile
 from pathlib import Path
 
-APP_VERSION = "0.1.4"
-RC_VERSION = "rc.7"
+APP_VERSION = "0.1.5"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 

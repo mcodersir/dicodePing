@@ -143,6 +143,8 @@
     <string name="diagnostic_logging">Enable diagnostic reporting (off by default)</string>
     <string name="log_share_failed">Could not share the diagnostic log</string>
     <string name="server_change_locked">Disconnect before changing the server</string>
+    <string name="server_disabled">Disabled</string>
+    <string name="restricted_server_message">This server is disabled because its network location was detected as Iran.</string>
     <string name="navigation_home">Home</string>
     <string name="connecting_server">Connecting server</string>
     <string name="subscription_update_title">Server update available</string>

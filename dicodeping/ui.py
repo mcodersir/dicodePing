@@ -2114,6 +2114,11 @@ class MainWindow(QMainWindow):
             self.table.setCellWidget(row, 5, pin_button)
 
             restricted = self.service.is_restricted_location(server)
+            if restricted:
+                for disabled_item in (name_item, location_item, ping_item):
+                    disabled_item.setFlags(disabled_item.flags() & ~Qt.ItemIsEnabled)
+                flag.setEnabled(False)
+                pin_button.setEnabled(False)
             connect = QPushButton(
                 self.t("connected") if server.id == self.connected_id else
                 (self.t("server_disabled") if restricted else self.t("connect"))
