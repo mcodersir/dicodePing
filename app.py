@@ -294,8 +294,12 @@ def main() -> int:
                 rows = list(servers) if isinstance(servers, (list, tuple)) else []
                 if not rows:
                     return
-                window.scan_preview_ready(rows)
-                smoke_state["rows"] = len(window.servers)
+                try:
+                    window.scan_preview_ready(rows)
+                    smoke_state["rows"] = len(window.servers)
+                except Exception:
+                    LOGGER.exception("Packaged discovery rendering failed")
+                    finish_discovery_smoke(7, traceback.format_exc())
 
             def finish_discovery_smoke(exit_code: int, message: str) -> None:
                 if smoke_state["finished"]:

@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - docs/releases/v0.1.5-rc.2.md
+      - .github/workflows/v014-rc1-release.yml
   workflow_dispatch:
 
 permissions:

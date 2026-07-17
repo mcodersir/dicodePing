@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from dicodeping.constants import DEFAULT_SUBSCRIPTION_URL, XRAY_VERSION
 from dicodeping.discovery import normalize_subscription_urls
-from dicodeping.models import DiscoveredConfig
+from dicodeping.models import DiscoveredConfig, ServerRecord
 from dicodeping.net import PingResult, resolve_all_ips, resolve_all_ipv4
 from dicodeping.protocols import blob_to_config, build_xray_outbound, decode_subscription, normalize_key, parse_endpoint
 from dicodeping.service import ServerService
@@ -52,6 +52,20 @@ class FakeGeo:
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_server_service_exposes_the_location_policy_used_by_the_ui(self) -> None:
+        server = ServerRecord(
+            id="iran",
+            name="Iran",
+            protocol="VLESS",
+            host="example.com",
+            port=443,
+            config_blob="value",
+            country="Iran",
+            country_code="IR",
+        )
+        service = object.__new__(ServerService)
+        self.assertTrue(service.is_restricted_location(server))
+
     def test_real_probe_profile_uses_local_socks_and_proxy_outbound(self) -> None:
         from dicodeping.xray import build_probe_config
 

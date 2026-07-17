@@ -81,6 +81,11 @@ class ServerService:
         self.store = store
         self.geo = GeoResolver(store)
 
+    @staticmethod
+    def is_restricted_location(server: ServerRecord) -> bool:
+        """Expose the shared policy through the service API used by the UI."""
+        return is_restricted_location(server)
+
     def build_and_save(
         self,
         raw_configs: list[str | DiscoveredConfig],
