@@ -19,7 +19,7 @@
 </div>
 
 ---
-https://cdn.imgurl.ir/uploads/m03783_file_000000009de87246968b60bf9a728a01.png
+![Preview](https://cdn.imgurl.ir/uploads/m03783_file_000000009de87246968b60bf9a728a01.png)
 
 
 ## فارسی
