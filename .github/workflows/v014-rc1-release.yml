@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: release-v0.1.5-rc.3
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   windows:
