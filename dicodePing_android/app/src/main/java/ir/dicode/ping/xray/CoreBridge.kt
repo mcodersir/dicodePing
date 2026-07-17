@@ -181,7 +181,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
             "https://www.gstatic.com/generate_204",
             "https://cp.cloudflare.com/generate_204",
         )
-        val OUTBOUND_PROBE_URLS = listOf(PROBE_URLS.first())
+        val OUTBOUND_PROBE_URLS = PROBE_URLS
         const val CORE_PREFS = "dicodeping_core"
         const val KEY_XUDP_BASE_KEY = "xudp_base_key_v1"
     }

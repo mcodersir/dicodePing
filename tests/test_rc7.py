@@ -51,12 +51,14 @@ class Rc7Tests(unittest.TestCase):
         ]
         self.assertEqual([row.id for row in diverse_auto_candidates(rows, limit=3)], ["a", "c"])
 
-    def test_server_list_uses_direct_icmp_once_per_host(self) -> None:
+    def test_server_list_requires_a_real_config_probe(self) -> None:
         runtime = (Path(__file__).resolve().parents[1] / "dicodeping" / "rc7_runtime.py").read_text(encoding="utf-8")
         test_records = runtime.split("def _test_records", 1)[1].split("\ndef _apply_geo", 1)[0]
-        self.assertIn("net_module.ping_many", test_records)
-        self.assertIn("dict.fromkeys(row.host for row in rows)", test_records)
-        self.assertNotIn("probe_outbound_delay", test_records)
+        self.assertNotIn("net_module.ping_many", test_records)
+        self.assertIn("net_module.resolve_ipv4", test_records)
+        self.assertIn("probe_outbound_delay", test_records)
+        self.assertIn("blob_to_config(row.config_blob)", test_records)
+        self.assertIn('None, "unverified"', test_records)
 
     def test_auto_selection_keeps_the_70ms_and_location_rules(self) -> None:
         runtime = (Path(__file__).resolve().parents[1] / "dicodeping" / "rc7_runtime.py").read_text(encoding="utf-8")

@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 20", gradle)
+        self.assertIn("versionCode = 21", gradle)
         self.assertIn('versionName = "0.1.5"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -92,6 +92,16 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("Start-Process", windows)
         self.assertNotIn('test "$status" -eq 124', linux)
 
+    def test_rc2_release_tests_packaged_discovery_and_rendering(self) -> None:
+        app = (ROOT / "app.py").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/v014-rc1-release.yml").read_text(encoding="utf-8")
+        self.assertIn("DICODEPING_DISCOVERY_SMOKE", app)
+        self.assertIn("preview_only=True", app)
+        self.assertIn("rendered_rows", app)
+        self.assertEqual(workflow.count("DICODEPING_DISCOVERY_SMOKE"), 2)
+        self.assertIn("dicodePing-v0.1.5-rc.2-windows.exe", workflow)
+        self.assertIn("dicodePing-v0.1.5-rc.2-linux-x86_64.tar.gz", workflow)
+
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
         self.assertNotIn("server.protocol", ui)
@@ -110,6 +120,7 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("QHeaderView.Fixed", rc8)
         self.assertIn("self.table.viewport().width()", rc8)
         self.assertIn("waits = (0.25, 0.7)", workers)
+        self.assertIn("allow_system_proxy=False", workers)
 
     def test_android_connection_lock_and_diagnostics(self) -> None:
         servers = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServersFragment.kt").read_text(encoding="utf-8")

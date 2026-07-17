@@ -121,7 +121,13 @@ foreach ($ip in $ips) {{
     _powershell_route_script(script, timeout=15.0)
 
 
-def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | None = None) -> str:
+def fetch_text(
+    url: str,
+    timeout: float = 18.0,
+    progress: DownloadProgress | None = None,
+    *,
+    allow_system_proxy: bool = True,
+) -> str:
     request = urllib.request.Request(
         url,
         headers={
@@ -138,7 +144,10 @@ def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | Non
     # connection for networks where a stale proxy is configured.
     response = None
     proxy_error: Exception | None = None
-    for opener in (urllib.request.build_opener(), urllib.request.build_opener(urllib.request.ProxyHandler({}))):
+    openers = [urllib.request.build_opener(urllib.request.ProxyHandler({}))]
+    if allow_system_proxy:
+        openers.insert(0, urllib.request.build_opener())
+    for opener in openers:
         try:
             response = opener.open(request, timeout=timeout)
             break
@@ -173,17 +182,22 @@ def fetch_text(url: str, timeout: float = 18.0, progress: DownloadProgress | Non
         return b"".join(chunks).decode(encoding, errors="ignore")
 
 
-def is_url_reachable(url: str, timeout: float = 8.0) -> bool:
+def is_url_reachable(url: str, timeout: float = 8.0, *, allow_system_proxy: bool = True) -> bool:
     try:
-        fetch_text(url, timeout=timeout)
+        fetch_text(url, timeout=timeout, allow_system_proxy=allow_system_proxy)
         return True
     except Exception:
         return False
 
 
-def is_any_url_reachable(urls: tuple[str, ...] | list[str], timeout: float = 8.0) -> bool:
+def is_any_url_reachable(
+    urls: tuple[str, ...] | list[str],
+    timeout: float = 8.0,
+    *,
+    allow_system_proxy: bool = True,
+) -> bool:
     for url in urls:
-        if is_url_reachable(url, timeout=timeout):
+        if is_url_reachable(url, timeout=timeout, allow_system_proxy=allow_system_proxy):
             return True
     return False
 
@@ -192,6 +206,8 @@ def is_any_url_reachable_parallel(
     urls: tuple[str, ...] | list[str],
     timeout: float = 5.0,
     attempts: int = 2,
+    *,
+    allow_system_proxy: bool = True,
 ) -> bool:
     """Race independent connectivity endpoints instead of waiting sequentially."""
     rows = tuple(dict.fromkeys(str(url).strip() for url in urls if str(url).strip()))
@@ -199,7 +215,10 @@ def is_any_url_reachable_parallel(
         return False
     for attempt in range(max(1, attempts)):
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(rows)))
-        futures = [executor.submit(is_url_reachable, url, timeout) for url in rows]
+        futures = [
+            executor.submit(is_url_reachable, url, timeout, allow_system_proxy=allow_system_proxy)
+            for url in rows
+        ]
         try:
             for future in concurrent.futures.as_completed(futures, timeout=timeout + 1.0):
                 try:

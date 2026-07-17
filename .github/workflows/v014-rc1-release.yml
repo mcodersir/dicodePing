@@ -1,13 +1,17 @@
-name: Release v0.1.5-rc.1
+name: Release v0.1.5-rc.2
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - docs/releases/v0.1.5-rc.2.md
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-v0.1.5-rc.1
+  group: release-v0.1.5-rc.2
   cancel-in-progress: false
 
 jobs:
@@ -28,12 +32,22 @@ jobs:
           python tools/quality_gate.py
           curl.exe --fail --location --retry 4 --output assets/default-subscription.txt "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
           python tools/build_windows.py --skip-install
-          Move-Item release/dicodePing-v0.1.5-windows.exe release/dicodePing-v0.1.5-rc.1-windows.exe
+          Move-Item release/dicodePing-v0.1.5-windows.exe release/dicodePing-v0.1.5-rc.2-windows.exe
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-rc2-smoke"
+          $env:LOCALAPPDATA = $env:APPDATA
+          $env:DICODEPING_DISCOVERY_SMOKE = "1"
+          $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP "windows-discovery-smoke.txt"
+          $process = Start-Process -FilePath "release/dicodePing-v0.1.5-rc.2-windows.exe" -ArgumentList "--startup-smoke-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
+            throw "Packaged Windows discovery smoke test failed with exit code $($process.ExitCode)"
+          }
+          Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT
         shell: pwsh
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: release/dicodePing-v0.1.5-rc.1-windows.exe
+          path: release/dicodePing-v0.1.5-rc.2-windows.exe
           if-no-files-found: error
 
   linux:
@@ -55,10 +69,19 @@ jobs:
           python tools/quality_gate.py
           curl --fail --location --retry 4 --output assets/default-subscription.txt "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
           python tools/build_linux.py --skip-install
+          mkdir -p "$RUNNER_TEMP/dicodeping-rc2-smoke"
+          tar -xzf release/dicodePing-v0.1.5-rc.2-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-rc2-smoke"
+          smoke_bin="$RUNNER_TEMP/dicodeping-rc2-smoke/dicodePing-v0.1.5-rc.2-linux-x86_64/dicodePing"
+          smoke_report="$RUNNER_TEMP/linux-discovery-smoke.txt"
+          if ! env QT_QPA_PLATFORM=offscreen XDG_CONFIG_HOME="$RUNNER_TEMP/dicodeping-rc2-config" DICODEPING_DISCOVERY_SMOKE=1 DICODEPING_STARTUP_SMOKE_REPORT="$smoke_report" timeout 35s "$smoke_bin" --startup-smoke-test; then
+            test -f "$smoke_report" && cat "$smoke_report"
+            exit 1
+          fi
+          cat "$smoke_report"
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: release/dicodePing-v0.1.5-rc.1-linux-x86_64.tar.gz
+          path: release/dicodePing-v0.1.5-rc.2-linux-x86_64.tar.gz
           if-no-files-found: error
 
   android:
@@ -87,11 +110,11 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon lint test assembleRelease
           mkdir -p release
-          cp app/build/outputs/apk/release/app-release.apk release/dicodePing-v0.1.5-rc.1-android.apk
+          cp app/build/outputs/apk/release/app-release.apk release/dicodePing-v0.1.5-rc.2-android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: dicodePing_android/release/dicodePing-v0.1.5-rc.1-android.apk
+          path: dicodePing_android/release/dicodePing-v0.1.5-rc.2-android.apk
           if-no-files-found: error
 
   publish:
@@ -110,10 +133,10 @@ jobs:
           (cd release-assets && sha256sum * > SHA256SUMS)
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.5-rc.1
+          tag_name: v0.1.5-rc.2
           target_commitish: main
-          name: dicodePing v0.1.5-rc.1
-          body_path: docs/releases/v0.1.5-rc.1.md
+          name: dicodePing v0.1.5-rc.2
+          body_path: docs/releases/v0.1.5-rc.2.md
           prerelease: true
           fail_on_unmatched_files: true
           files: release-assets/*

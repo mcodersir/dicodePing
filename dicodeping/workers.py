@@ -83,7 +83,12 @@ def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
         time.sleep(wait)
         if not manager.connected:
             return False
-        if is_any_url_reachable_parallel(HEALTH_URLS, timeout=2.6, attempts=1):
+        if is_any_url_reachable_parallel(
+            HEALTH_URLS,
+            timeout=2.6,
+            attempts=1,
+            allow_system_proxy=False,
+        ):
             return True
     return False
 
@@ -113,11 +118,19 @@ class DiscoverThread(TaskThread):
     preview_ready = Signal(object)
     record_updated = Signal(object)
 
-    def __init__(self, service: ServerService, sources: list[SourceDefinition], language: str = "fa") -> None:
+    def __init__(
+        self,
+        service: ServerService,
+        sources: list[SourceDefinition],
+        language: str = "fa",
+        *,
+        preview_only: bool = False,
+    ) -> None:
         super().__init__()
         self.service = service
         self.sources = list(sources)
         self.language = language
+        self.preview_only = preview_only
 
     def run(self) -> None:
         try:
@@ -137,6 +150,7 @@ class DiscoverThread(TaskThread):
                 geo_progress=lambda current, total: self.emit_scaled(72, 100, current, total),
                 preview_progress=lambda rows: self.preview_ready.emit(rows),
                 record_progress=lambda record: self.record_updated.emit(record),
+                preview_only=self.preview_only,
             )
             self.checkpoint()
             self.progress.emit(100, 100)

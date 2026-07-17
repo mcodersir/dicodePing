@@ -17,6 +17,7 @@ from dicodeping.sources import normalize_sources, serialize_sources
 from dicodeping.storage import JsonStore
 from dicodeping.ui import MainWindow
 from dicodeping.updates import check_source_updates, find_application_update
+from dicodeping.workers import DiscoverThread
 from dicodeping.windows_integration import apply_native_window_icon, set_process_app_user_model_id
 from dicodeping.xray import cleanup_stale_owned_process, is_admin, is_windows, relaunch_as_admin
 
@@ -255,6 +256,16 @@ def main() -> int:
     app.setLayoutDirection(Qt.LeftToRight if language == "en" else Qt.RightToLeft)
 
     if smoke_mode:
+        report_path = os.environ.get("DICODEPING_STARTUP_SMOKE_REPORT", "").strip()
+
+        def write_smoke_report(message: str) -> None:
+            if not report_path:
+                return
+            try:
+                Path(report_path).write_text(message, encoding="utf-8")
+            except OSError:
+                pass
+
         try:
             smoke_settings = dict(settings)
             smoke_settings.update({"language": "en", "accepted_disclaimer": True})
@@ -266,13 +277,62 @@ def main() -> int:
             window.show()
         except Exception:
             LOGGER.exception("Packaged startup smoke test failed")
-            report_path = os.environ.get("DICODEPING_STARTUP_SMOKE_REPORT", "").strip()
-            if report_path:
-                try:
-                    Path(report_path).write_text(traceback.format_exc(), encoding="utf-8")
-                except OSError:
-                    pass
+            write_smoke_report(traceback.format_exc())
             return 2
+
+        if os.environ.get("DICODEPING_DISCOVERY_SMOKE", "").strip() == "1":
+            smoke_state = {"finished": False, "rows": 0}
+            smoke_worker = DiscoverThread(
+                window.service,
+                window.current_sources(),
+                window.language,
+                preview_only=True,
+            )
+            window._packaged_discovery_smoke_worker = smoke_worker
+
+            def accept_smoke_rows(servers: object) -> None:
+                rows = list(servers) if isinstance(servers, (list, tuple)) else []
+                if not rows:
+                    return
+                window.scan_preview_ready(rows)
+                smoke_state["rows"] = len(window.servers)
+
+            def finish_discovery_smoke(exit_code: int, message: str) -> None:
+                if smoke_state["finished"]:
+                    return
+                smoke_state["finished"] = True
+                visible = window.isVisible()
+                if exit_code or not visible or smoke_state["rows"] < 1:
+                    exit_code = exit_code or 4
+                    write_smoke_report(
+                        f"{message}\nvisible={visible}\nrendered_rows={smoke_state['rows']}\n"
+                    )
+                else:
+                    write_smoke_report(
+                        f"ok\nvisible={visible}\nrendered_rows={smoke_state['rows']}\n"
+                    )
+                window._is_closing = True
+                window.close()
+                app.exit(exit_code)
+
+            smoke_worker.preview_ready.connect(accept_smoke_rows)
+            def discovery_smoke_succeeded(servers: object) -> None:
+                accept_smoke_rows(servers)
+                finish_discovery_smoke(
+                    0 if smoke_state["rows"] else 4,
+                    "Packaged discovery completed without rendered server rows.",
+                )
+
+            smoke_worker.success.connect(discovery_smoke_succeeded)
+            smoke_worker.failed.connect(
+                lambda message: finish_discovery_smoke(5, f"Packaged discovery failed: {message}")
+            )
+            smoke_worker.start()
+            QTimer.singleShot(
+                30_000,
+                lambda: finish_discovery_smoke(6, "Packaged discovery timed out."),
+            )
+            return app.exec()
 
         def finish_smoke_test() -> None:
             visible = window.isVisible()

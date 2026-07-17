@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import socket
 import time
 from collections import defaultdict
@@ -10,6 +11,7 @@ from PySide6.QtWidgets import QBoxLayout, QHeaderView
 
 from . import net as net_module
 from . import service as service_module
+from . import xray as xray_module
 from .models import DiscoveredConfig, ServerRecord
 from .protocols import blob_to_config, config_to_blob, normalize_key, parse_endpoint, record_id
 from .rc2_core import extract_display_name
@@ -38,37 +40,85 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
 
 
 def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
-    # The server list is a latency view, not a connection test.  Starting a
-    # temporary core for every item included startup/proxy negotiation in the
-    # number and produced inflated, unstable values.  Measure ICMP Echo
-    # directly, once per host, exactly as the native Windows ping path does.
-    # A real connection is still validated only when the user connects.
-    del settings
+    # Host latency cannot prove that a config's protocol, credentials and
+    # transport work. Only publish a number after real HTTP traffic traverses
+    # that exact Xray outbound, matching the useful-delay semantics of v2rayNG.
     rows = [row for row in records if row.host]
     hosts = list(dict.fromkeys(row.host for row in rows))
-    results = {
-        item.key: item
-        for item in net_module.ping_many(
-            [(host, host) for host in hosts], workers=min(64, max(1, len(hosts))), callback=callback
-        )
-    }
+    # Resolve addresses for location lookup, but do not run a separate ICMP
+    # measurement. It was both redundant and misleading because a reachable
+    # host does not mean that this particular config is usable.
+    resolver = concurrent.futures.ThreadPoolExecutor(max_workers=min(32, max(1, len(hosts))))
+    resolution_futures = {resolver.submit(net_module.resolve_ipv4, host): host for host in hosts}
+    address_results: dict[str, str] = {}
+    done_futures, pending_futures = concurrent.futures.wait(
+        resolution_futures,
+        timeout=6.0,
+        return_when=concurrent.futures.ALL_COMPLETED,
+    )
+    for future in done_futures:
+        host = resolution_futures[future]
+        try:
+            address_results[host] = future.result()
+        except Exception:
+            address_results[host] = ""
+    for future in pending_futures:
+        future.cancel()
+    resolver.shutdown(wait=False, cancel_futures=True)
+    for row in rows:
+        address = address_results.get(row.host, "")
+        if address:
+            row.ip = address
 
-    def apply_row(row: ServerRecord) -> None:
-        result = results.get(row.host)
-        latency = result.ping_ms if result else None
+    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3200, 1200, 7000)
+    timeout = max(3.2, timeout_ms / 1000.0)
+    concurrency = bounded_int(settings.get("test_concurrency"), 6, 2, 8)
+
+    def probe(row: ServerRecord, probe_timeout: float) -> int | None:
+        try:
+            return xray_module.probe_outbound_delay(blob_to_config(row.config_blob), timeout=probe_timeout)
+        except Exception:
+            return None
+
+    def apply_row(row: ServerRecord, latency: int | None) -> None:
         now = service_module.utc_now()
         row.last_checked = now
         if trusted_latency(latency):
-            if result and result.ip and result.ip != "dns":
-                row.ip = result.ip
             row.ping_ms, row.status, row.failures = latency, "online", 0
         else:
             row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
         if record_callback:
             record_callback(row)
 
-    for row in rows:
-        apply_row(row)
+    failed: list[ServerRecord] = []
+    done = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
+        futures = {pool.submit(probe, row, timeout): row for row in rows}
+        for future in concurrent.futures.as_completed(futures):
+            row = futures[future]
+            try:
+                latency = future.result()
+            except Exception:
+                latency = None
+            apply_row(row, latency)
+            if latency is None:
+                failed.append(row)
+            done += 1
+            if callback:
+                callback(done, len(rows))
+
+    if settings.get("retry_failed_tests", True) and failed:
+        retry_rows = failed[:12]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, len(retry_rows))) as pool:
+            futures = {pool.submit(probe, row, max(4.5, timeout)): row for row in retry_rows}
+            for future in concurrent.futures.as_completed(futures):
+                row = futures[future]
+                try:
+                    latency = future.result()
+                except Exception:
+                    latency = None
+                if latency is not None:
+                    apply_row(row, latency)
 
     return records
 
@@ -131,6 +181,8 @@ def _install_service_patch() -> None:
         self.store.save_servers(records)
         if kwargs.get("preview_progress"):
             kwargs["preview_progress"](list(records))
+        if kwargs.get("preview_only"):
+            return records
         if kwargs.get("stage"):
             kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "testing_ping"))
         _test_records(
