@@ -16,6 +16,10 @@ from .constants import HEALTH_URLS
 from .models import DiscoveredConfig
 from .protocols import blob_to_config, config_to_blob, parse_endpoint, record_id, set_display_name
 from .rc2_core import choose_conservative_latency, extract_display_name, infer_country_hint, is_generated_or_unknown_name
+# Keep the base UI import visible to static packagers. The patch chain runs
+# before app.main imports MainWindow, so loading the class here is safe and
+# prevents one-file desktop bundles from omitting dicodeping.ui.
+from .ui import MainWindow, repolish, tinted_icon
 
 _PATCHED = False
 _CTX = threading.local()
@@ -215,7 +219,6 @@ class _DisconnectThread(QThread):
 
 
 def _install_ui_patch():
-    from .ui import MainWindow, repolish, tinted_icon
     from .workers import ConnectionMonitorThread
     from .xray import XrayManager
 

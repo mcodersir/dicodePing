@@ -99,6 +99,9 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn('"--collect-submodules"', linux_builder)
         self.assertIn('"dicodeping"', windows_builder)
         self.assertIn('"dicodeping"', linux_builder)
+        runtime = (ROOT / "dicodeping/rc2_runtime.py").read_text(encoding="utf-8")
+        before_patch = runtime.split("def _install_ui_patch", 1)[0]
+        self.assertIn("from .ui import MainWindow, repolish, tinted_icon", before_patch)
 
     def test_rc2_release_tests_packaged_discovery_and_rendering(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
