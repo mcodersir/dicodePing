@@ -19,7 +19,8 @@
 </div>
 
 ---
-<a href="https://imgurl.ir/" target="_blank" rel="noopener"><img src="https://cdn.imgurl.ir/uploads/m03783_file_000000009de87246968b60bf9a728a01.png" border="0" alt="محیط برنامه" /></a>
+https://cdn.imgurl.ir/uploads/m03783_file_000000009de87246968b60bf9a728a01.png
+
 
 ## فارسی
 
