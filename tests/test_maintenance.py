@@ -92,6 +92,14 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("Start-Process", windows)
         self.assertNotIn('test "$status" -eq 124', linux)
 
+    def test_desktop_builds_bundle_runtime_imports(self) -> None:
+        windows_builder = (ROOT / "tools/build_windows.py").read_text(encoding="utf-8")
+        linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
+        self.assertIn('"--collect-submodules"', windows_builder)
+        self.assertIn('"--collect-submodules"', linux_builder)
+        self.assertIn('"dicodeping"', windows_builder)
+        self.assertIn('"dicodeping"', linux_builder)
+
     def test_rc2_release_tests_packaged_discovery_and_rendering(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/v014-rc1-release.yml").read_text(encoding="utf-8")

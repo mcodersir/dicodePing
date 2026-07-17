@@ -89,6 +89,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         str(root / "tools" / "windows_version_info.txt"),
         "--hidden-import",
         "PySide6.QtSvg",
+        "--collect-submodules",
+        "dicodeping",
         "--add-data",
         f"{assets}{separator}assets",
     ]

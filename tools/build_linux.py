@@ -45,7 +45,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     command = [
         python, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
         "--name", APP_NAME, "--specpath", str(spec_dir), "--icon", str(assets / "app.png"),
-        "--hidden-import", "PySide6.QtSvg", "--add-data", f"{assets}{separator}assets",
+        "--hidden-import", "PySide6.QtSvg", "--collect-submodules", "dicodeping",
+        "--add-data", f"{assets}{separator}assets",
         "--add-binary", f"{core / 'xray'}{separator}core",
     ]
     for data_name in ("geoip.dat", "geosite.dat"):
