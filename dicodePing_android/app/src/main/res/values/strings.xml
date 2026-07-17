@@ -18,6 +18,9 @@
     <string name="connection_active">Connection verified and active</string>
     <string name="disconnect">Disconnect</string>
     <string name="connect">Connect</string>
+    <string name="cancel_connection">Cancel connection</string>
+    <string name="preparing_servers">Preparing servers…</string>
+    <string name="servers_still_preparing">Please wait until server download and testing are complete.</string>
     <string name="connect_best">Connect automatically</string>
     <string name="percent_value">%1$d%%</string>
 

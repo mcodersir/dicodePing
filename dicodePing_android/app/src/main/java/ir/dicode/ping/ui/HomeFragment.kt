@@ -36,7 +36,7 @@ class HomeFragment : Fragment() {
         binding.connectButton.setOnClickListener {
             when (VpnStateStore.state.value.status) {
                 VpnStatus.CONNECTED -> (activity as? ConnectionHost)?.disconnect()
-                VpnStatus.CONNECTING -> Unit
+                VpnStatus.CONNECTING -> (activity as? ConnectionHost)?.disconnect()
                 else -> (activity as? ConnectionHost)?.connect()
             }
         }
@@ -57,6 +57,9 @@ class HomeFragment : Fragment() {
                             R.string.percent_value,
                             progress.percent.coerceIn(0, 100),
                         )
+                        binding.refreshButton.isEnabled = !progress.active
+                        binding.pingButton.isEnabled = !progress.active
+                        renderVpnState(VpnStateStore.state.value)
                     }
                 }
                 launch { VpnStateStore.state.collect(::renderVpnState) }
@@ -140,11 +143,13 @@ class HomeFragment : Fragment() {
         binding.statusDetail.text = state.message.ifBlank {
             state.serverName.ifBlank { getString(R.string.connection_status_hint) }
         }
-        binding.connectButton.isEnabled = !connecting
-        binding.connectButton.alpha = if (connecting) 0.72f else 1f
+        val preparing = vm.repo.progress.value.active
+        binding.connectButton.isEnabled = !preparing
+        binding.connectButton.alpha = if (preparing) 0.62f else 1f
         binding.connectButton.text = when {
+            preparing -> getString(R.string.preparing_servers)
             connected -> getString(R.string.disconnect)
-            connecting -> getString(R.string.connecting)
+            connecting -> getString(R.string.cancel_connection)
             else -> getString(R.string.connect_target_server)
         }
 

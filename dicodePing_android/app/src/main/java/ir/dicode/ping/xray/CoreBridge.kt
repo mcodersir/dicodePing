@@ -50,6 +50,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
 
     private fun prepareEnvironment(): Class<*> = synchronized(ENV_LOCK) {
         val lib = Class.forName("libv2ray.Libv2ray")
+        if (environmentReady) return@synchronized lib
         runCatching {
             Class.forName("go.Seq")
                 .getMethod("setContext", Context::class.java)
@@ -59,6 +60,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         val assets = context.filesDir.resolve("xray_assets").apply { mkdirs() }
         lib.getMethod("initCoreEnv", String::class.java, String::class.java)
             .invoke(null, assets.absolutePath, loadOrCreateXudpBaseKey())
+        environmentReady = true
         lib
     }
 
@@ -160,28 +162,24 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
      * supplied server configuration. This is a proxy health test, not ICMP/TCP
      * latency to the server host.
      */
-    fun measureOutboundDelay(config: String, urls: List<String> = OUTBOUND_PROBE_URLS): Long {
+    fun measureOutboundDelay(config: String, testUrl: String = BATCH_PROBE_URL): Long {
         val lib = runCatching { prepareEnvironment() }.getOrNull() ?: return -1L
         val method = runCatching {
             lib.getMethod("measureOutboundDelay", String::class.java, String::class.java)
         }.getOrNull() ?: return -1L
-
-        for (url in urls) {
-            val delay = runCatching {
-                (method.invoke(null, config, url) as? Number)?.toLong() ?: -1L
-            }.getOrDefault(-1L)
-            if (delay >= 0) return delay
-        }
-        return -1L
+        return runCatching {
+            (method.invoke(null, config, testUrl) as? Number)?.toLong() ?: -1L
+        }.getOrDefault(-1L)
     }
 
     private companion object {
         val ENV_LOCK = Any()
+        @Volatile var environmentReady = false
         val PROBE_URLS = listOf(
             "https://www.gstatic.com/generate_204",
             "https://cp.cloudflare.com/generate_204",
         )
-        val OUTBOUND_PROBE_URLS = PROBE_URLS
+        const val BATCH_PROBE_URL = "https://www.gstatic.com/generate_204"
         const val CORE_PREFS = "dicodeping_core"
         const val KEY_XUDP_BASE_KEY = "xudp_base_key_v1"
     }

@@ -215,6 +215,14 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun connect(server: ServerRecord?) {
+        if (vm.repo.progress.value.active) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.preparing_servers)
+                .setMessage(R.string.servers_still_preparing)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
         if (server == null && vm.repo.connectionMode.value == "auto") {
             val candidates = vm.repo.automaticCandidates(AUTO_RETRY_LIMIT)
             if (candidates.isNotEmpty()) {

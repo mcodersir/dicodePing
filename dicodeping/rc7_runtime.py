@@ -70,12 +70,39 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
         if address:
             row.ip = address
 
-    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3200, 1200, 7000)
-    timeout = max(3.2, timeout_ms / 1000.0)
-    concurrency = bounded_int(settings.get("test_concurrency"), 6, 2, 8)
+    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3000, 1500, 5000)
+    timeout = max(2.5, timeout_ms / 1000.0)
+    # v2rayNG tests a batch concurrently (16 by default). The previous cap of
+    # eight made large subscriptions unnecessarily slow even when the UI asked
+    # for more workers.
+    concurrency = bounded_int(settings.get("test_concurrency"), 16, 4, 32)
+
+    def needs_tcp_precheck(row: ServerRecord) -> bool:
+        try:
+            outbound = xray_module.build_xray_outbound(blob_to_config(row.config_blob)) or {}
+            protocol = str(outbound.get("protocol", "")).lower()
+            stream = outbound.get("streamSettings", {})
+            network = str(stream.get("network", "tcp")).lower() if isinstance(stream, dict) else "tcp"
+            return protocol not in {"hysteria2", "wireguard", "tuic"} and network not in {
+                "kcp", "quic", "hysteria2", "wireguard"
+            }
+        except Exception:
+            return False
+
+    def tcp_reachable(row: ServerRecord) -> bool:
+        target = row.ip or row.host
+        try:
+            with socket.create_connection((target, row.port), timeout=1.0):
+                return True
+        except OSError:
+            return False
 
     def probe(row: ServerRecord, probe_timeout: float) -> int | None:
         try:
+            # Fast rejection mirrors v2rayNG's ordinary-config TCP pre-check;
+            # this number is never shown as the server ping.
+            if needs_tcp_precheck(row) and not tcp_reachable(row):
+                return None
             return xray_module.probe_outbound_delay(blob_to_config(row.config_blob), timeout=probe_timeout)
         except Exception:
             return None
@@ -108,9 +135,9 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
                 callback(done, len(rows))
 
     if settings.get("retry_failed_tests", True) and failed:
-        retry_rows = failed[:12]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(3, len(retry_rows))) as pool:
-            futures = {pool.submit(probe, row, max(4.5, timeout)): row for row in retry_rows}
+        retry_rows = failed[:6]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(retry_rows))) as pool:
+            futures = {pool.submit(probe, row, max(3.5, timeout)): row for row in retry_rows}
             for future in concurrent.futures.as_completed(futures):
                 row = futures[future]
                 try:

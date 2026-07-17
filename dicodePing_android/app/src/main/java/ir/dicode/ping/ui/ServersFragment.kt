@@ -45,7 +45,8 @@ class ServersFragment : Fragment() {
             onConnect = { (activity as? ConnectionHost)?.connect(it) },
             onFavorite = { vm.repo.setFavorite(it.id) },
             interactionLocked = {
-                VpnStateStore.state.value.status == VpnStatus.CONNECTED ||
+                vm.repo.progress.value.active ||
+                    VpnStateStore.state.value.status == VpnStatus.CONNECTED ||
                     VpnStateStore.state.value.status == VpnStatus.CONNECTING
             },
             onLocked = {
@@ -114,6 +115,7 @@ class ServersFragment : Fragment() {
                         binding.connectSelected.isEnabled = canConnectSelected(locked)
                         binding.refresh.alpha = if (progress.active) 0.6f else 1f
                         binding.pingAll.alpha = if (progress.active) 0.6f else 1f
+                        adapter.notifyItemRangeChanged(0, adapter.itemCount)
                     }
                 }
             }

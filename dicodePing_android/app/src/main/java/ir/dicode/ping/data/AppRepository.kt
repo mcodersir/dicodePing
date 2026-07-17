@@ -58,25 +58,17 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
-    /** First launch is prepared on the splash; cached lists open immediately. */
+    /** The complete startup pipeline stays on the splash until every row is ready. */
     suspend fun initialize() = withContext(Dispatchers.IO) {
         refreshMutex.withLock {
-            // A timed refresh used to perform download, geolocation and every
-            // probe before MainActivity could be shown.  It made opening the app
-            // look frozen and also hid the user's cached server list.
-            if (servers.value.isEmpty()) {
-                AppLog.i("Repository", "First launch: preparing initial servers")
+            if (servers.value.isEmpty() || settings.isServerRefreshDue()) {
+                AppLog.i("Repository", "Splash: refreshing server sources")
                 refreshServersInternal()
-                val startup = rankStartupCandidates(servers.value)
-                locateServers(startup, mergeWithExisting = true)
-                pingServers(startup)
-                val tested = startup.asSequence().map { it.id }.toHashSet()
-                val remaining = servers.value.filterNot { it.id in tested }
-                if (remaining.isNotEmpty()) {
-                    scope.launch {
-                        refreshMutex.withLock { locateServers(remaining, mergeWithExisting = true); pingServers(remaining) }
-                    }
-                }
+            }
+            val snapshot = servers.value
+            if (snapshot.isNotEmpty()) {
+                locateServers(snapshot, mergeWithExisting = true)
+                pingServers(servers.value)
             }
         }
     }
@@ -84,17 +76,17 @@ class AppRepository private constructor(context: Context) {
     fun refreshAll() {
         if (progress.value.active) return
         AppLog.i("Repository", "Manual server refresh requested")
-        scope.launch {
-            refreshMutex.withLock {
-                refreshServersInternal()
-                val snapshot = servers.value
-                if (snapshot.isEmpty()) return@withLock
-                // Manual refresh is intentionally one visible, deterministic pipeline:
-                // download -> location -> bounded concurrent real proxy tests.
-                locateServers(snapshot, mergeWithExisting = true)
-                pingServers(servers.value)
-                rememberSourceRevisions()
-            }
+        scope.launch { refreshAllAndWait() }
+    }
+
+    suspend fun refreshAllAndWait() = withContext(Dispatchers.IO) {
+        refreshMutex.withLock {
+            refreshServersInternal()
+            val snapshot = servers.value
+            if (snapshot.isEmpty()) return@withLock
+            locateServers(snapshot, mergeWithExisting = true)
+            pingServers(servers.value)
+            rememberSourceRevisions()
         }
     }
 
@@ -193,36 +185,6 @@ class AppRepository private constructor(context: Context) {
             error.value = error.value ?: "No servers were received"
         }
         progress.value = ProgressState()
-    }
-
-    private suspend fun rankStartupCandidates(input: List<ServerRecord>): List<ServerRecord> = coroutineScope {
-        if (input.size <= STARTUP_REAL_PROBE_LIMIT) return@coroutineScope input
-        val sem = Semaphore(STARTUP_PREFILTER_CONCURRENCY)
-        input.map { server ->
-            async(Dispatchers.IO) {
-                sem.withPermit {
-                    val previous = server.pingMs.takeIf { isAutoEligible(server) }
-                    if (previous != null) return@withPermit server to previous
-                    val started = System.nanoTime()
-                    val reachable = runCatching {
-                        Socket().use { socket ->
-                            socket.connect(
-                                InetSocketAddress(server.host, server.port),
-                                STARTUP_CONNECT_TIMEOUT_MS,
-                            )
-                        }
-                        true
-                    }.getOrDefault(false)
-                    val elapsed = ((System.nanoTime() - started) / 1_000_000L)
-                        .coerceAtMost(Int.MAX_VALUE.toLong())
-                        .toInt()
-                    server to if (reachable) elapsed else Int.MAX_VALUE
-                }
-            }
-        }.awaitAll()
-            .sortedWith(compareBy<Pair<ServerRecord, Int>> { it.second }.thenBy { it.first.sourceName })
-            .take(STARTUP_REAL_PROBE_LIMIT)
-            .map { it.first }
     }
 
     fun pingAll() {
@@ -331,9 +293,13 @@ class AppRepository private constructor(context: Context) {
                 batch.map { server ->
                     async(Dispatchers.IO) {
                         sem.withPermit {
-                            val delay = runCatching {
+                            // Match v2rayNG's real-ping path: quickly reject a dead
+                            // TCP endpoint, then ask the native Xray core to measure
+                            // actual HTTP traffic through this exact outbound.
+                            val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
+                            val delay = if (reachable) runCatching {
                                 proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
-                            }.getOrDefault(-1L)
+                            }.getOrDefault(-1L) else -1L
                             val pingMs = delay.takeIf { it in 1..60_000 }
                                 ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
                             val updated = server.copy(
@@ -347,32 +313,26 @@ class AppRepository private constructor(context: Context) {
                                     true, "ping", done.incrementAndGet(), input.size, server.name,
                                 )
                             }
+                            liveUpdateMutex.withLock {
+                                applyServerUpdates(listOf(updated), true, sort = false, persist = false)
+                            }
                             updated
                         }
                     }
                 }.awaitAll()
             }
 
-            val firstPass = mutableListOf<ServerRecord>()
-            input.chunked(REAL_PROBE_PAGE_SIZE).forEach { page ->
-                val results = runBatch(page, REAL_PROBE_CONCURRENCY, countProgress = true)
-                firstPass += results
-                // One list emission per page keeps RecyclerView smooth while
-                // preserving the visible order and current selection.
-                liveUpdateMutex.withLock { applyServerUpdates(results, true, sort = false, persist = false) }
-            }
+            val firstPass = runBatch(input, REAL_PROBE_CONCURRENCY, countProgress = true)
             val failed = firstPass.filterNot { it.healthy }
-            if (failed.isNotEmpty()) {
-                val failedIds = failed.mapTo(HashSet()) { it.id }
+            if (failed.isNotEmpty() && RETRY_FAILED_LIMIT > 0) {
+                val retryRows = failed.take(RETRY_FAILED_LIMIT)
+                val failedIds = retryRows.mapTo(HashSet()) { it.id }
                 liveUpdateMutex.withLock {
                     servers.value = servers.value.map { current ->
                         if (current.id in failedIds) current.copy(testState = ServerRecord.TEST_RUNNING) else current
                     }
                 }
-                failed.chunked(RETRY_PROBE_PAGE_SIZE).forEach { page ->
-                    val results = runBatch(page, RETRY_PROBE_CONCURRENCY, countProgress = false)
-                    liveUpdateMutex.withLock { applyServerUpdates(results, true, sort = false, persist = false) }
-                }
+                runBatch(retryRows, RETRY_PROBE_CONCURRENCY, countProgress = false)
             }
             liveUpdateMutex.withLock {
                 servers.value = sortServers(servers.value)
@@ -391,6 +351,23 @@ class AppRepository private constructor(context: Context) {
             progress.value = ProgressState()
         }
     }
+
+    private fun needsTcpPrecheck(server: ServerRecord): Boolean {
+        val node = ConfigParser.parse(server.raw) ?: return false
+        val network = node.outbound.optJSONObject("streamSettings")
+            ?.optString("network", "tcp")
+            ?.lowercase()
+            .orEmpty()
+        return network !in setOf("kcp", "quic", "hysteria2", "wireguard") &&
+            node.protocol.lowercase() !in setOf("hysteria2", "wireguard", "tuic")
+    }
+
+    private fun tcpReachable(server: ServerRecord): Boolean = runCatching {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(server.host, server.port), TCP_PRECHECK_TIMEOUT_MS)
+        }
+        true
+    }.getOrDefault(false)
 
     private fun applyServerUpdates(
         updated: List<ServerRecord>,
@@ -521,16 +498,13 @@ class AppRepository private constructor(context: Context) {
 
     companion object {
         private const val REAL_PROXY_PING = "PROXY_HTTP"
-        private const val STARTUP_REAL_PROBE_LIMIT = 18
-        private const val STARTUP_PREFILTER_CONCURRENCY = 24
-        private const val STARTUP_CONNECT_TIMEOUT_MS = 900
         private const val DOWNLOAD_CONCURRENCY = 4
         private const val DNS_CONCURRENCY = 32
         private const val GEO_CONCURRENCY = 8
-        private const val REAL_PROBE_CONCURRENCY = 12
-        private const val REAL_PROBE_PAGE_SIZE = 36
-        private const val RETRY_PROBE_CONCURRENCY = 6
-        private const val RETRY_PROBE_PAGE_SIZE = 12
+        private const val REAL_PROBE_CONCURRENCY = 16
+        private const val RETRY_PROBE_CONCURRENCY = 4
+        private const val RETRY_FAILED_LIMIT = 6
+        private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
 
         @Volatile
         private var instance: AppRepository? = null

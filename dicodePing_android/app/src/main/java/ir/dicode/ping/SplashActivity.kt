@@ -57,7 +57,9 @@ class SplashActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             val startedAt = System.currentTimeMillis()
-            withTimeoutOrNull(45_000) { repo.initialize() }
+            // Do not leave the splash while download, location or real-ping is
+            // still running. Every network operation has its own bounded timeout.
+            runCatching { repo.initialize() }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < 650) delay(650 - elapsed)
             val release = withTimeoutOrNull(3_000) {
@@ -94,8 +96,10 @@ class SplashActivity : ComponentActivity() {
                 .setMessage(getString(R.string.subscription_update_message, names))
                 .setNegativeButton(R.string.update_later) { _, _ -> openMain() }
                 .setPositiveButton(R.string.update_now) { _, _ ->
-                    repo.refreshAll()
-                    openMain()
+                    lifecycleScope.launch {
+                        repo.refreshAllAndWait()
+                        openMain()
+                    }
                 }
                 .setCancelable(false)
                 .show()

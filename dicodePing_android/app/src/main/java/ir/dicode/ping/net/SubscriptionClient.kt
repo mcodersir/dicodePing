@@ -17,7 +17,7 @@ class SubscriptionClient {
         .build()
 
     suspend fun download(url: String, progress: (Long, Long) -> Unit): String = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.3-rc.6").build()
+        val request = Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.5-rc.3").build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val body = response.body ?: error("Empty response")

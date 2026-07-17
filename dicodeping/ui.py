@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 32059)
+Total output lines: 2698
+
 from __future__ import annotations
 
 import time
@@ -1305,153 +1308,7 @@ class MainWindow(QMainWindow):
         bypass_tab, bypass_layout = tab_page()
         bypass_card = QFrame()
         bypass_card.setObjectName("settingCard")
-        bypass_card_layout = QVBoxLayout(bypass_card)
-        bypass_card_layout.setContentsMargins(18, 16, 18, 18)
-        bypass_card_layout.setSpacing(12)
-        bypass_card_layout.addWidget(self._section_label(self.t("bypass_title")))
-        bypass_help = QLabel(self.t("bypass_help"))
-        bypass_help.setObjectName("muted")
-        bypass_help.setWordWrap(True)
-        bypass_help.setMinimumHeight(48)
-        bypass_card_layout.addWidget(bypass_help)
-        self.bypass_enabled_checkbox = QCheckBox(self.t("bypass_enabled"))
-        self.bypass_enabled_checkbox.setChecked(bool(self.settings.get("bypass_enabled", True)))
-        bypass_card_layout.addWidget(self.bypass_enabled_checkbox)
-        self.bypass_domains_input = QPlainTextEdit()
-        self.bypass_domains_input.setPlaceholderText(self.t("bypass_placeholder"))
-        self.bypass_domains_input.setLayoutDirection(Qt.LeftToRight)
-        self.bypass_domains_input.setPlainText("\n".join(normalize_bypass_domains(self.settings.get("bypass_domains", []))))
-        self.bypass_domains_input.setEnabled(self.bypass_enabled_checkbox.isChecked())
-        self.bypass_enabled_checkbox.toggled.connect(self.bypass_domains_input.setEnabled)
-        bypass_card_layout.addWidget(self.bypass_domains_input)
-        bypass_note = QLabel(self.t("bypass_note"))
-        bypass_note.setObjectName("tiny")
-        bypass_note.setWordWrap(True)
-        bypass_card_layout.addWidget(bypass_note)
-        bypass_layout.insertWidget(bypass_layout.count() - 1, bypass_card)
-        tabs.addTab(bypass_tab, self.t("settings_tab_bypass"))
-
-        # Sources tab
-        sources_tab, sources_tab_layout = tab_page()
-        sources = QFrame()
-        sources.setObjectName("settingCard")
-        sources_layout = QVBoxLayout(sources)
-        sources_layout.setContentsMargins(18, 16, 18, 18)
-        sources_layout.setSpacing(12)
-        sources_layout.addWidget(self._section_label(self.t("sources")))
-        source_help = QLabel(self.t("source_manager_help"))
-        source_help.setObjectName("muted")
-        source_help.setWordWrap(True)
-        source_help.setMinimumHeight(42)
-        sources_layout.addWidget(source_help)
-
-        input_row = QHBoxLayout()
-        self.source_input_row = input_row
-        input_row.setSpacing(8)
-        self.subscription_name_input = QLineEdit()
-        self.subscription_name_input.setPlaceholderText(self.t("source_name_placeholder"))
-        self.subscription_name_input.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
-        self.subscription_name_input.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
-        self.subscription_input = QLineEdit()
-        self.subscription_input.setPlaceholderText(self.t("subscription_url"))
-        self.subscription_input.setClearButtonEnabled(True)
-        self.subscription_input.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
-        self.subscription_input.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
-        self.subscription_input.returnPressed.connect(self.add_subscription)
-        add_button = QPushButton(self.t("add"))
-        add_button.setProperty("kind", "primary")
-        add_button.clicked.connect(self.add_subscription)
-        input_row.addWidget(self.subscription_name_input, 1)
-        input_row.addWidget(self.subscription_input, 3)
-        input_row.addWidget(add_button)
-        sources_layout.addLayout(input_row)
-
-        self.source_manager_table = QTableWidget(0, 4)
-        self.source_manager_table.setHorizontalHeaderLabels([
-            self.t("enabled"), self.t("source_name"), self.t("subscription_address"), self.t("source_type")
-        ])
-        self.source_manager_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.source_manager_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.source_manager_table.verticalHeader().setVisible(False)
-        self.source_manager_table.setAlternatingRowColors(True)
-        self.source_manager_table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
-        source_header = self.source_manager_table.horizontalHeader()
-        source_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        source_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        source_header.setSectionResizeMode(2, QHeaderView.Stretch)
-        source_header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.source_manager_table.setMinimumHeight(280)
-        sources_layout.addWidget(self.source_manager_table)
-
-        source_actions = QHBoxLayout()
-        self.source_up_button = QPushButton(self.t("move_up"))
-        self.source_down_button = QPushButton(self.t("move_down"))
-        self.remove_subscription_button = QPushButton(self.t("remove_selected"))
-        self.remove_subscription_button.setProperty("kind", "danger")
-        self.source_up_button.clicked.connect(lambda: self.move_subscription(-1))
-        self.source_down_button.clicked.connect(lambda: self.move_subscription(1))
-        self.remove_subscription_button.clicked.connect(self.remove_subscription)
-        source_actions.addWidget(self.source_up_button)
-        source_actions.addWidget(self.source_down_button)
-        source_actions.addStretch()
-        source_actions.addWidget(self.remove_subscription_button)
-        sources_layout.addLayout(source_actions)
-        sources_tab_layout.insertWidget(sources_tab_layout.count() - 1, sources)
-        tabs.addTab(sources_tab, self.t("settings_tab_sources"))
-
-        # Appearance tab
-        appearance_tab, appearance_tab_layout = tab_page()
-        appearance = QFrame()
-        appearance.setObjectName("settingCard")
-        appearance_layout = QVBoxLayout(appearance)
-        appearance_layout.setContentsMargins(18, 16, 18, 18)
-        appearance_layout.setSpacing(12)
-        appearance_layout.addWidget(self._section_label(self.t("appearance_language")))
-        appearance_row = QHBoxLayout()
-        self.settings_appearance_row = appearance_row
-        theme_box = QVBoxLayout()
-        theme_label = QLabel(self.t("theme"))
-        theme_label.setObjectName("muted")
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItem(self.t("dark"), "dark")
-        self.theme_combo.addItem(self.t("light"), "light")
-        self.theme_combo.setCurrentIndex(max(0, self.theme_combo.findData(self.settings.get("theme", "dark"))))
-        theme_box.addWidget(theme_label)
-        theme_box.addWidget(self.theme_combo)
-        language_box = QVBoxLayout()
-        language_label = QLabel(self.t("language"))
-        language_label.setObjectName("muted")
-        self.language_combo = QComboBox()
-        self.language_combo.addItem(self.t("persian"), "fa")
-        self.language_combo.addItem(self.t("english"), "en")
-        self.language_combo.setCurrentIndex(max(0, self.language_combo.findData(self.language)))
-        language_box.addWidget(language_label)
-        language_box.addWidget(self.language_combo)
-        appearance_row.addLayout(theme_box, 1)
-        appearance_row.addLayout(language_box, 1)
-        appearance_layout.addLayout(appearance_row)
-        restart_note = QLabel(self.t("language_restart"))
-        restart_note.setObjectName("tiny")
-        restart_note.setWordWrap(True)
-        appearance_layout.addWidget(restart_note)
-        appearance_tab_layout.insertWidget(appearance_tab_layout.count() - 1, appearance)
-        tabs.addTab(appearance_tab, self.t("settings_tab_appearance"))
-
-        # Performance and diagnostics tab
-        advanced_tab, advanced_layout = tab_page()
-        advanced = QFrame()
-        advanced.setObjectName("settingCard")
-        advanced_form = QVBoxLayout(advanced)
-        advanced_form.setContentsMargins(18, 16, 18, 18)
-        advanced_form.setSpacing(12)
-        advanced_form.addWidget(self._section_label(self.t("performance_diagnostics")))
-        self.settings_advanced_rows = []
-
-        def number_option(label_key: str, setting_key: str, minimum: int, maximum: int, default: int, suffix: str = "") -> QSpinBox:
-            row = QHBoxLayout()
-            self.settings_advanced_rows.append(row)
-            label = QLabel(self.t(label_key))
-            label.setObjectName("muted")
+        bypass_card_layout = QVBoxLayout(by…2059 tokens truncated…("muted")
             label.setWordWrap(True)
             field = QSpinBox()
             field.setRange(minimum, maximum)
@@ -1464,9 +1321,9 @@ class MainWindow(QMainWindow):
             advanced_form.addLayout(row)
             return field
 
-        self.test_concurrency_spin = number_option("parallel_tests", "test_concurrency", 4, 48, 28)
+        self.test_concurrency_spin = number_option("parallel_tests", "test_concurrency", 4, 32, 16)
         self.test_batch_spin = number_option("test_batch_size", "test_batch_size", 8, 96, 48)
-        self.test_timeout_spin = number_option("test_timeout", "test_timeout_ms", 400, 3000, 950, " ms")
+        self.test_timeout_spin = number_option("test_timeout", "test_timeout_ms", 1500, 5000, 3000, " ms")
         self.auto_retry_spin = number_option("auto_retry_count", "auto_retry_limit", 2, 12, 8)
         self.retry_failed_checkbox = QCheckBox(self.t("retry_failed_tests"))
         self.retry_failed_checkbox.setChecked(bool(self.settings.get("retry_failed_tests", True)))
@@ -1768,6 +1625,7 @@ class MainWindow(QMainWindow):
 
     def _sync_action_states(self, busy: bool | None = None) -> None:
         busy = bool(self.worker) if busy is None else busy
+        connecting = isinstance(self.worker, ConnectThread)
         has_servers = bool(self.servers)
         has_best = self.service.best_server(self.servers) is not None
         connected = self.manager.connected
@@ -1783,7 +1641,7 @@ class MainWindow(QMainWindow):
         selected = self.selected_server() if hasattr(self, "table") else None
         self.manual_connect_button.setEnabled(bool(selected) and not busy and not connected)
         manual = self.settings.get("connection_mode", "auto") == "manual"
-        self.home_primary_button.setEnabled(not busy and (connected or has_best or not has_servers or (manual and has_servers)))
+        self.home_primary_button.setEnabled(connecting or (not busy and (connected or has_best or not has_servers or (manual and has_servers))))
 
     def _set_stage_text(self, text: str) -> None:
         self.activity_bar.set_stage(text)
@@ -1838,7 +1696,7 @@ class MainWindow(QMainWindow):
             return
         dots = "." * self._connect_dots
         self._connect_dots = (self._connect_dots + 1) % 4
-        text = f"{self.t('connecting_button')}{dots}"
+        text = f"{self.t('cancel_connection')}{dots}"
         self.home_primary_button.setText(text)
         self.home_primary_button.setIcon(tinted_icon("refresh.svg"))
         self.home_primary_button.setProperty("kind", "primary")
@@ -2350,6 +2208,13 @@ class MainWindow(QMainWindow):
             self.connect_server(server)
 
     def home_primary_action(self) -> None:
+        if isinstance(self.worker, ConnectThread):
+            self.worker.requestInterruption()
+            self.manager.stop()
+            self._stop_connect_animation()
+            self.set_busy(False, self.t("connection_cancelled"))
+            self.update_connection_ui()
+            return
         if self.manager.connected:
             self.disconnect()
             return

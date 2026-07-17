@@ -18,6 +18,9 @@
     <string name="connection_active">اتصال تاییدشده و فعال است</string>
     <string name="disconnect">قطع اتصال</string>
     <string name="connect">اتصال</string>
+    <string name="cancel_connection">لغو اتصال</string>
+    <string name="preparing_servers">در حال آماده‌سازی سرورها…</string>
+    <string name="servers_still_preparing">لطفاً تا پایان دریافت و بررسی سرورها صبر کنید.</string>
     <string name="connect_best">اتصال خودکار</string>
     <string name="percent_value">٪%1$d</string>
 
