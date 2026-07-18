@@ -19,7 +19,8 @@
 </div>
 
 ---
-![Preview](https://cdn.imgurl.ir/uploads/m03783_file_000000009de87246968b60bf9a728a01.png)
+<img width="1122" height="1402" alt="image" src="https://github.com/user-attachments/assets/b7f3f90f-0772-40d2-bba7-766d7f38433b" />
+
 
 
 ## فارسی
