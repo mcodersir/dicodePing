@@ -127,7 +127,11 @@ class DicodeVpnService : VpnService() {
                 // the device's underlying network.
                 .addAddress(VPN_IPV6_ADDRESS, VPN_IPV6_PREFIX_LENGTH)
                 .addRoute("::", 0)
-            vpnDnsServers().forEach { dns -> builder.addDnsServer(dns) }
+                // Keep DNS inside the verified proxy path. Using the underlying
+                // network's resolver here can route private ISP DNS into the TUN
+                // and leave the app "connected" while every hostname fails.
+                .addDnsServer("1.1.1.1")
+                .addDnsServer("8.8.8.8")
 
             // Keep the native core outside its own TUN. This prevents a routing loop.
             builder.addDisallowedApplication(packageName)
@@ -222,17 +226,6 @@ class DicodeVpnService : VpnService() {
             !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
-    }
-
-    private fun vpnDnsServers(): List<String> {
-        val network = findBestUnderlyingNetwork()
-        val systemDns = network?.let(connectivity::getLinkProperties)
-            ?.dnsServers
-            .orEmpty()
-            .mapNotNull { it.hostAddress }
-        return (systemDns + listOf("1.1.1.1", "8.8.8.8"))
-            .distinct()
-            .take(4)
     }
 
     private fun applyUnderlyingNetwork(network: Network, capabilities: NetworkCapabilities?) {

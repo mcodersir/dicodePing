@@ -110,9 +110,7 @@ object XrayConfigBuilder {
             put(
                 "dns",
                 JSONObject()
-                    // Resolve through Android's active network first. Public
-                    // resolvers remain fallbacks for networks that omit DNS.
-                    .put("servers", JSONArray(listOf("localhost", "1.1.1.1", "8.8.8.8")))
+                    .put("servers", JSONArray(listOf("1.1.1.1", "8.8.8.8")))
                     .put("queryStrategy", "UseIP")
             )
         }.toString()

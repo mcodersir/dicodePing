@@ -507,7 +507,6 @@ def build_tun_config(
         "log": {"loglevel": "warning"},
         "dns": {
             "servers": [
-                "localhost",
                 {"address": "1.1.1.1", "skipFallback": False},
                 {"address": "8.8.8.8", "skipFallback": False},
             ],
@@ -567,7 +566,7 @@ def build_probe_config(raw_config: str, socks_port: int) -> dict[str, Any]:
         stream.setdefault("sockopt", {"domainStrategy": "UseIP"})
     return {
         "log": {"loglevel": "none"},
-        "dns": {"servers": ["localhost", "1.1.1.1", "8.8.8.8"], "queryStrategy": "UseIP"},
+        "dns": {"servers": ["1.1.1.1", "8.8.8.8"], "queryStrategy": "UseIP"},
         "inbounds": [{
             "listen": "127.0.0.1", "port": int(socks_port), "protocol": "socks",
             "settings": {"auth": "noauth", "udp": False},

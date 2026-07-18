@@ -1,4 +1,4 @@
-dicodePing v0.1.5-rc.3 for Linux x86_64
+dicodePing v0.1.5-rc.4 for Linux x86_64
 
 1. Extract the archive.
 2. Run: ./run-dicodePing.sh

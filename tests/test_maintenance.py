@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 22", gradle)
+        self.assertIn("versionCode = 23", gradle)
         self.assertIn('versionName = "0.1.5"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -110,8 +110,8 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("preview_only=True", app)
         self.assertIn("rendered_rows", app)
         self.assertEqual(workflow.count("DICODEPING_DISCOVERY_SMOKE"), 2)
-        self.assertIn("dicodePing-v0.1.5-rc.3-windows.exe", workflow)
-        self.assertIn("dicodePing-v0.1.5-rc.3-linux-x86_64.tar.gz", workflow)
+        self.assertIn("dicodePing-v0.1.5-rc.4-windows.exe", workflow)
+        self.assertIn("dicodePing-v0.1.5-rc.4-linux-x86_64.tar.gz", workflow)
 
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
@@ -157,6 +157,16 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("VpnStatus.CONNECTING -> (activity as? ConnectionHost)?.disconnect()", home)
         self.assertIn('bounded_int(settings.get("test_concurrency"), 16, 4, 32)', desktop)
         self.assertIn("isinstance(self.worker, ConnectThread)", desktop_ui)
+
+    def test_rc4_connection_dns_stays_on_the_verified_proxy_path(self) -> None:
+        desktop = (ROOT / "dicodeping/xray.py").read_text(encoding="utf-8")
+        android_config = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/xray/XrayConfigBuilder.kt").read_text(encoding="utf-8")
+        android_service = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt").read_text(encoding="utf-8")
+        self.assertNotIn('"localhost"', desktop)
+        self.assertNotIn('"localhost"', android_config)
+        self.assertNotIn("vpnDnsServers", android_service)
+        self.assertIn('.addDnsServer("1.1.1.1")', android_service)
+        self.assertIn('.addDnsServer("8.8.8.8")', android_service)
 
     def test_android_uses_single_branded_custom_splash(self) -> None:
         theme = (ROOT / "dicodePing_android/app/src/main/res/values-v31/themes.xml").read_text(encoding="utf-8")
