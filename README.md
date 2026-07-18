@@ -3,8 +3,11 @@
 
 # dicodePing
 
+
 **کلاینت سریع و متن‌باز Windows و Android برای اتصال مبتنی بر Xray**  
 **A fast, open-source Xray connectivity client for Windows and Android**
+
+کانال تلگرامی ما:https://t.me/dicodeping 
 
 [![CI](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml/badge.svg)](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/mcodersir/dicodePing/actions/workflows/codeql.yml/badge.svg)](https://github.com/mcodersir/dicodePing/actions/workflows/codeql.yml)
