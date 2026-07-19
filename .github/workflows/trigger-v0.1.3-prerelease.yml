@@ -21,7 +21,7 @@ jobs:
     name: Start v0.1.3 release build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
