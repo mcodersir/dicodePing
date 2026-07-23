@@ -1,0 +1,54 @@
+name: Release v1.6.0-rc1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/v160-rc1-release.yml
+      - docs/releases/v1.6.0-rc1.md
+      - dicodeping/__init__.py
+      - dicodeping/constants.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-v1.6.0-rc1
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate RC1 metadata
+        run: |
+          test -f docs/releases/v1.6.0-rc1.md
+          python - <<'PY'
+          from dicodeping import __version__
+          from dicodeping.constants import RELEASE_VERSION
+          assert __version__ == "1.6.0", __version__
+          assert RELEASE_VERSION == "1.6.0-rc1", RELEASE_VERSION
+          print(f"Validated dicodePing {RELEASE_VERSION}")
+          PY
+
+      - name: Prepare source bundles
+        run: |
+          mkdir -p release-assets
+          git archive --format=zip --output=release-assets/dicodePing-v1.6.0-rc1-source.zip HEAD
+          git archive --format=tar.gz --output=release-assets/dicodePing-v1.6.0-rc1-source.tar.gz HEAD
+          (cd release-assets && sha256sum dicodePing-* > SHA256SUMS.txt)
+
+      - name: Publish GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.6.0-rc1
+          target_commitish: main
+          name: dicodePing v1.6.0 RC1
+          body_path: docs/releases/v1.6.0-rc1.md
+          prerelease: true
+          make_latest: false
+          fail_on_unmatched_files: true
+          files: release-assets/*
