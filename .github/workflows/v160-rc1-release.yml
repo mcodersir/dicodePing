@@ -1,0 +1,26 @@
+name: Release v1.6.0-rc1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare release notes
+        run: test -f docs/releases/v1.6.0-rc1.md
+
+      - name: Create prerelease tag
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.6.0-rc1
+          target_commitish: agent/v1.6.0-rc1
+          name: dicodePing v1.6.0 RC1
+          body_path: docs/releases/v1.6.0-rc1.md
+          prerelease: true
+          generate_release_notes: true
