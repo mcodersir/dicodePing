@@ -16,16 +16,18 @@ class V160Rc1Tests(unittest.TestCase):
         version_info = (ROOT / "tools/windows_version_info.txt").read_text(encoding="utf-8")
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
 
+        # The 1.6.0 line.  The RC suffix changes per release; we assert
+        # the major version is present in every metadata location.
         self.assertIn('VERSION = "1.6.0"', constants)
-        self.assertIn('RELEASE_VERSION = "1.6.0-rc.1"', constants)
+        self.assertIn('RELEASE_VERSION = "1.6.0-rc.', constants)
         self.assertIn('__version__ = "1.6.0"', init)
         self.assertIn('APP_VERSION = "1.6.0"', windows_builder)
         self.assertIn('APP_VERSION = "1.6.0"', linux_builder)
-        self.assertIn('RC_VERSION = "rc.1"', linux_builder)
+        self.assertIn('RC_VERSION = "rc.', linux_builder)
         self.assertIn("filevers=(1, 6, 0, 0)", version_info)
         self.assertIn("'ProductVersion', '1.6.0.0'", version_info)
         self.assertIn('versionName = "1.6.0"', gradle)
-        self.assertIn('1.6.0-rc.1', gradle)
+        self.assertIn('1.6.0-rc.', gradle)
 
     def test_scanner_module_is_present_and_wired(self) -> None:
         scanner = (ROOT / "dicodeping/scanner.py").read_text(encoding="utf-8")
@@ -34,7 +36,7 @@ class V160Rc1Tests(unittest.TestCase):
 
         # Scanner module exposes the one-click flow.
         self.assertIn("def run_scan(", scanner)
-        self.assertIn("SCAN_DOWNLOAD_WORKERS", scanner)
+        self.assertIn("SCAN_CRAWL_WORKERS", scanner)
         self.assertIn("SCAN_PROBE_WORKERS", scanner)
         self.assertIn("SCAN_PROBE_TIMEOUT_S", scanner)
         self.assertIn("def generate_sub_name(", scanner)

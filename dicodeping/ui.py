@@ -1247,17 +1247,28 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_scanner_page(self) -> QWidget:
-        """One-click scanner page.
+        """Minimal one-click scanner page (v1.6.0-rc.2).
 
-        The UI is intentionally minimal: a single primary "Quick scan"
-        button, a stage label, a progress bar, a result list and a
-        "Copy all servers" button.  All tunable settings live in
-        ``scanner.py`` (concurrency, timeouts, retry budget) and are not
-        exposed in the UI — the user explicitly asked for that.
+        Layout:
+          ┌──────────────────────────────────────────┐
+          │  title + subtitle                        │
+          ├──────────────────────────────────────────┤
+          │  ┌────────────────────────────────────┐  │
+          │  │       [   اسکن سریع   ]            │  │
+          │  │   name input (optional)            │  │
+          │  │   status line                      │  │
+          │  │   ▰▰▰▱▱ progress                   │  │
+          │  └────────────────────────────────────┘  │
+          │                                          │
+          │  history card (last scans)               │
+          │  [copy all] [copy base64]                │
+          └──────────────────────────────────────────┘
+
+        No settings exposed.  The single primary button does everything.
         """
         from .workers import ScannerThread, VolumeFetchThread
         from .scanner import list_scanner_subs
-        from .volume import detect_volume_from_name, rate_quality, VolumeAutoDisconnect
+        from .volume import VolumeAutoDisconnect
 
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -1271,25 +1282,33 @@ class MainWindow(QMainWindow):
         action_card = QFrame()
         action_card.setObjectName("heroCard")
         action_layout = QVBoxLayout(action_card)
-        action_layout.setContentsMargins(20, 18, 20, 18)
-        action_layout.setSpacing(12)
+        action_layout.setContentsMargins(22, 20, 22, 20)
+        action_layout.setSpacing(14)
 
-        action_top = QHBoxLayout()
-        action_top.setSpacing(12)
+        # Big primary button — full width.
         self.scanner_run_button = QPushButton(self.t("scanner_run"))
         self.scanner_run_button.setProperty("kind", "primary")
         self.scanner_run_button.setIcon(tinted_icon("bolt.svg"))
+        self.scanner_run_button.setIconSize(QSize(20, 20))
+        self.scanner_run_button.setMinimumHeight(54)
         self.scanner_run_button.clicked.connect(self.start_scanner)
-        action_top.addWidget(self.scanner_run_button)
+        action_layout.addWidget(self.scanner_run_button)
 
-        self.scanner_volume_fetch_button = QPushButton(self.t("volume_fetch"))
-        self.scanner_volume_fetch_button.setIcon(icon("speed.svg"))
-        self.scanner_volume_fetch_button.clicked.connect(self.start_volume_fetch)
-        action_top.addWidget(self.scanner_volume_fetch_button)
+        # Optional custom sub name input.
+        name_row = QHBoxLayout()
+        name_row.setSpacing(8)
+        name_label = QLabel(self.t("scanner_name_prompt"))
+        name_label.setObjectName("muted")
+        name_label.setMinimumWidth(110)
+        name_row.addWidget(name_label)
+        self.scanner_name_edit = QLineEdit()
+        self.scanner_name_edit.setPlaceholderText(self.t("scanner_name_placeholder"))
+        self.scanner_name_edit.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
+        self.scanner_name_edit.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
+        name_row.addWidget(self.scanner_name_edit, 1)
+        action_layout.addLayout(name_row)
 
-        action_top.addStretch()
-        action_layout.addLayout(action_top)
-
+        # Single-line status + slim progress bar.
         self.scanner_stage_label = QLabel(self.t("ready"))
         self.scanner_stage_label.setObjectName("muted")
         action_layout.addWidget(self.scanner_stage_label)
@@ -1298,9 +1317,10 @@ class MainWindow(QMainWindow):
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
         self.scanner_progress.setTextVisible(False)
-        self.scanner_progress.setFixedHeight(8)
+        self.scanner_progress.setFixedHeight(6)
         action_layout.addWidget(self.scanner_progress)
 
+        # Result line (shown after scan completes).
         self.scanner_result_label = QLabel("")
         self.scanner_result_label.setObjectName("muted")
         self.scanner_result_label.setWordWrap(True)
@@ -1308,7 +1328,17 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(action_card)
 
-        # --- Result list ------------------------------------------------
+        # --- Volume fetch row --------------------------------------------
+        volume_row = QHBoxLayout()
+        volume_row.setSpacing(10)
+        self.scanner_volume_fetch_button = QPushButton(self.t("volume_fetch"))
+        self.scanner_volume_fetch_button.setIcon(icon("speed.svg"))
+        self.scanner_volume_fetch_button.clicked.connect(self.start_volume_fetch)
+        volume_row.addWidget(self.scanner_volume_fetch_button)
+        volume_row.addStretch()
+        layout.addLayout(volume_row)
+
+        # --- History card ------------------------------------------------
         result_card = QFrame()
         result_card.setObjectName("card")
         result_layout = QVBoxLayout(result_card)
@@ -1356,14 +1386,20 @@ class MainWindow(QMainWindow):
 
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
             return
+        # Optional custom name for the new sub.
+        custom_name = self.scanner_name_edit.text().strip() if hasattr(self, "scanner_name_edit") else ""
         self.scanner_run_button.setEnabled(False)
         self.scanner_run_button.setText(self.t("scanner_running"))
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
-        self.scanner_stage_label.setText(self.t("scanner_bootstrap"))
+        self.scanner_stage_label.setText(self.t("scanner_crawl"))
         self.scanner_result_label.setText("")
 
-        thread = ScannerThread(self.store, language=self.language)
+        thread = ScannerThread(
+            self.store,
+            language=self.language,
+            custom_name=custom_name or None,
+        )
         self.scanner_thread = thread
         thread.stage.connect(self._scanner_stage_updated)
         thread.progress.connect(self._scanner_progress_updated)
@@ -1384,8 +1420,6 @@ class MainWindow(QMainWindow):
         self.scanner_progress.setValue(int(round(ratio * 100)))
 
     def _scanner_succeeded(self, result) -> None:
-        from .scanner import list_scanner_subs
-
         self.scanner_run_button.setEnabled(True)
         self.scanner_run_button.setText(self.t("scanner_run"))
         self.scanner_progress.setRange(0, 100)
@@ -1398,11 +1432,19 @@ class MainWindow(QMainWindow):
             self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
         )
         self.scanner_latest_sub = getattr(result, "sub_name", "") or ""
+        # Re-normalise sources so the new scanner sub appears as a tab on
+        # the Servers page immediately.
+        try:
+            self.sources = normalize_sources(self.settings, self.language)
+            self.settings["sources"] = serialize_sources(self.sources)
+        except Exception:
+            LOGGER.exception("Scanner: failed to re-normalise sources after scan")
         self._refresh_scanner_history()
         # Make sure the new servers show up on the main servers page too.
         try:
             self.servers = self.store.load_servers()
             self.render_servers()
+            self.render_subscription_list()
         except Exception:
             LOGGER.exception("Scanner: failed to refresh server list after scan")
 
@@ -1433,7 +1475,6 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(label)
             item.setData(Qt.UserRole, name)
             self.scanner_history_list.addItem(item)
-        # Select the most recent one if nothing is selected.
         if self.scanner_history_list.count() > 0 and not self.scanner_history_list.currentItem():
             self.scanner_history_list.setCurrentRow(0)
 
@@ -1462,16 +1503,26 @@ class MainWindow(QMainWindow):
         self.scanner_result_label.setText(self.t("scanner_copy_done"))
 
     def start_volume_fetch(self) -> None:
-        """Refresh volume info for every saved server in one shot."""
+        """Refresh real volume info for every saved server in one shot.
+
+        Builds a ``source_id -> source_url`` map from the current sources
+        so the worker can issue HEAD requests in parallel and read the
+        real ``Subscription-Userinfo`` header for each subscription.
+        """
         from .workers import VolumeFetchThread
 
         if self.scanner_volume_thread is not None and self.scanner_volume_thread.isRunning():
             return
         if not self.servers:
             return
+        # Build source_id -> URL map from the normalised sources list.
+        source_urls: dict[str, str] = {}
+        for src in self.sources:
+            if src.url:
+                source_urls[src.id] = src.url
         self.scanner_volume_fetch_button.setEnabled(False)
         self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
-        thread = VolumeFetchThread(self.servers)
+        thread = VolumeFetchThread(self.servers, source_urls=source_urls)
         self.scanner_volume_thread = thread
         thread.finished_set.connect(self._volume_fetch_finished)
         thread.finished.connect(thread.deleteLater)
@@ -1480,16 +1531,13 @@ class MainWindow(QMainWindow):
     def _volume_fetch_finished(self, results: dict) -> None:
         self.scanner_volume_fetch_button.setEnabled(True)
         self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
-        # Persist the volume info on the saved records so the servers page
-        # can show it on the next render.
         try:
             for server in self.servers:
                 info = results.get(server.id)
                 if info is not None:
-                    # We extend ServerRecord with an attribute at runtime.
-                    # The dataclass is frozen=False so this is safe.
                     setattr(server, "_volume_label", info.label)
             self.render_servers()
+            self.scanner_result_label.setText(self.t("volume_real_fetched"))
         except Exception:
             LOGGER.exception("Volume fetch result merge failed")
 

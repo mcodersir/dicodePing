@@ -243,6 +243,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "quality_good": "خوب",
         "quality_fair": "متوسط",
         "quality_poor": "ضعیف",
+        "scanner_crawl": "دریافت کانفیگ از کانال‌های تلگرام",
+        "scanner_name_prompt": "نام ساب جدید",
+        "scanner_name_placeholder": "اسکنر • تاریخ",
+        "scanner_volume_real": "حجم واقعی",
+        "scanner_volume_remaining": "{remaining} باقی‌مانده",
+        "volume_real_fetched": "حجم هر سه منبع به‌روز شد",
     },
     "en": {
         "product": "dicodePing",
@@ -484,6 +490,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "quality_good": "Good",
         "quality_fair": "Fair",
         "quality_poor": "Poor",
+        "scanner_crawl": "Fetching configs from Telegram channels",
+        "scanner_name_prompt": "New subscription name",
+        "scanner_name_placeholder": "Scanner • date",
+        "scanner_volume_real": "Real volume",
+        "scanner_volume_remaining": "{remaining} remaining",
+        "volume_real_fetched": "Volume for all sources refreshed",
     },
 }
 
