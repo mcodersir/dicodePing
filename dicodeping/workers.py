@@ -192,6 +192,60 @@ class RefreshThread(TaskThread):
             self.failed.emit(str(exc))
 
 
+class ScannerThread(QThread):
+    """Background worker that runs the one-click scanner.
+
+    Emits ``stage`` with a localized status string, ``progress`` with the
+    (current, total) probe count, and ``success`` with the resulting
+    ``ScannerResult``.  On failure emits ``failed`` with a localized error.
+    """
+    stage = Signal(str)
+    progress = Signal(int, int)
+    success = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, store, language: str = "fa") -> None:
+        super().__init__()
+        self.store = store
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            from .scanner import run_scan
+            result = run_scan(
+                store=self.store,
+                language=self.language,
+                stage=self.stage.emit,
+                progress=self.progress.emit,
+            )
+            self.success.emit(result)
+        except Exception as exc:
+            LOGGER.exception("Scanner background task failed")
+            self.failed.emit(str(exc))
+
+
+class VolumeFetchThread(QThread):
+    """Background worker that refreshes volume info for every saved server."""
+    progress = Signal(int, int)
+    finished_set = Signal(object)
+
+    def __init__(self, servers: list[ServerRecord]) -> None:
+        super().__init__()
+        self.servers = list(servers)
+
+    def run(self) -> None:
+        try:
+            from .volume import fetch_live_volumes
+            results = fetch_live_volumes(
+                self.servers,
+                progress=self.progress.emit,
+            )
+            self.finished_set.emit(results)
+        except Exception:
+            LOGGER.exception("Volume fetch failed")
+            self.finished_set.emit({})
+
+
 class ConnectThread(TaskThread):
     def __init__(
         self,

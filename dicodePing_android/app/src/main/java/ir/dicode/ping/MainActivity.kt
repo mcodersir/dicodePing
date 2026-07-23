@@ -32,6 +32,7 @@ import ir.dicode.ping.databinding.ActivityMainBinding
 import ir.dicode.ping.ui.AboutFragment
 import ir.dicode.ping.ui.HomeFragment
 import ir.dicode.ping.ui.MainViewModel
+import ir.dicode.ping.ui.ScannerFragment
 import ir.dicode.ping.ui.ServersFragment
 import ir.dicode.ping.ui.SettingsFragment
 import ir.dicode.ping.util.AppLog
@@ -93,6 +94,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
         bindNavigationItem(binding.navHome, binding.navHomeIcon, R.id.nav_home)
         bindNavigationItem(binding.navServers, binding.navServersIcon, R.id.nav_servers)
+        bindNavigationItem(binding.navScanner, binding.navScannerIcon, R.id.nav_scanner)
         bindNavigationItem(binding.navSettings, binding.navSettingsIcon, R.id.nav_settings)
         bindNavigationItem(binding.navAbout, binding.navAboutIcon, R.id.nav_about)
 
@@ -196,6 +198,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     private fun createPage(id: Int): Fragment = when (id) {
         R.id.nav_servers -> ServersFragment()
+        R.id.nav_scanner -> ScannerFragment()
         R.id.nav_settings -> SettingsFragment()
         R.id.nav_about -> AboutFragment()
         else -> HomeFragment()
@@ -206,10 +209,12 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     private fun updateNavigationSelection(selectedId: Int) {
         binding.navHome.isSelected = selectedId == R.id.nav_home
         binding.navServers.isSelected = selectedId == R.id.nav_servers
+        binding.navScanner.isSelected = selectedId == R.id.nav_scanner
         binding.navSettings.isSelected = selectedId == R.id.nav_settings
         binding.navAbout.isSelected = selectedId == R.id.nav_about
         binding.navHomeIcon.isSelected = binding.navHome.isSelected
         binding.navServersIcon.isSelected = binding.navServers.isSelected
+        binding.navScannerIcon.isSelected = binding.navScanner.isSelected
         binding.navSettingsIcon.isSelected = binding.navSettings.isSelected
         binding.navAboutIcon.isSelected = binding.navAbout.isSelected
     }

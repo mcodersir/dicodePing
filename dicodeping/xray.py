@@ -154,7 +154,11 @@ ipconfig /flushdns | Out-Null
     try:
         _powershell(script, timeout=15)
     except Exception:
-        pass
+        # PowerShell may be busy, missing, or refusing to spawn during the
+        # final stages of process teardown.  Never propagate the failure: the
+        # caller (XrayManager.stop) is on the GUI thread and any exception
+        # here would crash the app on Disconnect.
+        LOGGER.debug("TUN cleanup PowerShell invocation failed", exc_info=True)
 
 
 def _command_line_for_pid(pid: int) -> str:
@@ -878,54 +882,77 @@ class XrayManager:
 
     def stop(self) -> None:
         with self._stop_lock:
-            self._cancel_start.set()
-            process = self.process
-            self.process = None
-            if process and process.poll() is None:
-                try:
-                    process.terminate()
-                    process.wait(timeout=2.5)
-                except Exception:
-                    _kill_pid_tree(process.pid)
+            try:
+                self._cancel_start.set()
+                process = self.process
+                self.process = None
+                if process and process.poll() is None:
                     try:
-                        process.wait(timeout=1.0)
+                        process.terminate()
+                        process.wait(timeout=2.5)
+                    except Exception:
+                        try:
+                            _kill_pid_tree(process.pid)
+                        except Exception:
+                            LOGGER.debug("PID tree kill failed", exc_info=True)
+                        try:
+                            process.wait(timeout=1.0)
+                        except Exception:
+                            pass
+                # Close log handle before unlinking to avoid Windows file lock.
+                try:
+                    if self.log_handle:
+                        try:
+                            self.log_handle.flush()
+                        except Exception:
+                            pass
+                        self.log_handle.close()
+                except Exception:
+                    pass
+                self.log_handle = None
+                if not self._retain_log:
+                    try:
+                        self._active_log_file.unlink(missing_ok=True)
                     except Exception:
                         pass
-            try:
-                if self.log_handle:
-                    self.log_handle.close()
-            except Exception:
-                pass
-            self.log_handle = None
-            if not self._retain_log:
                 try:
-                    self._active_log_file.unlink(missing_ok=True)
+                    PID_FILE.unlink(missing_ok=True)
                 except Exception:
                     pass
-            try:
-                PID_FILE.unlink(missing_ok=True)
+                if self.config_path:
+                    try:
+                        self.config_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                self.config_path = None
+                if self._direct_routes:
+                    try:
+                        remove_direct_host_routes(self._direct_routes)
+                    except Exception:
+                        LOGGER.exception("Direct route cleanup failed")
+                self._direct_routes = []
+                self.executable = None
+                self.api_port = 0
+                self.connected_host = ""
+                self.connected_ip = ""
+                self.connected_port = 0
             except Exception:
-                pass
-            if self.config_path:
+                # stop() must NEVER raise; it is invoked from the UI thread,
+                # monitor callbacks and atexit. A crash here takes the whole
+                # process down on Disconnect which is what users reported.
+                LOGGER.exception("Disconnect teardown failed but was contained")
+            finally:
+                # Defer the PowerShell-driven TUN cleanup off the caller's
+                # thread so the Disconnect button never appears to hang and a
+                # failing PowerShell invocation cannot crash the GUI.
                 try:
-                    self.config_path.unlink(missing_ok=True)
+                    threading.Thread(
+                        target=cleanup_named_tun,
+                        name="dicodePing-tun-cleanup",
+                        daemon=True,
+                    ).start()
                 except Exception:
-                    pass
-            self.config_path = None
-            if self._direct_routes:
-                try:
-                    remove_direct_host_routes(self._direct_routes)
-                except Exception:
-                    LOGGER.exception("Direct route cleanup failed")
-            self._direct_routes = []
-            self.executable = None
-            self.api_port = 0
-            self.connected_host = ""
-            self.connected_ip = ""
-            self.connected_port = 0
-            if process:
-                time.sleep(0.25)
-            try:
-                cleanup_named_tun()
-            except Exception:
-                LOGGER.exception("TUN cleanup failed")
+                    try:
+                        cleanup_named_tun()
+                    except Exception:
+                        pass

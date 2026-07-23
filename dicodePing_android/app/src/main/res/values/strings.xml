@@ -156,4 +156,21 @@
     <string name="update_later">Later</string>
     <string name="app_update_title">Version %1$s is available</string>
     <string name="app_update_message">Open the release download now?</string>
+
+    <!-- v1.6.0-rc.1: scanner / volume / quality -->
+    <string name="nav_scanner">Scanner</string>
+    <string name="scanner_title">Scanner</string>
+    <string name="scanner_subtitle">One-click scan and ping of live servers</string>
+    <string name="scanner_run">Quick scan</string>
+    <string name="scanner_running">Scanning…</string>
+    <string name="scanner_history">Saved scanner subscriptions</string>
+    <string name="scanner_empty_history">No scan has been run yet</string>
+    <string name="scanner_copy_all">Copy all</string>
+    <string name="scanner_copy_done">Servers copied to clipboard</string>
+    <string name="volume_fetch">Fetch volumes</string>
+    <string name="volume_summary">%1$d volume-limited out of %2$d servers</string>
+    <plurals name="scanner_servers_count">
+        <item quantity="one">%d server available</item>
+        <item quantity="other">%d servers available</item>
+    </plurals>
 </resources>
