@@ -92,11 +92,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        bindNavigationItem(binding.navHome, binding.navHomeIcon, R.id.nav_home)
-        bindNavigationItem(binding.navServers, binding.navServersIcon, R.id.nav_servers)
-        bindNavigationItem(binding.navScanner, binding.navScannerIcon, R.id.nav_scanner)
-        bindNavigationItem(binding.navSettings, binding.navSettingsIcon, R.id.nav_settings)
-        bindNavigationItem(binding.navAbout, binding.navAboutIcon, R.id.nav_about)
+        bindNavigationItem(binding.navHome, binding.navHomeIcon!!, R.id.nav_home)
+        bindNavigationItem(binding.navServers, binding.navServersIcon!!, R.id.nav_servers)
+        bindNavigationItem(binding.navScanner, binding.navScannerIcon!!, R.id.nav_scanner)
+        bindNavigationItem(binding.navSettings, binding.navSettingsIcon!!, R.id.nav_settings)
+        bindNavigationItem(binding.navAbout, binding.navAboutIcon!!, R.id.nav_about)
 
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         currentPageId = 0
@@ -209,14 +209,14 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     private fun updateNavigationSelection(selectedId: Int) {
         binding.navHome.isSelected = selectedId == R.id.nav_home
         binding.navServers.isSelected = selectedId == R.id.nav_servers
-        binding.navScanner.isSelected = selectedId == R.id.nav_scanner
+        binding.navScanner?.isSelected = selectedId == R.id.nav_scanner
         binding.navSettings.isSelected = selectedId == R.id.nav_settings
         binding.navAbout.isSelected = selectedId == R.id.nav_about
-        binding.navHomeIcon.isSelected = binding.navHome.isSelected
-        binding.navServersIcon.isSelected = binding.navServers.isSelected
-        binding.navScannerIcon.isSelected = binding.navScanner.isSelected
-        binding.navSettingsIcon.isSelected = binding.navSettings.isSelected
-        binding.navAboutIcon.isSelected = binding.navAbout.isSelected
+        binding.navHomeIcon?.isSelected = binding.navHome.isSelected
+        binding.navServersIcon?.isSelected = binding.navServers.isSelected
+        binding.navScannerIcon?.isSelected = binding.navScanner?.isSelected == true
+        binding.navSettingsIcon?.isSelected = binding.navSettings.isSelected
+        binding.navAboutIcon?.isSelected = binding.navAbout.isSelected
     }
 
     override fun connect(server: ServerRecord?) {
