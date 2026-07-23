@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.6.0-rc.2 — Scanner rewrite: real Telegram crawler + real volume
+
+### Added
+- **Telegram channel crawler** (`dicodeping/crawler.py`,
+  `TelegramChannelCrawler.kt`).  Mirrors the "stage 1" logic of
+  DicodeConfigChecker: fetches `https://t.me/s/{channel}` for every
+  channel in the bundled `assets/channels.txt` (202+ channels), extracts
+  vmess/vless/trojan/ss/ssr/hysteria2/tuic configs from the preview HTML,
+  and deduplicates them.  Falls back to `telegram.me` when `t.me` is
+  unavailable.
+- **Scanner rewrite** (`dicodeping/scanner.py`).  The scanner now crawls
+  Telegram channels (via the program's own running VPN), real-proxy-probes
+  every candidate, drops the unresponsive ones, and stores the survivors
+  as a **brand new user source** that appears next to the primary source
+  on the Servers page.  The user can optionally type a custom name for
+  the new sub; if left blank, an automatic Persian name with the date is
+  generated.
+- **Real volume detection** (`dicodeping/volume.py`,
+  `VolumeDetector.kt`).  The "Fetch volumes" button now issues real HEAD
+  requests in parallel for every enabled subscription URL and parses the
+  standard `Subscription-Userinfo` HTTP header (used by v2rayN / Nekoray)
+  to extract the actual upload/download/total/expire values.  When the
+  header is unavailable, the remark-based heuristic is used as a
+  fallback.  A 5-minute cache prevents spamming the provider.
+- New `SubscriptionClient.fetchUserinfoHeader` in the Android client.
+- New `assets/channels.txt` shipped with both desktop and Android
+  bundles.
+
+### Changed
+- The Scanner page UI is now more minimal: one big primary button, an
+  optional name field, a single status line, a slim progress bar, and a
+  copy-all button.  No settings exposed.
+- After a successful scan, the new source appears immediately on the
+  Servers page as a new tab.
+- The volume column is exposed on the Servers page tooltip (desktop).
+
+### Tests
+- New `tests/test_v160_rc2.py` with 9 tests covering the crawler module,
+  scanner rewrite, real volume parsing, VolumeFetchThread source_urls
+  passing, custom-name scanner thread, new i18n keys, and minimal UI.
+- Updated `test_v160_rc1.py` to assert the 1.6.0 line without pinning
+  the exact RC suffix.
+
 ## 1.6.0-rc.1 — Scanner, volume detection (beta), quality, bug fixes
 
 ### Added

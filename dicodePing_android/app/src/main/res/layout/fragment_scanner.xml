@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
@@ -25,39 +26,47 @@
             android:text="@string/scanner_subtitle"
             android:textColor="@color/text_secondary" />
 
+        <!-- Primary action card: big button + optional name + status -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            app:cardCornerRadius="16dp"
+            app:cardCornerRadius="18dp"
             app:cardElevation="0dp"
             app:strokeColor="@color/outline_soft"
-            app:strokeWidth="1dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="18dp">
+                android:padding="22dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/scannerRunButton"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="56dp"
                     android:text="@string/scanner_run"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
                     app:icon="@drawable/ic_bolt"
                     app:iconGravity="textStart"
-                    xmlns:app="http://schemas.android.com/apk/res-auto" />
+                    app:iconSize="22dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/volumeFetchButton"
-                    style="?attr/materialButtonOutlinedStyle"
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/volume_fetch"
-                    xmlns:app="http://schemas.android.com/apk/res-auto" />
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:hint="@string/scanner_name_prompt"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/scannerNameEdit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLength="40" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <TextView
                     android:id="@+id/scannerStageLabel"
@@ -66,13 +75,13 @@
                     android:layout_marginTop="14dp"
                     android:text="@string/ready_to_connect"
                     android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:textSize="13sp" />
 
                 <ProgressBar
                     android:id="@+id/scannerProgressBar"
                     style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="match_parent"
-                    android:layout_height="8dp"
+                    android:layout_height="6dp"
                     android:layout_marginTop="8dp"
                     android:max="100"
                     android:progress="0" />
@@ -87,6 +96,17 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Volume fetch row -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/volumeFetchButton"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="14dp"
+            android:text="@string/volume_fetch"
+            app:icon="@drawable/ic_speed" />
+
+        <!-- History card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -94,8 +114,7 @@
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeColor="@color/outline_soft"
-            app:strokeWidth="1dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"

@@ -8,7 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
 class SubscriptionClient {
-    private val client = OkHttpClient.Builder()
+    private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
         .callTimeout(35, TimeUnit.SECONDS)
@@ -17,7 +17,7 @@ class SubscriptionClient {
         .build()
 
     suspend fun download(url: String, progress: (Long, Long) -> Unit): String = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.5-rc.4").build()
+        val request = Request.Builder().url(url).header("User-Agent", "dicodePing-Android/1.6").build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val body = response.body ?: error("Empty response")
@@ -44,6 +44,30 @@ class SubscriptionClient {
                     .joinToString("|") { it.orEmpty() }
             }
         }.getOrDefault("")
+    }
+
+    /**
+     * Fetch the ``Subscription-Userinfo`` header for a subscription URL.
+     *
+     * Returns the raw header value (e.g.
+     * ``"upload=4567; download=1234567; total=10737418240; expire=1712345678"``)
+     * or ``null`` when the provider does not expose one.  This is the
+     * standard v2rayN / Nekoray header for advertising the user's traffic
+     * quota and is the source of the *real* remaining-volume number that
+     * the user asked for in v1.6.0-rc.2.
+     */
+    suspend fun fetchUserinfoHeader(url: String): String? = withContext(Dispatchers.IO) {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return@withContext null
+        runCatching {
+            val request = Request.Builder()
+                .url(url)
+                .head()
+                .header("User-Agent", "dicodePing-Scanner/1.6")
+                .build()
+            client.newCall(request).execute().use { response ->
+                response.header("Subscription-Userinfo")?.takeIf { it.isNotBlank() }
+            }
+        }.getOrNull()
     }
 
     private companion object {

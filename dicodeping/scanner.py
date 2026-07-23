@@ -1,72 +1,71 @@
-"""dicodePing one-click scanner.
+"""dicodePing one-click scanner — v1.6.0-rc.2 rewrite.
 
-Simplified, opinionated re-implementation of the DicodeConfigChecker flow
-specifically for dicodePing end users.  The original checker exposes a
-two-stage Telegram-channel crawl, base64 export, channel management and a
-detailed reporting UI; dicodePing does not need any of that.  All the user
-wants is a single button that:
+This is the second iteration of the scanner.  The first iteration (rc.1)
+only re-fetched the program's own default subscription.  This rewrite
+does what the user actually asked for: it crawls Telegram channels
+(exactly like DicodeConfigChecker's stage 1) using the program's own
+running VPN, real-proxy-probes every candidate, drops the unresponsive
+ones, and stores the survivors as a **brand new user source** that
+appears next to the primary source on the Servers page.
 
-1. Bootstraps a working VPN from the program's own default subscription so
-   the network is reachable.
-2. Downloads every configured source in parallel through that working
-   tunnel.
-3. Parses, deduplicates and probes each candidate via the same fast
-   real-tunnel ping the rest of the app uses.
-4. Drops every server that did not respond.
-5. Stores the survivors into a brand-new internal subscription with an
-   auto-generated friendly name so the user can keep using them.
-6. Lets the user copy the entire subscription (all server URIs at once)
-   to the clipboard in one click.
+User-visible behaviour
+----------------------
+1.  User opens the Scanner page and taps the single primary button.
+2.  The scanner crawls the bundled Telegram channel list in parallel.
+3.  Every unique config URI is real-proxy-probed (start a tiny xray
+    instance with a SOCKS inbound, issue one HTTP request through it,
+    measure the delay — exactly like the existing ping pipeline).
+4.  Servers that did not respond are dropped.
+5.  Survivors are saved into a new source whose name the user can
+    customise (default: ``اسکنر <date>``).  The new source appears as
+    a new tab on the Servers page, next to the primary source.
+6.  The full subscription is also stored internally so the user can copy
+    every server URI in one click (plain text or Base64).
 
-Everything that would normally be a knob (concurrency, timeouts, ping
-sample size, retry budget) is hard-coded here on purpose.  The user
-explicitly asked for the configuration to live inside the code, not in
-the UI.
+All tunable settings (concurrency, timeouts, retry budget, max server
+count) live in this file on purpose — the user explicitly asked for
+the configuration to live in the code, not the UI.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
-import re
 import time
-import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Iterable
+from typing import Callable
 
 from .constants import DATA_DIR, MAX_DISCOVERY_CONFIGS
+from .crawler import crawl_telegram_channels, load_channels
 from .diagnostics import get_logger
 from .i18n import tr
-from .models import DiscoveredConfig, ServerRecord, utc_now
+from .models import DiscoveredConfig, ServerRecord, SourceDefinition, utc_now
 from .protocols import (
     b64_encode_text,
     config_to_blob,
-    decode_subscription,
     normalize_key,
     parse_endpoint,
     record_id,
     set_display_name,
 )
+from .sources import source_id_for_url
 from .storage import JsonStore
 
 LOGGER = get_logger("scanner")
 
 # --- Hard-coded fast scanner profile -------------------------------------
-# These values are intentionally not user-configurable.  They are tuned so
-# that on a typical home connection the whole scan finishes in 30–60
-# seconds while still being polite to upstream sources.
-SCAN_DOWNLOAD_WORKERS = 6       # parallel source downloads
-SCAN_PROBE_WORKERS = 48         # parallel real-tunnel probes
+SCAN_CRAWL_WORKERS = 8          # parallel Telegram channel fetches
+SCAN_CRAWL_TIMEOUT_S = 12.0     # per-channel HTTP timeout
+SCAN_PER_CHANNEL_LIMIT = 30     # max configs to keep per channel
+SCAN_PROBE_WORKERS = 32         # parallel real-tunnel probes
 SCAN_PROBE_TIMEOUT_S = 4.0      # max wait for a single proxy delay probe
 SCAN_PROBE_RETRY_LIMIT = 4      # how many failed servers to retry once
 SCAN_PROBE_RETRY_WORKERS = 8
-SCAN_MIN_VALID_SERVERS = 8      # never produce an empty sub; keep best-effort
 SCAN_MAX_SERVERS = 240          # cap the produced sub size
-SCAN_PING_SAMPLES = 1           # one real-proxy probe per candidate (speed)
 # -------------------------------------------------------------------------
 
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
-ScannerResultCallback = Callable[["ScannerResult"], None]
 
 
 @dataclass
@@ -74,6 +73,7 @@ class ScannerResult:
     """Public snapshot returned to the UI thread when the scan completes."""
 
     sub_name: str
+    source_id: str
     servers: list[ServerRecord]
     raw_lines: list[str]
     base64_payload: str
@@ -82,125 +82,51 @@ class ScannerResult:
     dropped: int
 
 
-# --- Internal subscription storage --------------------------------------
-# We persist every successful scan as an internal "scanner sub" so the user
-# can re-import or copy it later from the UI.  These are intentionally
-# separate from the user-managed custom subscriptions in sources.py.
+# --- Internal scanner-sub persistence -----------------------------------
+# We persist every successful scan as a custom source in the regular
+# settings["sources"] list, so the new sub shows up on the Servers page
+# as a brand new tab — exactly like the primary source.
 
-SCANNER_SUBS_FILE = DATA_DIR / "scanner_subs.json"
+SCANNER_HISTORY_FILE = DATA_DIR / "scanner_history.json"
 
 
-def _load_scanner_subs() -> list[dict]:
+def _load_history() -> list[dict]:
     try:
         import json
-        return json.loads(SCANNER_SUBS_FILE.read_text(encoding="utf-8"))
+        return json.loads(SCANNER_HISTORY_FILE.read_text(encoding="utf-8"))
     except Exception:
         return []
 
 
-def _save_scanner_subs(rows: list[dict]) -> None:
+def _save_history(rows: list[dict]) -> None:
     import json
-    SCANNER_SUBS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    SCANNER_SUBS_FILE.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    SCANNER_HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SCANNER_HISTORY_FILE.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def list_scanner_subs() -> list[dict]:
     """Return previously saved scanner subs (newest first)."""
-    return list(reversed(_load_scanner_subs()))
+    return list(reversed(_load_history()))
 
 
-def generate_sub_name() -> str:
-    """Auto-generate a friendly Persian name for the new scanner sub.
-
-    Uses the Gregorian date but renders it in YYYY/MM/DD form, which is
-    unambiguous and matches what Persian users see in most software.
-    """
+def generate_sub_name(custom: str | None = None) -> str:
+    """Auto-generate a friendly Persian name, or use the user's custom name."""
+    if custom and custom.strip():
+        return custom.strip()
     now = datetime.now()
-    stamp = now.strftime("%Y/%m/%d %H:%M")
-    return f"اسکنر • {stamp}"
+    return f"اسکنر • {now.strftime('%Y/%m/%d %H:%M')}"
 
 
-def _to_jalali(date: datetime) -> tuple[int, int, int]:
-    """Convert a Gregorian date to a (year, month, day) Jalali tuple.
-
-    Uses the algorithm from the Persian calendar reference maintained by
-    the Solar Hijri calendar community.  The intermediate ``days`` counter
-    is the number of days from the Jalali epoch (22 March 622 Gregorian).
-    """
-    gy = date.year
-    gm = date.month
-    gd = date.day
-
-    # Days from a known reference.
-    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
-
-    jy = gy - 621
-    gy2 = gy - 1 if gm > 2 else gy
-    days = (
-        365 * gy2
-        + (gy2 + 3) // 4
-        - (gy2 + 99) // 100
-        + (gy2 + 399) // 400
-        + gd
-        + g_d_m[gm - 1]
-        - 1
-    )
-    # The +1599 below is intentional; it aligns the 33-year Jalali cycle
-    # with the Gregorian leap-year count.  The reference algorithm and a
-    # full explanation live at https://farsitools.com/jalali
-    jy_aligned = jy + 1599
-    days -= 365 * jy_aligned + (jy_aligned // 33) * 8 + (((jy_aligned % 33) + 3) // 4)
-    if days < 0:
-        # Fallback: when the algorithm overshoots (which happens around
-        # leap-year boundaries), fall back to a known-safe approximation.
-        # This branch should rarely run but prevents a negative month/day.
-        return jy, 1, 1
-    jy = jy_aligned + 1
-    if days < 186:
-        jm = 1 + days // 31
-        jd = 1 + (days % 31)
-    else:
-        days -= 186
-        jm = 7 + days // 30
-        jd = 1 + (days % 30)
-    return jy, jm, jd
-
-
-# --- Source fetch --------------------------------------------------------
-
-def _fetch_default_subscription(progress: ProgressCallback | None = None) -> list[str]:
-    """Pull the program's own default subscription so we can use it as a
-    bootstrap VPN to reach the rest of the internet."""
-    from .discovery import _fetch_subscription, BUNDLED_DEFAULT_SUBSCRIPTION
-    from .models import SourceDefinition
-    from .sources import default_source_name
-
-    source = SourceDefinition(
-        id="default",
-        name=default_source_name("fa"),
-        url="https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt",
-        order=0,
-        enabled=True,
-        is_default=True,
-    )
-    rows = _fetch_subscription(source, progress=progress)
-    if not rows:
-        try:
-            rows = decode_subscription(BUNDLED_DEFAULT_SUBSCRIPTION.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return [raw for raw in rows if parse_endpoint(raw)][:MAX_DISCOVERY_CONFIGS]
-
+# --- Probing ------------------------------------------------------------
 
 def _probe_one(
     raw_config: str,
     *,
     timeout: float = SCAN_PROBE_TIMEOUT_S,
-    samples: int = SCAN_PING_SAMPLES,
 ) -> int | None:
     """Run a single real-tunnel proxy delay probe and return milliseconds.
 
-    Uses the same xray probe helper that the rest of the app uses so the
+    Re-uses the existing ``probe_outbound_delay`` helper so the scanner
     measurement is consistent with what users see on the servers page.
     """
     from .xray import probe_outbound_delay
@@ -214,17 +140,21 @@ def _probe_one(
     return int(delay)
 
 
+# --- Main entry point ---------------------------------------------------
+
 def run_scan(
     *,
     store: JsonStore,
     language: str = "fa",
+    custom_name: str | None = None,
     stage: StageCallback | None = None,
-    progress: ProgressCallback | None = None,
+    crawl_progress: ProgressCallback | None = None,
+    probe_progress: ProgressCallback | None = None,
 ) -> ScannerResult:
     """Execute a one-click scan and persist the result.
 
-    The function is intentionally synchronous; the UI is expected to call
-    it from a worker thread (see ScannerThread in ui.py).
+    The function is synchronous and intended to run inside a worker
+    thread (see ``ScannerThread`` in workers.py).
     """
     started = time.monotonic()
 
@@ -232,25 +162,37 @@ def run_scan(
         if stage:
             stage(text)
 
-    def _pg(done: int, total: int) -> None:
-        if progress:
-            progress(done, total)
-
-    # 1) Bootstrap from the program's default subscription.
-    _st(tr(language, "scanner_bootstrap"))
-    bootstrap_rows = _fetch_default_subscription(progress=None)
-    if not bootstrap_rows:
+    # 1) Crawl Telegram channels.
+    _st(tr(language, "scanner_crawl"))
+    channels = load_channels()
+    if not channels:
         raise RuntimeError(
-            "منبع داخلی برنامه در دسترس نیست؛ اتصال اینترنت را بررسی کنید."
+            "لیست کانال‌های تلگرام یافت نشد؛ بسته‌بندی برنامه ناقص است."
             if language != "en"
-            else "Internal source is unreachable; check your internet connection."
+            else "Telegram channel list is missing; the build is incomplete."
         )
-    LOGGER.info("Scanner: bootstrapped %d candidate configs", len(bootstrap_rows))
+    LOGGER.info("Scanner: crawling %d Telegram channels", len(channels))
 
-    # 2) De-duplicate by content key and trim to MAX_DISCOVERY_CONFIGS.
+    raw_configs = crawl_telegram_channels(
+        channels=channels,
+        per_channel_limit=SCAN_PER_CHANNEL_LIMIT,
+        max_workers=SCAN_CRAWL_WORKERS,
+        timeout=SCAN_CRAWL_TIMEOUT_S,
+        progress=lambda done, total, ch: (
+            crawl_progress(done, total) if crawl_progress else None,
+        ),
+    )
+    if not raw_configs:
+        raise RuntimeError(
+            "هیچ کانفیگی از کانال‌های تلگرام دریافت نشد. ابتدا از طریق منبع اصلی به یک سرور وصل شوید، سپس اسکن را دوباره امتحان کنید."
+            if language != "en"
+            else "No configs were collected from Telegram channels. Connect to a server via the primary source first, then try the scan again."
+        )
+
+    # 2) Deduplicate and cap.
     seen: set[str] = set()
     unique: list[str] = []
-    for raw in bootstrap_rows:
+    for raw in raw_configs:
         key = normalize_key(raw)
         if key in seen:
             continue
@@ -258,14 +200,13 @@ def run_scan(
         unique.append(raw)
         if len(unique) >= MAX_DISCOVERY_CONFIGS:
             break
+    LOGGER.info("Scanner: %d unique configs after dedup", len(unique))
 
-    # 3) Real-tunnel probe in parallel.  We deliberately re-use the existing
-    #    xray probe path so the scanner never needs a custom SOCKS stack.
+    # 3) Real-proxy probe each candidate.
     _st(tr(language, "scanner_probing"))
     total = len(unique)
-    _pg(0, total)
-
-    import concurrent.futures
+    if probe_progress:
+        probe_progress(0, total)
 
     completed = 0
     alive: list[tuple[str, int]] = []
@@ -278,14 +219,15 @@ def run_scan(
             except Exception:
                 ping_ms = None
             completed += 1
-            _pg(completed, total)
+            if probe_progress:
+                probe_progress(completed, total)
             if ping_ms is not None:
                 alive.append((raw, ping_ms))
 
-    # 4) Retry the first few failures once, to absorb transient network
-    #    blips without slowing down the happy path.
+    # 4) Retry a few failures once.
     if total - len(alive) > 0 and SCAN_PROBE_RETRY_LIMIT > 0:
-        retried = [raw for raw in unique if raw not in {a[0] for a in alive}][:SCAN_PROBE_RETRY_LIMIT]
+        alive_keys = {a[0] for a in alive}
+        retried = [raw for raw in unique if raw not in alive_keys][:SCAN_PROBE_RETRY_LIMIT]
         if retried:
             with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_RETRY_WORKERS) as pool:
                 future_to_raw = {pool.submit(_probe_one, raw): raw for raw in retried}
@@ -308,9 +250,10 @@ def run_scan(
             else "No servers responded. Please try again later."
         )
 
-    # 6) Build ServerRecord rows for the new scanner sub.
+    # 6) Build ServerRecord rows.
     _st(tr(language, "scanner_saving"))
-    sub_name = generate_sub_name()
+    sub_name = generate_sub_name(custom_name)
+    source_id = "scanner-" + hashlib.sha1(sub_name.encode("utf-8")).hexdigest()[:10]
     records: list[ServerRecord] = []
     for index, (raw, ping_ms) in enumerate(alive, start=1):
         endpoint = parse_endpoint(raw)
@@ -330,7 +273,7 @@ def run_scan(
                 ip="",
                 country="نامشخص",
                 country_code="",
-                source_id="scanner",
+                source_id=source_id,
                 source_name=sub_name,
                 source_order=0,
                 status="online",
@@ -341,32 +284,54 @@ def run_scan(
             )
         )
 
-    # 7) Persist as an internal scanner sub.  We store both the raw URI
-    #    list and the base64 payload so the UI can copy either form.
-    raw_lines = []
-    for raw, _ in alive:
-        # Always emit the cleaned-up display name version.
-        raw_lines.append(set_display_name(raw, ""))
+    # 7) Persist as a new user source so it shows up on the Servers page.
+    raw_lines = [set_display_name(raw, "") for raw, _ in alive]
     base64_payload = b64_encode_text("\n".join(raw_lines))
 
-    sub_record = {
+    try:
+        settings = store.load_settings()
+        sources_list = list(settings.get("sources") or [])
+        # Remove any previous scanner source with the same id (re-scan
+        # overwrites the same name slot).
+        sources_list = [s for s in sources_list if not (isinstance(s, dict) and s.get("id") == source_id)]
+        # Append the new scanner source.
+        sources_list.append(
+            SourceDefinition(
+                id=source_id,
+                name=sub_name,
+                url="",  # scanner subs have no remote URL; they live locally
+                order=len(sources_list),
+                enabled=True,
+                is_default=False,
+            ).to_dict()
+        )
+        settings["sources"] = sources_list
+        store.save_settings(settings)
+    except Exception:
+        LOGGER.exception("Scanner: failed to persist new source in settings")
+
+    # 8) Save the scanner history record (for copy-all + UI history list).
+    history_record = {
         "name": sub_name,
+        "source_id": source_id,
         "created_at": utc_now(),
         "servers": [r.to_dict() for r in records],
         "raw_lines": raw_lines,
         "base64": base64_payload,
         "downloaded": total,
-        "dropped": total - len(records),
+        "dropped": max(0, total - len(records)),
         "duration_seconds": time.monotonic() - started,
     }
-    existing = _load_scanner_subs()
-    existing.append(sub_record)
-    if len(existing) > 12:
-        existing = existing[-12:]
-    _save_scanner_subs(existing)
+    history = _load_history()
+    # Replace any previous entry with the same source_id.
+    history = [h for h in history if h.get("source_id") != source_id]
+    history.append(history_record)
+    if len(history) > 12:
+        history = history[-12:]
+    _save_history(history)
 
-    # 8) Also drop the scanned servers into the main store so the user can
-    #    immediately connect to them from the servers page.
+    # 9) Merge survivors into the main server store so the user can
+    #    immediately connect to them from the Servers page.
     try:
         current = store.load_servers()
         by_id = {s.id: s for s in current}
@@ -379,12 +344,13 @@ def run_scan(
 
     duration = time.monotonic() - started
     LOGGER.info(
-        "Scanner: completed in %.1fs — downloaded=%d alive=%d dropped=%d",
+        "Scanner: completed in %.1fs — crawled=%d alive=%d dropped=%d",
         duration, total, len(records), max(0, total - len(records)),
     )
 
     return ScannerResult(
         sub_name=sub_name,
+        source_id=source_id,
         servers=records,
         raw_lines=raw_lines,
         base64_payload=base64_payload,
@@ -394,9 +360,11 @@ def run_scan(
     )
 
 
+# --- Copy / export helpers ----------------------------------------------
+
 def export_subscription(sub_name: str, *, as_base64: bool = False) -> str:
     """Return the saved scanner sub as a plain text or base64 payload."""
-    rows = _load_scanner_subs()
+    rows = _load_history()
     for row in reversed(rows):
         if row.get("name") == sub_name:
             if as_base64:
@@ -411,6 +379,6 @@ def copy_all_servers(sub_name: str) -> str:
 
 
 def delete_scanner_sub(sub_name: str) -> None:
-    rows = _load_scanner_subs()
+    rows = _load_history()
     rows = [row for row in rows if row.get("name") != sub_name]
-    _save_scanner_subs(rows)
+    _save_history(rows)

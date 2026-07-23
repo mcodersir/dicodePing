@@ -204,10 +204,16 @@ class ScannerThread(QThread):
     success = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, store, language: str = "fa") -> None:
+    def __init__(
+        self,
+        store,
+        language: str = "fa",
+        custom_name: str | None = None,
+    ) -> None:
         super().__init__()
         self.store = store
         self.language = language
+        self.custom_name = custom_name
 
     def run(self) -> None:
         try:
@@ -215,8 +221,10 @@ class ScannerThread(QThread):
             result = run_scan(
                 store=self.store,
                 language=self.language,
+                custom_name=self.custom_name,
                 stage=self.stage.emit,
-                progress=self.progress.emit,
+                crawl_progress=lambda _d, _t: None,
+                probe_progress=self.progress.emit,
             )
             self.success.emit(result)
         except Exception as exc:
@@ -225,19 +233,30 @@ class ScannerThread(QThread):
 
 
 class VolumeFetchThread(QThread):
-    """Background worker that refreshes volume info for every saved server."""
+    """Background worker that refreshes volume info for every saved server.
+
+    The thread re-fetches every source URL's HEAD in parallel to read the
+    real ``Subscription-Userinfo`` header, then computes a ``VolumeInfo``
+    per server based on the cache (or the remark heuristic as fallback).
+    """
     progress = Signal(int, int)
     finished_set = Signal(object)
 
-    def __init__(self, servers: list[ServerRecord]) -> None:
+    def __init__(
+        self,
+        servers: list[ServerRecord],
+        source_urls: dict[str, str] | None = None,
+    ) -> None:
         super().__init__()
         self.servers = list(servers)
+        self.source_urls = dict(source_urls or {})
 
     def run(self) -> None:
         try:
             from .volume import fetch_live_volumes
             results = fetch_live_volumes(
                 self.servers,
+                source_urls=self.source_urls,
                 progress=self.progress.emit,
             )
             self.finished_set.emit(results)
