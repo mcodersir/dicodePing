@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
         bindNavigationItem(binding.navHome, binding.navHomeIcon!!, R.id.nav_home)
         bindNavigationItem(binding.navServers, binding.navServersIcon!!, R.id.nav_servers)
-        bindNavigationItem(binding.navScanner, binding.navScannerIcon!!, R.id.nav_scanner)
+        bindNavigationItem(binding.navScanner!!, binding.navScannerIcon!!, R.id.nav_scanner)
         bindNavigationItem(binding.navSettings, binding.navSettingsIcon!!, R.id.nav_settings)
         bindNavigationItem(binding.navAbout, binding.navAboutIcon!!, R.id.nav_about)
 

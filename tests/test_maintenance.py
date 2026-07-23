@@ -83,8 +83,8 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("obj is not self", runtime)
 
     def test_rc9_packaged_desktop_smoke_tests_require_success(self) -> None:
-        windows = (ROOT / ".github/workflows/v013-windows-build.yml").read_text(encoding="utf-8")
-        linux = (ROOT / ".github/workflows/v013-linux-rc5-build.yml").read_text(encoding="utf-8")
+        windows = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
+        linux = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
         self.assertIn("--startup-smoke-test", windows)
         self.assertIn("--startup-smoke-test", linux)
         self.assertIn("DICODEPING_STARTUP_SMOKE_REPORT", windows)
@@ -105,13 +105,13 @@ class MaintenanceTests(unittest.TestCase):
 
     def test_rc2_release_tests_packaged_discovery_and_rendering(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
-        workflow = (ROOT / ".github/workflows/v014-rc1-release.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
         self.assertIn("DICODEPING_DISCOVERY_SMOKE", app)
         self.assertIn("preview_only=True", app)
         self.assertIn("rendered_rows", app)
         self.assertEqual(workflow.count("DICODEPING_DISCOVERY_SMOKE"), 2)
-        self.assertIn("dicodePing-v0.1.5-rc.4-windows.exe", workflow)
-        self.assertIn("dicodePing-v0.1.5-rc.4-linux-x86_64.tar.gz", workflow)
+        self.assertIn("dicodePing-v1.6.0-rc.1-windows.exe", workflow)
+        self.assertIn("dicodePing-v1.6.0-rc.1-linux-x86_64.tar.gz", workflow)
 
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
