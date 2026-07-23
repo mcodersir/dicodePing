@@ -608,8 +608,14 @@ class Sidebar(QFrame):
         layout.addWidget(self.navigation_label)
 
         self.buttons: list[QPushButton] = []
-        self.keys = ("home", "servers", "settings", "about")
-        items = (("home", "home.svg"), ("servers", "servers.svg"), ("settings", "settings.svg"), ("about", "info.svg"))
+        self.keys = ("home", "servers", "scanner", "settings", "about")
+        items = (
+            ("home", "home.svg"),
+            ("servers", "servers.svg"),
+            ("scanner", "search.svg"),
+            ("settings", "settings.svg"),
+            ("about", "info.svg"),
+        )
         self.assets = tuple(asset for _, asset in items)
         for index, (key, asset) in enumerate(items):
             button = QPushButton(window.t(key))
@@ -869,7 +875,13 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.activity_bar)
 
         self.pages = FadeStackedWidget()
-        for page in (self._build_home_page(), self._build_servers_page(), self._build_settings_page(), self._build_about_page()):
+        for page in (
+            self._build_home_page(),
+            self._build_servers_page(),
+            self._build_scanner_page(),
+            self._build_settings_page(),
+            self._build_about_page(),
+        ):
             self.pages.addWidget(page)
         content_layout.addWidget(self.pages, 1)
 
@@ -1233,6 +1245,302 @@ class MainWindow(QMainWindow):
         self.server_stack.addWidget(self.loading_skeleton)
         layout.addWidget(self.server_stack, 1)
         return page
+
+    def _build_scanner_page(self) -> QWidget:
+        """One-click scanner page.
+
+        The UI is intentionally minimal: a single primary "Quick scan"
+        button, a stage label, a progress bar, a result list and a
+        "Copy all servers" button.  All tunable settings live in
+        ``scanner.py`` (concurrency, timeouts, retry budget) and are not
+        exposed in the UI — the user explicitly asked for that.
+        """
+        from .workers import ScannerThread, VolumeFetchThread
+        from .scanner import list_scanner_subs
+        from .volume import detect_volume_from_name, rate_quality, VolumeAutoDisconnect
+
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(14)
+
+        header = self._page_header(self.t("scanner"), self.t("scanner_subtitle"))
+        layout.addWidget(header)
+
+        # --- Primary action card -----------------------------------------
+        action_card = QFrame()
+        action_card.setObjectName("heroCard")
+        action_layout = QVBoxLayout(action_card)
+        action_layout.setContentsMargins(20, 18, 20, 18)
+        action_layout.setSpacing(12)
+
+        action_top = QHBoxLayout()
+        action_top.setSpacing(12)
+        self.scanner_run_button = QPushButton(self.t("scanner_run"))
+        self.scanner_run_button.setProperty("kind", "primary")
+        self.scanner_run_button.setIcon(tinted_icon("bolt.svg"))
+        self.scanner_run_button.clicked.connect(self.start_scanner)
+        action_top.addWidget(self.scanner_run_button)
+
+        self.scanner_volume_fetch_button = QPushButton(self.t("volume_fetch"))
+        self.scanner_volume_fetch_button.setIcon(icon("speed.svg"))
+        self.scanner_volume_fetch_button.clicked.connect(self.start_volume_fetch)
+        action_top.addWidget(self.scanner_volume_fetch_button)
+
+        action_top.addStretch()
+        action_layout.addLayout(action_top)
+
+        self.scanner_stage_label = QLabel(self.t("ready"))
+        self.scanner_stage_label.setObjectName("muted")
+        action_layout.addWidget(self.scanner_stage_label)
+
+        self.scanner_progress = QProgressBar()
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(0)
+        self.scanner_progress.setTextVisible(False)
+        self.scanner_progress.setFixedHeight(8)
+        action_layout.addWidget(self.scanner_progress)
+
+        self.scanner_result_label = QLabel("")
+        self.scanner_result_label.setObjectName("muted")
+        self.scanner_result_label.setWordWrap(True)
+        action_layout.addWidget(self.scanner_result_label)
+
+        layout.addWidget(action_card)
+
+        # --- Result list ------------------------------------------------
+        result_card = QFrame()
+        result_card.setObjectName("card")
+        result_layout = QVBoxLayout(result_card)
+        result_layout.setContentsMargins(14, 12, 14, 12)
+        result_layout.setSpacing(10)
+
+        result_top = QHBoxLayout()
+        result_title = QLabel(self.t("scanner_history"))
+        result_title.setObjectName("sectionTitle")
+        result_top.addWidget(result_title)
+        result_top.addStretch()
+
+        self.scanner_copy_all_button = QPushButton(self.t("scanner_copy_all"))
+        self.scanner_copy_all_button.setIcon(icon("check.svg"))
+        self.scanner_copy_all_button.clicked.connect(self.scanner_copy_all)
+        result_top.addWidget(self.scanner_copy_all_button)
+
+        self.scanner_copy_b64_button = QPushButton(self.t("scanner_copy_base64"))
+        self.scanner_copy_b64_button.setIcon(icon("check.svg"))
+        self.scanner_copy_b64_button.clicked.connect(lambda: self.scanner_copy_all(as_base64=True))
+        result_top.addWidget(self.scanner_copy_b64_button)
+
+        result_layout.addLayout(result_top)
+
+        self.scanner_history_list = QListWidget()
+        self.scanner_history_list.setAlternatingRowColors(True)
+        self.scanner_history_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.scanner_history_list.itemSelectionChanged.connect(self._scanner_selection_changed)
+        result_layout.addWidget(self.scanner_history_list)
+
+        layout.addWidget(result_card, 1)
+
+        # State placeholders (set up early so __init__ can reference them).
+        self.scanner_thread: ScannerThread | None = None
+        self.scanner_latest_sub: str = ""
+        self.scanner_volume_thread: VolumeFetchThread | None = None
+        self._volume_auto_disconnect = VolumeAutoDisconnect(self._volume_auto_disconnect_fire)
+
+        self._refresh_scanner_history()
+        return page
+
+    def start_scanner(self) -> None:
+        """Kick off a one-click scan in the background."""
+        from .workers import ScannerThread
+
+        if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            return
+        self.scanner_run_button.setEnabled(False)
+        self.scanner_run_button.setText(self.t("scanner_running"))
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(0)
+        self.scanner_stage_label.setText(self.t("scanner_bootstrap"))
+        self.scanner_result_label.setText("")
+
+        thread = ScannerThread(self.store, language=self.language)
+        self.scanner_thread = thread
+        thread.stage.connect(self._scanner_stage_updated)
+        thread.progress.connect(self._scanner_progress_updated)
+        thread.success.connect(self._scanner_succeeded)
+        thread.failed.connect(self._scanner_failed)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+
+    def _scanner_stage_updated(self, text: str) -> None:
+        self.scanner_stage_label.setText(text)
+
+    def _scanner_progress_updated(self, current: int, total: int) -> None:
+        if total <= 0:
+            self.scanner_progress.setRange(0, 0)
+            return
+        self.scanner_progress.setRange(0, 100)
+        ratio = max(0.0, min(1.0, current / total))
+        self.scanner_progress.setValue(int(round(ratio * 100)))
+
+    def _scanner_succeeded(self, result) -> None:
+        from .scanner import list_scanner_subs
+
+        self.scanner_run_button.setEnabled(True)
+        self.scanner_run_button.setText(self.t("scanner_run"))
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(100)
+        duration = getattr(result, "duration_seconds", 0.0)
+        alive = len(getattr(result, "servers", []))
+        total = getattr(result, "downloaded", 0)
+        self.scanner_stage_label.setText(self.t("scanner_done"))
+        self.scanner_result_label.setText(
+            self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
+        )
+        self.scanner_latest_sub = getattr(result, "sub_name", "") or ""
+        self._refresh_scanner_history()
+        # Make sure the new servers show up on the main servers page too.
+        try:
+            self.servers = self.store.load_servers()
+            self.render_servers()
+        except Exception:
+            LOGGER.exception("Scanner: failed to refresh server list after scan")
+
+    def _scanner_failed(self, message: str) -> None:
+        self.scanner_run_button.setEnabled(True)
+        self.scanner_run_button.setText(self.t("scanner_run"))
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(0)
+        self.scanner_stage_label.setText(self.t("operation_failed"))
+        self.scanner_result_label.setText(message)
+
+    def _refresh_scanner_history(self) -> None:
+        from .scanner import list_scanner_subs
+
+        self.scanner_history_list.clear()
+        rows = list_scanner_subs()
+        if not rows:
+            item = QListWidgetItem(self.t("scanner_empty_history"))
+            item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+            self.scanner_history_list.addItem(item)
+            return
+        for row in rows:
+            alive = len(row.get("servers") or [])
+            total = row.get("downloaded") or 0
+            duration = row.get("duration_seconds") or 0.0
+            name = row.get("name") or ""
+            label = f"{name}  •  {alive} سرور  •  {duration:.1f}s"
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, name)
+            self.scanner_history_list.addItem(item)
+        # Select the most recent one if nothing is selected.
+        if self.scanner_history_list.count() > 0 and not self.scanner_history_list.currentItem():
+            self.scanner_history_list.setCurrentRow(0)
+
+    def _scanner_selection_changed(self) -> None:
+        item = self.scanner_history_list.currentItem()
+        if not item:
+            self.scanner_latest_sub = ""
+            return
+        data = item.data(Qt.UserRole)
+        self.scanner_latest_sub = str(data or "")
+
+    def scanner_copy_all(self, *, as_base64: bool = False) -> None:
+        from .scanner import copy_all_servers, export_subscription
+        from PySide6.QtGui import QClipboard
+
+        sub_name = self.scanner_latest_sub
+        if not sub_name:
+            return
+        payload = export_subscription(sub_name, as_base64=as_base64) if as_base64 else copy_all_servers(sub_name)
+        if not payload:
+            return
+        clipboard = QApplication.clipboard()
+        if clipboard is None:
+            return
+        clipboard.setText(payload, QClipboard.Clipboard)
+        self.scanner_result_label.setText(self.t("scanner_copy_done"))
+
+    def start_volume_fetch(self) -> None:
+        """Refresh volume info for every saved server in one shot."""
+        from .workers import VolumeFetchThread
+
+        if self.scanner_volume_thread is not None and self.scanner_volume_thread.isRunning():
+            return
+        if not self.servers:
+            return
+        self.scanner_volume_fetch_button.setEnabled(False)
+        self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
+        thread = VolumeFetchThread(self.servers)
+        self.scanner_volume_thread = thread
+        thread.finished_set.connect(self._volume_fetch_finished)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+
+    def _volume_fetch_finished(self, results: dict) -> None:
+        self.scanner_volume_fetch_button.setEnabled(True)
+        self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
+        # Persist the volume info on the saved records so the servers page
+        # can show it on the next render.
+        try:
+            for server in self.servers:
+                info = results.get(server.id)
+                if info is not None:
+                    # We extend ServerRecord with an attribute at runtime.
+                    # The dataclass is frozen=False so this is safe.
+                    setattr(server, "_volume_label", info.label)
+            self.render_servers()
+        except Exception:
+            LOGGER.exception("Volume fetch result merge failed")
+
+    def _volume_auto_disconnect_fire(self) -> None:
+        """Called by the volume auto-disconnect timer.
+
+        The timer fires on a background thread, so we bounce the actual
+        disconnect back to the Qt event loop.
+        """
+        QTimer.singleShot(0, self._volume_auto_disconnect_disconnect)
+
+    def _volume_auto_disconnect_disconnect(self) -> None:
+        try:
+            self._volume_auto_disconnect.disarm()
+        except Exception:
+            pass
+        try:
+            self.disconnect(show_message=True)
+        except Exception:
+            LOGGER.exception("Volume auto-disconnect: disconnect() failed")
+
+    def _maybe_arm_volume_auto_disconnect(self, server: ServerRecord) -> None:
+        """Arm the 1-hour auto-disconnect timer if the server is volume-limited."""
+        from .volume import VOLUME_AUTO_DISCONNECT_ENABLED, detect_volume_from_name
+        try:
+            if not VOLUME_AUTO_DISCONNECT_ENABLED:
+                return
+            # Use the runtime _volume_label if we have one (set by the
+            # batch fetch button); otherwise detect from the server name
+            # and the stored config blob.
+            label = getattr(server, "_volume_label", None)
+            if label is None:
+                from .protocols import blob_to_config
+                raw = ""
+                try:
+                    raw = blob_to_config(server.config_blob)
+                except Exception:
+                    raw = server.name
+                remark = raw.split("#", 1)[1] if "#" in raw else server.name
+                info = detect_volume_from_name(remark)
+                label = info.label
+                is_volume = info.is_volume
+            else:
+                is_volume = label not in ("", "—", "نامحدود", "Unlimited")
+            if is_volume:
+                self._volume_auto_disconnect.arm()
+                LOGGER.info("Volume auto-disconnect armed for %s", server.id)
+            else:
+                self._volume_auto_disconnect.disarm()
+        except Exception:
+            LOGGER.exception("Volume auto-disconnect arming failed")
 
     def _build_settings_page(self) -> QWidget:
         content = QWidget()
@@ -2151,10 +2459,30 @@ class MainWindow(QMainWindow):
             )
             self.table.setItem(row, 2, location_item)
             self.table.setItem(row, 3, QTableWidgetItem(server.ip or server.host or "—"))
+            # Quality detection (v1.6.0): rate the ping latency into one of
+            # four buckets and render the cell background accordingly.  The
+            # bucket label is also exposed via the tooltip so screen readers
+            # and hover-inspection still work.
+            from .volume import rate_quality
+            rating = rate_quality(server.ping_ms)
             ping_text = f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable")
             ping_item = QTableWidgetItem(ping_text)
             ping_item.setTextAlignment(Qt.AlignCenter)
             ping_item.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+            # Color the ping cell based on the quality bucket.
+            quality_color_map = {
+                "excellent": DARK["successSoft"],
+                "good": "#10271D",
+                "fair": DARK["warning"] + "33",  # 20% alpha overlay tint
+                "poor": DARK["dangerSoft"],
+            }
+            ping_brush = QBrush(QColor(quality_color_map.get(rating.bucket, "#1B2430")))
+            ping_item.setBackground(ping_brush)
+            volume_label = getattr(server, "_volume_label", None) or "—"
+            ping_item.setToolTip(
+                f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
+                f"{self.t('scanner_volume_title')}: {volume_label}"
+            )
             self.table.setItem(row, 4, ping_item)
             pin_button = QPushButton()
             pin_button.setIcon(icon("pin-filled.svg" if server.favorite else "pin.svg"))
@@ -2412,6 +2740,7 @@ class MainWindow(QMainWindow):
         self.service.update_connected(item.id)
         self.set_busy(False, self.t("connected_to", name=item.name))
         self._start_connection_monitor()
+        self._maybe_arm_volume_auto_disconnect(item)
         self.render_servers()
         self.update_connection_ui()
 
@@ -2429,6 +2758,10 @@ class MainWindow(QMainWindow):
 
     def disconnect(self, *, show_message: bool = True) -> None:
         LOGGER.info("Disconnect requested")
+        try:
+            self._volume_auto_disconnect.disarm()
+        except Exception:
+            pass
         self._stop_connect_animation()
         self._stop_connection_monitor()
         self.manager.stop()

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=dicodePing
+Name[fa]=دایکدپینگ
+Comment=Simple, fast VPN connectivity client
+Comment[fa]=اتصال ساده و سریع
+Exec=/opt/dicodePing/run-dicodePing.sh
+Icon=/opt/dicodePing/app.png
+Terminal=false
+Categories=Network;Utility;
+Keywords=vpn;proxy;xray;v2ray;
+StartupWMClass=dicodePing

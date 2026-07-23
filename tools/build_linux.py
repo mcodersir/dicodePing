@@ -9,8 +9,8 @@ import sys
 import tarfile
 from pathlib import Path
 
-APP_VERSION = "0.1.5"
-RC_VERSION = "rc.4"
+APP_VERSION = "1.6.0"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -69,6 +69,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     shutil.copy2(built, staging / APP_NAME)
     shutil.copy2(root / "packaging" / "linux" / "run-dicodePing.sh", staging / "run-dicodePing.sh")
     shutil.copy2(root / "packaging" / "linux" / "README-LINUX.txt", staging / "README-LINUX.txt")
+    shutil.copy2(root / "packaging" / "linux" / "dicodePing.desktop", staging / "dicodePing.desktop")
+    shutil.copy2(assets / "app.png", staging / "app.png")
     (staging / APP_NAME).chmod(0o755)
     (staging / "run-dicodePing.sh").chmod(0o755)
 

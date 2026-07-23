@@ -195,6 +195,17 @@ def load_application_icon() -> QIcon:
 
 def choose_persian_font() -> QFont:
     available = set(QFontDatabase.families())
+    # Bundle Vazirmatn directly so the Persian UI renders correctly on
+    # Linux distributions that do not ship the font system-wide.  The same
+    # bundle is harmless on Windows where Vazirmatn is already installed.
+    for weight_file in ("Vazirmatn-Regular.ttf", "Vazirmatn-Medium.ttf", "Vazirmatn-Bold.ttf"):
+        font_path = ASSET_DIR / "fonts" / weight_file
+        if font_path.exists():
+            try:
+                QFontDatabase.addApplicationFont(str(font_path))
+            except Exception:
+                LOGGER.debug("Failed to load bundled font %s", font_path, exc_info=True)
+    available = set(QFontDatabase.families())
     for family in ("Vazirmatn", "Vazir", "Vazir FD", "Tahoma", "Segoe UI"):
         if family in available:
             return QFont(family, 10)

@@ -156,4 +156,21 @@
     <string name="update_later">بعداً</string>
     <string name="app_update_title">نسخه %1$s آماده است</string>
     <string name="app_update_message">صفحه دریافت نسخه جدید باز شود؟</string>
+
+    <!-- v1.6.0-rc.1: scanner / volume / quality -->
+    <string name="nav_scanner">اسکنر</string>
+    <string name="scanner_title">اسکنر</string>
+    <string name="scanner_subtitle">با یک کلیک، سرورهای فعال را اسکن و پینگ بگیرید</string>
+    <string name="scanner_run">اسکن سریع</string>
+    <string name="scanner_running">در حال اسکن…</string>
+    <string name="scanner_history">ساب‌اسکریپشن‌های ذخیره‌شده</string>
+    <string name="scanner_empty_history">هنوز اسکنی انجام نشده است</string>
+    <string name="scanner_copy_all">کپی همه</string>
+    <string name="scanner_copy_done">سرورها در کلیپ‌بورد کپی شد</string>
+    <string name="volume_fetch">دریافت حجم‌ها</string>
+    <string name="volume_summary">%1$d سرور حجمی از %2$d سرور</string>
+    <plurals name="scanner_servers_count">
+        <item quantity="one">%d سرور موجود</item>
+        <item quantity="other">%d سرور موجود</item>
+    </plurals>
 </resources>
