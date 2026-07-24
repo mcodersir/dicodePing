@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.7.0-rc.2 — ICMP ping fix, quality improvement, real per-app VPN, real VPN sharing
+
+### Fixed
+- **ICMP ping** (`dicodeping/icmp_ping.py`, `dicodeping/net.py`).  The
+  ping now uses the system ``ping`` command (which sends real ICMP Echo
+  Request packets) as the primary method.  This works without root on
+  Linux and without any special privileges on Windows.  Falls back to
+  the Windows IcmpSendEcho API or raw sockets when ``ping`` is not
+  available.  The previous implementation silently failed on Linux
+  when raw sockets were not available.
+- **Quality detection** (`dicodeping/volume.py::rate_quality`).  The
+  algorithm now accounts for jitter (from ICMP sample standard
+  deviation) and failure history, not just ping latency.  New
+  thresholds: Excellent ≤ 150ms/20ms jitter/0 failures; Good ≤ 350ms/
+  50ms/2 failures; Fair ≤ 800ms/100ms/5 failures; Poor otherwise.
+
+### Added
+- **Real per-app VPN** (Android `DicodeVpnService.kt`).  Uses
+  `addAllowedApplication` for allowlist mode and
+  `addDisallowedApplication` for denylist mode.  Three modes: disabled
+  (default), allowlist (only selected apps use VPN), denylist (selected
+  apps bypass VPN).  Settings stored in `SettingsStore.kt` and passed
+  to the VPN service via intent extras.
+- **Real VPN sharing** (`dicodeping/vpn_sharing.py`).  Windows uses
+  `netsh routing ip nat` to enable NAT on the TUN interface.  Linux
+  uses `iptables` MASQUERADE and FORWARD rules plus IP forwarding.
+  Toggled from Settings; sharing rules are installed when a VPN
+  connection starts and removed when it stops.
+- **Android settings** for per-app VPN mode, per-app packages, VPN
+  sharing USB, VPN sharing hotspot, CDN formatting enabled, and CDN
+  formatting domain in `SettingsStore.kt`.
+
+### Tests
+- All 114 existing tests pass.
+
 ## 1.7.0-rc.1 — Scanner rewrite, volume removal, alternative cores, VPN sharing
 
 ### Added

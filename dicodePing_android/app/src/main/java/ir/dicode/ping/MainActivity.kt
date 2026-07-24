@@ -293,6 +293,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     private fun startVpn(server: ServerRecord) {
         AppLog.i("Main", "Starting VPN for server=${server.id}")
+        val settings = vm.repo.settings
         val intent = Intent(applicationContext, DicodeVpnService::class.java)
             .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
             .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
@@ -303,11 +304,19 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                     server.city.ifBlank { getString(R.string.generic_server) },
                 ),
             )
-            .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, vm.repo.settings.bypassDomains)
+            .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, settings.bypassDomains)
             .putStringArrayListExtra(
                 DicodeVpnService.EXTRA_BYPASS_APPS,
-                ArrayList(vm.repo.settings.bypassApps),
+                ArrayList(settings.bypassApps),
             )
+            // v1.7.0-rc.2: per-app VPN and VPN sharing extras.
+            .putExtra(DicodeVpnService.EXTRA_PER_APP_MODE, settings.perAppVpnMode)
+            .putStringArrayListExtra(
+                DicodeVpnService.EXTRA_PER_APP_PACKAGES,
+                ArrayList(settings.perAppVpnPackages),
+            )
+            .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_USB, settings.vpnSharingUsb)
+            .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_HOTSPOT, settings.vpnSharingHotspot)
         ContextCompat.startForegroundService(applicationContext, intent)
     }
 
