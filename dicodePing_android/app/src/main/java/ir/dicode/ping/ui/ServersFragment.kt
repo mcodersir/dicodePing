@@ -70,8 +70,22 @@ class ServersFragment : Fragment() {
             query = it?.toString().orEmpty()
             render()
         }
-        binding.refresh.setOnClickListener { vm.repo.refreshAll() }
-        binding.pingAll.setOnClickListener { vm.repo.pingAll() }
+        binding.refresh.setOnClickListener {
+            // v1.6.0-rc.4: source-scoped refresh.
+            if (sourceId != "all") {
+                vm.repo.pingSource(sourceId)
+            } else {
+                vm.repo.refreshAll()
+            }
+        }
+        binding.pingAll.setOnClickListener {
+            // v1.6.0-rc.4: source-scoped ping.
+            if (sourceId != "all") {
+                vm.repo.pingSource(sourceId)
+            } else {
+                vm.repo.pingAll()
+            }
+        }
         binding.connectSelected.setOnClickListener {
             (activity as? ConnectionHost)?.connect(vm.repo.selectedServer())
         }
@@ -193,21 +207,39 @@ class ServersFragment : Fragment() {
      * (v1.6.0-rc.3).  Issues HEAD requests in parallel for every
      * enabled subscription URL and parses the ``Subscription-Userinfo``
      * header.  Reports the count via Snackbar.
+     *
+     * v1.6.0-rc.4: when a specific source chip is active (not "all"),
+     * only fetch volumes for that source's servers.
      */
     private fun startVolumeFetch() {
-        val servers = vm.repo.servers.value
-        if (servers.isEmpty()) {
+        val allServers = vm.repo.servers.value
+        if (allServers.isEmpty()) {
             Snackbar.make(binding.root, R.string.no_server, Snackbar.LENGTH_SHORT).show()
             return
         }
+        // v1.6.0-rc.4: source-scoped volume fetch.
+        val targetServers: List<ir.dicode.ping.data.ServerRecord>
+        val sourceUrls: Map<String, String>
+        if (sourceId != "all") {
+            targetServers = allServers.filter { it.sourceId == sourceId }
+            if (targetServers.isEmpty()) {
+                Snackbar.make(binding.root, R.string.no_server, Snackbar.LENGTH_SHORT).show()
+                return
+            }
+            val activeSrc = vm.repo.sources.value.firstOrNull { it.id == sourceId }
+            sourceUrls = if (activeSrc != null && activeSrc.url.isNotBlank()) {
+                mapOf(activeSrc.id to activeSrc.url)
+            } else {
+                emptyMap()
+            }
+        } else {
+            targetServers = allServers
+            sourceUrls = vm.repo.sources.value.associate { it.id to it.url }.filterValues { it.isNotBlank() }
+        }
         binding.fetchVolumes.isEnabled = false
-        binding.fetchVolumes.text = getString(R.string.volume_fetching)
+        val client = ir.dicode.ping.net.SubscriptionClient()
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val sources = vm.repo.sources.value
-            val sourceUrls: Map<String, String> = sources.associate { it.id to it.url }.filterValues { it.isNotBlank() }
-            val client = ir.dicode.ping.net.SubscriptionClient()
-
             val quotas = withContext(Dispatchers.IO) {
                 val uniqueUrls = sourceUrls.values.toSet()
                 uniqueUrls.mapNotNull { url ->
@@ -218,15 +250,14 @@ class ServersFragment : Fragment() {
                 }.toMap()
             }
 
-            val withQuota = servers.count { server ->
+            val withQuota = targetServers.count { server ->
                 val url = sourceUrls[server.sourceId] ?: return@count false
                 quotas[url] != null
             }
-            val withRemark = servers.count { ir.dicode.ping.net.VolumeDetector.detectFromServer(it).isVolume }
+            val withRemark = targetServers.count { ir.dicode.ping.net.VolumeDetector.detectFromServer(it).isVolume }
 
             binding.fetchVolumes.isEnabled = true
-            binding.fetchVolumes.text = getString(R.string.volume_fetch)
-            val msg = getString(R.string.volume_summary, withQuota + withRemark, servers.size)
+            val msg = getString(R.string.volume_summary, withQuota + withRemark, targetServers.size)
             Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
             // Trigger a re-render so the inline quality/volume badges refresh.
             adapter.notifyItemRangeChanged(0, adapter.itemCount)

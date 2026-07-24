@@ -200,6 +200,27 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Re-ping only the servers whose [sourceId] matches [sourceId].
+     * Used by the source-scoped ping action on the Servers page: when
+     * the user has a specific source chip active (not "all"), we only
+     * re-probe that source's servers — much faster than re-pinging the
+     * whole list.
+     */
+    fun pingSource(sourceId: String) {
+        if (progress.value.active) return
+        val subset = servers.value.filter { it.sourceId == sourceId }
+        if (subset.isEmpty()) return
+        AppLog.i("Repository", "Source-scoped ping requested for ${subset.size} servers (source=$sourceId)")
+        scope.launch {
+            refreshMutex.withLock {
+                val missingLocation = subset.filter { it.ip.isBlank() || it.countryCode.isBlank() }
+                if (missingLocation.isNotEmpty()) locateServers(missingLocation, mergeWithExisting = true)
+                pingServers(subset)
+            }
+        }
+    }
+
     private suspend fun locateServers(
         input: List<ServerRecord>,
         mergeWithExisting: Boolean = false,

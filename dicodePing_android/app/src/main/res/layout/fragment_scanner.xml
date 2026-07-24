@@ -42,11 +42,63 @@
                 android:orientation="vertical"
                 android:padding="22dp">
 
+                <!-- v1.6.0-rc.4: stage preview — show the user what the
+                     single button will do, before they press it. -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/scanner_preview_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/scanner_preview_1"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/scanner_preview_2"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/scanner_preview_3"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/scanner_preview_4"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/scanner_preview_hint"
+                    android:textColor="@color/brand"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/scannerRunButton"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:text="@string/scanner_run"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/scanner_start"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     app:icon="@drawable/ic_bolt"

@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.6.0-rc.4 — Fully-automatic scanner, icon-only volume, source-scoped actions, 20-min cache
+
+### Added
+- **Fully-automatic scanner** (`dicodeping/scanner.py`, `dicodeping/ui.py`,
+  Android `ScannerFragment.kt` + `fragment_scanner.xml`).  The scanner now
+  does everything from a single "Start scan" button — no manual pre-connect
+  required.  A stage-preview card is shown above the button so the user
+  knows exactly what will happen:
+    1. Auto-connect to the best primary-source server
+    2. Fetch configs from Telegram channels
+    3. Disconnect and test servers in parallel
+    4. Save healthy servers as a new subscription
+  A hint in blue reads "Just press Start scan once. The rest is automatic!".
+- **20-minute ping/location cache** (`dicodeping/ping_cache.py`).  Persists
+  the most recent ping and location for each server for 20 minutes so the
+  splash screen can reuse them on the next launch.  Only genuinely new or
+  stale servers are re-probed, which makes the splash path much faster.
+  Cache lives in ``DATA_DIR/ping_cache.json`` and survives restarts.
+- **`refresh_saved_with_cache`** in `service.py` — the cache-aware variant
+  of `refresh_saved` that splits records into `(cached, fresh)` and only
+  re-probes the fresh subset.
+- **`refresh_subset`** in `service.py` — re-pings only the servers whose
+  IDs are in a given set.  Used by the source-scoped refresh action.
+- **`RefreshSubsetThread`** in `workers.py` — the worker that calls
+  `refresh_subset` from the UI thread.
+- **Stage-preview i18n keys** (`scanner_preview_title`,
+  `scanner_preview_1..4`, `scanner_preview_hint`) in both fa and en.
+
+### Changed
+- **Volume-fetch button is now icon-only** on the Servers page (44dp wide,
+  no text).  This keeps the toolbar responsive when the system font is
+  large.  The scanner page button still has text.
+- **Volume fetch now falls back to a ranged GET** when HEAD is rejected.
+  Many subscription providers only honour GET, so the previous HEAD-only
+  path could never extract the real `Subscription-Userinfo` header for
+  them.  The new `_try` helper tries HEAD first, then `GET` with
+  `Range: bytes=0-0`.
+- **Source-scoped ping/volume** (`dicodeping/ui.py`,
+  `ServersFragment.kt`).  When the user has a specific source tab active
+  (not "all"), the ping and volume-fetch buttons now only operate on that
+  source's servers — much faster than re-pinging the whole list.
+- **Android `AppRepository.pingSource(sourceId)`** — re-pings only the
+  servers whose `sourceId` matches.  Wired into `ServersFragment` so the
+  refresh and pingAll buttons are source-scoped when a chip is active.
+
+### Tests
+- New `tests/test_v160_rc4.py` with 10 tests covering the ping cache
+  module, `refresh_saved_with_cache` + `refresh_subset` in service,
+  `RefreshSubsetThread` in workers, source-scoped UI actions, icon-only
+  volume button, scanner preview stages, HEAD→GET fallback, and Android
+  source-scoped actions.
+- All 116 tests pass.
+
 ## 1.6.0-rc.3 — Staged scanner, ETA everywhere, visible quality + volume
 
 ### Added

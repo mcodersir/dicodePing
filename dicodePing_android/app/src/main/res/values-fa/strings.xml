@@ -173,6 +173,12 @@
     <string name="scanner_copy_done">سرورها در کلیپ‌بورد کپی شد</string>
     <string name="scanner_name_prompt">نام ساب جدید</string>
     <string name="scanner_name_default">اسکنر • تاریخ</string>
+    <string name="scanner_preview_title">مراحلی که خودکار انجام می‌شه:</string>
+    <string name="scanner_preview_1">۱. اتصال خودکار به بهترین سرور منبع اصلی</string>
+    <string name="scanner_preview_2">۲. دریافت کانفیگ از کانال‌های تلگرام</string>
+    <string name="scanner_preview_3">۳. قطع اتصال و تست هم‌زمان سرورها</string>
+    <string name="scanner_preview_4">۴. ذخیره سرورهای سالم به‌عنوان ساب جدید</string>
+    <string name="scanner_preview_hint">کافیه یک‌بار دکمه «شروع اسکن» رو بزنی. بقیه‌اش با خودمه!</string>
     <string name="volume_fetch">دریافت حجم‌ها</string>
     <string name="volume_fetching">در حال دریافت حجم‌ها…</string>
     <string name="volume_summary">%1$d سرور حجمی از %2$d سرور</string>

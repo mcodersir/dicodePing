@@ -275,7 +275,154 @@ class ServerService:
                 server.status = "unverified"
         records.sort(key=_sort_key)
         self.store.save_servers(records)
+        # Persist the fresh results into the short-lived cache so the
+        # next launch can reuse them for up to 20 minutes.
+        try:
+            from . import ping_cache
+            ping_cache.update_cache(records)
+        except Exception:
+            LOGGER.exception("ping_cache: update failed after refresh_saved")
         return records
+
+    def refresh_saved_with_cache(
+        self,
+        stage: StageCallback | None = None,
+        progress: ProgressCallback | None = None,
+        language: str = "fa",
+        ping_progress: ProgressCallback | None = None,
+        geo_progress: ProgressCallback | None = None,
+    ) -> list[ServerRecord]:
+        """Like ``refresh_saved`` but reuse cached ping/location for ~20 min.
+
+        Servers whose cache is still fresh are returned as-is with their
+        cached ping/location.  Only genuinely new or stale servers are
+        re-probed.  This is the fast path used by the splash screen so
+        the user does not have to wait for a full re-ping on every
+        launch.
+        """
+        from . import ping_cache
+
+        records = self.store.load_servers()
+        if not records:
+            return []
+        cached, fresh = ping_cache.apply_cached_to_records(records)
+        LOGGER.info(
+            "refresh_saved_with_cache: %d cached, %d fresh out of %d",
+            len(cached), len(fresh), len(records),
+        )
+        if not fresh:
+            # Everything is fresh — just sort and return.
+            all_records = cached
+            all_records.sort(key=_sort_key)
+            self.store.save_servers(all_records)
+            if stage:
+                stage(tr(language, "update_done"))
+            return all_records
+
+        if stage:
+            stage(tr(language, "refreshing_saved"))
+        unique_hosts = list(dict.fromkeys(server.host for server in fresh if server.host))
+        results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_progress or progress)
+        result_map = {result.key: result for result in results}
+        for server in fresh:
+            result = result_map.get(server.host)
+            server.last_checked = utc_now()
+            if result:
+                server.ip = result.ip or server.ip
+            if result and result.ping_ms is not None:
+                server.ping_ms = result.ping_ms
+                server.status = "online"
+                server.failures = 0
+            else:
+                server.ping_ms = None
+                server.status = "unverified"
+                server.failures += 1
+
+        all_ips = [server.ip for server in fresh if server.ip and server.ip != "dns"]
+        if all_ips:
+            if stage:
+                stage(tr(language, "resolving_location"))
+            geo_map = self.geo.resolve_many(all_ips, callback=geo_progress or progress)
+            for server in fresh:
+                geo = geo_map.get(server.ip, {})
+                if not geo:
+                    continue
+                server.country = str(geo.get("country") or server.country)
+                server.country_code = str(geo.get("country_code") or server.country_code)
+                server.region = str(geo.get("region") or server.region)
+                server.city = str(geo.get("city") or server.city)
+                server.isp = str(geo.get("isp") or server.isp)
+                server.asn = str(geo.get("asn") or server.asn)
+                server.geo_provider = str(geo.get("geo_provider") or server.geo_provider)
+                server.geo_confidence = str(geo.get("geo_confidence") or server.geo_confidence)
+        for server in fresh:
+            if not (_has_trusted_ping(server.ping_ms) and _has_trusted_location(server)):
+                server.ping_ms = None
+                server.status = "unverified"
+
+        all_records = cached + fresh
+        all_records.sort(key=_sort_key)
+        self.store.save_servers(all_records)
+        # Persist the fresh results so the next launch can reuse them.
+        try:
+            ping_cache.update_cache(fresh)
+        except Exception:
+            LOGGER.exception("ping_cache: update failed after refresh_saved_with_cache")
+        return all_records
+
+    def refresh_subset(
+        self,
+        server_ids: Iterable[str],
+        stage: StageCallback | None = None,
+        progress: ProgressCallback | None = None,
+        language: str = "fa",
+        ping_progress: ProgressCallback | None = None,
+        geo_progress: ProgressCallback | None = None,
+    ) -> list[ServerRecord]:
+        """Re-ping only the servers whose IDs are in ``server_ids``.
+
+        Used by the source-scoped ping/volume action on the Servers
+        page: when the user has a specific source tab active, we only
+        re-probe that source's servers, not the whole list.
+        """
+        target_ids = set(server_ids)
+        records = self.store.load_servers()
+        if not records or not target_ids:
+            return records
+        subset = [r for r in records if r.id in target_ids]
+        if not subset:
+            return records
+        if stage:
+            stage(tr(language, "refreshing_saved"))
+        unique_hosts = list(dict.fromkeys(server.host for server in subset if server.host))
+        results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_progress or progress)
+        result_map = {result.key: result for result in results}
+        for server in subset:
+            result = result_map.get(server.host)
+            server.last_checked = utc_now()
+            if result:
+                server.ip = result.ip or server.ip
+            if result and result.ping_ms is not None:
+                server.ping_ms = result.ping_ms
+                server.status = "online"
+                server.failures = 0
+            else:
+                server.ping_ms = None
+                server.status = "unverified"
+                server.failures += 1
+        for server in subset:
+            if not (_has_trusted_ping(server.ping_ms) and _has_trusted_location(server)):
+                server.ping_ms = None
+                server.status = "unverified"
+        records.sort(key=_sort_key)
+        self.store.save_servers(records)
+        try:
+            from . import ping_cache
+            ping_cache.update_cache(subset)
+        except Exception:
+            LOGGER.exception("ping_cache: update failed after refresh_subset")
+        return records
+
 
     def auto_candidates(self, records: list[ServerRecord] | None = None) -> list[ServerRecord]:
         candidates = records if records is not None else self.store.load_servers()
