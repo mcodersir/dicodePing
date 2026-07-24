@@ -193,6 +193,41 @@ class RefreshThread(TaskThread):
             self.failed.emit(str(exc))
 
 
+class RefreshSubsetThread(TaskThread):
+    """Re-ping only a subset of saved servers (v1.6.0-rc.4).
+
+    Used by the source-scoped refresh action: when the user has a
+    specific source tab active on the Servers page, we only re-probe
+    that source's servers instead of the whole list.
+    """
+    record_updated = Signal(object)
+
+    def __init__(self, service: ServerService, server_ids: list[str], language: str = "fa") -> None:
+        super().__init__()
+        self.service = service
+        self.server_ids = list(server_ids)
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            self.checkpoint()
+            servers = self.service.refresh_subset(
+                self.server_ids,
+                stage=self.stage.emit,
+                language=self.language,
+                ping_progress=lambda current, total: self.emit_scaled(0, 68, current, total),
+                geo_progress=lambda current, total: self.emit_scaled(68, 100, current, total),
+            )
+            self.checkpoint()
+            self.progress.emit(100, 100)
+            self.success.emit(servers)
+        except TaskCancelled:
+            LOGGER.info("Background task cancelled: %s", type(self).__name__)
+        except Exception as exc:
+            LOGGER.exception("Background task failed: %s", type(self).__name__)
+            self.failed.emit(str(exc))
+
+
 class ScannerThread(QThread):
     """Background worker that runs the staged one-click scanner.
 

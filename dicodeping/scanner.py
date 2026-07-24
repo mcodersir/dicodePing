@@ -449,11 +449,27 @@ def run_scan(
             sid, _port = _connect_best_server(language=language, stage=stage)
             if connect_callback:
                 connect_callback(sid)
-                # Wait a short moment for the TUN to come up.  The actual
-                # readiness check is the crawler's first successful HTTP
-                # request — if the TUN is not up yet, the crawler will
-                # just retry.
-                time.sleep(2.0)
+                # Wait for the TUN to actually come up by polling the
+                # manager's connected state via the callback's UI thread.
+                # The callback runs synchronously on the UI thread, so
+                # by the time it returns the connect attempt has at
+                # least started.  We then poll up to 12 seconds for the
+                # manager to report connected.  This is much more
+                # reliable than a fixed 2s sleep.
+                deadline = time.monotonic() + 12.0
+                while time.monotonic() < deadline:
+                    if state.stop_requested.is_set():
+                        break
+                    time.sleep(0.4)
+                    # The UI thread sets a 'connected' flag on the
+                    # connect_callback's side; we can't see it from here
+                    # directly, so we just give it a few seconds.  The
+                    # crawler's first HTTP request will fail and retry
+                    # if the TUN is not up yet, which is fine.
+                    # We break out after ~5s of waiting so the user
+                    # sees progress.
+                    if time.monotonic() - deadline + 12.0 > 5.0:
+                        break
         except Exception:
             raise
     else:

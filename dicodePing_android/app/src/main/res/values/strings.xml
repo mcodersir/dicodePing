@@ -173,6 +173,12 @@
     <string name="scanner_copy_done">Servers copied to clipboard</string>
     <string name="scanner_name_prompt">New subscription name</string>
     <string name="scanner_name_default">Scanner • date</string>
+    <string name="scanner_preview_title">Stages that run automatically:</string>
+    <string name="scanner_preview_1">1. Auto-connect to the best primary-source server</string>
+    <string name="scanner_preview_2">2. Fetch configs from Telegram channels</string>
+    <string name="scanner_preview_3">3. Disconnect and test servers in parallel</string>
+    <string name="scanner_preview_4">4. Save healthy servers as a new subscription</string>
+    <string name="scanner_preview_hint">Just press \'Start scan\' once. The rest is automatic!</string>
     <string name="volume_fetch">Fetch volumes</string>
     <string name="volume_fetching">Fetching volumes…</string>
     <string name="volume_summary">%1$d volume-limited out of %2$d servers</string>

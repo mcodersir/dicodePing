@@ -114,7 +114,9 @@ class V160Rc2Tests(unittest.TestCase):
         # Custom-name input is wired.
         self.assertIn("self.scanner_name_edit", ui)
         # The volume-fetch button sends source_urls.
-        self.assertIn("VolumeFetchThread(self.servers, source_urls=source_urls)", ui)
+        # v1.6.0-rc.4: the worker now takes target_servers (source-scoped)
+        # instead of always self.servers.
+        self.assertIn("VolumeFetchThread(target_servers, source_urls=source_urls)", ui)
         # After a successful scan, the new source appears on the Servers page.
         self.assertIn("self.render_subscription_list()", ui)
         # The crawler module is wired (v1.6.0-rc.3 uses staged labels).

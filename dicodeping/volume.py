@@ -196,23 +196,37 @@ def parse_subscription_userinfo(header_value: str) -> SubscriptionQuota | None:
 
 
 def fetch_subscription_quota(url: str, *, timeout: float = 8.0) -> SubscriptionQuota | None:
-    """Issue a HEAD request to a subscription URL and parse the quota header.
+    """Issue a request to a subscription URL and parse the quota header.
 
     The request goes through the system's current proxy (which, during a
     scan, is the program's own VPN).  This is the *real* way to get the
     remaining-volume number that the user asked for.
+
+    We try HEAD first; if the server rejects HEAD (some subscription
+    providers only honour GET), we fall back to a tiny ranged GET so we
+    still get the headers without downloading the whole body.
     """
     if not url or not url.lower().startswith(("http://", "https://")):
         return None
-    try:
-        request = urllib.request.Request(url, method="HEAD")
-        request.add_header("User-Agent", "dicodePing-Scanner/1.6")
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            header_value = response.headers.get("Subscription-Userinfo") or ""
-        return parse_subscription_userinfo(header_value)
-    except Exception as exc:
-        LOGGER.debug("Subscription quota fetch failed for %s: %s", url, exc)
+
+    def _try(method: str, *, add_range: bool = False) -> str | None:
+        try:
+            request = urllib.request.Request(url, method=method)
+            request.add_header("User-Agent", "dicodePing-Scanner/1.6")
+            if add_range:
+                request.add_header("Range", "bytes=0-0")
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.headers.get("Subscription-Userinfo")
+        except Exception as exc:
+            LOGGER.debug("Subscription quota fetch (%s) failed for %s: %s", method, url, exc)
+            return None
+
+    header_value = _try("HEAD")
+    if not header_value:
+        header_value = _try("GET", add_range=True)
+    if not header_value:
         return None
+    return parse_subscription_userinfo(header_value)
 
 
 # --- Per-source quota cache ---------------------------------------------

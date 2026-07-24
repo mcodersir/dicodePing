@@ -56,7 +56,7 @@ from .protocols import blob_to_config, config_to_blob, set_display_name
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
-from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshThread
+from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshSubsetThread, RefreshThread
 from .xray import XrayManager, normalize_bypass_domains
 
 LOGGER = get_logger("ui")
@@ -1128,8 +1128,11 @@ class MainWindow(QMainWindow):
         self.server_scan_button = QPushButton(self.t("update_servers"))
         self.server_scan_button.setIcon(icon("search.svg"))
         self.server_scan_button.clicked.connect(self.start_scan)
-        self.server_volume_button = QPushButton(self.t("volume_fetch"))
+        self.server_volume_button = QPushButton()
         self.server_volume_button.setIcon(icon("speed.svg"))
+        self.server_volume_button.setIconSize(QSize(18, 18))
+        self.server_volume_button.setToolTip(self.t("volume_fetch"))
+        self.server_volume_button.setFixedWidth(44)
         self.server_volume_button.clicked.connect(self.start_volume_fetch)
         self.server_actions_layout.addWidget(self.manual_connect_button)
         self.server_actions_layout.addWidget(self.server_best_button)
@@ -1290,6 +1293,22 @@ class MainWindow(QMainWindow):
         action_layout = QVBoxLayout(action_card)
         action_layout.setContentsMargins(22, 20, 22, 20)
         action_layout.setSpacing(12)
+
+        # v1.6.0-rc.4: stage preview — show the user exactly what the
+        # single button will do, before they press it.  This replaces
+        # the old "connect first, then scan" two-step instruction.
+        preview_title = QLabel(self.t("scanner_preview_title"))
+        preview_title.setObjectName("sectionTitle")
+        action_layout.addWidget(preview_title)
+        for i in range(1, 5):
+            preview_line = QLabel(self.t(f"scanner_preview_{i}"))
+            preview_line.setObjectName("muted")
+            preview_line.setWordWrap(True)
+            action_layout.addWidget(preview_line)
+        preview_hint = QLabel(self.t("scanner_preview_hint"))
+        preview_hint.setStyleSheet("color:#6D8EFF;font-weight:700;")
+        preview_hint.setWordWrap(True)
+        action_layout.addWidget(preview_hint)
 
         # Primary action row: Start / Stop + ETA badge.
         action_top = QHBoxLayout()
@@ -1671,6 +1690,11 @@ class MainWindow(QMainWindow):
         Builds a ``source_id -> source_url`` map from the current sources
         so the worker can issue HEAD requests in parallel and read the
         real ``Subscription-Userinfo`` header for each subscription.
+
+        v1.6.0-rc.4: when a specific source tab is active (not "all"),
+        only fetch volumes for that source's servers — much faster and
+        avoids spamming every provider when the user only cares about
+        one sub.
         """
         from .workers import VolumeFetchThread
 
@@ -1678,19 +1702,27 @@ class MainWindow(QMainWindow):
             return
         if not self.servers:
             return
-        # Build source_id -> URL map from the normalised sources list.
-        source_urls: dict[str, str] = {}
-        for src in self.sources:
-            if src.url:
-                source_urls[src.id] = src.url
+        # v1.6.0-rc.4: source-scoped volume fetch.
+        if self.active_source_id and self.active_source_id != "all":
+            target_servers = [s for s in self.servers if s.source_id == self.active_source_id]
+            if not target_servers:
+                return
+            # Only fetch the URL for the active source.
+            active_src = next((src for src in self.sources if src.id == self.active_source_id), None)
+            source_urls: dict[str, str] = {}
+            if active_src and active_src.url:
+                source_urls[active_src.id] = active_src.url
+        else:
+            target_servers = list(self.servers)
+            source_urls = {src.id: src.url for src in self.sources if src.url}
         # Disable both buttons (scanner page + servers page).
         if hasattr(self, "scanner_volume_fetch_button"):
             self.scanner_volume_fetch_button.setEnabled(False)
             self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
         if hasattr(self, "server_volume_button"):
             self.server_volume_button.setEnabled(False)
-            self.server_volume_button.setText(self.t("volume_fetching"))
-        thread = VolumeFetchThread(self.servers, source_urls=source_urls)
+            # server_volume_button is icon-only; just disable it.
+        thread = VolumeFetchThread(target_servers, source_urls=source_urls)
         self.scanner_volume_thread = thread
         thread.finished_set.connect(self._volume_fetch_finished)
         thread.finished.connect(thread.deleteLater)
@@ -1703,7 +1735,7 @@ class MainWindow(QMainWindow):
             self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
         if hasattr(self, "server_volume_button"):
             self.server_volume_button.setEnabled(True)
-            self.server_volume_button.setText(self.t("volume_fetch"))
+            # server_volume_button is icon-only; no text to reset.
         try:
             for server in self.servers:
                 info = results.get(server.id)
@@ -2479,6 +2511,21 @@ class MainWindow(QMainWindow):
         if not self.servers:
             self.start_scan()
             return
+        # v1.6.0-rc.4: source-scoped refresh.  When the user has a
+        # specific source tab active (not "all"), only re-ping that
+        # source's servers.  This makes the ping button much faster on
+        # a single-sub tab.
+        if self.active_source_id and self.active_source_id != "all":
+            target_ids = [s.id for s in self.servers if s.source_id == self.active_source_id]
+            if target_ids:
+                self._busy_list_task = False
+                self.set_busy(True, self.t("refreshing_saved"))
+                worker = RefreshSubsetThread(self.service, target_ids, self.language)
+                worker.record_updated.connect(self.refresh_record_updated)
+                worker.success.connect(lambda servers: self.refresh_finished(list(servers), auto))
+                worker.failed.connect(self.task_failed)
+                self.bind_worker(worker)
+                return
         # Keep the current rows visible while their response times are updated.
         # Discovery still uses the skeleton, but a ping refresh is incremental.
         self._busy_list_task = False

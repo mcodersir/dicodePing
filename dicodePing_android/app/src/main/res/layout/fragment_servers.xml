@@ -123,12 +123,16 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/fetchVolumes"
                         style="@style/Widget.DicodePing.Button.OutlineCompact"
-                        android:layout_width="0dp"
+                        android:layout_width="44dp"
                         android:layout_height="match_parent"
                         android:layout_marginStart="6dp"
-                        android:layout_weight="1"
-                        android:text="@string/volume_fetch"
-                        app:icon="@drawable/ic_speed" />
+                        android:contentDescription="@string/volume_fetch"
+                        android:minWidth="44dp"
+                        android:padding="0dp"
+                        app:icon="@drawable/ic_speed"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"
+                        app:iconSize="20dp" />
                 </LinearLayout>
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/connectSelected"
