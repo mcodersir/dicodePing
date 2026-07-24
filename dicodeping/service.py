@@ -17,8 +17,14 @@ LOGGER = get_logger("service")
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
 
-MIN_TRUSTED_AUTO_PING_MS = 70
+MIN_TRUSTED_AUTO_PING_MS = 40
 MAX_TRUSTED_AUTO_PING_MS = 5_000
+# v1.6.0-rc.3: weight the failure history and recent-connection bonus
+# into the auto-selection sort key so the chosen server is not just the
+# lowest-ping one but also the most reliable one.
+FAILURE_PENALTY_MS = 80          # each failure adds this many ms to the effective ping
+RECENT_CONNECT_BONUS_MS = 30     # a server connected to in the last hour gets this discount
+UNKNOWN_COUNTRY_PENALTY_MS = 120 # servers with no resolved country are demoted
 _UNKNOWN_COUNTRIES = {"", "unknown", "نامشخص", "n/a", "-"}
 _RESTRICTED_COUNTRY_CODES = {"IR"}
 _RESTRICTED_COUNTRY_NAMES = {"iran", "islamic republic of iran", "ایران", "جمهوری اسلامی ایران"}
@@ -56,11 +62,44 @@ def _is_auto_candidate(server: ServerRecord) -> bool:
     )
 
 
+def _effective_ping_ms(server: ServerRecord) -> int:
+    """Compute an effective ping that accounts for failure history and
+    recent-connection bonus.
+
+    The raw ping is adjusted by:
+      + FAILURE_PENALTY_MS per recorded failure (rewards reliability)
+      - RECENT_CONNECT_BONUS_MS if the server was connected to recently
+      + UNKNOWN_COUNTRY_PENALTY_MS if the country is not resolved
+
+    The result is clamped to a non-negative int.  Servers with no ping
+    at all return a very large number so they sort to the bottom.
+    """
+    if server.ping_ms is None:
+        return 999_999
+    effective = int(server.ping_ms)
+    effective += min(5, server.failures) * FAILURE_PENALTY_MS
+    if server.last_connected:
+        try:
+            from datetime import datetime, timezone
+            # last_connected is ISO format; parse and compare to one hour ago.
+            last = datetime.fromisoformat(server.last_connected)
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            if (now - last).total_seconds() < 3600:
+                effective -= RECENT_CONNECT_BONUS_MS
+        except Exception:
+            pass
+    if not _has_trusted_location(server):
+        effective += UNKNOWN_COUNTRY_PENALTY_MS
+    return max(0, effective)
+
+
 def _sort_key(server: ServerRecord) -> tuple[int, int, int, int, str]:
     return (
         0 if server.favorite else 1,
         0 if _is_auto_candidate(server) else 1,
-        server.ping_ms if server.ping_ms is not None else 999999,
+        _effective_ping_ms(server),
         server.source_order,
         server.name.casefold(),
     )

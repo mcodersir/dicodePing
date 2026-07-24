@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import threading
 import time
 
 from PySide6.QtCore import QThread, Signal
@@ -193,14 +194,26 @@ class RefreshThread(TaskThread):
 
 
 class ScannerThread(QThread):
-    """Background worker that runs the one-click scanner.
+    """Background worker that runs the staged one-click scanner.
 
-    Emits ``stage`` with a localized status string, ``progress`` with the
-    (current, total) probe count, and ``success`` with the resulting
-    ``ScannerResult``.  On failure emits ``failed`` with a localized error.
+    Signals:
+      stage — current stage status text.
+      stage_change — (stage_number, stage_label) when the stage advances.
+      progress — (current, total) probe count.
+      alive_count — emitted whenever the live healthy-server count changes.
+      eta — formatted ETA string ("45s", "1:30", "—" when unknown).
+      success — ScannerResult on completion.
+      failed — localized error message on failure.
+
+    The caller can stop the scan at any point by calling ``requestStop``.
+    Whatever servers have already been probed and responded are saved
+    immediately.
     """
     stage = Signal(str)
+    stage_change = Signal(int, str)
     progress = Signal(int, int)
+    alive_count = Signal(int)
+    eta = Signal(str)
     success = Signal(object)
     failed = Signal(str)
 
@@ -209,11 +222,26 @@ class ScannerThread(QThread):
         store,
         language: str = "fa",
         custom_name: str | None = None,
+        rank1_limit: int = 3,
+        rank2_limit: int = 3,
+        connect_callback=None,
+        disconnect_callback=None,
+        bootstrap_server_id: str | None = None,
     ) -> None:
         super().__init__()
         self.store = store
         self.language = language
         self.custom_name = custom_name
+        self.rank1_limit = rank1_limit
+        self.rank2_limit = rank2_limit
+        self.connect_callback = connect_callback
+        self.disconnect_callback = disconnect_callback
+        self.bootstrap_server_id = bootstrap_server_id
+        self._stop_event = threading.Event()
+
+    def requestStop(self) -> None:  # noqa: N802 — Qt-style
+        """Ask the scanner to stop at the next safe point and save."""
+        self._stop_event.set()
 
     def run(self) -> None:
         try:
@@ -222,9 +250,18 @@ class ScannerThread(QThread):
                 store=self.store,
                 language=self.language,
                 custom_name=self.custom_name,
+                rank1_limit=self.rank1_limit,
+                rank2_limit=self.rank2_limit,
                 stage=self.stage.emit,
+                stage_change=self.stage_change.emit,
                 crawl_progress=lambda _d, _t: None,
                 probe_progress=self.progress.emit,
+                eta_callback=self.eta.emit,
+                alive_count_callback=self.alive_count.emit,
+                stop_event=self._stop_event,
+                connect_callback=self.connect_callback,
+                disconnect_callback=self.disconnect_callback,
+                bootstrap_server_id=self.bootstrap_server_id,
             )
             self.success.emit(result)
         except Exception as exc:

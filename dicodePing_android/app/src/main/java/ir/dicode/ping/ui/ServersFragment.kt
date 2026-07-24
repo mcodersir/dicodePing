@@ -21,7 +21,9 @@ import ir.dicode.ping.databinding.FragmentServersBinding
 import ir.dicode.ping.vpn.VpnStateStore
 import ir.dicode.ping.vpn.VpnStatus
 import ir.dicode.ping.data.ServerPolicy
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ServersFragment : Fragment() {
     private var _binding: FragmentServersBinding? = null
@@ -73,6 +75,7 @@ class ServersFragment : Fragment() {
         binding.connectSelected.setOnClickListener {
             (activity as? ConnectionHost)?.connect(vm.repo.selectedServer())
         }
+        binding.fetchVolumes.setOnClickListener { startVolumeFetch() }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -183,6 +186,51 @@ class ServersFragment : Fragment() {
     private fun canConnectSelected(locked: Boolean): Boolean {
         val selected = vm.repo.selectedServer()
         return !locked && !vm.repo.progress.value.active && selected != null && !ServerPolicy.isRestricted(selected)
+    }
+
+    /**
+     * Refresh real volume info for every saved server in one shot
+     * (v1.6.0-rc.3).  Issues HEAD requests in parallel for every
+     * enabled subscription URL and parses the ``Subscription-Userinfo``
+     * header.  Reports the count via Snackbar.
+     */
+    private fun startVolumeFetch() {
+        val servers = vm.repo.servers.value
+        if (servers.isEmpty()) {
+            Snackbar.make(binding.root, R.string.no_server, Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        binding.fetchVolumes.isEnabled = false
+        binding.fetchVolumes.text = getString(R.string.volume_fetching)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val sources = vm.repo.sources.value
+            val sourceUrls: Map<String, String> = sources.associate { it.id to it.url }.filterValues { it.isNotBlank() }
+            val client = ir.dicode.ping.net.SubscriptionClient()
+
+            val quotas = withContext(Dispatchers.IO) {
+                val uniqueUrls = sourceUrls.values.toSet()
+                uniqueUrls.mapNotNull { url ->
+                    runCatching {
+                        val header = client.fetchUserinfoHeader(url)
+                        url to (ir.dicode.ping.net.VolumeDetector.parseUserinfo(header) ?: return@runCatching null)
+                    }.getOrNull()
+                }.toMap()
+            }
+
+            val withQuota = servers.count { server ->
+                val url = sourceUrls[server.sourceId] ?: return@count false
+                quotas[url] != null
+            }
+            val withRemark = servers.count { ir.dicode.ping.net.VolumeDetector.detectFromServer(it).isVolume }
+
+            binding.fetchVolumes.isEnabled = true
+            binding.fetchVolumes.text = getString(R.string.volume_fetch)
+            val msg = getString(R.string.volume_summary, withQuota + withRemark, servers.size)
+            Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
+            // Trigger a re-render so the inline quality/volume badges refresh.
+            adapter.notifyItemRangeChanged(0, adapter.itemCount)
+        }
     }
 
     override fun onDestroyView() {
