@@ -89,6 +89,23 @@
                 android:textDirection="ltr"
                 android:textSize="9sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/qualityVolume"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_ping_neutral"
+                android:gravity="center"
+                android:minWidth="56dp"
+                android:paddingStart="7dp"
+                android:paddingEnd="7dp"
+                android:text="—"
+                android:textColor="@color/text_secondary"
+                android:textDirection="ltr"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
         <View

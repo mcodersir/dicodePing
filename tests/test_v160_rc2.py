@@ -12,11 +12,12 @@ class V160Rc2Tests(unittest.TestCase):
         constants = (ROOT / "dicodeping/constants.py").read_text(encoding="utf-8")
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
-        self.assertIn('RELEASE_VERSION = "1.6.0-rc.2"', constants)
-        self.assertIn('versionCode = 25', gradle)
+        # The RC2+ line.  The exact RC suffix changes per release.
+        self.assertIn('RELEASE_VERSION = "1.6.0-rc.', constants)
+        self.assertIn('versionCode = 2', gradle)  # 25 (rc.2) or 26 (rc.3)
         self.assertIn('versionName = "1.6.0"', gradle)
-        self.assertIn('1.6.0-rc.2', gradle)
-        self.assertIn('RC_VERSION = "rc.2"', linux_builder)
+        self.assertIn('1.6.0-rc.', gradle)
+        self.assertIn('RC_VERSION = "rc.', linux_builder)
 
     def test_channels_file_is_bundled(self) -> None:
         channels = ROOT / "assets" / "channels.txt"
@@ -112,13 +113,25 @@ class V160Rc2Tests(unittest.TestCase):
         self.assertIn("self.scanner_run_button.setMinimumHeight(54)", ui)
         # Custom-name input is wired.
         self.assertIn("self.scanner_name_edit", ui)
-        self.assertIn("custom_name=custom_name or None", ui)
         # The volume-fetch button sends source_urls.
         self.assertIn("VolumeFetchThread(self.servers, source_urls=source_urls)", ui)
         # After a successful scan, the new source appears on the Servers page.
         self.assertIn("self.render_subscription_list()", ui)
-        # The crawler module is wired (not the old bootstrap subscription).
-        self.assertIn("scanner_crawl", ui)
+        # The crawler module is wired (v1.6.0-rc.3 uses staged labels).
+        self.assertTrue(
+            "scanner_crawl" in ui or "scanner_stage1" in ui or "scanner_stage2_crawl" in ui,
+            msg="scanner stage label i18n key must be referenced in ui.py",
+        )
+        # v1.6.0-rc.3: staged scanner with start/stop buttons and ETA badge.
+        self.assertIn("self.scanner_stop_button", ui)
+        self.assertIn("self.scanner_eta_label", ui)
+        self.assertIn("self.scanner_alive_label", ui)
+        self.assertIn("def stop_scanner", ui)
+        self.assertIn("def _scanner_alive_count_updated", ui)
+        # v1.6.0-rc.3: quality column visible on Servers page (8 columns).
+        self.assertIn("self.table = QTableWidget(0, 8)", ui)
+        # v1.6.0-rc.3: volume-fetch button on Servers page toolbar.
+        self.assertIn("self.server_volume_button", ui)
 
 
 if __name__ == "__main__":

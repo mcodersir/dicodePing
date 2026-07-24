@@ -15,6 +15,8 @@ import ir.dicode.ping.R
 import ir.dicode.ping.data.ServerRecord
 import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.databinding.ItemServerBinding
+import ir.dicode.ping.net.QualityRating
+import ir.dicode.ping.net.VolumeDetector
 import ir.dicode.ping.util.PublicServerLabel
 import java.util.Locale
 
@@ -64,6 +66,7 @@ class ServerAdapter(
             network.visibility = View.GONE
 
             bindPing(this, server)
+            bindQualityVolume(this, server)
             selectedBadge.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
             root.strokeWidth = dp(root, if (isSelected) 2 else 1)
             root.strokeColor = ContextCompat.getColor(
@@ -148,6 +151,45 @@ class ServerAdapter(
         }
     }
 
+    /**
+     * Bind the inline quality + volume badge (v1.6.0-rc.3).
+     *
+     * Shows the quality bucket word ("عالی"/"خوب"/"متوسط"/"ضعیف") and,
+     * if a volume label is available, the volume label below it.  The
+     * badge background matches the quality bucket colour so the row
+     * reads as a unit.
+     */
+    private fun bindQualityVolume(binding: ItemServerBinding, server: ServerRecord) {
+        val context = binding.root.context
+        val rating = QualityRating.rate(server.pingMs)
+        val volumeInfo = VolumeDetector.detectFromServer(server)
+        val parts = mutableListOf<String>()
+        parts.add(rating.bucket.labelFa)
+        val volumeLabel = volumeInfo.label
+        if (volumeLabel.isNotBlank() && volumeLabel != "—") {
+            parts.add(volumeLabel)
+        }
+        if (parts.size == 1 && rating.bucket == QualityRating.Bucket.POOR && server.pingMs == null) {
+            // No ping yet — hide the badge entirely.
+            binding.qualityVolume.visibility = View.GONE
+            return
+        }
+        binding.qualityVolume.visibility = View.VISIBLE
+        binding.qualityVolume.text = parts.joinToString("\n")
+        val colorRes = when (rating.bucket) {
+            QualityRating.Bucket.EXCELLENT -> R.color.success
+            QualityRating.Bucket.GOOD -> R.color.success
+            QualityRating.Bucket.FAIR -> R.color.warning
+            QualityRating.Bucket.POOR -> R.color.danger
+        }
+        val color = ContextCompat.getColor(context, colorRes)
+        binding.qualityVolume.setTextColor(color)
+        binding.qualityVolume.background = GradientDrawable().apply {
+            cornerRadius = dp(binding.qualityVolume, 12).toFloat()
+            setColor(ColorUtils.setAlphaComponent(color, 28))
+        }
+    }
+
     override fun onViewRecycled(holder: Holder) {
         holder.binding.ping.clearAnimation()
         super.onViewRecycled(holder)
@@ -163,3 +205,4 @@ class ServerAdapter(
         }.joinToString("")
     }
 }
+

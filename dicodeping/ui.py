@@ -1128,9 +1128,13 @@ class MainWindow(QMainWindow):
         self.server_scan_button = QPushButton(self.t("update_servers"))
         self.server_scan_button.setIcon(icon("search.svg"))
         self.server_scan_button.clicked.connect(self.start_scan)
+        self.server_volume_button = QPushButton(self.t("volume_fetch"))
+        self.server_volume_button.setIcon(icon("speed.svg"))
+        self.server_volume_button.clicked.connect(self.start_volume_fetch)
         self.server_actions_layout.addWidget(self.manual_connect_button)
         self.server_actions_layout.addWidget(self.server_best_button)
         self.server_actions_layout.addWidget(self.server_refresh_button)
+        self.server_actions_layout.addWidget(self.server_volume_button)
         self.server_actions_layout.addWidget(self.server_scan_button)
         self.server_header_layout.addLayout(self.server_actions_layout)
         layout.addLayout(self.server_header_layout)
@@ -1187,13 +1191,15 @@ class MainWindow(QMainWindow):
         table_page = QWidget()
         table_layout = QVBoxLayout(table_page)
         table_layout.setContentsMargins(0, 0, 0, 0)
-        self.table = QTableWidget(0, 7)
+        # 8 columns: country | server | location | ip | ping | quality | pin | action
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels([
             self.t("country"),
             self.t("server"),
             self.t("location"),
             self.t("ip"),
             self.t("ping"),
+            self.t("quality_label"),
             self.t("pin"),
             self.t("action"),
         ])
@@ -1210,6 +1216,7 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
         self.table.cellDoubleClicked.connect(self._server_double_clicked)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_server_menu)
@@ -1247,24 +1254,23 @@ class MainWindow(QMainWindow):
         return page
 
     def _build_scanner_page(self) -> QWidget:
-        """Minimal one-click scanner page (v1.6.0-rc.2).
+        """Staged one-click scanner page (v1.6.0-rc.3).
 
-        Layout:
-          ┌──────────────────────────────────────────┐
-          │  title + subtitle                        │
-          ├──────────────────────────────────────────┤
-          │  ┌────────────────────────────────────┐  │
-          │  │       [   اسکن سریع   ]            │  │
-          │  │   name input (optional)            │  │
-          │  │   status line                      │  │
-          │  │   ▰▰▰▱▱ progress                   │  │
-          │  └────────────────────────────────────┘  │
-          │                                          │
-          │  history card (last scans)               │
-          │  [copy all] [copy base64]                │
-          └──────────────────────────────────────────┘
+        Three-stage flow triggered by a single "Start scan" button:
 
-        No settings exposed.  The single primary button does everything.
+          Stage 1 — Connect
+            Pick the best server from the primary source and start a
+            real TUN connection so the crawler can reach t.me.
+
+          Stage 2 — Crawl + Probe
+            Crawl the bundled Telegram channels in parallel.  When the
+            crawl is done, tear down the TUN and real-probe every
+            unique config in parallel.  The user can press "Stop and
+            save" at any point during this stage.
+
+          Stage 3 — Save
+            Save the survivors as a new user source whose name the
+            user typed before pressing Start.
         """
         from .workers import ScannerThread, VolumeFetchThread
         from .scanner import list_scanner_subs
@@ -1283,16 +1289,27 @@ class MainWindow(QMainWindow):
         action_card.setObjectName("heroCard")
         action_layout = QVBoxLayout(action_card)
         action_layout.setContentsMargins(22, 20, 22, 20)
-        action_layout.setSpacing(14)
+        action_layout.setSpacing(12)
 
-        # Big primary button — full width.
-        self.scanner_run_button = QPushButton(self.t("scanner_run"))
+        # Primary action row: Start / Stop + ETA badge.
+        action_top = QHBoxLayout()
+        action_top.setSpacing(10)
+        self.scanner_run_button = QPushButton(self.t("scanner_start"))
         self.scanner_run_button.setProperty("kind", "primary")
         self.scanner_run_button.setIcon(tinted_icon("bolt.svg"))
         self.scanner_run_button.setIconSize(QSize(20, 20))
         self.scanner_run_button.setMinimumHeight(54)
         self.scanner_run_button.clicked.connect(self.start_scanner)
-        action_layout.addWidget(self.scanner_run_button)
+        action_top.addWidget(self.scanner_run_button, 1)
+
+        self.scanner_stop_button = QPushButton(self.t("scanner_stop"))
+        self.scanner_stop_button.setProperty("kind", "danger")
+        self.scanner_stop_button.setIcon(icon("close.svg"))
+        self.scanner_stop_button.setMinimumHeight(54)
+        self.scanner_stop_button.setVisible(False)
+        self.scanner_stop_button.clicked.connect(self.stop_scanner)
+        action_top.addWidget(self.scanner_stop_button)
+        action_layout.addLayout(action_top)
 
         # Optional custom sub name input.
         name_row = QHBoxLayout()
@@ -1308,11 +1325,49 @@ class MainWindow(QMainWindow):
         name_row.addWidget(self.scanner_name_edit, 1)
         action_layout.addLayout(name_row)
 
-        # Single-line status + slim progress bar.
+        # Stage indicator (3 dots / labels).
+        stage_row = QHBoxLayout()
+        stage_row.setSpacing(10)
+        self.scanner_stage_labels: list[QLabel] = []
+        for i in range(1, 4):
+            dot = QLabel(f"  {i}  ")
+            dot.setObjectName("scannerStageDot")
+            dot.setAlignment(Qt.AlignCenter)
+            dot.setStyleSheet(
+                "background:#1B2430;color:#8F9CAD;border-radius:10px;"
+                "min-width:20px;max-width:20px;min-height:20px;max-height:20px;"
+                "font-weight:700;"
+            )
+            stage_row.addWidget(dot)
+            self.scanner_stage_labels.append(dot)
+        stage_row.addStretch()
+        # Live "alive count" badge.
+        self.scanner_alive_label = QLabel("")
+        self.scanner_alive_label.setObjectName("muted")
+        self.scanner_alive_label.setStyleSheet(
+            "background:#10271D;color:#4FD08A;border-radius:10px;"
+            "padding:3px 10px;font-weight:700;"
+        )
+        self.scanner_alive_label.setVisible(False)
+        stage_row.addWidget(self.scanner_alive_label)
+        # ETA badge.
+        self.scanner_eta_label = QLabel("")
+        self.scanner_eta_label.setObjectName("muted")
+        self.scanner_eta_label.setStyleSheet(
+            "background:#19233E;color:#6D8EFF;border-radius:10px;"
+            "padding:3px 10px;font-weight:700;"
+        )
+        self.scanner_eta_label.setVisible(False)
+        stage_row.addWidget(self.scanner_eta_label)
+        action_layout.addLayout(stage_row)
+
+        # Status line.
         self.scanner_stage_label = QLabel(self.t("ready"))
         self.scanner_stage_label.setObjectName("muted")
+        self.scanner_stage_label.setWordWrap(True)
         action_layout.addWidget(self.scanner_stage_label)
 
+        # Slim progress bar.
         self.scanner_progress = QProgressBar()
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
@@ -1376,40 +1431,112 @@ class MainWindow(QMainWindow):
         self.scanner_latest_sub: str = ""
         self.scanner_volume_thread: VolumeFetchThread | None = None
         self._volume_auto_disconnect = VolumeAutoDisconnect(self._volume_auto_disconnect_fire)
+        self._scanner_alive_count = 0
 
         self._refresh_scanner_history()
         return page
 
+    def _set_scanner_stage_dot(self, stage_number: int) -> None:
+        """Highlight the given stage dot (1, 2, or 3)."""
+        for i, dot in enumerate(self.scanner_stage_labels, start=1):
+            if i == stage_number:
+                dot.setStyleSheet(
+                    "background:#6D8EFF;color:#FFFFFF;border-radius:10px;"
+                    "min-width:20px;max-width:20px;min-height:20px;max-height:20px;"
+                    "font-weight:700;"
+                )
+            elif i < stage_number:
+                dot.setStyleSheet(
+                    "background:#10271D;color:#4FD08A;border-radius:10px;"
+                    "min-width:20px;max-width:20px;min-height:20px;max-height:20px;"
+                    "font-weight:700;"
+                )
+            else:
+                dot.setStyleSheet(
+                    "background:#1B2430;color:#8F9CAD;border-radius:10px;"
+                    "min-width:20px;max-width:20px;min-height:20px;max-height:20px;"
+                    "font-weight:700;"
+                )
+
     def start_scanner(self) -> None:
-        """Kick off a one-click scan in the background."""
+        """Kick off the staged scan in the background."""
         from .workers import ScannerThread
 
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
             return
-        # Optional custom name for the new sub.
         custom_name = self.scanner_name_edit.text().strip() if hasattr(self, "scanner_name_edit") else ""
-        self.scanner_run_button.setEnabled(False)
-        self.scanner_run_button.setText(self.t("scanner_running"))
+        # Pull the per-channel limits from settings.
+        rank1_limit = int(self.settings.get("scanner_rank1_limit", 3))
+        rank2_limit = int(self.settings.get("scanner_rank2_limit", 3))
+        # Toggle buttons: hide Start, show Stop.
+        self.scanner_run_button.setVisible(False)
+        self.scanner_stop_button.setVisible(True)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
-        self.scanner_stage_label.setText(self.t("scanner_crawl"))
+        self.scanner_stage_label.setText(self.t("scanner_stage1"))
         self.scanner_result_label.setText("")
+        self.scanner_eta_label.setVisible(True)
+        self.scanner_eta_label.setText(self.t("eta_label", eta="—"))
+        self.scanner_alive_label.setVisible(False)
+        self._scanner_alive_count = 0
+        self._set_scanner_stage_dot(1)
+
+        # If we are already connected to a server, skip Stage 1.
+        bootstrap_server_id = self.connected_id or None
 
         thread = ScannerThread(
             self.store,
             language=self.language,
             custom_name=custom_name or None,
+            rank1_limit=rank1_limit,
+            rank2_limit=rank2_limit,
+            connect_callback=self._scanner_connect_bootstrap,
+            disconnect_callback=self._scanner_disconnect_bootstrap,
+            bootstrap_server_id=bootstrap_server_id,
         )
         self.scanner_thread = thread
         thread.stage.connect(self._scanner_stage_updated)
+        thread.stage_change.connect(self._scanner_stage_changed)
         thread.progress.connect(self._scanner_progress_updated)
+        thread.eta.connect(self._scanner_eta_updated)
+        thread.alive_count.connect(self._scanner_alive_count_updated)
         thread.success.connect(self._scanner_succeeded)
         thread.failed.connect(self._scanner_failed)
         thread.finished.connect(thread.deleteLater)
         thread.start()
 
+    def stop_scanner(self) -> None:
+        """Ask the running scanner to stop at the next safe point."""
+        if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            self.scanner_thread.requestStop()
+            self.scanner_stop_button.setEnabled(False)
+            self.scanner_stop_button.setText(self.t("busy_wait"))
+
+    def _scanner_connect_bootstrap(self, server_id: str) -> None:
+        """UI-thread callback: connect to the chosen bootstrap server."""
+        try:
+            self.connect_by_id(server_id)
+        except Exception:
+            LOGGER.exception("Scanner: bootstrap connect failed")
+
+    def _scanner_disconnect_bootstrap(self) -> None:
+        """UI-thread callback: tear down the bootstrap TUN connection."""
+        try:
+            if self.manager.connected:
+                self.disconnect(show_message=False)
+        except Exception:
+            LOGGER.exception("Scanner: bootstrap disconnect failed")
+
     def _scanner_stage_updated(self, text: str) -> None:
         self.scanner_stage_label.setText(text)
+
+    def _scanner_stage_changed(self, stage_number: int, _label: str) -> None:
+        self._set_scanner_stage_dot(stage_number)
+        if stage_number >= 2:
+            self.scanner_alive_label.setVisible(True)
+            self.scanner_alive_label.setText(
+                self.t("scanner_alive_count", count=self._scanner_alive_count)
+            )
 
     def _scanner_progress_updated(self, current: int, total: int) -> None:
         if total <= 0:
@@ -1418,29 +1545,59 @@ class MainWindow(QMainWindow):
         self.scanner_progress.setRange(0, 100)
         ratio = max(0.0, min(1.0, current / total))
         self.scanner_progress.setValue(int(round(ratio * 100)))
+        # Live alive count: we approximate from the current progress by
+        # polling the scanner thread's internal state via a custom
+        # attribute.  For simplicity we just keep the last value set by
+        # the scanner thread via the ``alive_count`` signal (if we add
+        # one).  For now, leave the count alone — the success message
+        # will give the final number.
+        if self.scanner_alive_label.isVisible():
+            self.scanner_alive_label.setText(
+                self.t("scanner_alive_count", count=self._scanner_alive_count)
+            )
+
+    def _scanner_eta_updated(self, eta_text: str) -> None:
+        self.scanner_eta_label.setText(self.t("eta_label", eta=eta_text))
+
+    def _scanner_alive_count_updated(self, count: int) -> None:
+        self._scanner_alive_count = count
+        if self.scanner_alive_label.isVisible():
+            self.scanner_alive_label.setText(self.t("scanner_alive_count", count=count))
 
     def _scanner_succeeded(self, result) -> None:
+        self.scanner_run_button.setVisible(True)
         self.scanner_run_button.setEnabled(True)
-        self.scanner_run_button.setText(self.t("scanner_run"))
+        self.scanner_run_button.setText(self.t("scanner_start"))
+        self.scanner_stop_button.setVisible(False)
+        self.scanner_stop_button.setEnabled(True)
+        self.scanner_stop_button.setText(self.t("scanner_stop"))
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(100)
         duration = getattr(result, "duration_seconds", 0.0)
         alive = len(getattr(result, "servers", []))
         total = getattr(result, "downloaded", 0)
+        stopped_early = bool(getattr(result, "stopped_early", False))
+        self.scanner_eta_label.setVisible(False)
+        self.scanner_alive_label.setVisible(False)
+        self._set_scanner_stage_dot(3)
         self.scanner_stage_label.setText(self.t("scanner_done"))
-        self.scanner_result_label.setText(
-            self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
-        )
+        if stopped_early:
+            self.scanner_result_label.setText(
+                self.t("scanner_stopped_early")
+                + "  •  "
+                + self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
+            )
+        else:
+            self.scanner_result_label.setText(
+                self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
+            )
         self.scanner_latest_sub = getattr(result, "sub_name", "") or ""
-        # Re-normalise sources so the new scanner sub appears as a tab on
-        # the Servers page immediately.
         try:
             self.sources = normalize_sources(self.settings, self.language)
             self.settings["sources"] = serialize_sources(self.sources)
         except Exception:
             LOGGER.exception("Scanner: failed to re-normalise sources after scan")
         self._refresh_scanner_history()
-        # Make sure the new servers show up on the main servers page too.
         try:
             self.servers = self.store.load_servers()
             self.render_servers()
@@ -1449,10 +1606,16 @@ class MainWindow(QMainWindow):
             LOGGER.exception("Scanner: failed to refresh server list after scan")
 
     def _scanner_failed(self, message: str) -> None:
+        self.scanner_run_button.setVisible(True)
         self.scanner_run_button.setEnabled(True)
-        self.scanner_run_button.setText(self.t("scanner_run"))
+        self.scanner_run_button.setText(self.t("scanner_start"))
+        self.scanner_stop_button.setVisible(False)
+        self.scanner_stop_button.setEnabled(True)
+        self.scanner_stop_button.setText(self.t("scanner_stop"))
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
+        self.scanner_eta_label.setVisible(False)
+        self.scanner_alive_label.setVisible(False)
         self.scanner_stage_label.setText(self.t("operation_failed"))
         self.scanner_result_label.setText(message)
 
@@ -1520,8 +1683,13 @@ class MainWindow(QMainWindow):
         for src in self.sources:
             if src.url:
                 source_urls[src.id] = src.url
-        self.scanner_volume_fetch_button.setEnabled(False)
-        self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
+        # Disable both buttons (scanner page + servers page).
+        if hasattr(self, "scanner_volume_fetch_button"):
+            self.scanner_volume_fetch_button.setEnabled(False)
+            self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
+        if hasattr(self, "server_volume_button"):
+            self.server_volume_button.setEnabled(False)
+            self.server_volume_button.setText(self.t("volume_fetching"))
         thread = VolumeFetchThread(self.servers, source_urls=source_urls)
         self.scanner_volume_thread = thread
         thread.finished_set.connect(self._volume_fetch_finished)
@@ -1529,15 +1697,21 @@ class MainWindow(QMainWindow):
         thread.start()
 
     def _volume_fetch_finished(self, results: dict) -> None:
-        self.scanner_volume_fetch_button.setEnabled(True)
-        self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
+        # Reset both volume-fetch buttons (scanner page + servers page).
+        if hasattr(self, "scanner_volume_fetch_button"):
+            self.scanner_volume_fetch_button.setEnabled(True)
+            self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
+        if hasattr(self, "server_volume_button"):
+            self.server_volume_button.setEnabled(True)
+            self.server_volume_button.setText(self.t("volume_fetch"))
         try:
             for server in self.servers:
                 info = results.get(server.id)
                 if info is not None:
                     setattr(server, "_volume_label", info.label)
             self.render_servers()
-            self.scanner_result_label.setText(self.t("volume_real_fetched"))
+            if hasattr(self, "scanner_result_label"):
+                self.scanner_result_label.setText(self.t("volume_real_fetched"))
         except Exception:
             LOGGER.exception("Volume fetch result merge failed")
 
@@ -2532,17 +2706,34 @@ class MainWindow(QMainWindow):
                 f"{self.t('scanner_volume_title')}: {volume_label}"
             )
             self.table.setItem(row, 4, ping_item)
+
+            # Quality + volume info cell (v1.6.0-rc.3): show the bucket
+            # word and the volume label inline, so the user does not need
+            # to hover to see them.
+            info_text = rating.label_fa
+            if volume_label and volume_label != "—":
+                info_text += f"\n{volume_label}"
+            info_item = QTableWidgetItem(info_text)
+            info_item.setTextAlignment(Qt.AlignCenter)
+            # Match the ping cell colour so the row reads as a unit.
+            info_item.setBackground(ping_brush)
+            info_item.setToolTip(
+                f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
+                f"{self.t('scanner_volume_title')}: {volume_label}"
+            )
+            self.table.setItem(row, 5, info_item)
+
             pin_button = QPushButton()
             pin_button.setIcon(icon("pin-filled.svg" if server.favorite else "pin.svg"))
             pin_button.setIconSize(QSize(18, 18))
             pin_button.setObjectName("pinButton")
             pin_button.setToolTip(self.t("unpin_server") if server.favorite else self.t("pin_server"))
             pin_button.clicked.connect(lambda _=False, sid=server.id: self.toggle_favorite(sid))
-            self.table.setCellWidget(row, 5, pin_button)
+            self.table.setCellWidget(row, 6, pin_button)
 
             restricted = self.service.is_restricted_location(server)
             if restricted:
-                for disabled_item in (name_item, location_item, ping_item):
+                for disabled_item in (name_item, location_item, ping_item, info_item):
                     disabled_item.setFlags(disabled_item.flags() & ~Qt.ItemIsEnabled)
                 flag.setEnabled(False)
                 pin_button.setEnabled(False)
@@ -2558,7 +2749,7 @@ class MainWindow(QMainWindow):
             if restricted:
                 connect.setToolTip(self.t("restricted_location_hint"))
             connect.clicked.connect(lambda _=False, sid=server.id: self.connect_by_id(sid))
-            self.table.setCellWidget(row, 6, connect)
+            self.table.setCellWidget(row, 7, connect)
             self.table.setRowHeight(row, 64)
         if selected_id:
             self._restoring_server_selection = True

@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 25", gradle)
+        self.assertIn("versionCode = 26", gradle)
         self.assertIn('versionName = "1.6.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -116,7 +116,7 @@ class MaintenanceTests(unittest.TestCase):
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
         self.assertNotIn("server.protocol", ui)
-        self.assertIn("self.table = QTableWidget(0, 7)", ui)
+        self.assertIn("self.table = QTableWidget(0, 8)", ui)
 
     def test_rc8_desktop_bug_fixes_are_wired(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")

@@ -116,10 +116,19 @@
                         style="@style/Widget.DicodePing.Button.OutlineCompact"
                         android:layout_width="0dp"
                         android:layout_height="match_parent"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         android:layout_weight="1"
                         android:text="@string/test_real"
                         app:icon="@drawable/ic_bolt" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/fetchVolumes"
+                        style="@style/Widget.DicodePing.Button.OutlineCompact"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:text="@string/volume_fetch"
+                        app:icon="@drawable/ic_speed" />
                 </LinearLayout>
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/connectSelected"

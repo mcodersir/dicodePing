@@ -71,6 +71,14 @@ class StartupSplash(QWidget):
         self.progress.setTextVisible(False)
         self.progress.setValue(4)
         layout.addWidget(self.progress)
+        # ETA badge (v1.6.0-rc.3): shows an estimated time-to-completion
+        # under the progress bar.  Initially hidden.
+        self.eta_label = QLabel("")
+        self.eta_label.setObjectName("muted")
+        self.eta_label.setStyleSheet("font-size:11px;color:#6D8EFF;background:#19233E;border-radius:8px;padding:2px 8px;max-width:120px;")
+        self.eta_label.setAlignment(Qt.AlignCenter)
+        self.eta_label.setVisible(False)
+        layout.addWidget(self.eta_label)
 
     def set_stage(self, value: int, fa: str, en: str, language: str) -> None:
         self.progress.setRange(0, 100)
@@ -80,6 +88,18 @@ class StartupSplash(QWidget):
     def set_indeterminate(self, fa: str, en: str, language: str) -> None:
         self.progress.setRange(0, 0)
         self.status.setText(en if language == "en" else fa)
+
+    def set_eta(self, text: str, language: str) -> None:
+        """Show or hide the ETA badge.
+
+        Pass an empty string to hide the badge.
+        """
+        if not text:
+            self.eta_label.setVisible(False)
+            return
+        self.eta_label.setVisible(True)
+        prefix = "تخمین" if language != "en" else "ETA"
+        self.eta_label.setText(f"{prefix}: {text}")
 
 
 class StartupPrepareThread(QThread):
