@@ -1128,16 +1128,9 @@ class MainWindow(QMainWindow):
         self.server_scan_button = QPushButton(self.t("update_servers"))
         self.server_scan_button.setIcon(icon("search.svg"))
         self.server_scan_button.clicked.connect(self.start_scan)
-        self.server_volume_button = QPushButton()
-        self.server_volume_button.setIcon(icon("speed.svg"))
-        self.server_volume_button.setIconSize(QSize(18, 18))
-        self.server_volume_button.setToolTip(self.t("volume_fetch"))
-        self.server_volume_button.setFixedWidth(44)
-        self.server_volume_button.clicked.connect(self.start_volume_fetch)
         self.server_actions_layout.addWidget(self.manual_connect_button)
         self.server_actions_layout.addWidget(self.server_best_button)
         self.server_actions_layout.addWidget(self.server_refresh_button)
-        self.server_actions_layout.addWidget(self.server_volume_button)
         self.server_actions_layout.addWidget(self.server_scan_button)
         self.server_header_layout.addLayout(self.server_actions_layout)
         layout.addLayout(self.server_header_layout)
@@ -1402,15 +1395,33 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(action_card)
 
-        # --- Volume fetch row --------------------------------------------
-        volume_row = QHBoxLayout()
-        volume_row.setSpacing(10)
-        self.scanner_volume_fetch_button = QPushButton(self.t("volume_fetch"))
-        self.scanner_volume_fetch_button.setIcon(icon("speed.svg"))
-        self.scanner_volume_fetch_button.clicked.connect(self.start_volume_fetch)
-        volume_row.addWidget(self.scanner_volume_fetch_button)
-        volume_row.addStretch()
-        layout.addLayout(volume_row)
+        # --- Live scanner log (v1.7.0-rc.1) -----------------------------
+        log_card = QFrame()
+        log_card.setObjectName("card")
+        log_layout = QVBoxLayout(log_card)
+        log_layout.setContentsMargins(14, 12, 14, 12)
+        log_layout.setSpacing(8)
+        log_top = QHBoxLayout()
+        log_title = QLabel(self.t("scanner_log_title"))
+        log_title.setObjectName("sectionTitle")
+        log_top.addWidget(log_title)
+        log_top.addStretch()
+        self.scanner_clear_log_button = QPushButton(self.t("scanner_clear_log"))
+        self.scanner_clear_log_button.setIcon(icon("close.svg"))
+        self.scanner_clear_log_button.clicked.connect(self._clear_scanner_log)
+        log_top.addWidget(self.scanner_clear_log_button)
+        log_layout.addLayout(log_top)
+        self.scanner_log_view = QPlainTextEdit()
+        self.scanner_log_view.setReadOnly(True)
+        self.scanner_log_view.setMaximumBlockCount(2000)
+        self.scanner_log_view.setStyleSheet(
+            "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
+            "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; }"
+        )
+        self.scanner_log_view.setPlaceholderText(self.t("scanner_log_empty"))
+        self.scanner_log_view.setMinimumHeight(140)
+        log_layout.addWidget(self.scanner_log_view)
+        layout.addWidget(log_card, 1)
 
         # --- History card ------------------------------------------------
         result_card = QFrame()
@@ -1511,6 +1522,7 @@ class MainWindow(QMainWindow):
             rank2_limit=rank2_limit,
             connect_callback=self._scanner_connect_bootstrap,
             disconnect_callback=self._scanner_disconnect_bootstrap,
+            is_connected_callback=lambda: self.manager.connected,
             bootstrap_server_id=bootstrap_server_id,
         )
         self.scanner_thread = thread
@@ -1519,6 +1531,7 @@ class MainWindow(QMainWindow):
         thread.progress.connect(self._scanner_progress_updated)
         thread.eta.connect(self._scanner_eta_updated)
         thread.alive_count.connect(self._scanner_alive_count_updated)
+        thread.log_line.connect(self._scanner_log_line)
         thread.success.connect(self._scanner_succeeded)
         thread.failed.connect(self._scanner_failed)
         thread.finished.connect(thread.deleteLater)
@@ -1582,6 +1595,15 @@ class MainWindow(QMainWindow):
         self._scanner_alive_count = count
         if self.scanner_alive_label.isVisible():
             self.scanner_alive_label.setText(self.t("scanner_alive_count", count=count))
+
+    def _scanner_log_line(self, line: str) -> None:
+        """Append a live log line to the scanner log panel."""
+        if hasattr(self, "scanner_log_view"):
+            self.scanner_log_view.appendPlainText(line)
+
+    def _clear_scanner_log(self) -> None:
+        if hasattr(self, "scanner_log_view"):
+            self.scanner_log_view.clear()
 
     def _scanner_succeeded(self, result) -> None:
         self.scanner_run_button.setVisible(True)
@@ -1684,117 +1706,9 @@ class MainWindow(QMainWindow):
         clipboard.setText(payload, QClipboard.Clipboard)
         self.scanner_result_label.setText(self.t("scanner_copy_done"))
 
-    def start_volume_fetch(self) -> None:
-        """Refresh real volume info for every saved server in one shot.
-
-        Builds a ``source_id -> source_url`` map from the current sources
-        so the worker can issue HEAD requests in parallel and read the
-        real ``Subscription-Userinfo`` header for each subscription.
-
-        v1.6.0-rc.4: when a specific source tab is active (not "all"),
-        only fetch volumes for that source's servers — much faster and
-        avoids spamming every provider when the user only cares about
-        one sub.
-        """
-        from .workers import VolumeFetchThread
-
-        if self.scanner_volume_thread is not None and self.scanner_volume_thread.isRunning():
-            return
-        if not self.servers:
-            return
-        # v1.6.0-rc.4: source-scoped volume fetch.
-        if self.active_source_id and self.active_source_id != "all":
-            target_servers = [s for s in self.servers if s.source_id == self.active_source_id]
-            if not target_servers:
-                return
-            # Only fetch the URL for the active source.
-            active_src = next((src for src in self.sources if src.id == self.active_source_id), None)
-            source_urls: dict[str, str] = {}
-            if active_src and active_src.url:
-                source_urls[active_src.id] = active_src.url
-        else:
-            target_servers = list(self.servers)
-            source_urls = {src.id: src.url for src in self.sources if src.url}
-        # Disable both buttons (scanner page + servers page).
-        if hasattr(self, "scanner_volume_fetch_button"):
-            self.scanner_volume_fetch_button.setEnabled(False)
-            self.scanner_volume_fetch_button.setText(self.t("volume_fetching"))
-        if hasattr(self, "server_volume_button"):
-            self.server_volume_button.setEnabled(False)
-            # server_volume_button is icon-only; just disable it.
-        thread = VolumeFetchThread(target_servers, source_urls=source_urls)
-        self.scanner_volume_thread = thread
-        thread.finished_set.connect(self._volume_fetch_finished)
-        thread.finished.connect(thread.deleteLater)
-        thread.start()
-
-    def _volume_fetch_finished(self, results: dict) -> None:
-        # Reset both volume-fetch buttons (scanner page + servers page).
-        if hasattr(self, "scanner_volume_fetch_button"):
-            self.scanner_volume_fetch_button.setEnabled(True)
-            self.scanner_volume_fetch_button.setText(self.t("volume_fetch"))
-        if hasattr(self, "server_volume_button"):
-            self.server_volume_button.setEnabled(True)
-            # server_volume_button is icon-only; no text to reset.
-        try:
-            for server in self.servers:
-                info = results.get(server.id)
-                if info is not None:
-                    setattr(server, "_volume_label", info.label)
-            self.render_servers()
-            if hasattr(self, "scanner_result_label"):
-                self.scanner_result_label.setText(self.t("volume_real_fetched"))
-        except Exception:
-            LOGGER.exception("Volume fetch result merge failed")
-
     def _volume_auto_disconnect_fire(self) -> None:
-        """Called by the volume auto-disconnect timer.
-
-        The timer fires on a background thread, so we bounce the actual
-        disconnect back to the Qt event loop.
-        """
-        QTimer.singleShot(0, self._volume_auto_disconnect_disconnect)
-
-    def _volume_auto_disconnect_disconnect(self) -> None:
-        try:
-            self._volume_auto_disconnect.disarm()
-        except Exception:
-            pass
-        try:
-            self.disconnect(show_message=True)
-        except Exception:
-            LOGGER.exception("Volume auto-disconnect: disconnect() failed")
-
-    def _maybe_arm_volume_auto_disconnect(self, server: ServerRecord) -> None:
-        """Arm the 1-hour auto-disconnect timer if the server is volume-limited."""
-        from .volume import VOLUME_AUTO_DISCONNECT_ENABLED, detect_volume_from_name
-        try:
-            if not VOLUME_AUTO_DISCONNECT_ENABLED:
-                return
-            # Use the runtime _volume_label if we have one (set by the
-            # batch fetch button); otherwise detect from the server name
-            # and the stored config blob.
-            label = getattr(server, "_volume_label", None)
-            if label is None:
-                from .protocols import blob_to_config
-                raw = ""
-                try:
-                    raw = blob_to_config(server.config_blob)
-                except Exception:
-                    raw = server.name
-                remark = raw.split("#", 1)[1] if "#" in raw else server.name
-                info = detect_volume_from_name(remark)
-                label = info.label
-                is_volume = info.is_volume
-            else:
-                is_volume = label not in ("", "—", "نامحدود", "Unlimited")
-            if is_volume:
-                self._volume_auto_disconnect.arm()
-                LOGGER.info("Volume auto-disconnect armed for %s", server.id)
-            else:
-                self._volume_auto_disconnect.disarm()
-        except Exception:
-            LOGGER.exception("Volume auto-disconnect arming failed")
+        """Called by the volume auto-disconnect timer (no-op in v1.7.0-rc.1)."""
+        pass
 
     def _build_settings_page(self) -> QWidget:
         content = QWidget()
@@ -2085,6 +1999,24 @@ class MainWindow(QMainWindow):
         data_tab_layout.insertWidget(data_tab_layout.count() - 1, data_card)
         tabs.addTab(data_tab, self.t("settings_tab_data"))
 
+        # --- Connection methods tab (v1.7.0-rc.1) ----------------------
+        methods_tab = QWidget()
+        methods_tab_layout = QVBoxLayout(methods_tab)
+        methods_tab_layout.setContentsMargins(0, 0, 0, 0)
+        methods_tab_layout.setSpacing(14)
+        methods_tab_layout.addWidget(self._build_connection_methods_section())
+        methods_tab_layout.addStretch()
+        tabs.addTab(methods_tab, self.t("conn_method_title"))
+
+        # --- VPN sharing tab (v1.7.0-rc.1) -----------------------------
+        sharing_tab = QWidget()
+        sharing_tab_layout = QVBoxLayout(sharing_tab)
+        sharing_tab_layout.setContentsMargins(0, 0, 0, 0)
+        sharing_tab_layout.setSpacing(14)
+        sharing_tab_layout.addWidget(self._build_vpn_sharing_section())
+        sharing_tab_layout.addStretch()
+        tabs.addTab(sharing_tab, self.t("vpn_sharing_title"))
+
         actions = QHBoxLayout()
         self.settings_saved_label = QLabel("")
         self.settings_saved_label.setObjectName("statusOnline")
@@ -2101,6 +2033,184 @@ class MainWindow(QMainWindow):
         label = QLabel(text)
         label.setObjectName("sectionTitle")
         return label
+
+    def _build_connection_methods_section(self) -> QWidget:
+        """Build the connection-methods settings section (v1.7.0-rc.1).
+
+        Lets the user pick between Xray (default), Psiphon, and Aether.
+        Alternative cores are downloaded on first use via the core
+        manager.  CDN formatting is also configured here.
+        """
+        from .conn_methods import list_methods, get_method, is_default_method, DEFAULT_CDN_DOMAINS
+        from .core_manager import is_core_available, get_active_core
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(14)
+
+        # --- Connection method selection ---
+        method_card = QFrame()
+        method_card.setObjectName("settingCard")
+        method_layout = QVBoxLayout(method_card)
+        method_layout.setContentsMargins(16, 14, 16, 14)
+        method_layout.setSpacing(10)
+        method_layout.addWidget(self._section_label(self.t("conn_method_title")))
+        help_label = QLabel(self.t("conn_method_help"))
+        help_label.setObjectName("muted")
+        help_label.setWordWrap(True)
+        method_layout.addWidget(help_label)
+
+        self.conn_method_combo = QComboBox()
+        active_core = get_active_core()
+        for m in list_methods():
+            label = m.name
+            if m.id == active_core:
+                label += f"  ({self.t('conn_method_active')})"
+            elif m.requires_core_download and is_core_available(m.id):
+                label += f"  ({self.t('conn_method_active')})"
+            self.conn_method_combo.addItem(label, m.id)
+        # Select the active method.
+        for i in range(self.conn_method_combo.count()):
+            if self.conn_method_combo.itemData(i) == active_core:
+                self.conn_method_combo.setCurrentIndex(i)
+                break
+        method_layout.addWidget(self.conn_method_combo)
+
+        # Download / activate button.
+        button_row = QHBoxLayout()
+        self.conn_method_download_button = QPushButton(self.t("conn_method_download"))
+        self.conn_method_download_button.clicked.connect(self._download_selected_core)
+        button_row.addWidget(self.conn_method_download_button)
+        self.conn_method_activate_button = QPushButton(self.t("conn_method_activate"))
+        self.conn_method_activate_button.setProperty("kind", "primary")
+        self.conn_method_activate_button.clicked.connect(self._activate_selected_core)
+        button_row.addWidget(self.conn_method_activate_button)
+        button_row.addStretch()
+        method_layout.addLayout(button_row)
+
+        self.conn_method_status_label = QLabel("")
+        self.conn_method_status_label.setObjectName("muted")
+        self.conn_method_status_label.setWordWrap(True)
+        method_layout.addWidget(self.conn_method_status_label)
+        layout.addWidget(method_card)
+
+        # --- CDN formatting ---
+        cdn_card = QFrame()
+        cdn_card.setObjectName("settingCard")
+        cdn_layout = QVBoxLayout(cdn_card)
+        cdn_layout.setContentsMargins(16, 14, 16, 14)
+        cdn_layout.setSpacing(10)
+        cdn_layout.addWidget(self._section_label(self.t("cdn_formatting_title")))
+        cdn_help = QLabel(self.t("cdn_formatting_help"))
+        cdn_help.setObjectName("muted")
+        cdn_help.setWordWrap(True)
+        cdn_layout.addWidget(cdn_help)
+        self.cdn_enabled_checkbox = QCheckBox(self.t("cdn_formatting_enabled"))
+        self.cdn_enabled_checkbox.setChecked(bool(self.settings.get("cdn_formatting_enabled", False)))
+        cdn_layout.addWidget(self.cdn_enabled_checkbox)
+        cdn_domain_row = QHBoxLayout()
+        cdn_domain_label = QLabel(self.t("cdn_formatting_domain"))
+        cdn_domain_label.setObjectName("muted")
+        cdn_domain_label.setMinimumWidth(100)
+        cdn_domain_row.addWidget(cdn_domain_label)
+        self.cdn_domain_combo = QComboBox()
+        self.cdn_domain_combo.setEditable(True)
+        current_cdn = self.settings.get("cdn_formatting_domain", DEFAULT_CDN_DOMAINS[0])
+        for domain in DEFAULT_CDN_DOMAINS:
+            self.cdn_domain_combo.addItem(domain)
+        self.cdn_domain_combo.setCurrentText(current_cdn)
+        cdn_domain_row.addWidget(self.cdn_domain_combo, 1)
+        cdn_layout.addLayout(cdn_domain_row)
+        layout.addWidget(cdn_card)
+
+        layout.addStretch()
+        scroll.setWidget(inner)
+        return scroll
+
+    def _build_vpn_sharing_section(self) -> QWidget:
+        """Build the VPN-sharing settings section (v1.7.0-rc.1)."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(14)
+
+        card = QFrame()
+        card.setObjectName("settingCard")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(10)
+        card_layout.addWidget(self._section_label(self.t("vpn_sharing_title")))
+        help_label = QLabel(self.t("vpn_sharing_help"))
+        help_label.setObjectName("muted")
+        help_label.setWordWrap(True)
+        card_layout.addWidget(help_label)
+        self.vpn_sharing_usb_checkbox = QCheckBox(self.t("vpn_sharing_usb"))
+        self.vpn_sharing_usb_checkbox.setChecked(bool(self.settings.get("vpn_sharing_usb", False)))
+        card_layout.addWidget(self.vpn_sharing_usb_checkbox)
+        self.vpn_sharing_hotspot_checkbox = QCheckBox(self.t("vpn_sharing_hotspot"))
+        self.vpn_sharing_hotspot_checkbox.setChecked(bool(self.settings.get("vpn_sharing_hotspot", False)))
+        card_layout.addWidget(self.vpn_sharing_hotspot_checkbox)
+        layout.addWidget(card)
+        layout.addStretch()
+        scroll.setWidget(inner)
+        return scroll
+
+    def _download_selected_core(self) -> None:
+        """Download the core selected in the conn_method_combo."""
+        from .core_manager import download_core, is_core_available, get_core
+        core_id = self.conn_method_combo.currentData()
+        if not core_id or core_id == "xray":
+            self.conn_method_status_label.setText("Xray هسته پیش‌فرض است و نیازی به دانلود ندارد.")
+            return
+        if is_core_available(core_id):
+            self.conn_method_status_label.setText(self.t("conn_method_download_done"))
+            return
+        self.conn_method_download_button.setEnabled(False)
+        self.conn_method_download_button.setText(self.t("conn_method_downloading"))
+        # Run the download in a background thread to avoid blocking the UI.
+        from .workers import CoreDownloadThread
+        self._core_download_thread = CoreDownloadThread(core_id, language=self.language)
+        self._core_download_thread.stage.connect(
+            lambda text: self.conn_method_status_label.setText(text)
+        )
+        self._core_download_thread.success.connect(self._on_core_download_success)
+        self._core_download_thread.failed.connect(self._on_core_download_failed)
+        self._core_download_thread.finished.connect(self._core_download_thread.deleteLater)
+        self._core_download_thread.start()
+
+    def _on_core_download_success(self, core_id: str) -> None:
+        self.conn_method_download_button.setEnabled(True)
+        self.conn_method_download_button.setText(self.t("conn_method_download"))
+        self.conn_method_status_label.setText(self.t("conn_method_download_done"))
+
+    def _on_core_download_failed(self, message: str) -> None:
+        self.conn_method_download_button.setEnabled(True)
+        self.conn_method_download_button.setText(self.t("conn_method_download"))
+        self.conn_method_status_label.setText(self.t("conn_method_download_failed") + f": {message}")
+
+    def _activate_selected_core(self) -> None:
+        """Activate the core selected in the conn_method_combo."""
+        from .core_manager import set_active_core, is_core_available
+        core_id = self.conn_method_combo.currentData()
+        if not core_id:
+            return
+        if core_id != "xray" and not is_core_available(core_id):
+            self.conn_method_status_label.setText(
+                "هسته دانلود نشده است. ابتدا روی «دانلود هسته» بزنید."
+            )
+            return
+        try:
+            set_active_core(core_id)
+            self.conn_method_status_label.setText(self.t("conn_method_active") + f": {core_id}")
+        except Exception as exc:
+            self.conn_method_status_label.setText(f"خطا: {exc}")
 
     def _build_about_page(self) -> QWidget:
         content = QWidget()
@@ -3026,7 +3136,6 @@ class MainWindow(QMainWindow):
         self.service.update_connected(item.id)
         self.set_busy(False, self.t("connected_to", name=item.name))
         self._start_connection_monitor()
-        self._maybe_arm_volume_auto_disconnect(item)
         self.render_servers()
         self.update_connection_ui()
 
@@ -3044,10 +3153,6 @@ class MainWindow(QMainWindow):
 
     def disconnect(self, *, show_message: bool = True) -> None:
         LOGGER.info("Disconnect requested")
-        try:
-            self._volume_auto_disconnect.disarm()
-        except Exception:
-            pass
         self._stop_connect_animation()
         self._stop_connection_monitor()
         self.manager.stop()
@@ -3257,6 +3362,13 @@ class MainWindow(QMainWindow):
         self.settings["retry_failed_tests"] = self.retry_failed_checkbox.isChecked()
         self.settings["diagnostic_logging"] = self.diagnostic_logging_checkbox.isChecked()
         self.settings["log_level"] = self.log_level_combo.currentData()
+        # v1.7.0-rc.1: new settings.
+        if hasattr(self, "cdn_enabled_checkbox"):
+            self.settings["cdn_formatting_enabled"] = self.cdn_enabled_checkbox.isChecked()
+            self.settings["cdn_formatting_domain"] = self.cdn_domain_combo.currentText().strip()
+        if hasattr(self, "vpn_sharing_usb_checkbox"):
+            self.settings["vpn_sharing_usb"] = self.vpn_sharing_usb_checkbox.isChecked()
+            self.settings["vpn_sharing_hotspot"] = self.vpn_sharing_hotspot_checkbox.isChecked()
         selected_theme = str(self.theme_combo.currentData())
         self.apply_theme(selected_theme, save=False)
 

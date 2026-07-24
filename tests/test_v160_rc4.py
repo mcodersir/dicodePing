@@ -13,11 +13,11 @@ class V160Rc4Tests(unittest.TestCase):
         constants = (ROOT / "dicodeping/constants.py").read_text(encoding="utf-8")
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
-        self.assertIn('RELEASE_VERSION = "1.6.0-rc.4"', constants)
-        self.assertIn("versionCode = 27", gradle)
-        self.assertIn('versionName = "1.6.0"', gradle)
-        self.assertIn('1.6.0-rc.4', gradle)
-        self.assertIn('RC_VERSION = "rc.4"', linux_builder)
+        self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
+        self.assertIn("versionCode = 28", gradle)
+        self.assertIn('versionName = "1.7.0"', gradle)
+        self.assertIn('1.7.0-rc.', gradle)
+        self.assertIn('RC_VERSION = "rc.', linux_builder)
 
     def test_ping_cache_module_is_present(self) -> None:
         cache = (ROOT / "dicodeping/ping_cache.py").read_text(encoding="utf-8")
@@ -50,13 +50,7 @@ class V160Rc4Tests(unittest.TestCase):
         # Source-scoped refresh.
         self.assertIn("RefreshSubsetThread(self.service, target_ids, self.language)", ui)
         self.assertIn("self.active_source_id and self.active_source_id != \"all\"", ui)
-        # Source-scoped volume fetch.
-        self.assertIn("target_servers = [s for s in self.servers if s.source_id == self.active_source_id]", ui)
-        self.assertIn("VolumeFetchThread(target_servers, source_urls=source_urls)", ui)
-        # Icon-only volume button on Servers page (no text, fixed width).
-        self.assertIn("self.server_volume_button = QPushButton()", ui)
-        self.assertIn("self.server_volume_button.setFixedWidth(44)", ui)
-        self.assertIn("self.server_volume_button.setToolTip(self.t(\"volume_fetch\"))", ui)
+        # v1.7.0-rc.1: volume fetch and volume button removed.
 
     def test_scanner_preview_stages_shown_in_ui(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
@@ -77,7 +71,7 @@ class V160Rc4Tests(unittest.TestCase):
         ):
             self.assertIn(f'"{key}":', i18n, msg=f"Missing i18n key: {key}")
 
-    def test_volume_fetch_has_get_fallback(self) -> None:
+    def _skip_test_volume_fetch_has_get_fallback(self) -> None:
         # The volume fetch must fall back to a ranged GET when HEAD is
         # rejected by the provider — otherwise it can never extract the
         # real Subscription-Userinfo header for many providers.

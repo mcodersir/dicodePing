@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.7.0"
 APP_NAME = "dicodePing"
 
 

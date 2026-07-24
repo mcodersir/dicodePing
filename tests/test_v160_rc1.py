@@ -18,16 +18,16 @@ class V160Rc1Tests(unittest.TestCase):
 
         # The 1.6.0 line.  The RC suffix changes per release; we assert
         # the major version is present in every metadata location.
-        self.assertIn('VERSION = "1.6.0"', constants)
-        self.assertIn('RELEASE_VERSION = "1.6.0-rc.', constants)
-        self.assertIn('__version__ = "1.6.0"', init)
-        self.assertIn('APP_VERSION = "1.6.0"', windows_builder)
-        self.assertIn('APP_VERSION = "1.6.0"', linux_builder)
+        self.assertIn('VERSION = "1.7.0"', constants)
+        self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
+        self.assertIn('__version__ = "1.7.0"', init)
+        self.assertIn('APP_VERSION = "1.7.0"', windows_builder)
+        self.assertIn('APP_VERSION = "1.7.0"', linux_builder)
         self.assertIn('RC_VERSION = "rc.', linux_builder)
-        self.assertIn("filevers=(1, 6, 0, 0)", version_info)
-        self.assertIn("'ProductVersion', '1.6.0.0'", version_info)
-        self.assertIn('versionName = "1.6.0"', gradle)
-        self.assertIn('1.6.0-rc.', gradle)
+        self.assertIn("filevers=(1, 7, 0, 0)", version_info)
+        self.assertIn("'ProductVersion', '1.7.0.0'", version_info)
+        self.assertIn('versionName = "1.7.0"', gradle)
+        self.assertIn('1.7.0-rc.', gradle)
 
     def test_scanner_module_is_present_and_wired(self) -> None:
         scanner = (ROOT / "dicodeping/scanner.py").read_text(encoding="utf-8")
@@ -53,27 +53,17 @@ class V160Rc1Tests(unittest.TestCase):
         self.assertIn("def start_scanner", ui)
         self.assertIn("def scanner_copy_all", ui)
         self.assertIn("def _scanner_succeeded", ui)
-        self.assertIn("def start_volume_fetch", ui)
+        # volume fetch removed in v1.7.0
         # The sidebar now has 5 navigation entries (added scanner).
         self.assertIn('"scanner", "settings", "about"', ui)
 
     def test_volume_and_quality_modules_are_present(self) -> None:
+        # v1.7.0-rc.1: volume detection was removed; only quality rating remains.
         volume = (ROOT / "dicodeping/volume.py").read_text(encoding="utf-8")
-        self.assertIn("VOLUME_AUTO_DISCONNECT_SECONDS = 60 * 60", volume)
-        self.assertIn("VOLUME_AUTO_DISCONNECT_ENABLED = True", volume)
-        self.assertIn("class VolumeInfo", volume)
-        self.assertIn("def detect_volume_from_name(", volume)
-        self.assertIn("def fetch_live_volumes(", volume)
         self.assertIn("def rate_quality(", volume)
+        self.assertIn("class QualityRating", volume)
+        # VolumeAutoDisconnect is kept as a no-op stub for backward compat.
         self.assertIn("class VolumeAutoDisconnect", volume)
-        self.assertIn("def arm(", volume)
-        self.assertIn("def disarm(", volume)
-
-        # The UI arms/disarms the timer on connect/disconnect.
-        ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
-        self.assertIn("VolumeAutoDisconnect(self._volume_auto_disconnect_fire)", ui)
-        self.assertIn("_maybe_arm_volume_auto_disconnect", ui)
-        self.assertIn("self._volume_auto_disconnect.disarm()", ui)
 
     def test_i18n_keys_for_new_features_exist(self) -> None:
         i18n = (ROOT / "dicodeping/i18n.py").read_text(encoding="utf-8")

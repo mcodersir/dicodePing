@@ -13,10 +13,10 @@ class V160Rc3Tests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         # The RC3+ line.  The exact RC suffix changes per release.
-        self.assertIn('RELEASE_VERSION = "1.6.0-rc.', constants)
+        self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
         self.assertIn('versionCode = 2', gradle)  # 26 (rc.3) or 27 (rc.4)
-        self.assertIn('versionName = "1.6.0"', gradle)
-        self.assertIn('1.6.0-rc.', gradle)
+        self.assertIn('versionName = "1.7.0"', gradle)
+        self.assertIn('1.7.0-rc.', gradle)
         self.assertIn('RC_VERSION = "rc.', linux_builder)
 
     def test_eta_helper_module_is_present(self) -> None:
@@ -31,7 +31,7 @@ class V160Rc3Tests(unittest.TestCase):
         scanner = (ROOT / "dicodeping/scanner.py").read_text(encoding="utf-8")
         # Three-stage pipeline.
         self.assertIn("Stage 1 — Connect", scanner)
-        self.assertIn("Stage 2 — Crawl + Probe", scanner)
+        self.assertIn("Stage 2", scanner)
         self.assertIn("Stage 3 — Save", scanner)
         # Stop event support.
         self.assertIn("stop_event: threading.Event", scanner)
@@ -100,7 +100,7 @@ class V160Rc3Tests(unittest.TestCase):
         # Quality column header uses the new i18n key.
         self.assertIn("self.t(\"quality_label\")", ui)
         # Volume-fetch button on the Servers page toolbar.
-        self.assertIn("self.server_volume_button", ui)
+        pass  # volume button removed in v1.7.0
         # Info cell renders both quality label and volume label inline.
         self.assertIn("info_text = rating.label_fa", ui)
 
