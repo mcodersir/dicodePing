@@ -360,9 +360,25 @@ def icmp_ping(
     timeout: float = PING_TIMEOUT,
     resolved_ip: str = "",
 ) -> tuple[int | None, str]:
+    """Send real ICMP Echo Request packets and measure latency.
+
+    v1.7.0-rc.2: now tries the system ``ping`` command first (most
+    reliable, works without root on Linux), then falls back to the
+    Windows IcmpSendEcho API or raw sockets.
+    """
+    from .icmp_ping import icmp_ping as _system_icmp_ping
+
     ip = resolved_ip or resolve_ipv4(host)
     if not ip:
         return None, "dns"
+
+    # Try the system ping command first — it's the most reliable across
+    # all platforms and doesn't require raw socket privileges.
+    result = _system_icmp_ping(ip, count=max(1, attempts), timeout_ms=max(500, int(timeout * 1000)))
+    if result.ok and result.ping_ms is not None:
+        return result.ping_ms, ip
+
+    # Fall back to the platform-specific implementation.
     samples: list[float] = []
     for sequence in range(max(1, attempts)):
         sample = _icmp_windows(ip, timeout) if os.name == "nt" else _icmp_raw(ip, timeout, sequence)
@@ -372,7 +388,6 @@ def icmp_ping(
             time.sleep(0.035)
     if not samples:
         return None, ip
-    # Minimum of multiple real Echo replies reduces transient queueing noise.
     return int(round(min(samples))), ip
 
 

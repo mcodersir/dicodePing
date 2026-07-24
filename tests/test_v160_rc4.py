@@ -14,7 +14,7 @@ class V160Rc4Tests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
-        self.assertIn("versionCode = 28", gradle)
+        self.assertIn("versionCode = 29", gradle)
         self.assertIn('versionName = "1.7.0"', gradle)
         self.assertIn('1.7.0-rc.', gradle)
         self.assertIn('RC_VERSION = "rc.', linux_builder)

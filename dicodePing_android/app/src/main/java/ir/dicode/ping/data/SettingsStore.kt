@@ -27,6 +27,30 @@ class SettingsStore(context: Context) {
     var bypassApps: Set<String>
         get() = prefs.getStringSet("bypass_apps", emptySet())?.toSet().orEmpty()
         set(value) = prefs.edit().putStringSet("bypass_apps", value.toSet()).apply()
+
+    // v1.7.0-rc.2: per-app VPN settings.
+    var perAppVpnMode: String
+        get() = prefs.getString("per_app_vpn_mode", "disabled") ?: "disabled"
+        set(value) = prefs.edit().putString("per_app_vpn_mode", value).apply()
+    var perAppVpnPackages: Set<String>
+        get() = prefs.getStringSet("per_app_vpn_packages", emptySet())?.toSet().orEmpty()
+        set(value) = prefs.edit().putStringSet("per_app_vpn_packages", value.toSet()).apply()
+
+    // v1.7.0-rc.2: VPN sharing settings.
+    var vpnSharingUsb: Boolean
+        get() = prefs.getBoolean("vpn_sharing_usb", false)
+        set(value) = prefs.edit().putBoolean("vpn_sharing_usb", value).apply()
+    var vpnSharingHotspot: Boolean
+        get() = prefs.getBoolean("vpn_sharing_hotspot", false)
+        set(value) = prefs.edit().putBoolean("vpn_sharing_hotspot", value).apply()
+
+    // v1.7.0-rc.2: CDN formatting settings.
+    var cdnFormattingEnabled: Boolean
+        get() = prefs.getBoolean("cdn_formatting_enabled", false)
+        set(value) = prefs.edit().putBoolean("cdn_formatting_enabled", value).apply()
+    var cdnFormattingDomain: String
+        get() = prefs.getString("cdn_formatting_domain", "speed.cloudflare.com") ?: "speed.cloudflare.com"
+        set(value) = prefs.edit().putString("cdn_formatting_domain", value).apply()
     var lastServerRefreshAt: Long
         get() = prefs.getLong("last_server_refresh_at", 0L)
         set(value) = prefs.edit().putLong("last_server_refresh_at", value).apply()

@@ -89,6 +89,10 @@ class DicodeVpnService : VpnService() {
         val name = intent?.getStringExtra(EXTRA_NAME).orEmpty()
         val bypassDomains = intent?.getStringExtra(EXTRA_BYPASS_DOMAINS).orEmpty()
         val bypassApps = intent?.getStringArrayListExtra(EXTRA_BYPASS_APPS).orEmpty()
+        val perAppMode = intent?.getStringExtra(EXTRA_PER_APP_MODE) ?: "disabled"
+        val perAppPackages = intent?.getStringArrayListExtra(EXTRA_PER_APP_PACKAGES).orEmpty()
+        val vpnSharingUsb = intent?.getBooleanExtra(EXTRA_VPN_SHARING_USB, false) ?: false
+        val vpnSharingHotspot = intent?.getBooleanExtra(EXTRA_VPN_SHARING_HOTSPOT, false) ?: false
         if (raw.isBlank()) {
             stopSelf()
             return START_NOT_STICKY
@@ -97,10 +101,10 @@ class DicodeVpnService : VpnService() {
         currentName = name
         val generation = startGeneration.incrementAndGet()
         startJob?.cancel()
-        AppLog.i("VPN", "Start requested for $name; bypassApps=${bypassApps.size}; generation=$generation")
+        AppLog.i("VPN", "Start requested for $name; bypassApps=${bypassApps.size}; perAppMode=$perAppMode; perAppPackages=${perAppPackages.size}; sharingUsb=$vpnSharingUsb; sharingHotspot=$vpnSharingHotspot; generation=$generation")
         startForeground(NOTIFICATION_ID, notification(name, getString(R.string.connecting)))
         VpnStateStore.state.value = VpnState(VpnStatus.CONNECTING, serverId, name, getString(R.string.preparing_vpn))
-        startJob = scope.launch { startVpn(raw, serverId, name, bypassDomains, bypassApps, generation) }
+        startJob = scope.launch { startVpn(raw, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation) }
         return START_REDELIVER_INTENT
     }
 
@@ -110,6 +114,10 @@ class DicodeVpnService : VpnService() {
         name: String,
         bypassDomains: String,
         bypassApps: List<String>,
+        perAppMode: String,
+        perAppPackages: List<String>,
+        vpnSharingUsb: Boolean,
+        vpnSharingHotspot: Boolean,
         generation: Long,
     ) {
         try {
@@ -133,16 +141,53 @@ class DicodeVpnService : VpnService() {
                 .addDnsServer("1.1.1.1")
                 .addDnsServer("8.8.8.8")
 
-            // Keep the native core outside its own TUN. This prevents a routing loop.
-            builder.addDisallowedApplication(packageName)
-            bypassApps.asSequence()
-                .map(String::trim)
-                .filter { it.isNotBlank() && it != packageName }
-                .distinct()
-                .forEach { appPackage ->
-                    runCatching { builder.addDisallowedApplication(appPackage) }
-                        .onFailure { AppLog.w("VPN", "Cannot bypass app $appPackage: ${it.message}") }
+            // v1.7.0-rc.2: Per-app VPN support.
+            // Three modes:
+            //   "disabled"  — all apps use VPN (default; bypass apps still apply)
+            //   "allowlist" — only perAppPackages use VPN
+            //   "denylist"  — perAppPackages do NOT use VPN (same as bypass apps)
+            when (perAppMode) {
+                "allowlist" -> {
+                    // Only selected apps go through VPN.
+                    // The native core must always be allowed to prevent a routing loop.
+                    perAppPackages.asSequence()
+                        .map(String::trim)
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .forEach { appPackage ->
+                            runCatching { builder.addAllowedApplication(appPackage) }
+                                .onFailure { AppLog.w("VPN", "Cannot allow app $appPackage: ${it.message}") }
+                        }
+                    // Also allow the app itself so the core can communicate.
+                    runCatching { builder.addAllowedApplication(packageName) }
+                    AppLog.i("VPN", "Per-app VPN: allowlist mode with ${perAppPackages.size} apps")
                 }
+                "denylist" -> {
+                    // Selected apps bypass VPN.
+                    builder.addDisallowedApplication(packageName)
+                    perAppPackages.asSequence()
+                        .map(String::trim)
+                        .filter { it.isNotBlank() && it != packageName }
+                        .distinct()
+                        .forEach { appPackage ->
+                            runCatching { builder.addDisallowedApplication(appPackage) }
+                                .onFailure { AppLog.w("VPN", "Cannot disallow app $appPackage: ${it.message}") }
+                        }
+                    AppLog.i("VPN", "Per-app VPN: denylist mode with ${perAppPackages.size} apps")
+                }
+                else -> {
+                    // "disabled" — all apps use VPN, bypass apps still apply.
+                    builder.addDisallowedApplication(packageName)
+                    bypassApps.asSequence()
+                        .map(String::trim)
+                        .filter { it.isNotBlank() && it != packageName }
+                        .distinct()
+                        .forEach { appPackage ->
+                            runCatching { builder.addDisallowedApplication(appPackage) }
+                                .onFailure { AppLog.w("VPN", "Cannot bypass app $appPackage: ${it.message}") }
+                        }
+                }
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
 
             tun = builder.establish() ?: error(getString(R.string.vpn_establish_failed))
@@ -412,6 +457,10 @@ class DicodeVpnService : VpnService() {
         const val EXTRA_NAME = "name"
         const val EXTRA_BYPASS_DOMAINS = "bypass_domains"
         const val EXTRA_BYPASS_APPS = "bypass_apps"
+        const val EXTRA_PER_APP_MODE = "per_app_mode"
+        const val EXTRA_PER_APP_PACKAGES = "per_app_packages"
+        const val EXTRA_VPN_SHARING_USB = "vpn_sharing_usb"
+        const val EXTRA_VPN_SHARING_HOTSPOT = "vpn_sharing_hotspot"
         private const val CHANNEL_ID = "dicodeping_vpn"
         private const val NOTIFICATION_ID = 7101
         private const val PROXY_VALIDATION_ERROR = "proxy validation failed"
