@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.7.0-rc.1 — Scanner rewrite, volume removal, alternative cores, VPN sharing
+
+### Added
+- **Scanner fully automatic with live log** (`dicodeping/scanner.py`).
+  The scanner now actually connects a VPN, crawls Telegram channels,
+  disconnects the VPN, probes each config, and saves the survivors —
+  all from a single button.  A live log panel shows every event in
+  real time.  The scanner polls `is_connected_callback` to wait for
+  the TUN to actually come up before crawling.
+- **Core download manager** (`dicodeping/core_manager.py`).
+  Alternative cores (Psiphon, Aether) are not bundled with the build.
+  The user downloads them from inside the app on first use.  Each core
+  has a URL, SHA-256 digest, and automatic archive extraction.  Only
+  one core can be active at a time.
+- **Connection method selection** (`dicodeping/conn_methods.py`).
+  Three methods: Xray (default), Psiphon, Aether (Ironclad).  When a
+  non-default method is active, the Servers page is disabled.
+- **CDN formatting** (`dicodeping/conn_methods.apply_cdn_formatting`).
+  Rewrites vmess/vless/trojan config URIs to use a CDN fronting domain
+  while preserving the original host as SNI/Host.
+- **VPN sharing settings** (desktop + Android).  Toggle for USB tether
+  and hotspot sharing.
+- **Per-app VPN settings** (Android).  Allow only selected apps to use
+  the VPN, or deny selected apps from using the VPN.
+- **Live scanner log panel** in the desktop UI.
+- **Stage preview** shown before the Start button.
+- New i18n keys for all new features in both fa and en.
+
+### Removed
+- **Volume detection feature** completely removed per user request.
+  The `volume.py` module now only contains the `rate_quality` helper
+  and a no-op `VolumeAutoDisconnect` stub for backward compat.  All
+  volume-related UI elements (fetch button, volume column, volume
+  label) have been removed from both desktop and Android.
+
+### Changed
+- Version bumped to 1.7.0.
+- Android versionCode 28.
+- Scanner now emits `log_line` signal for every event.
+- Scanner now accepts `is_connected_callback` to poll TUN readiness.
+- `ScannerThread` now has `log_line` and `is_connected_callback` params.
+- `CoreDownloadThread` added to workers.py for background core downloads.
+- Settings page has two new tabs: "Connection methods" and "VPN sharing".
+
+### Tests
+- All 114 existing tests pass.
+- Test files updated to accept the 1.7.0 version line.
+
 ## 1.6.0-rc.4 — Fully-automatic scanner, icon-only volume, source-scoped actions, 20-min cache
 
 ### Added

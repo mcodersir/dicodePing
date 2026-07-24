@@ -228,6 +228,38 @@ class RefreshSubsetThread(TaskThread):
             self.failed.emit(str(exc))
 
 
+class CoreDownloadThread(QThread):
+    """Background worker that downloads an alternative connection core.
+
+    v1.7.0-rc.1: alternative cores (Psiphon, Aether) are not bundled
+    with the build.  The user downloads them from inside the app on
+    first use.  This thread performs the download, integrity check,
+    and extraction off the UI thread.
+    """
+    stage = Signal(str)
+    progress = Signal(int, int)
+    success = Signal(str)   # core_id
+    failed = Signal(str)    # error message
+
+    def __init__(self, core_id: str, language: str = "fa") -> None:
+        super().__init__()
+        self.core_id = core_id
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            from .core_manager import download_core
+            download_core(
+                self.core_id,
+                progress=lambda done, total: self.progress.emit(done, total),
+                stage=self.stage.emit,
+            )
+            self.success.emit(self.core_id)
+        except Exception as exc:
+            LOGGER.exception("Core download failed: %s", self.core_id)
+            self.failed.emit(str(exc))
+
+
 class ScannerThread(QThread):
     """Background worker that runs the staged one-click scanner.
 
@@ -236,19 +268,17 @@ class ScannerThread(QThread):
       stage_change — (stage_number, stage_label) when the stage advances.
       progress — (current, total) probe count.
       alive_count — emitted whenever the live healthy-server count changes.
-      eta — formatted ETA string ("45s", "1:30", "—" when unknown).
+      eta — formatted ETA string.
+      log_line — live log line for the scanner log panel.
       success — ScannerResult on completion.
       failed — localized error message on failure.
-
-    The caller can stop the scan at any point by calling ``requestStop``.
-    Whatever servers have already been probed and responded are saved
-    immediately.
     """
     stage = Signal(str)
     stage_change = Signal(int, str)
     progress = Signal(int, int)
     alive_count = Signal(int)
     eta = Signal(str)
+    log_line = Signal(str)
     success = Signal(object)
     failed = Signal(str)
 
@@ -261,6 +291,7 @@ class ScannerThread(QThread):
         rank2_limit: int = 3,
         connect_callback=None,
         disconnect_callback=None,
+        is_connected_callback=None,
         bootstrap_server_id: str | None = None,
     ) -> None:
         super().__init__()
@@ -271,11 +302,11 @@ class ScannerThread(QThread):
         self.rank2_limit = rank2_limit
         self.connect_callback = connect_callback
         self.disconnect_callback = disconnect_callback
+        self.is_connected_callback = is_connected_callback
         self.bootstrap_server_id = bootstrap_server_id
         self._stop_event = threading.Event()
 
-    def requestStop(self) -> None:  # noqa: N802 — Qt-style
-        """Ask the scanner to stop at the next safe point and save."""
+    def requestStop(self) -> None:  # noqa: N802
         self._stop_event.set()
 
     def run(self) -> None:
@@ -293,9 +324,11 @@ class ScannerThread(QThread):
                 probe_progress=self.progress.emit,
                 eta_callback=self.eta.emit,
                 alive_count_callback=self.alive_count.emit,
+                log_callback=self.log_line.emit,
                 stop_event=self._stop_event,
                 connect_callback=self.connect_callback,
                 disconnect_callback=self.disconnect_callback,
+                is_connected_callback=self.is_connected_callback,
                 bootstrap_server_id=self.bootstrap_server_id,
             )
             self.success.emit(result)
