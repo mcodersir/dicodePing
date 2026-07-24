@@ -135,7 +135,7 @@ jobs:
           cp CHANGELOG.md release-assets/
           cp THIRD_PARTY_NOTICES.md release-assets/
           (cd release-assets && sha256sum * > SHA256SUMS)
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: v1.6.0-rc.3
           target_commitish: main
