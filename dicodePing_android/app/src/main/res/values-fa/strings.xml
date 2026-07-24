@@ -162,6 +162,7 @@
     <string name="scanner_title">اسکنر</string>
     <string name="scanner_subtitle">با یک کلیک، سرورهای فعال را اسکن و پینگ بگیرید</string>
     <string name="scanner_run">اسکن سریع</string>
+    <string name="scanner_start">شروع اسکن</string>
     <string name="scanner_running">در حال اسکن…</string>
     <string name="scanner_crawl">دریافت کانفیگ از کانال‌های تلگرام</string>
     <string name="scanner_done">اسکن کامل شد</string>

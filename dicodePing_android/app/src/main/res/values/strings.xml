@@ -162,6 +162,7 @@
     <string name="scanner_title">Scanner</string>
     <string name="scanner_subtitle">One-click scan and ping of live servers</string>
     <string name="scanner_run">Quick scan</string>
+    <string name="scanner_start">Start scan</string>
     <string name="scanner_running">Scanning…</string>
     <string name="scanner_crawl">Fetching configs from Telegram channels</string>
     <string name="scanner_done">Scan complete</string>
