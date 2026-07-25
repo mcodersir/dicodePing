@@ -814,14 +814,21 @@ class MainWindow(QMainWindow):
         self._sidebar_auto_collapsed = False
         self._busy_list_task = False
         self._restoring_server_selection = False
+        self._auto_connect_queue: list[ServerRecord] = []
+        self._automatic_connect_attempt = False
+        self._connecting_server_id = ""
 
         self.setWindowTitle(f"dicodePing {__version__}")
         application_icon = QApplication.instance().windowIcon() if QApplication.instance() else QIcon()
         self.setWindowIcon(application_icon if not application_icon.isNull() else icon("app.png"))
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setMinimumSize(840, 560)
-        self.resize(1180, 760)
+        self.setMinimumSize(680, 480)
+        available = QApplication.primaryScreen().availableGeometry() if QApplication.primaryScreen() else None
+        self.resize(
+            min(1180, max(680, available.width() - 40)) if available else 1180,
+            min(760, max(480, available.height() - 40)) if available else 760,
+        )
 
         self._build_ui()
         self.apply_theme(str(self.settings.get("theme", "dark")), save=False)
@@ -867,6 +874,7 @@ class MainWindow(QMainWindow):
 
         content = QWidget()
         content_layout = QVBoxLayout(content)
+        self.content_layout = content_layout
         content_layout.setContentsMargins(22, 20, 22, 14)
         content_layout.setSpacing(14)
         self.body_layout.addWidget(content, 1)
@@ -891,10 +899,10 @@ class MainWindow(QMainWindow):
         self.footer_state.setObjectName("tiny")
         footer.addWidget(self.footer_state)
         footer.addStretch()
-        footer_note = QLabel(f"{self.t('tun_mode')}  •  {self.t('responsibility_short')}")
-        footer_note.setObjectName("tiny")
-        footer_note.setWordWrap(True)
-        footer.addWidget(footer_note)
+        self.footer_note = QLabel(f"{self.t('tun_mode')}  •  {self.t('responsibility_short')}")
+        self.footer_note.setObjectName("tiny")
+        self.footer_note.setWordWrap(True)
+        footer.addWidget(self.footer_note)
         grip = QSizeGrip(self)
         grip.setFixedSize(18, 18)
         footer.addWidget(grip)
@@ -974,6 +982,7 @@ class MainWindow(QMainWindow):
         self.home_primary_button.clicked.connect(self.home_primary_action)
         controls.addWidget(self.home_primary_button)
         quick = QHBoxLayout()
+        self.home_quick_layout = quick
         self.home_scan_button = QPushButton(self.t("update_servers"))
         self.home_scan_button.setIcon(icon("search.svg"))
         self.home_scan_button.clicked.connect(self.start_scan)
@@ -1026,6 +1035,7 @@ class MainWindow(QMainWindow):
         self.live_metrics_card = QFrame()
         self.live_metrics_card.setObjectName("card")
         metrics_layout = QHBoxLayout(self.live_metrics_card)
+        self.live_metrics_layout = metrics_layout
         metrics_layout.setContentsMargins(18, 14, 18, 14)
         metrics_layout.setSpacing(18)
 
@@ -1305,6 +1315,7 @@ class MainWindow(QMainWindow):
 
         # Primary action row: Start / Stop + ETA badge.
         action_top = QHBoxLayout()
+        self.scanner_action_layout = action_top
         action_top.setSpacing(10)
         self.scanner_run_button = QPushButton(self.t("scanner_start"))
         self.scanner_run_button.setProperty("kind", "primary")
@@ -1325,6 +1336,7 @@ class MainWindow(QMainWindow):
 
         # Optional custom sub name input.
         name_row = QHBoxLayout()
+        self.scanner_name_layout = name_row
         name_row.setSpacing(8)
         name_label = QLabel(self.t("scanner_name_prompt"))
         name_label.setObjectName("muted")
@@ -1431,6 +1443,7 @@ class MainWindow(QMainWindow):
         result_layout.setSpacing(10)
 
         result_top = QHBoxLayout()
+        self.scanner_result_layout = result_top
         result_title = QLabel(self.t("scanner_history"))
         result_title.setObjectName("sectionTitle")
         result_top.addWidget(result_title)
@@ -2405,6 +2418,15 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         width = event.size().width()
+        narrow = width < 860
+        compact = width < 1080
+        if hasattr(self, "content_layout"):
+            margin = 10 if narrow else 22
+            self.content_layout.setContentsMargins(margin, 12 if narrow else 20, margin, 10)
+        if hasattr(self, "footer_note"):
+            self.footer_note.setVisible(width >= 760)
+        if hasattr(self, "title_bar"):
+            self.title_bar.subtitle.setVisible(width >= 760)
         if hasattr(self, "sidebar"):
             if width < 980 and self.sidebar.expanded:
                 self.sidebar.set_expanded(False, animate=False)
@@ -2413,13 +2435,25 @@ class MainWindow(QMainWindow):
                 self.sidebar.set_expanded(True, animate=False)
                 self._sidebar_auto_collapsed = False
         if hasattr(self, "hero_layout"):
-            narrow = width < 930
-            self.hero_layout.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
-            self.hero_divider.setVisible(not narrow)
+            hero_narrow = width < 930
+            self.hero_layout.setDirection(QBoxLayout.TopToBottom if hero_narrow else QBoxLayout.LeftToRight)
+            self.hero_divider.setVisible(not hero_narrow)
             self.stats_layout.setDirection(QBoxLayout.TopToBottom if width < 800 else QBoxLayout.LeftToRight)
+            self.home_quick_layout.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
+            self.live_metrics_layout.setDirection(QBoxLayout.TopToBottom if width < 720 else QBoxLayout.LeftToRight)
         if hasattr(self, "server_header_layout"):
-            compact = width < 1080
             self.server_header_layout.setDirection(QBoxLayout.TopToBottom if compact else QBoxLayout.LeftToRight)
+            self.server_actions_layout.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
+            self.server_toolbar_layout.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
+            if hasattr(self, "table"):
+                self.table.setColumnHidden(3, width < 900)
+                self.table.setColumnHidden(5, width < 780)
+                self.table.setColumnHidden(0, width < 720)
+        if hasattr(self, "scanner_action_layout"):
+            direction = QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight
+            self.scanner_action_layout.setDirection(direction)
+            self.scanner_name_layout.setDirection(direction)
+            self.scanner_result_layout.setDirection(direction)
         super().resizeEvent(event)
 
     def set_busy(self, busy: bool, stage: str = "") -> None:
@@ -3064,7 +3098,7 @@ class MainWindow(QMainWindow):
     def connect_selected(self) -> None:
         server = self.selected_server()
         if server:
-            self.connect_server(server)
+            self.connect_server(server, automatic=False)
 
     def connect_by_id(self, server_id: str) -> None:
         server = next((item for item in self.servers if item.id == server_id), None)
@@ -3072,7 +3106,7 @@ class MainWindow(QMainWindow):
             self.settings["selected_server_id"] = server.id
             self.settings["connection_mode"] = "manual"
             self.store.save_settings(self.settings)
-            self.connect_server(server)
+            self.connect_server(server, automatic=False)
 
     def home_primary_action(self) -> None:
         if isinstance(self.worker, ConnectThread):
@@ -3101,18 +3135,23 @@ class MainWindow(QMainWindow):
             self.start_refresh()
 
     def connect_best(self) -> None:
-        server = self.service.best_server(self.servers)
-        if server:
-            self.connect_server(server)
+        candidates = self.service.auto_candidates(self.servers)[:5]
+        if candidates:
+            self._auto_connect_queue = list(candidates[1:])
+            self.connect_server(candidates[0], automatic=True)
         else:
             AppDialog.info(self, self.t("no_healthy_title"), self.t("need_refresh"), self.t("ok"))
 
-    def connect_server(self, server: ServerRecord) -> None:
+    def connect_server(self, server: ServerRecord, *, automatic: bool = False) -> None:
         if self.worker or self.manager.connected:
             return
         if self.service.is_restricted_location(server):
             AppDialog.info(self, self.t("server_disabled"), self.t("restricted_location_hint"), self.t("ok"))
             return
+        if not automatic:
+            self._auto_connect_queue.clear()
+        self._automatic_connect_attempt = automatic
+        self._connecting_server_id = server.id
         LOGGER.info("Connection requested: id=%s host=%s port=%s", server.id, server.host, server.port)
         self.settings["selected_server_id"] = server.id
         self.store.save_settings(self.settings)
@@ -3131,6 +3170,9 @@ class MainWindow(QMainWindow):
         LOGGER.info("Connection verified: id=%s host=%s", item.id, item.host)
         self._stop_connect_animation()
         self.connected_id = item.id
+        self._auto_connect_queue.clear()
+        self._automatic_connect_attempt = False
+        self._connecting_server_id = ""
         self.settings["last_server_id"] = item.id
         self.store.save_settings(self.settings)
         self.service.update_connected(item.id)
@@ -3141,6 +3183,10 @@ class MainWindow(QMainWindow):
 
     def connect_failed(self, message: str) -> None:
         LOGGER.error("Connection failed: %s", message)
+        failed_id = self._connecting_server_id
+        was_automatic = self._automatic_connect_attempt
+        self._automatic_connect_attempt = False
+        self._connecting_server_id = ""
         self._stop_connect_animation()
         self._stop_connection_monitor()
         self.manager.stop()
@@ -3148,14 +3194,39 @@ class MainWindow(QMainWindow):
         self.live_metrics_card.setVisible(False)
         self.set_busy(False, self.t("connection_failed"))
         self.update_connection_ui()
-        AppDialog.error(self, self.t("connection_error"), message, self.t("ok"))
+        if failed_id:
+            self.service.mark_probe_failed(failed_id)
+            for server in self.servers:
+                if server.id == failed_id:
+                    server.status = "unverified"
+                    server.ping_ms = None
+                    server.failures += 1
+                    break
+        if was_automatic and self._auto_connect_queue:
+            self.footer_state.setText(self.t("checking_connection"))
+            QTimer.singleShot(300, self._continue_auto_connect)
+        else:
+            self._auto_connect_queue.clear()
+            AppDialog.error(self, self.t("connection_error"), message, self.t("ok"))
         self.render_servers()
+
+    def _continue_auto_connect(self) -> None:
+        if self.worker:
+            QTimer.singleShot(150, self._continue_auto_connect)
+            return
+        if self.manager.connected or not self._auto_connect_queue:
+            return
+        next_server = self._auto_connect_queue.pop(0)
+        self.connect_server(next_server, automatic=True)
 
     def disconnect(self, *, show_message: bool = True) -> None:
         LOGGER.info("Disconnect requested")
         self._stop_connect_animation()
         self._stop_connection_monitor()
         self.manager.stop()
+        self._auto_connect_queue.clear()
+        self._automatic_connect_attempt = False
+        self._connecting_server_id = ""
         self.connected_id = ""
         self.live_metrics_card.setVisible(False)
         self.live_download_value.setText("0 B")

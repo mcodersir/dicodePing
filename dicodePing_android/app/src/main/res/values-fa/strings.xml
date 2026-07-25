@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">dicodePing</string>
-    <string name="brand_title">dicodePing</string>
+    <string name="brand_title">رفع تحریم‌ها</string>
     <string name="brand_subtitle">اتصال سریع برای برنامه‌نویس‌ها و کاربران فناوری</string>
 
     <string name="nav_home">خانه</string>

@@ -9,6 +9,7 @@ from .geo import GeoResolver
 from .i18n import tr
 from .models import DiscoveredConfig, ServerRecord, utc_now
 from .net import ping_many
+from .resource_tuning import current_resource_profile
 from .protocols import config_to_blob, parse_endpoint, record_id, set_display_name
 from .storage import JsonStore
 
@@ -119,6 +120,7 @@ class ServerService:
     def __init__(self, store: JsonStore) -> None:
         self.store = store
         self.geo = GeoResolver(store)
+        self.resources = current_resource_profile()
 
     @staticmethod
     def is_restricted_location(server: ServerRecord) -> bool:
@@ -150,7 +152,7 @@ class ServerService:
             stage(tr(language, "testing_ping"))
         unique_hosts = list(dict.fromkeys(endpoint.host for _, endpoint, _ in endpoints))
         ping_callback = ping_progress or progress
-        ping_results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_callback)
+        ping_results = ping_many([(host, host) for host in unique_hosts], workers=self.resources.ping_workers, callback=ping_callback)
         ping_map = {item.key: item for item in ping_results}
 
         endpoints.sort(
@@ -237,7 +239,7 @@ class ServerService:
         if stage:
             stage(tr(language, "refreshing_saved"))
         unique_hosts = list(dict.fromkeys(server.host for server in records if server.host))
-        results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_progress or progress)
+        results = ping_many([(host, host) for host in unique_hosts], workers=self.resources.ping_workers, callback=ping_progress or progress)
         result_map = {result.key: result for result in results}
         for server in records:
             result = result_map.get(server.host)
@@ -322,7 +324,7 @@ class ServerService:
         if stage:
             stage(tr(language, "refreshing_saved"))
         unique_hosts = list(dict.fromkeys(server.host for server in fresh if server.host))
-        results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_progress or progress)
+        results = ping_many([(host, host) for host in unique_hosts], workers=self.resources.ping_workers, callback=ping_progress or progress)
         result_map = {result.key: result for result in results}
         for server in fresh:
             result = result_map.get(server.host)
@@ -395,7 +397,7 @@ class ServerService:
         if stage:
             stage(tr(language, "refreshing_saved"))
         unique_hosts = list(dict.fromkeys(server.host for server in subset if server.host))
-        results = ping_many([(host, host) for host in unique_hosts], workers=64, callback=ping_progress or progress)
+        results = ping_many([(host, host) for host in unique_hosts], workers=self.resources.ping_workers, callback=ping_progress or progress)
         result_map = {result.key: result for result in results}
         for server in subset:
             result = result_map.get(server.host)
@@ -428,7 +430,12 @@ class ServerService:
         candidates = records if records is not None else self.store.load_servers()
         return sorted(
             (server for server in candidates if _is_auto_candidate(server)),
-            key=lambda server: (server.ping_ms or 999999, server.failures, server.source_order),
+            key=lambda server: (
+                _effective_ping_ms(server),
+                server.failures,
+                server.source_order,
+                server.name.casefold(),
+            ),
         )
 
     def best_server(self, records: list[ServerRecord] | None = None) -> ServerRecord | None:

@@ -19,9 +19,14 @@ import ir.dicode.ping.databinding.FragmentScannerBinding
 import ir.dicode.ping.net.TelegramChannelCrawler
 import ir.dicode.ping.net.VolumeDetector
 import ir.dicode.ping.net.SubscriptionClient
+import ir.dicode.ping.util.RuntimeTuning
+import ir.dicode.ping.vpn.VpnStateStore
+import ir.dicode.ping.vpn.VpnStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * One-click scanner fragment (Android mirror of the desktop scanner page).
@@ -130,49 +135,63 @@ class ScannerFragment : Fragment() {
         binding.scannerResultLabel.text = ""
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    // Pull the bundled channel list from assets.
-                    val channels = loadChannelsFromAssets()
-                    TelegramChannelCrawler.crawl(channels) { done, total, _ ->
-                        // Update progress on the main thread.
+            val connectionHost = activity as? ConnectionHost
+            val result = runCatching {
+                if (VpnStateStore.state.value.status != VpnStatus.CONNECTED) {
+                    binding.scannerStageLabel.text = getString(R.string.connecting)
+                    connectionHost?.connect(null)
+                    val state = withTimeoutOrNull(30_000) {
+                        VpnStateStore.state.first {
+                            it.status == VpnStatus.CONNECTED || it.status == VpnStatus.ERROR
+                        }
+                    }
+                    check(state?.status == VpnStatus.CONNECTED) {
+                        state?.message ?: getString(R.string.connection_failed_retry)
+                    }
+                }
+
+                binding.scannerStageLabel.text = getString(R.string.scanner_crawl)
+                val channels = loadChannelsFromAssets()
+                val tuning = RuntimeTuning.detect(requireContext())
+                val configs = withContext(Dispatchers.IO) {
+                    TelegramChannelCrawler.crawl(channels, tuning.crawlWorkers) { done, total, _ ->
                         viewLifecycleOwner.lifecycleScope.launch {
-                            if (total > 0) {
+                            if (total > 0 && _binding != null) {
                                 binding.scannerProgressBar.isIndeterminate = false
-                                binding.scannerProgressBar.progress = (done * 100 / total)
+                                binding.scannerProgressBar.progress = (done * 45 / total)
                             }
                         }
                     }
                 }
+                check(configs.isNotEmpty()) { getString(R.string.scanner_no_result) }
+
+                binding.scannerStageLabel.text = getString(R.string.stage_ping, 0, configs.size)
+                connectionHost?.disconnect()
+                withTimeoutOrNull(8_000) {
+                    VpnStateStore.state.first { it.status == VpnStatus.DISCONNECTED }
+                }
+
+                val imported = vm.repo.importScannerConfigs(configs)
+                check(imported.isNotEmpty()) { getString(R.string.scanner_no_result) }
+                Triple(configs.size, imported.size, imported.count { it.healthy })
             }
+
             binding.scannerProgressBar.isIndeterminate = false
-            binding.scannerProgressBar.progress = 100
+            binding.scannerProgressBar.progress = if (result.isSuccess) 100 else 0
             binding.scannerRunButton.isEnabled = true
             binding.scannerRunButton.text = getString(R.string.scanner_run)
             binding.scannerStageLabel.text = getString(R.string.scanner_done)
 
-            val configs = result.getOrNull().orEmpty()
-            if (configs.isEmpty()) {
+            val summary = result.getOrNull()
+            if (summary == null) {
                 binding.scannerResultLabel.text = result.exceptionOrNull()?.message
                     ?: getString(R.string.scanner_no_result)
                 return@launch
             }
-            // The repository's existing refresh path will pick up these
-            // configs and real-probe them.  We hand them over by adding
-            // them to the main server list as a new source.
-            binding.scannerResultLabel.text = getString(
-                R.string.scanner_result,
-                configs.size,
-                configs.size,
-                0,
-            )
-            // Trigger the existing refresh so ping/location is resolved.
-            vm.repo.refreshAll()
-            Snackbar.make(
-                binding.root,
-                getString(R.string.scanner_result, configs.size, configs.size, 0),
-                Snackbar.LENGTH_LONG,
-            ).show()
+            val message = getString(R.string.scanner_result, summary.first, summary.second, summary.third)
+            binding.scannerResultLabel.text = message
+            Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+            vm.repo.bestServer()?.let { connectionHost?.connect(it) }
         }
     }
 

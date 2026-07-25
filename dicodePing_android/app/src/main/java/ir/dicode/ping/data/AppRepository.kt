@@ -5,6 +5,7 @@ import ir.dicode.ping.net.ConfigParser
 import ir.dicode.ping.net.GeoResolver
 import ir.dicode.ping.net.SubscriptionClient
 import ir.dicode.ping.util.AppLog
+import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.xray.CoreBridge
 import ir.dicode.ping.xray.XrayConfigBuilder
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +34,7 @@ class AppRepository private constructor(context: Context) {
     private val downloader = SubscriptionClient()
     private val geo = GeoResolver()
     private val proxyProbe = CoreBridge(app)
+    private val tuning = RuntimeTuning.detect(app)
     private val refreshMutex = Mutex()
     private val liveUpdateMutex = Mutex()
 
@@ -121,7 +123,7 @@ class AppRepository private constructor(context: Context) {
 
         progress.value = ProgressState(true, "download", 0, enabled.size, "Downloading servers")
         val completed = AtomicInteger(0)
-        val downloadSem = Semaphore(DOWNLOAD_CONCURRENCY)
+        val downloadSem = Semaphore(tuning.downloadWorkers)
         val sourceResults = coroutineScope {
             enabled.mapIndexed { sourceIndex, source ->
                 async(Dispatchers.IO) {
@@ -221,6 +223,56 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Persist scanner output as a real source, then run location and native
+     * Xray HTTP probes on exactly those configs. Previous scanner results are
+     * replaced atomically so repeated scans do not grow storage indefinitely.
+     */
+    suspend fun importScannerConfigs(configs: List<String>): List<ServerRecord> =
+        withContext(Dispatchers.IO) {
+            refreshMutex.withLock {
+                val parsed = configs.asSequence()
+                    .map(String::trim)
+                    .filter(String::isNotBlank)
+                    .distinctBy(::idForRaw)
+                    .mapNotNull { raw ->
+                        ConfigParser.parse(raw)?.let { node ->
+                            ServerRecord(
+                                id = idForRaw(raw),
+                                raw = raw,
+                                name = node.name,
+                                protocol = node.protocol.uppercase(),
+                                host = node.host,
+                                port = node.port,
+                                sourceId = SCANNER_SOURCE_ID,
+                                sourceName = SCANNER_SOURCE_NAME,
+                            )
+                        }
+                    }
+                    .take(MAX_SCANNER_SERVERS)
+                    .toList()
+                if (parsed.isEmpty()) return@withLock emptyList()
+
+                if (sources.value.none { it.id == SCANNER_SOURCE_ID }) {
+                    saveSources(
+                        sources.value + SourceDefinition(
+                            id = SCANNER_SOURCE_ID,
+                            name = SCANNER_SOURCE_NAME,
+                            url = "",
+                            order = sources.value.size,
+                            enabled = true,
+                        )
+                    )
+                }
+                servers.value = servers.value.filterNot { it.sourceId == SCANNER_SOURCE_ID } + parsed
+                settings.saveServers(servers.value)
+                locateServers(parsed, mergeWithExisting = true)
+                val imported = servers.value.filter { it.sourceId == SCANNER_SOURCE_ID }
+                pingServers(imported)
+                servers.value.filter { it.sourceId == SCANNER_SOURCE_ID }
+            }
+        }
+
     private suspend fun locateServers(
         input: List<ServerRecord>,
         mergeWithExisting: Boolean = false,
@@ -234,7 +286,7 @@ class AppRepository private constructor(context: Context) {
         try {
             progress.value = ProgressState(true, "geo", 0, total, "Resolving server locations")
             val dnsDone = AtomicInteger(0)
-            val dnsSem = Semaphore(DNS_CONCURRENCY)
+            val dnsSem = Semaphore(tuning.dnsWorkers)
             val resolved = input.map { server ->
                 async(Dispatchers.IO) {
                     dnsSem.withPermit {
@@ -252,7 +304,7 @@ class AppRepository private constructor(context: Context) {
 
             val byIp = resolved.filter { it.ip.isNotBlank() }.map { it.ip }.distinct()
             val geoDone = AtomicInteger(0)
-            val geoSem = Semaphore(GEO_CONCURRENCY)
+            val geoSem = Semaphore(tuning.geoWorkers)
             val geoByIp = byIp.map { ip ->
                 async(Dispatchers.IO) {
                     geoSem.withPermit {
@@ -319,7 +371,12 @@ class AppRepository private constructor(context: Context) {
                             // actual HTTP traffic through this exact outbound.
                             val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
                             val delay = if (reachable) runCatching {
-                                proxyProbe.measureOutboundDelay(XrayConfigBuilder.build(server.raw))
+                                proxyProbe.measureOutboundDelay(
+                                    XrayConfigBuilder.build(
+                                        server.raw,
+                                        bufferSizeKiB = tuning.bufferSizeKiB,
+                                    )
+                                )
                             }.getOrDefault(-1L) else -1L
                             val pingMs = delay.takeIf { it in 1..60_000 }
                                 ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
@@ -343,7 +400,7 @@ class AppRepository private constructor(context: Context) {
                 }.awaitAll()
             }
 
-            val firstPass = runBatch(input, REAL_PROBE_CONCURRENCY, countProgress = true)
+            val firstPass = runBatch(input, tuning.probeWorkers, countProgress = true)
             val failed = firstPass.filterNot { it.healthy }
             if (failed.isNotEmpty() && RETRY_FAILED_LIMIT > 0) {
                 val retryRows = failed.take(RETRY_FAILED_LIMIT)
@@ -353,7 +410,7 @@ class AppRepository private constructor(context: Context) {
                         if (current.id in failedIds) current.copy(testState = ServerRecord.TEST_RUNNING) else current
                     }
                 }
-                runBatch(retryRows, RETRY_PROBE_CONCURRENCY, countProgress = false)
+                runBatch(retryRows, tuning.retryWorkers, countProgress = false)
             }
             liveUpdateMutex.withLock {
                 servers.value = sortServers(servers.value)
@@ -519,13 +576,11 @@ class AppRepository private constructor(context: Context) {
 
     companion object {
         private const val REAL_PROXY_PING = "PROXY_HTTP"
-        private const val DOWNLOAD_CONCURRENCY = 4
-        private const val DNS_CONCURRENCY = 32
-        private const val GEO_CONCURRENCY = 8
-        private const val REAL_PROBE_CONCURRENCY = 16
-        private const val RETRY_PROBE_CONCURRENCY = 4
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
+        private const val SCANNER_SOURCE_ID = "scanner-auto"
+        private const val SCANNER_SOURCE_NAME = "اسکنر هوشمند"
+        private const val MAX_SCANNER_SERVERS = 240
 
         @Volatile
         private var instance: AppRepository? = null

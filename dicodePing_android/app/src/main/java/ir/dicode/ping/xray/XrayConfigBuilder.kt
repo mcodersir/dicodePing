@@ -5,7 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object XrayConfigBuilder {
-    fun build(raw: String, bypassDomains: String = ""): String {
+    fun build(raw: String, bypassDomains: String = "", bufferSizeKiB: Int = 256): String {
         val node = ConfigParser.parse(raw) ?: error("Unsupported or invalid configuration")
         val proxyOutbound = JSONObject(node.outbound.toString()).put("tag", "proxy")
         tuneProxySocket(proxyOutbound)
@@ -64,6 +64,7 @@ object XrayConfigBuilder {
                                 .put("connIdle", 300)
                                 .put("uplinkOnly", 2)
                                 .put("downlinkOnly", 2)
+                                .put("bufferSize", bufferSizeKiB.coerceIn(4, 512))
                         )
                     )
                     .put(

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">dicodePing</string>
-    <string name="brand_title">dicodePing</string>
+    <string name="brand_title">Open access</string>
     <string name="brand_subtitle">Fast access for developers and technology users</string>
 
     <string name="nav_home">Home</string>

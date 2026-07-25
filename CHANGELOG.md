@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.7.0-rc.4 — adaptive core, stable lifecycle, real scanner, responsive UI
+
+### Fixed
+- Android scanner results are now imported into the repository, resolved,
+  verified with the embedded Xray core, persisted, and selected automatically.
+- Desktop scanner cancellation now reaches active Xray probe processes. The
+  per-scan forever-waiting thread was removed and pending work is bounded.
+- Repeated connect/disconnect no longer creates overlapping Android core starts
+  or unlimited desktop TUN cleanup threads.
+- Connected latency on desktop is a real HTTP round trip through the TUN,
+  instead of a direct TCP handshake to the proxy endpoint.
+- Automatic desktop connection retries up to five independently ranked servers
+  and records failed candidates before presenting an error.
+
+### Added
+- CPU/RAM-aware resource profiles for Windows, Linux, and Android tune crawler,
+  DNS, ping, native-probe concurrency, internal queues, and Xray `bufferSize`.
+- Regression tests for low-resource limits, queue caps, Xray policy generation,
+  and cancellation before process launch.
+
+### UI
+- Desktop layouts now reflow actions, toolbars, scanner controls, metrics, and
+  tables at narrow widths; the minimum supported window is 680×480.
+- Android home header now shows «رفع تحریم‌ها» on the right and the boxed
+  `dicodeping` brand on the left in Persian layout.
+
 ## 1.7.0-rc.3 — ICMP ping fix, scanner VPN disconnect fix, crash fix, UI improvements
 
 ### Fixed

@@ -18,7 +18,9 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
             .orEmpty()
     }.getOrDefault("Core unavailable")
 
+    @Synchronized
     fun start(config: String, tunFd: Int) {
+        stop()
         val lib = prepareEnvironment()
         val callbackClass = Class.forName("libv2ray.CoreCallbackHandler")
         val callback = Proxy.newProxyInstance(callbackClass.classLoader, arrayOf(callbackClass)) { _, method, args ->
@@ -44,8 +46,13 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         val start = activeController.javaClass.methods.first {
             it.name.equals("startLoop", true) && it.parameterCount == 2
         }
-        start.invoke(activeController, config, tunFd)
-        if (!isRunning()) error("Xray core did not enter the running state")
+        try {
+            start.invoke(activeController, config, tunFd)
+            if (!isRunning()) error("Xray core did not enter the running state")
+        } catch (error: Throwable) {
+            stop()
+            throw error
+        }
     }
 
     private fun prepareEnvironment(): Class<*> = synchronized(ENV_LOCK) {
@@ -149,6 +156,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         return null
     }
 
+    @Synchronized
     fun stop() {
         val c = controller ?: return
         runCatching {

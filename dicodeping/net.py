@@ -397,7 +397,11 @@ class PingResult:
     ip: str
 
 
-def ping_many(items: Iterable[tuple[str, str]], workers: int = 48, callback: Callable[[int, int], None] | None = None) -> list[PingResult]:
+def ping_many(items: Iterable[tuple[str, str]], workers: int | None = None, callback: Callable[[int, int], None] | None = None) -> list[PingResult]:
+    from .resource_tuning import current_resource_profile
+
+    profile = current_resource_profile()
+    workers = profile.ping_workers if workers is None else max(1, min(workers, profile.ping_workers))
     rows = list(items)
     total = len(rows)
     results: list[PingResult] = []
@@ -405,7 +409,7 @@ def ping_many(items: Iterable[tuple[str, str]], workers: int = 48, callback: Cal
     # Windows DNS may spend many seconds per failed hostname. Resolving rows
     # sequentially kept discovery behind the skeleton for minutes. Resolve the
     # whole batch concurrently and stop waiting after a bounded window.
-    resolver = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(32, total)))
+    resolver = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(profile.dns_workers, total)))
     resolution_futures = {resolver.submit(resolve_ipv4, host): (key, host) for key, host in rows}
     resolved_by_key: dict[str, str] = {}
     done_futures, pending_futures = concurrent.futures.wait(
