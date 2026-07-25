@@ -228,9 +228,16 @@ class AppRepository private constructor(context: Context) {
      * Xray HTTP probes on exactly those configs. Previous scanner results are
      * replaced atomically so repeated scans do not grow storage indefinitely.
      */
-    suspend fun importScannerConfigs(configs: List<String>): List<ServerRecord> =
+    suspend fun importScannerConfigs(configs: List<String>, requestedName: String): List<ServerRecord> =
         withContext(Dispatchers.IO) {
             refreshMutex.withLock {
+                val sourceName = requestedName.trim().take(64).ifBlank {
+                    "Scanner ${java.text.SimpleDateFormat("yyyy-MM-dd HH-mm", java.util.Locale.US).format(java.util.Date())}"
+                }
+                val sourceId = "scanner-" + MessageDigest.getInstance("SHA-256")
+                    .digest(sourceName.toByteArray())
+                    .take(6)
+                    .joinToString("") { "%02x".format(it) }
                 val parsed = configs.asSequence()
                     .map(String::trim)
                     .filter(String::isNotBlank)
@@ -244,8 +251,8 @@ class AppRepository private constructor(context: Context) {
                                 protocol = node.protocol.uppercase(),
                                 host = node.host,
                                 port = node.port,
-                                sourceId = SCANNER_SOURCE_ID,
-                                sourceName = SCANNER_SOURCE_NAME,
+                                sourceId = sourceId,
+                                sourceName = sourceName,
                             )
                         }
                     }
@@ -253,23 +260,23 @@ class AppRepository private constructor(context: Context) {
                     .toList()
                 if (parsed.isEmpty()) return@withLock emptyList()
 
-                if (sources.value.none { it.id == SCANNER_SOURCE_ID }) {
+                if (sources.value.none { it.id == sourceId }) {
                     saveSources(
                         sources.value + SourceDefinition(
-                            id = SCANNER_SOURCE_ID,
-                            name = SCANNER_SOURCE_NAME,
+                            id = sourceId,
+                            name = sourceName,
                             url = "",
                             order = sources.value.size,
                             enabled = true,
                         )
                     )
                 }
-                servers.value = servers.value.filterNot { it.sourceId == SCANNER_SOURCE_ID } + parsed
+                servers.value = servers.value.filterNot { it.sourceId == sourceId } + parsed
                 settings.saveServers(servers.value)
                 locateServers(parsed, mergeWithExisting = true)
-                val imported = servers.value.filter { it.sourceId == SCANNER_SOURCE_ID }
+                val imported = servers.value.filter { it.sourceId == sourceId }
                 pingServers(imported)
-                servers.value.filter { it.sourceId == SCANNER_SOURCE_ID }
+                servers.value.filter { it.sourceId == sourceId }
             }
         }
 
@@ -578,8 +585,6 @@ class AppRepository private constructor(context: Context) {
         private const val REAL_PROXY_PING = "PROXY_HTTP"
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
-        private const val SCANNER_SOURCE_ID = "scanner-auto"
-        private const val SCANNER_SOURCE_NAME = "اسکنر هوشمند"
         private const val MAX_SCANNER_SERVERS = 240
 
         @Volatile

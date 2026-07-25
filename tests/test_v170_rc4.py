@@ -44,8 +44,8 @@ class AdaptiveRuntimeTests(unittest.TestCase):
     def test_android_scanner_persists_and_probes_discovered_configs(self) -> None:
         scanner = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ScannerFragment.kt").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
-        self.assertIn("importScannerConfigs(configs)", scanner)
-        self.assertIn("sourceId = SCANNER_SOURCE_ID", repository)
+        self.assertIn("importScannerConfigs(configs, customName)", scanner)
+        self.assertIn("sourceId = sourceId", repository)
         self.assertIn("pingServers(imported)", repository)
 
     def test_android_header_matches_requested_rtl_brand_layout(self) -> None:

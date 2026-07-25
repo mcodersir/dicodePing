@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0-rc.1 — verified optional cores, real sharing, named scanner sources
+
+- Added one-active-core runtime selection for Xray, Psiphon and Aether.
+- Added verified, on-demand optional-core downloads outside application builds.
+- Added Aether Ironclad real-tunnel validation and quick reconnect.
+- Implemented Windows ICS and Linux hostapd/dnsmasq/iptables VPN sharing.
+- Wired Android per-app VPN allowlist and denylist controls to VpnService.
+- Added Android root/system tether routing with explicit capability failure.
+- Added working CDN endpoint formatting to desktop and Android Xray configs.
+- Preserved custom scanner subscription names and persisted real scanned sources.
+- Added atomic installs, lifecycle cleanup, rollback, resource scaling, and tests.
+
 ## 1.7.0-rc.4 — adaptive core, stable lifecycle, real scanner, responsive UI
 
 ### Fixed

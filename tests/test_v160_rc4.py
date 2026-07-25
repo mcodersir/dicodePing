@@ -13,10 +13,10 @@ class V160Rc4Tests(unittest.TestCase):
         constants = (ROOT / "dicodeping/constants.py").read_text(encoding="utf-8")
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
-        self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
-        self.assertIn("versionCode = 31", gradle)
-        self.assertIn('versionName = "1.7.0"', gradle)
-        self.assertIn('1.7.0-rc.', gradle)
+        self.assertIn('RELEASE_VERSION = "1.8.0-rc.', constants)
+        self.assertIn("versionCode = 32", gradle)
+        self.assertIn('versionName = "1.8.0"', gradle)
+        self.assertIn('1.8.0-rc.', gradle)
         self.assertIn('RC_VERSION = "rc.', linux_builder)
 
     def test_ping_cache_module_is_present(self) -> None:

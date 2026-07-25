@@ -59,13 +59,18 @@ class SplashActivity : ComponentActivity() {
             val startedAt = System.currentTimeMillis()
             // Do not leave the splash while download, location or real-ping is
             // still running. Every network operation has its own bounded timeout.
-            runCatching { repo.initialize() }
+            val primaryCore = repo.settings.activeCore == "xray"
+            if (primaryCore) runCatching { repo.initialize() }
             val elapsed = System.currentTimeMillis() - startedAt
             if (elapsed < 650) delay(650 - elapsed)
             val release = withTimeoutOrNull(3_000) {
                 ReleaseUpdateChecker.newerThan(BuildConfig.RELEASE_VERSION)
             }
-            val changed = withTimeoutOrNull(4_000) { repo.subscriptionUpdates() }.orEmpty()
+            val changed = if (primaryCore) {
+                withTimeoutOrNull(4_000) { repo.subscriptionUpdates() }.orEmpty()
+            } else {
+                emptyList()
+            }
             showStartupPrompts(release, changed, repo)
         }
     }

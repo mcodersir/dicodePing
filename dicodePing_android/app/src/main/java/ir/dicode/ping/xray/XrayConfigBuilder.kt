@@ -5,9 +5,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object XrayConfigBuilder {
-    fun build(raw: String, bypassDomains: String = "", bufferSizeKiB: Int = 256): String {
+    fun build(
+        raw: String,
+        bypassDomains: String = "",
+        bufferSizeKiB: Int = 256,
+        cdnDomain: String = "",
+    ): String {
         val node = ConfigParser.parse(raw) ?: error("Unsupported or invalid configuration")
         val proxyOutbound = JSONObject(node.outbound.toString()).put("tag", "proxy")
+        if (cdnDomain.isNotBlank()) applyCdnFormatting(proxyOutbound, cdnDomain)
         tuneProxySocket(proxyOutbound)
         val routingRules = JSONArray()
 
@@ -115,6 +121,36 @@ object XrayConfigBuilder {
                     .put("queryStrategy", "UseIP")
             )
         }.toString()
+    }
+
+    private fun applyCdnFormatting(outbound: JSONObject, cdnDomain: String) {
+        require(
+            cdnDomain.matches(
+                Regex("(?i)^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$")
+            )
+        ) { "Invalid CDN hostname" }
+        val settings = outbound.optJSONObject("settings") ?: return
+        val endpoint = when (outbound.optString("protocol")) {
+            "vmess", "vless" -> settings.optJSONArray("vnext")?.optJSONObject(0)
+            "trojan", "shadowsocks" -> settings.optJSONArray("servers")?.optJSONObject(0)
+            else -> null
+        } ?: return
+        val original = endpoint.optString("address").trim()
+        if (original.isBlank()) return
+        endpoint.put("address", cdnDomain)
+
+        val stream = outbound.optJSONObject("streamSettings") ?: JSONObject().also {
+            outbound.put("streamSettings", it)
+        }
+        val tls = stream.optJSONObject("tlsSettings") ?: JSONObject().also {
+            stream.put("tlsSettings", it)
+        }
+        if (tls.optString("serverName").isBlank()) tls.put("serverName", original)
+        val ws = stream.optJSONObject("wsSettings") ?: JSONObject().also {
+            stream.put("wsSettings", it)
+        }
+        val headers = ws.optJSONObject("headers") ?: JSONObject().also { ws.put("headers", it) }
+        if (headers.optString("Host").isBlank()) headers.put("Host", original)
     }
 
     private fun tuneProxySocket(outbound: JSONObject) {

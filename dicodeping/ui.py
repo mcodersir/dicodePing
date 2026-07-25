@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from .constants import ASSET_DIR, DEFAULT_SUBSCRIPTION_URL, LOG_FILE, MAX_CUSTOM_SUBSCRIPTIONS
+from .connection_manager import ConnectionManager
 from .diagnostics import get_logger
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition
@@ -56,8 +57,8 @@ from .protocols import blob_to_config, config_to_blob, set_display_name
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
-from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshSubsetThread, RefreshThread
-from .xray import XrayManager, normalize_bypass_domains
+from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshSubsetThread, RefreshThread, SharingThread
+from .xray import normalize_bypass_domains
 
 LOGGER = get_logger("ui")
 
@@ -787,7 +788,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.store = JsonStore()
         self.service = ServerService(self.store)
-        self.manager = XrayManager()
+        self.manager = ConnectionManager()
         self.settings = dict(preloaded_settings) if preloaded_settings is not None else self.store.load_settings()
         self._startup_prepared = startup_prepared
         self._startup_error = startup_error
@@ -817,6 +818,7 @@ class MainWindow(QMainWindow):
         self._auto_connect_queue: list[ServerRecord] = []
         self._automatic_connect_attempt = False
         self._connecting_server_id = ""
+        self._sharing_thread: SharingThread | None = None
 
         self.setWindowTitle(f"dicodePing {__version__}")
         application_icon = QApplication.instance().windowIcon() if QApplication.instance() else QIcon()
@@ -831,6 +833,7 @@ class MainWindow(QMainWindow):
         )
 
         self._build_ui()
+        self._sync_core_mode_ui()
         self.apply_theme(str(self.settings.get("theme", "dark")), save=False)
         self.render_subscription_list()
         self.render_servers()
@@ -2221,6 +2224,8 @@ class MainWindow(QMainWindow):
             return
         try:
             set_active_core(core_id)
+            self.manager.reload_selection()
+            self._sync_core_mode_ui()
             self.conn_method_status_label.setText(self.t("conn_method_active") + f": {core_id}")
         except Exception as exc:
             self.conn_method_status_label.setText(f"خطا: {exc}")
@@ -2397,6 +2402,8 @@ class MainWindow(QMainWindow):
             self.store.save_settings(self.settings)
 
     def switch_page(self, index: int, _checked: bool = False, *, animate: bool = True) -> None:
+        if getattr(self.manager, "active_core", "xray") != "xray" and index in {1, 2}:
+            index = 0
         self.sidebar.set_current(index)
         if animate:
             self.pages.fade_to(index)
@@ -3119,6 +3126,9 @@ class MainWindow(QMainWindow):
         if self.manager.connected:
             self.disconnect()
             return
+        if getattr(self.manager, "active_core", "xray") != "xray":
+            self.connect_alternative_core()
+            return
         if not self.servers:
             self.start_scan()
             return
@@ -3135,12 +3145,43 @@ class MainWindow(QMainWindow):
             self.start_refresh()
 
     def connect_best(self) -> None:
+        if getattr(self.manager, "active_core", "xray") != "xray":
+            self.connect_alternative_core()
+            return
         candidates = self.service.auto_candidates(self.servers)[:5]
         if candidates:
             self._auto_connect_queue = list(candidates[1:])
             self.connect_server(candidates[0], automatic=True)
         else:
             AppDialog.info(self, self.t("no_healthy_title"), self.t("need_refresh"), self.t("ok"))
+
+    def connect_alternative_core(self) -> None:
+        core_id = getattr(self.manager, "active_core", "xray")
+        server = ServerRecord(
+            id=f"core:{core_id}",
+            name=core_id.title(),
+            protocol=core_id.upper(),
+            host="127.0.0.1",
+            port=1819,
+            config_blob="",
+            status="online",
+        )
+        self.connect_server(server, automatic=False)
+
+    def _sync_core_mode_ui(self) -> None:
+        if not hasattr(self, "sidebar"):
+            return
+        alternative = getattr(self.manager, "active_core", "xray") != "xray"
+        for index in (1, 2):
+            self.sidebar.buttons[index].setEnabled(not alternative)
+        if hasattr(self, "home_scan_button"):
+            self.home_scan_button.setEnabled(not alternative)
+        if hasattr(self, "home_refresh_button"):
+            self.home_refresh_button.setEnabled(not alternative)
+        if alternative:
+            core_name = getattr(self.manager, "active_core", "").title()
+            self.home_best_name.setText(core_name)
+            self.home_best_meta.setText(self.t("conn_method_help"))
 
     def connect_server(self, server: ServerRecord, *, automatic: bool = False) -> None:
         if self.worker or self.manager.connected:
@@ -3160,7 +3201,18 @@ class MainWindow(QMainWindow):
             bypass_domains = normalize_bypass_domains(self.settings.get("bypass_domains", []))
         self._start_connect_animation(server.name)
         self.set_busy(True, self.t("connecting_to", name=server.name))
-        worker = ConnectThread(self.manager, server, self.language, bypass_domains=bypass_domains)
+        cdn_domain = (
+            str(self.settings.get("cdn_formatting_domain", "")).strip()
+            if bool(self.settings.get("cdn_formatting_enabled", False))
+            else ""
+        )
+        worker = ConnectThread(
+            self.manager,
+            server,
+            self.language,
+            bypass_domains=bypass_domains,
+            cdn_domain=cdn_domain,
+        )
         worker.success.connect(self.connect_finished)
         worker.failed.connect(self.connect_failed)
         self.bind_worker(worker)
@@ -3178,8 +3230,22 @@ class MainWindow(QMainWindow):
         self.service.update_connected(item.id)
         self.set_busy(False, self.t("connected_to", name=item.name))
         self._start_connection_monitor()
+        if getattr(self.manager, "active_core", "xray") == "xray":
+            usb = bool(self.settings.get("vpn_sharing_usb", False))
+            hotspot = bool(self.settings.get("vpn_sharing_hotspot", False))
+            if usb or hotspot:
+                self._sharing_thread = SharingThread(enable=True, usb=usb, hotspot=hotspot)
+                self._sharing_thread.completed.connect(self._sharing_finished)
+                self._sharing_thread.finished.connect(self._sharing_thread.deleteLater)
+                self._sharing_thread.start()
         self.render_servers()
         self.update_connection_ui()
+
+    def _sharing_finished(self, error: str) -> None:
+        self._sharing_thread = None
+        if error:
+            LOGGER.error("VPN sharing failed: %s", error)
+            self.footer_state.setText(error)
 
     def connect_failed(self, message: str) -> None:
         LOGGER.error("Connection failed: %s", message)
@@ -3190,6 +3256,12 @@ class MainWindow(QMainWindow):
         self._stop_connect_animation()
         self._stop_connection_monitor()
         self.manager.stop()
+        if self._sharing_thread and self._sharing_thread.isRunning():
+            self._sharing_thread.requestInterruption()
+        self._sharing_thread = SharingThread(enable=False)
+        self._sharing_thread.completed.connect(lambda _error: setattr(self, "_sharing_thread", None))
+        self._sharing_thread.finished.connect(self._sharing_thread.deleteLater)
+        self._sharing_thread.start()
         self.connected_id = ""
         self.live_metrics_card.setVisible(False)
         self.set_busy(False, self.t("connection_failed"))

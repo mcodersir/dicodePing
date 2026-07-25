@@ -68,7 +68,7 @@ class ScannerFragment : Fragment() {
 
         // --- Copy all servers ------------------------------------------
         binding.copyAllButton.setOnClickListener {
-            val servers = vm.repo.servers.value
+            val servers = vm.repo.servers.value.filter { it.sourceId.startsWith("scanner-") }
             if (servers.isEmpty()) {
                 Snackbar.make(binding.root, R.string.scanner_empty_history, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -101,7 +101,8 @@ class ScannerFragment : Fragment() {
                 }
                 launch {
                     vm.repo.servers.collect { servers ->
-                        if (servers.isEmpty()) {
+                        val scannerServers = servers.filter { it.sourceId.startsWith("scanner-") }
+                        if (scannerServers.isEmpty()) {
                             binding.scannerHistoryEmpty.visibility = View.VISIBLE
                             binding.scannerHistoryContent.visibility = View.GONE
                         } else {
@@ -109,8 +110,8 @@ class ScannerFragment : Fragment() {
                             binding.scannerHistoryContent.visibility = View.VISIBLE
                             binding.scannerHistoryContent.text = resources.getQuantityString(
                                 R.plurals.scanner_servers_count,
-                                servers.size,
-                                servers.size,
+                                scannerServers.size,
+                                scannerServers.size,
                             )
                         }
                     }
@@ -172,7 +173,7 @@ class ScannerFragment : Fragment() {
                     VpnStateStore.state.first { it.status == VpnStatus.DISCONNECTED }
                 }
 
-                val imported = vm.repo.importScannerConfigs(configs)
+                val imported = vm.repo.importScannerConfigs(configs, customName)
                 check(imported.isNotEmpty()) { getString(R.string.scanner_no_result) }
                 Triple(configs.size, imported.size, imported.count { it.healthy })
             }

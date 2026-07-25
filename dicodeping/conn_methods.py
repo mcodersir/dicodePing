@@ -149,13 +149,21 @@ def _rewrite_url_config(raw: str, cdn_domain: str) -> str:
         return raw
     original_host = parsed.hostname
     # Replace the host in the netloc.
-    netloc = cdn_domain
+    credentials = ""
+    if parsed.username is not None:
+        credentials = urllib.parse.quote(parsed.username, safe="")
+        if parsed.password is not None:
+            credentials += ":" + urllib.parse.quote(parsed.password, safe="")
+        credentials += "@"
+    netloc = credentials + cdn_domain
     if parsed.port:
-        netloc = f"{cdn_domain}:{parsed.port}"
+        netloc = f"{credentials}{cdn_domain}:{parsed.port}"
     # Append the original host as a query parameter.
     query = parsed.query
     if "host=" not in query:
         query = (query + "&" if query else "") + f"host={urllib.parse.quote(original_host)}"
+    if "security=tls" in query and "sni=" not in query:
+        query += f"&sni={urllib.parse.quote(original_host)}"
     return urllib.parse.urlunsplit(
         (parsed.scheme, netloc, parsed.path, query, parsed.fragment)
     )

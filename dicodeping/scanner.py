@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import hashlib
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -131,7 +132,9 @@ def generate_sub_name(custom: str | None = None) -> str:
     v1.7.0-rc.3: always use "sub" as the name.  Each scan updates the
     same "sub" source — no need for the user to pick a name.
     """
-    return "sub"
+    cleaned = re.sub(r"[\x00-\x1f<>:\"/\\|?*]+", " ", (custom or "")).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)[:64].strip()
+    return cleaned or f"Scanner {datetime.now().strftime('%Y-%m-%d %H-%M')}"
 
 
 def _probe_one(

@@ -19,6 +19,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
+import ir.dicode.ping.MainActivity
+import ir.dicode.ping.core.AndroidCoreManager
 import ir.dicode.ping.data.SourceDefinition
 import ir.dicode.ping.databinding.DialogAppBypassBinding
 import ir.dicode.ping.databinding.DialogSourceBinding
@@ -46,6 +48,7 @@ class SettingsFragment : Fragment() {
         val store = vm.repo.settings
         setupTabs()
         setupAppearance()
+        setupConnectionFeatures()
 
         binding.mode.check(if (store.connectionMode == "manual") R.id.modeManual else R.id.modeAuto)
         binding.mode.addOnButtonCheckedListener { _, id, checked ->
@@ -59,7 +62,16 @@ class SettingsFragment : Fragment() {
 
         binding.bypassDomains.setText(store.bypassDomains)
         updateBypassAppsSummary()
-        binding.chooseBypassApps.setOnClickListener { showBypassAppsDialog() }
+        binding.chooseBypassApps.setOnClickListener {
+            showAppsDialog(
+                vm.repo.settings.bypassApps,
+                R.string.bypass_apps_title,
+                R.string.bypass_apps_dialog_help,
+            ) {
+                vm.repo.settings.bypassApps = it
+                updateBypassAppsSummary()
+            }
+        }
         binding.saveBypass.setOnClickListener {
             store.bypassDomains = normalizeDomains(binding.bypassDomains.text?.toString().orEmpty())
             binding.bypassDomains.setText(store.bypassDomains)
@@ -78,6 +90,115 @@ class SettingsFragment : Fragment() {
         binding.addSource.setOnClickListener { editSource(null) }
         viewLifecycleOwner.lifecycleScope.launch {
             vm.repo.sources.collect { sourceAdapter.items = it }
+        }
+    }
+
+    private fun setupConnectionFeatures() {
+        val store = vm.repo.settings
+        val coreIds = listOf("xray", "psiphon", "aether")
+        val coreLabels = listOf(
+            getString(R.string.conn_method_xray),
+            getString(R.string.conn_method_psiphon),
+            getString(R.string.conn_method_aether),
+        )
+        val coreManager = AndroidCoreManager(requireContext().applicationContext)
+        binding.connectionCore.setAdapter(
+            ArrayAdapter(requireContext(), R.layout.item_dropdown, R.id.dropdownText, coreLabels)
+        )
+        binding.connectionCore.setText(coreLabels[coreIds.indexOf(store.activeCore).coerceAtLeast(0)], false)
+        fun selectedCore(): String = coreIds.getOrElse(coreLabels.indexOf(binding.connectionCore.text.toString())) {
+            "xray"
+        }
+        fun renderCoreStatus() {
+            val core = selectedCore()
+            binding.coreStatus.setText(
+                when {
+                    core == "xray" -> R.string.core_xray_builtin
+                    coreManager.isInstalled(core) -> R.string.core_ready
+                    else -> R.string.core_not_downloaded
+                }
+            )
+            binding.downloadCore.isEnabled = core != "xray" && !coreManager.isInstalled(core)
+            binding.activateCore.isEnabled = core == "xray" || coreManager.isInstalled(core)
+        }
+        binding.connectionCore.setOnItemClickListener { _, _, _, _ -> renderCoreStatus() }
+        binding.downloadCore.setOnClickListener {
+            val core = selectedCore()
+            if (core == "xray") return@setOnClickListener
+            binding.downloadCore.isEnabled = false
+            binding.coreStatus.setText(R.string.conn_method_downloading)
+            viewLifecycleOwner.lifecycleScope.launch {
+                val result = runCatching { coreManager.install(core) }
+                if (_binding == null) return@launch
+                binding.coreStatus.text = result.fold(
+                    onSuccess = { getString(R.string.conn_method_download_done) },
+                    onFailure = { getString(R.string.conn_method_download_failed) + ": " + it.message },
+                )
+                renderCoreStatus()
+            }
+        }
+        binding.activateCore.setOnClickListener {
+            val core = selectedCore()
+            if (!coreManager.isInstalled(core)) {
+                binding.coreStatus.setText(R.string.core_select_first)
+                return@setOnClickListener
+            }
+            store.activeCore = core
+            (activity as? MainActivity)?.applyCoreMode()
+            binding.coreStatus.text = getString(R.string.conn_method_active) + ": " +
+                coreLabels[coreIds.indexOf(core)]
+        }
+        renderCoreStatus()
+
+        val perAppIds = listOf("disabled", "allowlist", "denylist")
+        val perAppLabels = listOf(
+            getString(R.string.per_app_vpn_disabled),
+            getString(R.string.per_app_vpn_allowlist),
+            getString(R.string.per_app_vpn_denylist),
+        )
+        binding.perAppMode.setAdapter(
+            ArrayAdapter(requireContext(), R.layout.item_dropdown, R.id.dropdownText, perAppLabels)
+        )
+        binding.perAppMode.setText(
+            perAppLabels[perAppIds.indexOf(store.perAppVpnMode).coerceAtLeast(0)],
+            false,
+        )
+        binding.perAppMode.setOnItemClickListener { _, _, position, _ ->
+            store.perAppVpnMode = perAppIds[position]
+            binding.choosePerAppApps.isEnabled = position != 0
+        }
+        binding.choosePerAppApps.isEnabled = store.perAppVpnMode != "disabled"
+        updatePerAppAppsSummary()
+        binding.choosePerAppApps.setOnClickListener {
+            showAppsDialog(
+                store.perAppVpnPackages,
+                R.string.per_app_vpn_title,
+                R.string.per_app_apps_dialog_help,
+            ) {
+                store.perAppVpnPackages = it
+                updatePerAppAppsSummary()
+            }
+        }
+
+        binding.sharingUsb.isChecked = store.vpnSharingUsb
+        binding.sharingHotspot.isChecked = store.vpnSharingHotspot
+        binding.sharingUsb.setOnCheckedChangeListener { _, checked -> store.vpnSharingUsb = checked }
+        binding.sharingHotspot.setOnCheckedChangeListener { _, checked -> store.vpnSharingHotspot = checked }
+        binding.cdnFormatting.isChecked = store.cdnFormattingEnabled
+        binding.cdnDomain.setText(store.cdnFormattingDomain)
+        binding.cdnFormatting.setOnCheckedChangeListener { _, checked ->
+            store.cdnFormattingEnabled = checked
+            binding.cdnDomain.isEnabled = checked
+        }
+        binding.cdnDomain.isEnabled = store.cdnFormattingEnabled
+        binding.cdnDomain.doAfterTextChanged { text ->
+            val value = text?.toString()?.trim().orEmpty()
+            if (value.matches(Regex("(?i)^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$"))) {
+                store.cdnFormattingDomain = value
+                binding.cdnDomainLayout.error = null
+            } else if (value.isNotBlank()) {
+                binding.cdnDomainLayout.error = getString(R.string.invalid_cdn_domain)
+            }
         }
     }
 
@@ -172,9 +293,19 @@ class SettingsFragment : Fragment() {
         )
     }
 
-    private fun showBypassAppsDialog() {
+    private fun updatePerAppAppsSummary() {
+        val count = vm.repo.settings.perAppVpnPackages.size
+        binding.perAppAppsCount.text = getString(R.string.per_app_apps_count, count)
+    }
+
+    private fun showAppsDialog(
+        initial: Set<String>,
+        title: Int,
+        help: Int,
+        onSave: (Set<String>) -> Unit,
+    ) {
         val dialogBinding = DialogAppBypassBinding.inflate(layoutInflater)
-        val selected = vm.repo.settings.bypassApps.toMutableSet()
+        val selected = initial.toMutableSet()
         val adapter = InstalledAppAdapter(selected) { count ->
             dialogBinding.selectedCount.text = resources.getQuantityString(
                 R.plurals.bypass_apps_count,
@@ -192,8 +323,8 @@ class SettingsFragment : Fragment() {
         )
 
         val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.bypass_apps_title)
-            .setMessage(R.string.bypass_apps_dialog_help)
+            .setTitle(title)
+            .setMessage(help)
             .setView(dialogBinding.root)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.save, null)
@@ -216,8 +347,7 @@ class SettingsFragment : Fragment() {
 
         dialog.setOnShowListener {
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                vm.repo.settings.bypassApps = selected
-                updateBypassAppsSummary()
+                onSave(selected)
                 Snackbar.make(binding.root, R.string.settings_saved, Snackbar.LENGTH_SHORT).show()
                 dialog.dismiss()
             }

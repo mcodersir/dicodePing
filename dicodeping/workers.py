@@ -15,6 +15,7 @@ from .models import ServerRecord, SourceDefinition
 from .net import is_any_url_reachable_parallel
 from .protocols import blob_to_config
 from .service import ServerService
+from .connection_manager import ConnectionManager
 from .xray import XrayManager
 from .xray import is_windows
 from .updates import check_source_updates, find_application_update
@@ -63,7 +64,7 @@ def _flush_windows_dns() -> None:
         pass
 
 
-def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
+def _tunnel_passes_real_traffic(manager) -> bool:
     """Validate real internet access after TUN routing is active.
 
     Xray's StatsService can legitimately return zero during startup on Windows.
@@ -73,6 +74,9 @@ def _tunnel_passes_real_traffic(manager: XrayManager) -> bool:
     """
     if not manager.connected:
         return False
+    verifier = getattr(manager, "verify_connection", None)
+    if verifier is not None and getattr(manager, "active_core", "xray") != "xray":
+        return bool(verifier())
     _flush_windows_dns()
     # Race several endpoints once.  Repeating long 5.5-second probes made a
     # healthy Windows TUN look broken whenever a single public endpoint was
@@ -260,6 +264,27 @@ class CoreDownloadThread(QThread):
             self.failed.emit(str(exc))
 
 
+class SharingThread(QThread):
+    completed = Signal(str)
+
+    def __init__(self, *, enable: bool, usb: bool = False, hotspot: bool = False) -> None:
+        super().__init__()
+        self.enable = enable
+        self.usb = usb
+        self.hotspot = hotspot
+
+    def run(self) -> None:
+        from .vpn_sharing import disable_sharing, enable_sharing
+        from .xray import TUN_NAME
+
+        error = (
+            enable_sharing(TUN_NAME, usb=self.usb, hotspot=self.hotspot)
+            if self.enable
+            else disable_sharing(TUN_NAME)
+        )
+        self.completed.emit(error)
+
+
 class ScannerThread(QThread):
     """Background worker that runs the staged one-click scanner.
 
@@ -373,16 +398,18 @@ class VolumeFetchThread(QThread):
 class ConnectThread(TaskThread):
     def __init__(
         self,
-        manager: XrayManager,
+        manager: ConnectionManager,
         server: ServerRecord,
         language: str = "fa",
         bypass_domains: list[str] | None = None,
+        cdn_domain: str = "",
     ) -> None:
         super().__init__()
         self.manager = manager
         self.server = server
         self.language = language
         self.bypass_domains = list(bypass_domains or [])
+        self.cdn_domain = cdn_domain.strip()
 
     def run(self) -> None:
         try:
@@ -390,8 +417,16 @@ class ConnectThread(TaskThread):
                 return
             self.stage.emit(tr(self.language, "starting_tun"))
             self.progress.emit(20, 100)
+            raw_config = (
+                blob_to_config(self.server.config_blob)
+                if getattr(self.manager, "active_core", "xray") == "xray"
+                else ""
+            )
+            if raw_config and self.cdn_domain:
+                from .conn_methods import apply_cdn_formatting
+                raw_config = apply_cdn_formatting(raw_config, self.cdn_domain)
             self.manager.start(
-                blob_to_config(self.server.config_blob),
+                raw_config,
                 progress=self.stage.emit,
                 language=self.language,
                 bypass_domains=self.bypass_domains,

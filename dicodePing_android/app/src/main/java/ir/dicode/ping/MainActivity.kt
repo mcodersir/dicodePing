@@ -28,6 +28,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ir.dicode.ping.data.ServerRecord
 import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.data.SettingsStore
+import ir.dicode.ping.core.AndroidCoreManager
 import ir.dicode.ping.databinding.ActivityMainBinding
 import ir.dicode.ping.ui.AboutFragment
 import ir.dicode.ping.ui.HomeFragment
@@ -97,6 +98,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         bindNavigationItem(binding.navScanner!!, binding.navScannerIcon!!, R.id.nav_scanner)
         bindNavigationItem(binding.navSettings, binding.navSettingsIcon!!, R.id.nav_settings)
         bindNavigationItem(binding.navAbout, binding.navAboutIcon!!, R.id.nav_about)
+        applyCoreMode()
 
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         currentPageId = 0
@@ -171,6 +173,15 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     private fun showPage(id: Int, animate: Boolean = true) {
+        if (SettingsStore(this).activeCore != "xray" &&
+            (id == R.id.nav_servers || id == R.id.nav_scanner)
+        ) {
+            MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.alternative_core_notice)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
         val tag = pageTag(id)
         val existing = supportFragmentManager.findFragmentByTag(tag)
         if (id == currentPageId && existing?.isVisible == true) return
@@ -220,6 +231,23 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun connect(server: ServerRecord?) {
+        val activeCore = vm.repo.settings.activeCore
+        if (activeCore != "xray") {
+            val manager = AndroidCoreManager(applicationContext)
+            if (!manager.isInstalled(activeCore)) {
+                MaterialAlertDialogBuilder(this)
+                    .setMessage(R.string.core_select_first)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                return
+            }
+            val opened = runCatching { manager.open(activeCore) }.getOrDefault(false)
+            MaterialAlertDialogBuilder(this)
+                .setMessage(if (opened) R.string.core_opened else R.string.conn_method_download_failed)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
         if (vm.repo.progress.value.active) {
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.preparing_servers)
@@ -336,6 +364,17 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             Intent(applicationContext, DicodeVpnService::class.java)
                 .setAction(DicodeVpnService.ACTION_STOP)
         )
+    }
+
+    fun applyCoreMode() {
+        val primary = SettingsStore(this).activeCore == "xray"
+        listOf(binding.navServers, binding.navScanner).forEach { item ->
+            item?.isEnabled = primary
+            item?.alpha = if (primary) 1f else 0.38f
+        }
+        if (!primary && (currentPageId == R.id.nav_servers || currentPageId == R.id.nav_scanner)) {
+            showPage(R.id.nav_home)
+        }
     }
 
     companion object {

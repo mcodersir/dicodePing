@@ -17,6 +17,7 @@ import ir.dicode.ping.R
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.xray.CoreBridge
 import ir.dicode.ping.xray.XrayConfigBuilder
+import ir.dicode.ping.data.SettingsStore
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -40,10 +41,12 @@ class DicodeVpnService : VpnService() {
     private var uploadTotal = 0L
     private var downloadTotal = 0L
     private var currentName = ""
+    private var currentSharingError = ""
     private var underlyingCallbackRegistered = false
     private var currentUnderlyingNetwork: Network? = null
     private val startGeneration = AtomicLong(0L)
     private val runtimeMutex = Mutex()
+    private val tetheringController = AndroidTetheringController()
 
     private val underlyingRequest = NetworkRequest.Builder()
         .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -213,8 +216,14 @@ class DicodeVpnService : VpnService() {
             if (core?.available() != true) error(getString(R.string.core_unavailable))
 
             val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext)
+            val settings = SettingsStore(applicationContext)
             core!!.start(
-                XrayConfigBuilder.build(raw, bypassDomains, resources.bufferSizeKiB),
+                XrayConfigBuilder.build(
+                    raw,
+                    bypassDomains,
+                    resources.bufferSizeKiB,
+                    settings.cdnFormattingDomain.takeIf { settings.cdnFormattingEnabled }.orEmpty(),
+                ),
                 tun!!.fd,
             )
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
@@ -229,6 +238,10 @@ class DicodeVpnService : VpnService() {
             val verifiedPing = verifyProxyConnection() ?: error(PROXY_VALIDATION_ERROR)
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             AppLog.i("VPN", "Connection verified for $name in ${verifiedPing}ms")
+            currentSharingError = if (vpnSharingUsb || vpnSharingHotspot) {
+                tetheringController.start(vpnSharingUsb, vpnSharingHotspot)
+                    .exceptionOrNull()?.message.orEmpty()
+            } else ""
 
             uploadTotal = 0L
             downloadTotal = 0L
@@ -236,7 +249,11 @@ class DicodeVpnService : VpnService() {
                 status = VpnStatus.CONNECTED,
                 serverId = serverId,
                 serverName = name,
-                message = getString(R.string.connection_verified),
+                message = if (currentSharingError.isBlank()) {
+                    getString(R.string.connection_verified)
+                } else {
+                    getString(R.string.vpn_sharing_unavailable)
+                },
                 pingMs = verifiedPing,
             )
             getSystemService(NotificationManager::class.java)
@@ -347,7 +364,11 @@ class DicodeVpnService : VpnService() {
                     status = VpnStatus.CONNECTED,
                     serverId = VpnStateStore.state.value.serverId,
                     serverName = name,
-                    message = getString(R.string.connection_verified),
+                    message = if (currentSharingError.isBlank()) {
+                        getString(R.string.connection_verified)
+                    } else {
+                        getString(R.string.vpn_sharing_unavailable)
+                    },
                     uploadBytes = uploadTotal,
                     downloadBytes = downloadTotal,
                     pingMs = ping,
@@ -393,6 +414,8 @@ class DicodeVpnService : VpnService() {
 
     @Synchronized
     private fun stopRuntime() {
+        tetheringController.stop()
+        currentSharingError = ""
         metricsJob?.cancel()
         metricsJob = null
         runCatching { core?.stop() }

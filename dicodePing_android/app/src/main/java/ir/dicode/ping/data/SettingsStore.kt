@@ -18,6 +18,9 @@ class SettingsStore(context: Context) {
     var connectionMode: String
         get() = prefs.getString("connection_mode", "auto") ?: "auto"
         set(value) = prefs.edit().putString("connection_mode", value).apply()
+    var activeCore: String
+        get() = prefs.getString("active_core", "xray") ?: "xray"
+        set(value) = prefs.edit().putString("active_core", value).apply()
     var selectedServerId: String
         get() = prefs.getString("selected_server", "") ?: ""
         set(value) = prefs.edit().putString("selected_server", value).apply()
