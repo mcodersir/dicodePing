@@ -123,10 +123,12 @@ def list_scanner_subs() -> list[dict]:
 
 
 def generate_sub_name(custom: str | None = None) -> str:
-    if custom and custom.strip():
-        return custom.strip()
-    now = datetime.now()
-    return f"اسکنر • {now.strftime('%Y/%m/%d %H:%M')}"
+    """Generate the sub name.
+
+    v1.7.0-rc.3: always use "sub" as the name.  Each scan updates the
+    same "sub" source — no need for the user to pick a name.
+    """
+    return "sub"
 
 
 def _probe_one(raw_config: str, *, timeout: float = SCAN_PROBE_TIMEOUT_S) -> int | None:
@@ -150,20 +152,23 @@ class _ProbeState:
     log_lines: list[str] = field(default_factory=list)
 
 
-def _crawl_and_probe(
+def _crawl_only(
     *,
     language: str = "fa",
     rank1_limit: int = DEFAULT_RANK1_PER_CHANNEL,
     rank2_limit: int = DEFAULT_RANK2_PER_CHANNEL,
     stage: StageCallback | None = None,
     crawl_progress: ProgressCallback | None = None,
-    probe_progress: ProgressCallback | None = None,
     eta_callback: ETACallback | None = None,
-    alive_count_callback: AliveCountCallback | None = None,
     log_callback: LogCallback | None = None,
     state: _ProbeState,
 ) -> list[str]:
-    """Crawl Telegram channels, then real-probe each unique config."""
+    """Crawl Telegram channels and return raw config URIs.
+
+    v1.7.0-rc.3: separated from probing so that the VPN can be
+    disconnected between crawl and probe (exactly as DicodeConfigChecker
+    does in its two-stage flow).
+    """
     def _log(line: str) -> None:
         state.log_lines.append(line)
         if log_callback:
@@ -179,17 +184,15 @@ def _crawl_and_probe(
         raise RuntimeError(
             tr(language, "scanner_no_channels")
             if language != "en"
-            else "Telegram channel list is missing; the build is incomplete."
+            else "Telegram channel list is missing."
         )
-    _log(f"Channels to crawl: {len(channels)} (rank1={rank1_limit}/channel, rank2={rank2_limit}/channel)")
+    _log(f"Channels: {len(channels)} (rank1={rank1_limit}/ch, rank2={rank2_limit}/ch)")
 
     rank1 = [c for c in channels if c.lower() in RANK1_CHANNELS]
     rank2 = [c for c in channels if c.lower() not in RANK1_CHANNELS]
-    _log(f"Rank-1 channels: {len(rank1)}, Rank-2 channels: {len(rank2)}")
+    _log(f"Rank-1: {len(rank1)}, Rank-2: {len(rank2)}")
 
     crawl_eta = ETAEstimator()
-    raw_configs: list[str] = []
-    seen: set[str] = set()
     crawl_done_count = 0
     total_channels = len(channels)
 
@@ -197,7 +200,7 @@ def _crawl_and_probe(
         nonlocal crawl_done_count
         if not group:
             return []
-        _log(f"Fetching {len(group)} {label} channels (limit={limit}/channel)...")
+        _log(f"Crawling {len(group)} {label} channels...")
         result = crawl_telegram_channels(
             channels=group,
             per_channel_limit=limit,
@@ -215,20 +218,20 @@ def _crawl_and_probe(
     raw_configs = _crawl_group(rank1, rank1_limit, "rank-1") + _crawl_group(rank2, rank2_limit, "rank-2")
     crawl_progress and crawl_progress(total_channels, total_channels)
     eta_callback and eta_callback(format_seconds(0))
-    _log(f"Crawl finished: {len(raw_configs)} raw configs collected")
+    _log(f"Crawl done: {len(raw_configs)} raw configs")
 
     if state.stop_requested.is_set():
-        _log("Stop requested; aborting before probe.")
+        _log("Stop requested after crawl.")
         return []
     if not raw_configs:
         raise RuntimeError(
             tr(language, "scanner_no_configs")
             if language != "en"
-            else "No configs were collected from Telegram channels."
+            else "No configs collected from Telegram."
         )
 
     unique: list[str] = []
-    seen = set()
+    seen: set[str] = set()
     for raw in raw_configs:
         key = normalize_key(raw)
         if key in seen:
@@ -238,18 +241,40 @@ def _crawl_and_probe(
         if len(unique) >= MAX_DISCOVERY_CONFIGS:
             break
     _log(f"After dedup: {len(unique)} unique configs")
-    LOGGER.info("Scanner: %d unique configs after dedup", len(unique))
+    return unique
 
-    if state.stop_requested.is_set():
-        _log("Stop requested; aborting before probe.")
+
+def _probe_only(
+    *,
+    language: str = "fa",
+    configs: list[str],
+    stage: StageCallback | None = None,
+    probe_progress: ProgressCallback | None = None,
+    eta_callback: ETACallback | None = None,
+    alive_count_callback: AliveCountCallback | None = None,
+    log_callback: LogCallback | None = None,
+    state: _ProbeState,
+) -> list[str]:
+    """Probe a list of config URIs and return the alive ones.
+
+    v1.7.0-rc.3: separated from crawling so that the VPN can be
+    disconnected before probing.
+    """
+    def _log(line: str) -> None:
+        state.log_lines.append(line)
+        if log_callback:
+            log_callback(line)
+        LOGGER.info("scanner: %s", line)
+
+    if not configs:
         return []
 
     if stage:
         stage(tr(language, "scanner_stage2_probe"))
     _log(tr(language, "scanner_stage2_probe"))
-    _log(f"Probing {len(unique)} configs with {SCAN_PROBE_WORKERS} workers...")
+    _log(f"Testing {len(configs)} configs with {SCAN_PROBE_WORKERS} parallel workers...")
 
-    state.total = len(unique)
+    state.total = len(configs)
     state.completed = 0
     if probe_progress:
         probe_progress(0, state.total)
@@ -258,12 +283,12 @@ def _crawl_and_probe(
     probe_eta.update(0, state.total)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_WORKERS) as pool:
-        future_to_raw = {pool.submit(_probe_one, raw): raw for raw in unique}
+        future_to_raw = {pool.submit(_probe_one, raw): raw for raw in configs}
         for future in concurrent.futures.as_completed(future_to_raw):
             if state.stop_requested.is_set():
                 for f in future_to_raw:
                     f.cancel()
-                _log("Stop requested; cancelling remaining probes.")
+                _log("Stop requested; finishing current probes.")
                 break
             raw = future_to_raw[future]
             try:
@@ -283,7 +308,6 @@ def _crawl_and_probe(
             probe_eta.update(done, state.total)
             if eta_callback:
                 eta_callback(format_seconds(probe_eta.remaining_seconds()))
-            # Log every probe result (verbose but the user explicitly asked for it).
             host = ""
             try:
                 ep = parse_endpoint(raw)
@@ -292,16 +316,16 @@ def _crawl_and_probe(
             except Exception:
                 pass
             if ping_ms is not None:
-                _log(f"[{done}/{state.total}] OK {host} → {ping_ms}ms (alive={alive_count})")
+                _log(f"[{done}/{state.total}] ✓ {host} → {ping_ms}ms (alive={alive_count})")
             else:
-                _log(f"[{done}/{state.total}] FAIL {host}")
+                _log(f"[{done}/{state.total}] ✗ {host}")
 
-    _log(f"Probe finished: {len(state.alive)} alive out of {state.total}")
+    _log(f"Test done: {len(state.alive)} alive out of {state.total}")
 
     if not state.stop_requested.is_set() and SCAN_PROBE_RETRY_LIMIT > 0:
         with state.lock:
             alive_keys = {a[0] for a in state.alive}
-            retried = [raw for raw in unique if raw not in alive_keys][:SCAN_PROBE_RETRY_LIMIT]
+            retried = [raw for raw in configs if raw not in alive_keys][:SCAN_PROBE_RETRY_LIMIT]
         if retried:
             _log(f"Retrying {len(retried)} failed configs...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_RETRY_WORKERS) as pool:
@@ -318,12 +342,12 @@ def _crawl_and_probe(
                     if ping_ms is not None:
                         with state.lock:
                             state.alive.append((future_to_raw[future], ping_ms))
-                        _log(f"Retry OK → {ping_ms}ms")
+                        _log(f"Retry ✓ → {ping_ms}ms")
 
     with state.lock:
         state.alive.sort(key=lambda item: item[1])
         state.alive = state.alive[:SCAN_MAX_SERVERS]
-        _log(f"Final alive count after sort+trim: {len(state.alive)}")
+        _log(f"Final alive: {len(state.alive)}")
         return [raw for raw, _ in state.alive]
 
 
@@ -398,34 +422,48 @@ def run_scan(
             time.sleep(2.0)
 
     try:
-        # --- Stage 2: Crawl + Disconnect + Probe -------------------
+        # --- Stage 2a: Crawl (through the bootstrap VPN) ---------------
         if stage_change:
             stage_change(2, tr(language, "scanner_stage2"))
-        # First crawl (through the bootstrap VPN), then disconnect.
-        alive_raws = _crawl_and_probe(
+        configs = _crawl_only(
             language=language,
             rank1_limit=rank1_limit,
             rank2_limit=rank2_limit,
             stage=stage,
             crawl_progress=crawl_progress,
+            eta_callback=eta_callback,
+            log_callback=_log,
+            state=state,
+        )
+
+        if state.stop_requested.is_set():
+            _log("Stop requested after crawl; saving what we have (none).")
+            raise RuntimeError(tr(language, "scanner_no_alive_stopped"))
+
+        # --- Stage 2b: Disconnect the bootstrap VPN -------------------
+        # v1.7.0-rc.3: disconnect the VPN BEFORE probing, exactly as
+        # DicodeConfigChecker does.  Probing through the VPN would test
+        # the bootstrap server, not the crawled configs.
+        if disconnect_callback:
+            _log("Disconnecting VPN before testing configs...")
+            try:
+                disconnect_callback()
+                _log("VPN disconnected.")
+                time.sleep(1.0)  # brief pause for TUN teardown
+            except Exception:
+                _log("VPN disconnect failed; continuing with probe anyway.")
+
+        # --- Stage 2c: Probe (without VPN) ----------------------------
+        alive_raws = _probe_only(
+            language=language,
+            configs=configs,
+            stage=stage,
             probe_progress=probe_progress,
             eta_callback=eta_callback,
             alive_count_callback=alive_count_callback,
             log_callback=_log,
             state=state,
         )
-
-        # The crawl is done.  Disconnect the bootstrap TUN before probing.
-        # NOTE: _crawl_and_probe already ran the probes.  The disconnect
-        # below is a safety net in case the crawl itself used the TUN
-        # and we want to make sure it is torn down before saving.
-        if disconnect_callback:
-            _log("Disconnecting bootstrap TUN...")
-            try:
-                disconnect_callback()
-                _log("Bootstrap TUN disconnected.")
-            except Exception:
-                _log("Bootstrap disconnect failed; continuing.")
 
         # --- Stage 3: Save ------------------------------------------
         if stage_change:

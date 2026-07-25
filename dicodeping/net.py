@@ -362,9 +362,10 @@ def icmp_ping(
 ) -> tuple[int | None, str]:
     """Send real ICMP Echo Request packets and measure latency.
 
-    v1.7.0-rc.2: now tries the system ``ping`` command first (most
-    reliable, works without root on Linux), then falls back to the
-    Windows IcmpSendEcho API or raw sockets.
+    v1.7.0-rc.3: uses the system ``ping`` command exclusively via
+    ``icmp_ping.py``.  The previous multi-fallback path was too slow
+    and caused pings to appear as >1000ms because the fallback raw
+    socket path took several seconds per unreachable host.
     """
     from .icmp_ping import icmp_ping as _system_icmp_ping
 
@@ -372,20 +373,18 @@ def icmp_ping(
     if not ip:
         return None, "dns"
 
-    # Try the system ping command first — it's the most reliable across
-    # all platforms and doesn't require raw socket privileges.
-    result = _system_icmp_ping(ip, count=max(1, attempts), timeout_ms=max(500, int(timeout * 1000)))
+    # Single fast system ping with a short timeout.
+    result = _system_icmp_ping(ip, count=max(1, min(attempts, 2)), timeout_ms=max(500, int(timeout * 1000)))
     if result.ok and result.ping_ms is not None:
         return result.ping_ms, ip
 
-    # Fall back to the platform-specific implementation.
+    # If system ping failed, try the Windows IcmpSendEcho API or raw
+    # socket as a last resort — but only once, with a short timeout.
     samples: list[float] = []
-    for sequence in range(max(1, attempts)):
+    for sequence in range(1):  # only one attempt in fallback
         sample = _icmp_windows(ip, timeout) if os.name == "nt" else _icmp_raw(ip, timeout, sequence)
         if sample is not None:
             samples.append(sample)
-        if sequence + 1 < attempts:
-            time.sleep(0.035)
     if not samples:
         return None, ip
     return int(round(min(samples))), ip
