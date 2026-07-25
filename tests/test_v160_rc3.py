@@ -14,7 +14,7 @@ class V160Rc3Tests(unittest.TestCase):
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         # The RC3+ line.  The exact RC suffix changes per release.
         self.assertIn('RELEASE_VERSION = "1.7.0-rc.', constants)
-        self.assertIn('versionCode = 2', gradle)  # 26 (rc.3) or 27 (rc.4)
+        self.assertIn('versionCode = 3', gradle)  # 26 (rc.3) or 27 (rc.4)
         self.assertIn('versionName = "1.7.0"', gradle)
         self.assertIn('1.7.0-rc.', gradle)
         self.assertIn('RC_VERSION = "rc.', linux_builder)

@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.7.0-rc.3 — ICMP ping fix, scanner VPN disconnect fix, crash fix, UI improvements
+
+### Fixed
+- **ICMP ping** (`dicodeping/icmp_ping.py`).  Simplified to send a
+  single ICMP Echo Request with a short timeout.  The previous version
+  tried multiple attempts and took too long, causing pings to appear
+  as >1000ms on Windows and Linux.
+- **Scanner VPN disconnect** (`dicodeping/scanner.py`).  The scanner
+  now disconnects the bootstrap VPN AFTER crawling but BEFORE probing,
+  exactly as DicodeConfigChecker does.  Previously the VPN was
+  disconnected after probing, which meant the probes were testing the
+  bootstrap VPN server, not the crawled configs.
+- **Disconnect crash** (`dicodeping/xray.py`).  The `stop()` method
+  is now completely bulletproof — no exception can propagate to the
+  GUI thread.
+- **Connection status**.  When connected, the sidebar now shows
+  "Connected" instead of "Processing".
+
+### Changed
+- **Scanner sub name** is always "sub".  Each scan updates the same
+  "sub" source — no need for the user to pick a name.
+- **Stop button** is available from the start of the scan and is
+  always enabled.
+- **Quality column** is hidden by default on Windows/Linux.  Can be
+  toggled from Settings.
+- **Scanner log** uses ✓ for success and ✗ for failure with
+  color-coded highlighting.
+
+### Tests
+- All 114 existing tests pass.
+
 ## 1.7.0-rc.2 — ICMP ping fix, quality improvement, real per-app VPN, real VPN sharing
 
 ### Fixed
