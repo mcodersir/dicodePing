@@ -13,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
+import ir.dicode.ping.ConnectionHost
 import ir.dicode.ping.R
 import ir.dicode.ping.data.SourceDefinition
 import ir.dicode.ping.databinding.FragmentScannerBinding
