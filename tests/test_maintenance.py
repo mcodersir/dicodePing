@@ -11,13 +11,13 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 30", gradle)
+        self.assertIn("versionCode = 31", gradle)
         self.assertIn('versionName = "1.7.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
         self.assertLess(refresh.index("locateServers("), refresh.index("pingServers("))
-        self.assertIn("REAL_PROBE_CONCURRENCY = 16", repository)
-        self.assertIn("RETRY_PROBE_CONCURRENCY = 4", repository)
+        self.assertIn("tuning.probeWorkers", repository)
+        self.assertIn("tuning.retryWorkers", repository)
         self.assertIn("testState = ServerRecord.TEST_RUNNING", repository)
         self.assertIn("Animation.INFINITE", adapter)
 

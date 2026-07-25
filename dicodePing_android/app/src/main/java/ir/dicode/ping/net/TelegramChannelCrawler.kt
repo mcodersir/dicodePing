@@ -57,6 +57,7 @@ object TelegramChannelCrawler {
      */
     suspend fun crawl(
         channels: List<String>,
+        maxWorkers: Int = MAX_WORKERS,
         progress: ((Int, Int, String) -> Unit)? = null,
     ): List<String> = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext emptyList()
@@ -68,7 +69,7 @@ object TelegramChannelCrawler {
         val done = java.util.concurrent.atomic.AtomicInteger(0)
 
         // Run channels in batches of MAX_WORKERS to keep memory bounded.
-        channels.chunked(MAX_WORKERS).forEach { batch ->
+        channels.chunked(maxWorkers.coerceIn(1, 16)).forEach { batch ->
             coroutineScope {
                 batch.map { channel ->
                     async {

@@ -24,9 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class DicodeVpnService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -40,6 +43,7 @@ class DicodeVpnService : VpnService() {
     private var underlyingCallbackRegistered = false
     private var currentUnderlyingNetwork: Network? = null
     private val startGeneration = AtomicLong(0L)
+    private val runtimeMutex = Mutex()
 
     private val underlyingRequest = NetworkRequest.Builder()
         .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -100,11 +104,16 @@ class DicodeVpnService : VpnService() {
 
         currentName = name
         val generation = startGeneration.incrementAndGet()
-        startJob?.cancel()
+        val previousStart = startJob
         AppLog.i("VPN", "Start requested for $name; bypassApps=${bypassApps.size}; perAppMode=$perAppMode; perAppPackages=${perAppPackages.size}; sharingUsb=$vpnSharingUsb; sharingHotspot=$vpnSharingHotspot; generation=$generation")
         startForeground(NOTIFICATION_ID, notification(name, getString(R.string.connecting)))
         VpnStateStore.state.value = VpnState(VpnStatus.CONNECTING, serverId, name, getString(R.string.preparing_vpn))
-        startJob = scope.launch { startVpn(raw, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation) }
+        startJob = scope.launch {
+            previousStart?.cancelAndJoin()
+            runtimeMutex.withLock {
+                startVpn(raw, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation)
+            }
+        }
         return START_REDELIVER_INTENT
     }
 
@@ -203,7 +212,11 @@ class DicodeVpnService : VpnService() {
             }
             if (core?.available() != true) error(getString(R.string.core_unavailable))
 
-            core!!.start(XrayConfigBuilder.build(raw, bypassDomains), tun!!.fd)
+            val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext)
+            core!!.start(
+                XrayConfigBuilder.build(raw, bypassDomains, resources.bufferSizeKiB),
+                tun!!.fd,
+            )
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             VpnStateStore.state.value = VpnState(
                 VpnStatus.CONNECTING,
@@ -397,14 +410,14 @@ class DicodeVpnService : VpnService() {
     private fun stopVpn() {
         AppLog.i("VPN", "Stop requested for $currentName")
         startGeneration.incrementAndGet()
-        startJob?.cancel()
-        startJob = null
-        VpnStateStore.state.value = VpnState()
+        val previousStart = startJob
         stopForeground(STOP_FOREGROUND_REMOVE)
         // Native core shutdown can wait for internal threads. Keep it off the
         // service main thread so Disconnect never freezes or triggers an ANR.
-        scope.launch {
-            stopRuntime()
+        startJob = scope.launch {
+            previousStart?.cancelAndJoin()
+            runtimeMutex.withLock { stopRuntime() }
+            VpnStateStore.state.value = VpnState()
             currentName = ""
             stopSelf()
         }

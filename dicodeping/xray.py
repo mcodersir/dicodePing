@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 import uuid
 import zipfile
@@ -37,6 +38,7 @@ from .diagnostics import diagnostics_enabled, get_logger
 from .i18n import tr
 from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ips
 from .protocols import build_xray_outbound, parse_endpoint
+from .resource_tuning import current_resource_profile
 
 TUN_NAME = "dicodePing-TUN"
 LOGGER = get_logger("connection")
@@ -464,6 +466,7 @@ def build_tun_config(
     bypass_domains: list[str] | tuple[str, ...] | str | None = None,
     api_port: int = 0,
 ) -> dict[str, Any]:
+    resources = current_resource_profile()
     outbound = build_xray_outbound(raw_config)
     if not outbound:
         raise ValueError("این نوع کانفیگ توسط نسخه فعلی پشتیبانی نمی‌شود")
@@ -519,7 +522,13 @@ def build_tun_config(
         "stats": {},
         "policy": {
             "levels": {
-                "0": {"handshake": 8, "connIdle": 300, "uplinkOnly": 2, "downlinkOnly": 2}
+                "0": {
+                    "handshake": 8,
+                    "connIdle": 300,
+                    "uplinkOnly": 2,
+                    "downlinkOnly": 2,
+                    "bufferSize": resources.network_buffer_kib,
+                }
             },
             "system": {
                 "statsInboundUplink": True,
@@ -607,8 +616,14 @@ def _socks_http_probe(port: int, host: str, path: str, timeout: float) -> int | 
         return None
 
 
-def probe_outbound_delay(raw_config: str, timeout: float = 3.2) -> int | None:
+def probe_outbound_delay(
+    raw_config: str,
+    timeout: float = 3.2,
+    cancel_event: threading.Event | None = None,
+) -> int | None:
     """Measure verified proxy traffic without creating a TUN adapter."""
+    if cancel_event is not None and cancel_event.is_set():
+        return None
     # First-use extraction/download must be serialized; concurrent probe jobs
     # can otherwise race over the same core archive.
     with _PROBE_CORE_LOCK:
@@ -629,11 +644,13 @@ def probe_outbound_delay(raw_config: str, timeout: float = 3.2) -> int | None:
         )
         ready_until = time.monotonic() + min(2.0, timeout)
         while time.monotonic() < ready_until and process.poll() is None:
+            if cancel_event is not None and cancel_event.is_set():
+                return None
             result = _socks_http_probe(port, "www.gstatic.com", "/generate_204", min(1.3, timeout))
             if result is not None:
                 return result
             time.sleep(0.08)
-        if process.poll() is None:
+        if process.poll() is None and not (cancel_event is not None and cancel_event.is_set()):
             return _socks_http_probe(port, "cp.cloudflare.com", "/generate_204", timeout)
         return None
     except Exception:
@@ -670,7 +687,29 @@ class XrayManager:
         # and the process-exit handler at nearly the same time.  Serialize
         # teardown so one caller never closes routes/files owned by another.
         self._stop_lock = threading.RLock()
+        self._cleanup_lock = threading.Lock()
+        self._cleanup_thread: threading.Thread | None = None
         atexit.register(self.stop)
+
+    def _schedule_tun_cleanup(self) -> None:
+        """Coalesce repeated disconnect cleanup into at most one worker."""
+        with self._cleanup_lock:
+            if self._cleanup_thread and self._cleanup_thread.is_alive():
+                return
+
+            def _cleanup() -> None:
+                try:
+                    cleanup_named_tun()
+                finally:
+                    with self._cleanup_lock:
+                        self._cleanup_thread = None
+
+            self._cleanup_thread = threading.Thread(
+                target=_cleanup,
+                name="dicodePing-tun-cleanup",
+                daemon=True,
+            )
+            self._cleanup_thread.start()
 
     @property
     def connected(self) -> bool:
@@ -870,18 +909,31 @@ class XrayManager:
             return 0, 0
 
     def connected_ping(self, timeout: float = 1.0) -> int | None:
-        if not self.connected or not self.connected_port or not (self.connected_ip or self.connected_host):
+        """Measure a real HTTP round trip through the active TUN.
+
+        The previous implementation timed a direct TCP handshake to the proxy
+        endpoint, which bypassed the TUN route and was not the user's actual
+        connected latency.
+        """
+        if not self.connected:
             return None
-        target = self.connected_ip or self.connected_host
-        started = time.perf_counter()
-        try:
-            with socket.create_connection((target, self.connected_port), timeout=timeout):
-                return max(1, int(round((time.perf_counter() - started) * 1000)))
-        except OSError:
-            return None
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        for url in ("http://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204"):
+            started = time.perf_counter()
+            try:
+                request = urllib.request.Request(url, headers={"User-Agent": f"{APP_NAME}/{VERSION}"})
+                with opener.open(request, timeout=timeout) as response:
+                    if 200 <= int(response.status) < 400:
+                        return max(1, int(round((time.perf_counter() - started) * 1000)))
+            except (OSError, ValueError, urllib.error.URLError):
+                continue
+        return None
 
     def stop(self) -> None:
         with self._stop_lock:
+            needs_tun_cleanup = bool(
+                self.process or self.config_path or self._direct_routes or self.connected_host
+            )
             try:
                 self._cancel_start.set()
                 process = self.process
@@ -946,13 +998,11 @@ class XrayManager:
                 # thread so the Disconnect button never appears to hang and a
                 # failing PowerShell invocation cannot crash the GUI.
                 try:
-                    threading.Thread(
-                        target=cleanup_named_tun,
-                        name="dicodePing-tun-cleanup",
-                        daemon=True,
-                    ).start()
+                    if needs_tun_cleanup:
+                        self._schedule_tun_cleanup()
                 except Exception:
                     try:
-                        cleanup_named_tun()
+                        if needs_tun_cleanup:
+                            cleanup_named_tun()
                     except Exception:
                         pass

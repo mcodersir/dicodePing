@@ -50,17 +50,20 @@ from .protocols import (
     record_id,
     set_display_name,
 )
+from .resource_tuning import current_resource_profile
 from .storage import JsonStore
 
 LOGGER = get_logger("scanner")
 
-# --- Hard-coded fast scanner profile -------------------------------------
-SCAN_CRAWL_WORKERS = 8
+# --- Adaptive scanner profile -------------------------------------------
+RESOURCE_PROFILE = current_resource_profile()
+SCAN_CRAWL_WORKERS = RESOURCE_PROFILE.crawl_workers
 SCAN_CRAWL_TIMEOUT_S = 12.0
-SCAN_PROBE_WORKERS = 48
+SCAN_PROBE_WORKERS = RESOURCE_PROFILE.probe_workers
 SCAN_PROBE_TIMEOUT_S = 3.5
 SCAN_PROBE_RETRY_LIMIT = 6
-SCAN_PROBE_RETRY_WORKERS = 12
+SCAN_PROBE_RETRY_WORKERS = RESOURCE_PROFILE.retry_workers
+SCAN_PROBE_QUEUE_LIMIT = RESOURCE_PROFILE.internal_queue_limit
 SCAN_MAX_SERVERS = 240
 
 DEFAULT_RANK1_PER_CHANNEL = 3
@@ -131,10 +134,17 @@ def generate_sub_name(custom: str | None = None) -> str:
     return "sub"
 
 
-def _probe_one(raw_config: str, *, timeout: float = SCAN_PROBE_TIMEOUT_S) -> int | None:
+def _probe_one(
+    raw_config: str,
+    *,
+    timeout: float = SCAN_PROBE_TIMEOUT_S,
+    stop_event: threading.Event | None = None,
+) -> int | None:
     from .xray import probe_outbound_delay
+    if stop_event is not None and stop_event.is_set():
+        return None
     try:
-        delay = probe_outbound_delay(raw_config, timeout=timeout)
+        delay = probe_outbound_delay(raw_config, timeout=timeout, cancel_event=stop_event)
     except Exception:
         delay = None
     if delay is None or delay <= 0:
@@ -282,43 +292,79 @@ def _probe_only(
     probe_eta = ETAEstimator()
     probe_eta.update(0, state.total)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_WORKERS) as pool:
-        future_to_raw = {pool.submit(_probe_one, raw): raw for raw in configs}
-        for future in concurrent.futures.as_completed(future_to_raw):
+    # Submit a bounded window instead of allocating one Future (and one Xray
+    # process shortly afterwards) for every discovered config.
+    pool = concurrent.futures.ThreadPoolExecutor(
+        max_workers=SCAN_PROBE_WORKERS,
+        thread_name_prefix="dicodePing-probe",
+    )
+    config_iter = iter(configs)
+    future_to_raw: dict[concurrent.futures.Future[int | None], str] = {}
+
+    def _fill_queue() -> None:
+        while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT:
+            try:
+                raw = next(config_iter)
+            except StopIteration:
+                return
+            future = pool.submit(
+                _probe_one,
+                raw,
+                timeout=SCAN_PROBE_TIMEOUT_S,
+                stop_event=state.stop_requested,
+            )
+            future_to_raw[future] = raw
+
+    _fill_queue()
+    cancelled = False
+    try:
+        while future_to_raw:
             if state.stop_requested.is_set():
-                for f in future_to_raw:
-                    f.cancel()
-                _log("Stop requested; finishing current probes.")
+                cancelled = True
+                for pending in future_to_raw:
+                    pending.cancel()
+                _log("Stop requested; cancelling active probes.")
                 break
-            raw = future_to_raw[future]
-            try:
-                ping_ms = future.result()
-            except Exception:
-                ping_ms = None
-            with state.lock:
-                state.completed += 1
+            completed, _ = concurrent.futures.wait(
+                tuple(future_to_raw),
+                timeout=0.15,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if not completed:
+                continue
+            for future in completed:
+                raw = future_to_raw.pop(future)
+                try:
+                    ping_ms = future.result()
+                except Exception:
+                    ping_ms = None
+                with state.lock:
+                    state.completed += 1
+                    if ping_ms is not None:
+                        state.alive.append((raw, ping_ms))
+                    done = state.completed
+                    alive_count = len(state.alive)
+                if probe_progress:
+                    probe_progress(done, state.total)
+                if alive_count_callback:
+                    alive_count_callback(alive_count)
+                probe_eta.update(done, state.total)
+                if eta_callback:
+                    eta_callback(format_seconds(probe_eta.remaining_seconds()))
+                host = ""
+                try:
+                    ep = parse_endpoint(raw)
+                    if ep:
+                        host = f"{ep.host}:{ep.port}"
+                except Exception:
+                    pass
                 if ping_ms is not None:
-                    state.alive.append((raw, ping_ms))
-                done = state.completed
-                alive_count = len(state.alive)
-            if probe_progress:
-                probe_progress(done, state.total)
-            if alive_count_callback:
-                alive_count_callback(alive_count)
-            probe_eta.update(done, state.total)
-            if eta_callback:
-                eta_callback(format_seconds(probe_eta.remaining_seconds()))
-            host = ""
-            try:
-                ep = parse_endpoint(raw)
-                if ep:
-                    host = f"{ep.host}:{ep.port}"
-            except Exception:
-                pass
-            if ping_ms is not None:
-                _log(f"[{done}/{state.total}] ✓ {host} → {ping_ms}ms (alive={alive_count})")
-            else:
-                _log(f"[{done}/{state.total}] ✗ {host}")
+                    _log(f"[{done}/{state.total}] ✓ {host} → {ping_ms}ms (alive={alive_count})")
+                else:
+                    _log(f"[{done}/{state.total}] ✗ {host}")
+            _fill_queue()
+    finally:
+        pool.shutdown(wait=not cancelled, cancel_futures=cancelled)
 
     _log(f"Test done: {len(state.alive)} alive out of {state.total}")
 
@@ -329,7 +375,15 @@ def _probe_only(
         if retried:
             _log(f"Retrying {len(retried)} failed configs...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_RETRY_WORKERS) as pool:
-                future_to_raw = {pool.submit(_probe_one, raw): raw for raw in retried}
+                future_to_raw = {
+                    pool.submit(
+                        _probe_one,
+                        raw,
+                        timeout=SCAN_PROBE_TIMEOUT_S,
+                        stop_event=state.stop_requested,
+                    ): raw
+                    for raw in retried
+                }
                 for future in concurrent.futures.as_completed(future_to_raw):
                     if state.stop_requested.is_set():
                         for f in future_to_raw:
@@ -373,12 +427,9 @@ def run_scan(
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
     started = time.monotonic()
-    state = _ProbeState()
-    if stop_event is not None:
-        def _watch_stop() -> None:
-            stop_event.wait()
-            state.stop_requested.set()
-        threading.Thread(target=_watch_stop, daemon=True).start()
+    # Reuse the caller's Event directly.  The old watcher thread waited
+    # forever after every successful scan and leaked one thread per run.
+    state = _ProbeState(stop_requested=stop_event or threading.Event())
 
     def _st(text: str) -> None:
         if stage:

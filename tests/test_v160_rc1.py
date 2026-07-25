@@ -101,7 +101,8 @@ class V160Rc1Tests(unittest.TestCase):
         # a background daemon thread so a PowerShell failure cannot crash
         # the GUI on Disconnect.
         self.assertIn("stop() must NEVER raise", xray)
-        self.assertIn("target=cleanup_named_tun", xray)
+        self.assertIn("def _schedule_tun_cleanup", xray)
+        self.assertIn('name="dicodePing-tun-cleanup"', xray)
         self.assertIn("daemon=True", xray)
         # The cleanup_named_tun function logs failures instead of raising.
         self.assertIn("TUN cleanup PowerShell invocation failed", xray)
