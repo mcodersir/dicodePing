@@ -52,12 +52,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          target="local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
+          target="local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar"
           mkdir -p "$(dirname "$target")"
           curl --fail --location --retry 4 --retry-all-errors \
             --output "$target" \
-            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar"
-          echo "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e  $target" | sha256sum --check --strict
+            "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar"
+          echo "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352  $target" | sha256sum --check --strict
 
       - name: Build Android for CodeQL
         if: matrix.language == 'java-kotlin'

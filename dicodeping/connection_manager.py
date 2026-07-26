@@ -1,6 +1,7 @@
 """Single-active-core connection runtime for desktop builds."""
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import shutil
@@ -9,11 +10,11 @@ import struct
 import subprocess
 import threading
 import time
-import urllib.parse
 from pathlib import Path
 from typing import Callable
 
 from .core_manager import core_dir, get_active_core, resolve_core_path
+from .core_runtime import CoreState, LifecycleController, PORT_REGISTRY, PROCESS_REGISTRY
 from .diagnostics import get_logger
 from .xray import XrayManager
 
@@ -24,53 +25,80 @@ def _creation_flags() -> int:
     return subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 
+def register_warp(*, accept_terms: bool) -> Path:
+    """Create a local Usque device only after explicit user consent."""
+    if not accept_terms:
+        raise RuntimeError("Cloudflare terms must be accepted before WARP registration")
+    executable = resolve_core_path("warp")
+    if executable is None:
+        raise RuntimeError("WARP / Usque core is not installed")
+    config = core_dir("warp") / "config.json"
+    if config.is_file():
+        return config
+    result = subprocess.run(
+        [
+            str(executable),
+            "--config",
+            str(config),
+            "register",
+            "--accept-tos",
+            "--name",
+            "dicodePing",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+        timeout=60,
+        cwd=str(executable.parent),
+        creationflags=_creation_flags(),
+    )
+    if result.returncode != 0 or not config.is_file():
+        raise RuntimeError((result.stderr or result.stdout or "WARP registration failed")[-1200:])
+    return config
+
+
 def _socks5_connect(port: int, host: str, target_port: int, timeout: float) -> socket.socket:
     sock = socket.create_connection(("127.0.0.1", port), timeout=timeout)
     sock.settimeout(timeout)
-    sock.sendall(b"\x05\x01\x00")
-    if sock.recv(2) != b"\x05\x00":
+    try:
+        sock.sendall(b"\x05\x01\x00")
+        if sock.recv(2) != b"\x05\x00":
+            raise OSError("SOCKS5 authentication negotiation failed")
+        encoded = host.encode("idna")
+        if len(encoded) > 255:
+            raise OSError("SOCKS5 hostname is too long")
+        sock.sendall(b"\x05\x01\x00\x03" + bytes((len(encoded),)) + encoded + struct.pack("!H", target_port))
+        header = sock.recv(4)
+        if len(header) != 4 or header[1] != 0:
+            raise OSError("SOCKS5 connection was rejected")
+        address_type = header[3]
+        if address_type == 1:
+            remaining = 4
+        elif address_type == 4:
+            remaining = 16
+        elif address_type == 3:
+            length = sock.recv(1)
+            if not length:
+                raise OSError("invalid SOCKS5 response")
+            remaining = length[0]
+        else:
+            raise OSError("invalid SOCKS5 address type")
+        while remaining:
+            chunk = sock.recv(remaining)
+            if not chunk:
+                raise OSError("truncated SOCKS5 response")
+            remaining -= len(chunk)
+        if len(sock.recv(2)) != 2:
+            raise OSError("truncated SOCKS5 port")
+        return sock
+    except Exception:
         sock.close()
-        raise OSError("SOCKS5 authentication negotiation failed")
-    encoded = host.encode("idna")
-    if len(encoded) > 255:
-        sock.close()
-        raise OSError("SOCKS5 hostname is too long")
-    sock.sendall(b"\x05\x01\x00\x03" + bytes((len(encoded),)) + encoded + struct.pack("!H", target_port))
-    header = sock.recv(4)
-    if len(header) != 4 or header[1] != 0:
-        sock.close()
-        raise OSError("SOCKS5 connection was rejected")
-    address_type = header[3]
-    if address_type == 1:
-        remaining = 4
-    elif address_type == 4:
-        remaining = 16
-    elif address_type == 3:
-        length = sock.recv(1)
-        if not length:
-            sock.close()
-            raise OSError("invalid SOCKS5 response")
-        remaining = length[0]
-    else:
-        sock.close()
-        raise OSError("invalid SOCKS5 address type")
-    while remaining:
-        chunk = sock.recv(remaining)
-        if not chunk:
-            sock.close()
-            raise OSError("truncated SOCKS5 response")
-        remaining -= len(chunk)
-    if len(sock.recv(2)) != 2:
-        sock.close()
-        raise OSError("truncated SOCKS5 port")
-    return sock
+        raise
 
 
 def _http_probe_through_socks(port: int, timeout: float = 5.0) -> int | None:
-    for host, path in (
-        ("www.gstatic.com", "/generate_204"),
-        ("cp.cloudflare.com", "/generate_204"),
-    ):
+    for host, path in (("www.gstatic.com", "/generate_204"), ("cp.cloudflare.com", "/generate_204")):
         started = time.perf_counter()
         try:
             with _socks5_connect(port, host, 80, timeout) as sock:
@@ -94,6 +122,16 @@ class _SystemProxy:
         self._windows_previous: tuple[int, str] | None = None
         self._gnome_previous: dict[str, str] | None = None
 
+    @staticmethod
+    def _value_exists(key, name: str) -> bool:
+        try:
+            import winreg
+
+            winreg.QueryValueEx(key, name)
+            return True
+        except OSError:
+            return False
+
     def enable(self, port: int) -> None:
         if os.name == "nt":
             import ctypes
@@ -109,7 +147,6 @@ class _SystemProxy:
             ctypes.windll.Wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.Wininet.InternetSetOptionW(0, 37, 0, 0)
             return
-
         if shutil.which("gsettings"):
             keys = {
                 "mode": ("org.gnome.system.proxy", "mode"),
@@ -128,15 +165,6 @@ class _SystemProxy:
             subprocess.run(["gsettings", "set", "org.gnome.system.proxy.socks", "host", "127.0.0.1"], check=True)
             subprocess.run(["gsettings", "set", "org.gnome.system.proxy.socks", "port", str(port)], check=True)
             subprocess.run(["gsettings", "set", "org.gnome.system.proxy", "mode", "manual"], check=True)
-
-    @staticmethod
-    def _value_exists(key, name: str) -> bool:
-        try:
-            import winreg
-            winreg.QueryValueEx(key, name)
-            return True
-        except OSError:
-            return False
 
     def restore(self) -> None:
         if os.name == "nt" and self._windows_previous is not None:
@@ -163,120 +191,157 @@ class AlternativeCoreManager:
     def __init__(self, core_id: str) -> None:
         self.core_id = core_id
         self.process: subprocess.Popen[str] | None = None
-        self.socks_port = 1819
+        self.socks_port = 0
         self._log_handle = None
         self._lock = threading.RLock()
         self._system_proxy = _SystemProxy()
+        self.lifecycle = LifecycleController()
+        atexit.register(self.stop)
 
     @property
     def connected(self) -> bool:
-        return bool(self.process and self.process.poll() is None and self.connected_ping(0.8) is not None)
+        return bool(
+            self.lifecycle.status.state == CoreState.CONNECTED
+            and self.process
+            and self.process.poll() is None
+        )
+
+    @property
+    def state(self) -> CoreState:
+        return self.lifecycle.status.state
 
     def start(self, _raw_config: str = "", progress: Callable[[str], None] | None = None, **_kwargs) -> None:
-        self.stop()
-        executable = resolve_core_path(self.core_id)
-        if executable is None:
-            raise RuntimeError(f"{self.core_id} core is not downloaded")
-        runtime = core_dir(self.core_id) / "runtime"
-        runtime.mkdir(parents=True, exist_ok=True)
-        log_path = runtime / "session.log"
-        self._log_handle = log_path.open("w", encoding="utf-8")
-
-        if self.core_id == "aether":
-            command = [
-                str(executable),
-                "--masque",
-                "--ironclad",
-                "--quick-reconnect",
-                "--log-level",
-                "info",
-            ]
+        with self._lock:
+            self.stop()
+            token = self.lifecycle.begin(CoreState.STARTING)
+            executable = resolve_core_path(self.core_id)
+            if executable is None:
+                self.lifecycle.fail(token, f"{self.core_id} core is not downloaded")
+                raise RuntimeError(f"{self.core_id} core is not downloaded")
+            runtime = core_dir(self.core_id) / "runtime"
+            runtime.mkdir(parents=True, exist_ok=True)
+            log_path = runtime / "session.log"
+            self._log_handle = log_path.open("w", encoding="utf-8")
             environment = os.environ.copy()
+            self.socks_port = PORT_REGISTRY.acquire()
+            try:
+                command = self._command(executable, runtime, environment)
+                if progress:
+                    progress(f"Starting {self.core_id}…")
+                self.process = PROCESS_REGISTRY.register(
+                    subprocess.Popen(
+                        command,
+                        stdout=self._log_handle,
+                        stderr=self._log_handle,
+                        stdin=subprocess.DEVNULL,
+                        cwd=str(executable.parent),
+                        env=environment,
+                        text=True,
+                        creationflags=_creation_flags(),
+                        start_new_session=os.name != "nt",
+                    )
+                )
+                self.lifecycle.transition(token, CoreState.VALIDATING)
+                deadline = time.monotonic() + 75
+                while time.monotonic() < deadline:
+                    token.raise_if_cancelled()
+                    if self.process.poll() is not None:
+                        tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1600:]
+                        raise RuntimeError(f"{self.core_id} stopped during startup: {tail}")
+                    if _http_probe_through_socks(self.socks_port, timeout=3.0) is not None:
+                        self._system_proxy.enable(self.socks_port)
+                        self.lifecycle.transition(token, CoreState.CONNECTED)
+                        return
+                    token.wait(0.35)
+                raise RuntimeError(f"{self.core_id} did not establish a verified tunnel")
+            except Exception as exc:
+                self.lifecycle.fail(token, exc)
+                self._teardown()
+                raise
+
+    def _command(self, executable: Path, runtime: Path, environment: dict[str, str]) -> list[str]:
+        if self.core_id == "aether":
             environment.update(
                 {
                     "AETHER_PROTOCOL": "masque",
                     "AETHER_SCAN": "ironclad",
                     "AETHER_QUICK_RECONNECT": "1",
-                    "AETHER_LOG_LEVEL": "info",
                 }
             )
-        elif self.core_id == "psiphon":
+            return [
+                str(executable),
+                "--masque",
+                "-4",
+                "--scan",
+                "ironclad",
+                "--quick-reconnect",
+                "--bind",
+                f"127.0.0.1:{self.socks_port}",
+            ]
+        if self.core_id == "warp":
+            config = core_dir("warp") / "config.json"
+            if not config.is_file():
+                raise RuntimeError("WARP registration is required; activate it from Settings first")
+            return [
+                str(executable),
+                "--config",
+                str(config),
+                "socks",
+                "-b",
+                "127.0.0.1",
+                "-p",
+                str(self.socks_port),
+            ]
+        if self.core_id == "psiphon":
             config = core_dir("psiphon") / "client.config"
             if not config.is_file():
-                raise RuntimeError(
-                    "Psiphon requires a signed distribution client.config. "
-                    "Install the Shirokhorshid companion on Android or provide an authorized config."
-                )
-            self.socks_port = int(json.loads(config.read_text(encoding="utf-8")).get("LocalSocksProxyPort") or 1819)
-            command = [
-                str(executable),
-                "-config",
-                str(config),
-                "-dataRootDirectory",
-                str(runtime),
-            ]
-            environment = os.environ.copy()
-        else:
-            raise RuntimeError(f"unsupported alternative core: {self.core_id}")
-
-        if progress:
-            progress(f"Starting {self.core_id}…")
-        self.process = subprocess.Popen(
-            command,
-            stdout=self._log_handle,
-            stderr=self._log_handle,
-            stdin=subprocess.DEVNULL,
-            cwd=str(executable.parent),
-            env=environment,
-            text=True,
-            creationflags=_creation_flags(),
-            start_new_session=os.name != "nt",
-        )
-        deadline = time.monotonic() + 75
-        while time.monotonic() < deadline:
-            if self.process.poll() is not None:
-                tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1600:]
-                self.stop()
-                raise RuntimeError(f"{self.core_id} stopped during startup: {tail}")
-            if _http_probe_through_socks(self.socks_port, timeout=3.0) is not None:
-                self._system_proxy.enable(self.socks_port)
-                return
-            time.sleep(0.35)
-        self.stop()
-        raise RuntimeError(f"{self.core_id} did not establish a verified tunnel")
+                self.lifecycle.status.state = CoreState.MISSING_AUTHORIZED_CONFIG
+                raise RuntimeError("Authorized Psiphon distribution configuration is unavailable in this build.")
+            payload = json.loads(config.read_text(encoding="utf-8"))
+            payload["LocalSocksProxyPort"] = self.socks_port
+            session_config = runtime / "client.config"
+            session_config.write_text(json.dumps(payload), encoding="utf-8")
+            return [str(executable), "-config", str(session_config), "-dataRootDirectory", str(runtime)]
+        raise RuntimeError(f"unsupported alternative core: {self.core_id}")
 
     def verify_connection(self) -> bool:
         return self.connected_ping(3.5) is not None
 
     def connected_ping(self, timeout: float = 1.0) -> int | None:
-        if not self.process or self.process.poll() is not None:
+        if not self.process or self.process.poll() is not None or not self.socks_port:
             return None
         return _http_probe_through_socks(self.socks_port, timeout=max(0.4, timeout))
 
-    def traffic_stats(self) -> tuple[int, int]:
-        return 0, 0
+    def traffic_stats(self) -> tuple[int | None, int | None]:
+        """Return explicit unsupported values when no core stats API exists."""
+        return (None, None)
 
     def stop(self) -> None:
         with self._lock:
-            self._system_proxy.restore()
-            process, self.process = self.process, None
-            if process and process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=4)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=2)
-            if self._log_handle:
-                self._log_handle.close()
-                self._log_handle = None
+            self.lifecycle.cancel()
+            self.lifecycle.status.state = CoreState.STOPPING
+            self._teardown()
+            self.lifecycle.status.state = CoreState.DISCONNECTED
+
+    def _teardown(self) -> None:
+        self._system_proxy.restore()
+        process, self.process = self.process, None
+        PROCESS_REGISTRY.stop(process, timeout=4)
+        if self.socks_port:
+            PORT_REGISTRY.release(self.socks_port)
+            self.socks_port = 0
+        if self._log_handle:
+            self._log_handle.close()
+            self._log_handle = None
 
 
 class ConnectionManager:
     """Stable facade that guarantees exactly one active core."""
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._manager: XrayManager | AlternativeCoreManager = self._new_manager()
+        atexit.register(self.dispose)
 
     def _new_manager(self):
         core_id = get_active_core()
@@ -290,18 +355,32 @@ class ConnectionManager:
     def active_core(self) -> str:
         return "xray" if isinstance(self._manager, XrayManager) else self._manager.core_id
 
+    @property
+    def state(self) -> CoreState:
+        if isinstance(self._manager, AlternativeCoreManager):
+            return self._manager.state
+        return CoreState.CONNECTED if self._manager.connected else CoreState.DISCONNECTED
+
+    @property
+    def last_error(self) -> str:
+        if isinstance(self._manager, AlternativeCoreManager):
+            return self._manager.lifecycle.status.last_error
+        return ""
+
     def start(self, raw_config: str = "", **kwargs) -> None:
-        selected = get_active_core()
-        if selected != self.active_core:
-            self._manager.stop()
-            self._manager = self._new_manager()
-        self._manager.start(raw_config, **kwargs)
+        with self._lock:
+            selected = get_active_core()
+            if selected != self.active_core:
+                self._manager.stop()
+                self._manager = self._new_manager()
+            self._manager.start(raw_config, **kwargs)
 
     def reload_selection(self) -> None:
-        selected = get_active_core()
-        if selected != self.active_core:
-            self._manager.stop()
-            self._manager = self._new_manager()
+        with self._lock:
+            selected = get_active_core()
+            if selected != self.active_core:
+                self._manager.stop()
+                self._manager = self._new_manager()
 
     def verify_connection(self) -> bool:
         verifier = getattr(self._manager, "verify_connection", None)
@@ -310,8 +389,13 @@ class ConnectionManager:
     def connected_ping(self, timeout: float = 1.0) -> int | None:
         return self._manager.connected_ping(timeout)
 
-    def traffic_stats(self) -> tuple[int, int]:
+    def traffic_stats(self) -> tuple[int | None, int | None]:
         return self._manager.traffic_stats()
 
     def stop(self) -> None:
-        self._manager.stop()
+        with self._lock:
+            self._manager.stop()
+
+    def dispose(self) -> None:
+        self.stop()
+        PROCESS_REGISTRY.stop_all()

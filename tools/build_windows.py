@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "1.8.0"
+RC_VERSION = "rc.3"
 APP_NAME = "dicodePing"
 
 
@@ -42,6 +43,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     assets = root / "assets"
     core = root / "core"
     entrypoint = root / "app_rc3.py"
+    generated_spec_dir = root / "build" / "generated-spec"
+    generated_spec_dir.mkdir(parents=True, exist_ok=True)
 
     required_paths = [
         root / "requirements-build.txt",
@@ -78,6 +81,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         "PyInstaller",
         "--noconfirm",
         "--clean",
+        "--specpath",
+        str(generated_spec_dir),
         "--onefile",
         "--windowed",
         "--uac-admin",
@@ -115,7 +120,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     release_dir = root / "release"
     release_dir.mkdir(parents=True, exist_ok=True)
-    output = release_dir / f"{APP_NAME}-v{APP_VERSION}-windows.exe"
+    output = release_dir / f"{APP_NAME}-v{APP_VERSION}-{RC_VERSION}-windows-x64.exe"
     shutil.copy2(built_exe, output)
     print(f"Build completed: {output}", flush=True)
     return output

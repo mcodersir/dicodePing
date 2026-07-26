@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-CORE="$PWD/local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar"
+CORE="$PWD/local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar"
 if [ ! -f "$CORE" ]; then
   echo "Missing Android core." >&2
-  echo "Download: https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar" >&2
-  echo "Rename to libv2ray-26.6.2.aar and place at: $CORE" >&2
+  echo "Download: https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar" >&2
+  echo "Rename to libv2ray-26.7.11.aar and place at: $CORE" >&2
   exit 1
 fi
 ./gradlew --no-daemon clean :app:assembleDebug

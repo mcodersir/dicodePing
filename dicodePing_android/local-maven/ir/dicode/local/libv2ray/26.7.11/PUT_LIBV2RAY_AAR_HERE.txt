@@ -1,0 +1,7 @@
+Download the immutable v26.7.11 AndroidLibXrayLite asset:
+https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar
+
+Expected SHA-256:
+0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352
+
+Save it beside this file as libv2ray-26.7.11.aar.

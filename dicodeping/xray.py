@@ -39,6 +39,7 @@ from .i18n import tr
 from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ips
 from .protocols import build_xray_outbound, parse_endpoint
 from .resource_tuning import current_resource_profile
+from .core_runtime import PORT_REGISTRY, PROCESS_REGISTRY
 
 TUN_NAME = "dicodePing-TUN"
 LOGGER = get_logger("connection")
@@ -628,19 +629,21 @@ def probe_outbound_delay(
     # can otherwise race over the same core archive.
     with _PROBE_CORE_LOCK:
         executable = ensure_xray(language="en")
-    port = _free_local_port()
+    port = PORT_REGISTRY.acquire()
     token = uuid.uuid4().hex
     config_path = RUNTIME_DIR / f"probe-{token}.json"
     process: subprocess.Popen[str] | None = None
     try:
         config_path.write_text(json.dumps(build_probe_config(raw_config, port), ensure_ascii=False), encoding="utf-8")
-        process = subprocess.Popen(
-            [str(executable), "run", "-config", str(config_path)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(executable.parent),
-            creationflags=_creation_flags(),
-            start_new_session=not is_windows(),
+        process = PROCESS_REGISTRY.register(
+            subprocess.Popen(
+                [str(executable), "run", "-config", str(config_path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=str(executable.parent),
+                creationflags=_creation_flags(),
+                start_new_session=not is_windows(),
+            )
         )
         ready_until = time.monotonic() + min(2.0, timeout)
         while time.monotonic() < ready_until and process.poll() is None:
@@ -656,12 +659,8 @@ def probe_outbound_delay(
     except Exception:
         return None
     finally:
-        if process and process.poll() is None:
-            try:
-                process.terminate()
-                process.wait(timeout=0.8)
-            except Exception:
-                _kill_pid_tree(process.pid)
+        PROCESS_REGISTRY.stop(process, timeout=0.8)
+        PORT_REGISTRY.release(port)
         try:
             config_path.unlink(missing_ok=True)
         except OSError:
@@ -809,16 +808,18 @@ class XrayManager:
         self.log_handle = self._active_log_file.open("a", encoding="utf-8")
         self.executable = executable
         try:
-            self.process = subprocess.Popen(
-                [str(executable), "run", "-config", str(self.config_path)],
-                stdout=self.log_handle,
-                stderr=self.log_handle,
-                cwd=str(executable.parent),
-                text=True,
-                encoding="utf-8",
-                errors="ignore",
-                creationflags=_creation_flags(),
-                start_new_session=not is_windows(),
+            self.process = PROCESS_REGISTRY.register(
+                subprocess.Popen(
+                    [str(executable), "run", "-config", str(self.config_path)],
+                    stdout=self.log_handle,
+                    stderr=self.log_handle,
+                    cwd=str(executable.parent),
+                    text=True,
+                    encoding="utf-8",
+                    errors="ignore",
+                    creationflags=_creation_flags(),
+                    start_new_session=not is_windows(),
+                )
             )
         except Exception:
             self.stop()
@@ -862,9 +863,9 @@ class XrayManager:
             self.stop()
             raise RuntimeError("بخش اتصال آماده نشد؛ در صورت تکرار، گزارش عیب‌یابی را فعال کنید" if language != "en" else "The connection could not start; enable diagnostic logging if this repeats")
 
-    def traffic_stats(self) -> tuple[int, int]:
+    def traffic_stats(self) -> tuple[int | None, int | None]:
         if not self.connected or not self.executable or not self.api_port:
-            return 0, 0
+            return None, None
         try:
             result = subprocess.run(
                 [
@@ -888,7 +889,7 @@ class XrayManager:
             text = (result.stdout or "").strip()
             begin, finish = text.find("{"), text.rfind("}")
             if begin < 0 or finish < begin:
-                return 0, 0
+                return None, None
             payload = json.loads(text[begin : finish + 1])
             upload = 0
             download = 0
@@ -906,7 +907,7 @@ class XrayManager:
                     download += value
             return max(0, upload), max(0, download)
         except Exception:
-            return 0, 0
+            return None, None
 
     def connected_ping(self, timeout: float = 1.0) -> int | None:
         """Measure a real HTTP round trip through the active TUN.
@@ -938,19 +939,7 @@ class XrayManager:
                 self._cancel_start.set()
                 process = self.process
                 self.process = None
-                if process and process.poll() is None:
-                    try:
-                        process.terminate()
-                        process.wait(timeout=2.5)
-                    except Exception:
-                        try:
-                            _kill_pid_tree(process.pid)
-                        except Exception:
-                            LOGGER.debug("PID tree kill failed", exc_info=True)
-                        try:
-                            process.wait(timeout=1.0)
-                        except Exception:
-                            pass
+                PROCESS_REGISTRY.stop(process, timeout=2.5)
                 # Close log handle before unlinking to avoid Windows file lock.
                 try:
                     if self.log_handle:

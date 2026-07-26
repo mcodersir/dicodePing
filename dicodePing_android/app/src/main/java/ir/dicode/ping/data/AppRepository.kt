@@ -1,9 +1,11 @@
 package ir.dicode.ping.data
 
 import android.content.Context
+import android.util.Base64
 import ir.dicode.ping.net.ConfigParser
 import ir.dicode.ping.net.GeoResolver
 import ir.dicode.ping.net.SubscriptionClient
+import ir.dicode.ping.net.ConfigProfileClassifier
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.xray.CoreBridge
@@ -26,6 +28,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicInteger
+import org.json.JSONObject
 
 class AppRepository private constructor(context: Context) {
     private val app = context.applicationContext
@@ -228,7 +231,13 @@ class AppRepository private constructor(context: Context) {
      * Xray HTTP probes on exactly those configs. Previous scanner results are
      * replaced atomically so repeated scans do not grow storage indefinitely.
      */
-    suspend fun importScannerConfigs(configs: List<String>, requestedName: String): List<ServerRecord> =
+    suspend fun importScannerConfigs(
+        configs: List<String>,
+        requestedName: String,
+        stopRequested: () -> Boolean = { false },
+        onSaving: () -> Unit = {},
+        onProgress: (Int, Int, Int) -> Unit = { _, _, _ -> },
+    ): List<ServerRecord> =
         withContext(Dispatchers.IO) {
             refreshMutex.withLock {
                 val sourceName = requestedName.trim().take(64).ifBlank {
@@ -253,30 +262,104 @@ class AppRepository private constructor(context: Context) {
                                 port = node.port,
                                 sourceId = sourceId,
                                 sourceName = sourceName,
+                                profileTag = ConfigProfileClassifier.classify(raw, node.host).name.lowercase(),
                             )
                         }
                     }
                     .take(MAX_SCANNER_SERVERS)
                     .toList()
                 if (parsed.isEmpty()) return@withLock emptyList()
-
-                if (sources.value.none { it.id == sourceId }) {
-                    saveSources(
-                        sources.value + SourceDefinition(
-                            id = sourceId,
-                            name = sourceName,
-                            url = "",
-                            order = sources.value.size,
-                            enabled = true,
-                        )
-                    )
+                // Replaces the old non-transactional pingServers(imported) path.
+                val done = AtomicInteger(0)
+                val aliveDone = AtomicInteger(0)
+                progress.value = ProgressState(true, "ping", 0, parsed.size, "Testing scanner candidates")
+                val healthy = mutableListOf<ServerRecord>()
+                val concurrency = tuning.probeWorkers.coerceIn(2, 6)
+                for (batch in parsed.chunked(concurrency * 2)) {
+                    if (stopRequested()) break
+                    val completed = coroutineScope {
+                        val sem = Semaphore(concurrency)
+                        batch.map { server ->
+                            async(Dispatchers.IO) {
+                                sem.withPermit {
+                                    if (stopRequested()) return@withPermit null
+                                    val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
+                                    val delay = if (reachable) runCatching {
+                                        proxyProbe.measureOutboundDelay(
+                                            XrayConfigBuilder.build(
+                                                server.raw,
+                                                bufferSizeKiB = tuning.bufferSizeKiB,
+                                            )
+                                        )
+                                    }.getOrDefault(-1L) else -1L
+                                    val ping = delay.takeIf { it in 1..60_000 }?.toInt()
+                                    val doneNow = done.incrementAndGet()
+                                    val aliveNow = if (ping != null) aliveDone.incrementAndGet() else aliveDone.get()
+                                    progress.value = ProgressState(
+                                        true,
+                                        "ping",
+                                        doneNow,
+                                        parsed.size,
+                                        server.name,
+                                    )
+                                    onProgress(doneNow, parsed.size, aliveNow)
+                                    ping?.let {
+                                        server.copy(
+                                            pingMs = it,
+                                            pingKind = REAL_PROXY_PING,
+                                            healthy = true,
+                                            testState = ServerRecord.TEST_IDLE,
+                                        )
+                                    }
+                                }
+                            }
+                        }.awaitAll().filterNotNull()
+                    }
+                    healthy += completed
+                    if (healthy.size >= SCANNER_HEALTHY_TARGET) break
                 }
-                servers.value = servers.value.filterNot { it.sourceId == sourceId } + parsed
-                settings.saveServers(servers.value)
-                locateServers(parsed, mergeWithExisting = true)
-                val imported = servers.value.filter { it.sourceId == sourceId }
-                pingServers(imported)
-                servers.value.filter { it.sourceId == sourceId }
+                healthy.sortBy { it.pingMs }
+                if (healthy.size > SCANNER_HEALTHY_TARGET) {
+                    healthy.subList(SCANNER_HEALTHY_TARGET, healthy.size).clear()
+                }
+                if (healthy.isEmpty()) {
+                    progress.value = ProgressState()
+                    return@withLock emptyList()
+                }
+                val source = SourceDefinition(
+                    id = sourceId,
+                    name = sourceName,
+                    url = "",
+                    order = sources.value.size,
+                    enabled = true,
+                )
+                val nextSources = (sources.value.filterNot { it.id == sourceId } + source)
+                    .mapIndexed { index, item -> item.apply { order = index } }
+                val nextServers = servers.value.filterNot { it.sourceId == sourceId } + healthy
+                onSaving()
+                val rawSubscription = healthy.joinToString("\n") { it.raw }
+                settings.saveScannerTransaction(
+                    nextSources,
+                    nextServers,
+                    JSONObject()
+                        .put("sourceId", sourceId)
+                        .put("sourceName", sourceName)
+                        .put("candidateCount", parsed.size)
+                        .put("healthyCount", healthy.size)
+                        .put("stoppedEarly", stopRequested())
+                        .put("rawSubscription", rawSubscription)
+                        .put(
+                            "base64Subscription",
+                            Base64.encodeToString(
+                                rawSubscription.toByteArray(Charsets.UTF_8),
+                                Base64.NO_WRAP,
+                            ),
+                        ),
+                )
+                sources.value = nextSources
+                servers.value = sortServers(nextServers)
+                progress.value = ProgressState()
+                healthy
             }
         }
 
@@ -563,6 +646,19 @@ class AppRepository private constructor(context: Context) {
             .toList()
     }
 
+    fun primaryAutomaticCandidates(limit: Int = 5): List<ServerRecord> {
+        val usedNetworks = hashSetOf<String>()
+        return servers.value.asSequence()
+            .filter { it.sourceId == "default" && isAutoEligible(it) }
+            .sortedBy { it.pingMs }
+            .filter { server ->
+                val network = server.ip.ifBlank { server.host }.trim().lowercase()
+                network.isNotBlank() && usedNetworks.add(network)
+            }
+            .take(limit.coerceIn(1, 8))
+            .toList()
+    }
+
     fun connectionTarget(): ServerRecord? = if (connectionMode.value == "manual") {
         selectedServer()?.takeUnless(ServerPolicy::isRestricted)
     } else {
@@ -586,6 +682,7 @@ class AppRepository private constructor(context: Context) {
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 240
+        private const val SCANNER_HEALTHY_TARGET = 5
 
         @Volatile
         private var instance: AppRepository? = null

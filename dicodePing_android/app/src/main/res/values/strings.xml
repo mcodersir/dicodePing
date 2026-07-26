@@ -162,6 +162,10 @@
     <string name="scanner_title">Scanner</string>
     <string name="scanner_subtitle">One-click scan and ping of live servers</string>
     <string name="scanner_run">Quick scan</string>
+    <string name="scanner_stop_save">Stop and save results</string>
+    <string name="config_profile_worker">Cloudflare Worker</string>
+    <string name="config_profile_limited">Quota hint (from name)</string>
+    <string name="config_profile_persistent">Persistent hint (from name)</string>
     <string name="scanner_start">Start scan</string>
     <string name="scanner_running">Scanning…</string>
     <string name="scanner_crawl">Fetching configs from Telegram channels</string>
@@ -175,10 +179,10 @@
     <string name="scanner_name_prompt">New subscription name</string>
     <string name="scanner_name_default">Scanner • date</string>
     <string name="scanner_preview_title">Stages that run automatically:</string>
-    <string name="scanner_preview_1">1. Auto-connect to the best primary-source server</string>
-    <string name="scanner_preview_2">2. Fetch configs from Telegram channels</string>
-    <string name="scanner_preview_3">3. Disconnect and test servers in parallel</string>
-    <string name="scanner_preview_4">4. Save healthy servers as a new subscription</string>
+    <string name="scanner_preview_1">1. Connect to the best server</string>
+    <string name="scanner_preview_2">2. Fetch and test configs</string>
+    <string name="scanner_preview_3">3. Save the new subscription</string>
+    <string name="scanner_preview_4">Legacy hidden stage</string>
     <string name="scanner_preview_hint">Just press \'Start scan\' once. The rest is automatic!</string>
     <string name="volume_fetch">Fetch volumes</string>
     <string name="volume_fetching">Fetching volumes…</string>
@@ -216,6 +220,9 @@
     <string name="per_app_apps_dialog_help">Choose the apps included by the selected allowlist or denylist mode.</string>
     <string name="core_ready">Downloaded and verified</string>
     <string name="core_not_downloaded">Not downloaded</string>
+    <string name="core_unsupported_build">Unsupported in this build</string>
+    <string name="conn_method_warp">WARP / Usque</string>
+    <string name="psiphon_authorized_config_missing">Authorized Psiphon distribution configuration is unavailable in this build.</string>
     <string name="core_select_first">Download and verify this core before activating it.</string>
     <string name="core_xray_builtin">Xray is the built-in dicodePing core.</string>
     <string name="core_opened">The selected connection core was opened.</string>

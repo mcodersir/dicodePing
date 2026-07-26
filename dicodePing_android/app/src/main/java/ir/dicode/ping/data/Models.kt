@@ -44,6 +44,7 @@ data class ServerRecord(
     var geoConfidence: String = "",
     var healthy: Boolean = false,
     var favorite: Boolean = false,
+    var profileTag: String = "unknown",
     /** Ephemeral UI state; deliberately not persisted between app launches. */
     var testState: String = TEST_IDLE,
 ) {
@@ -53,7 +54,7 @@ data class ServerRecord(
         put("pingMs", pingMs ?: JSONObject.NULL); put("pingKind", pingKind); put("ip", ip)
         put("country", country); put("countryCode", countryCode); put("region", region); put("city", city)
         put("isp", isp); put("asn", asn); put("geoConfidence", geoConfidence)
-        put("healthy", healthy); put("favorite", favorite)
+        put("healthy", healthy); put("favorite", favorite); put("profileTag", profileTag)
     }
 
     companion object {
@@ -65,7 +66,8 @@ data class ServerRecord(
             ip=o.optString("ip"), country=o.optString("country"), countryCode=o.optString("countryCode"),
             region=o.optString("region"), city=o.optString("city"), isp=o.optString("isp"),
             asn=o.optString("asn"), geoConfidence=o.optString("geoConfidence"),
-            healthy=o.optBoolean("healthy"), favorite=o.optBoolean("favorite"), testState=TEST_IDLE
+            healthy=o.optBoolean("healthy"), favorite=o.optBoolean("favorite"),
+            profileTag=o.optString("profileTag", "unknown"), testState=TEST_IDLE
         )
 
         const val TEST_IDLE = "idle"

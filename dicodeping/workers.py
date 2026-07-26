@@ -317,6 +317,7 @@ class ScannerThread(QThread):
         connect_callback=None,
         disconnect_callback=None,
         is_connected_callback=None,
+        validate_connection_callback=None,
         bootstrap_server_id: str | None = None,
     ) -> None:
         super().__init__()
@@ -328,6 +329,7 @@ class ScannerThread(QThread):
         self.connect_callback = connect_callback
         self.disconnect_callback = disconnect_callback
         self.is_connected_callback = is_connected_callback
+        self.validate_connection_callback = validate_connection_callback
         self.bootstrap_server_id = bootstrap_server_id
         self._stop_event = threading.Event()
 
@@ -354,6 +356,7 @@ class ScannerThread(QThread):
                 connect_callback=self.connect_callback,
                 disconnect_callback=self.disconnect_callback,
                 is_connected_callback=self.is_connected_callback,
+                validate_connection_callback=self.validate_connection_callback,
                 bootstrap_server_id=self.bootstrap_server_id,
             )
             self.success.emit(result)

@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "release": "1.8.0-rc.3",
+  "integrity": "SHA-256 verified",
+  "signature": null,
+  "cores": {
+    "xray": {
+      "version": "26.7.11",
+      "windows-x64": {
+        "url": "https://github.com/XTLS/Xray-core/releases/download/v26.7.11/Xray-windows-64.zip",
+        "sha256": "af801b62c4d41d248d3db8016d4c6e2a7ccfb7ed443e3738aeb6f9e062321512"
+      },
+      "linux-x86_64": {
+        "url": "https://github.com/XTLS/Xray-core/releases/download/v26.7.11/Xray-linux-64.zip",
+        "sha256": "aa11c3685c71da0ffc71e511db50404609e7e963bb914b048f59a6a00af8930e"
+      },
+      "android": {
+        "url": "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar",
+        "sha256": "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
+      }
+    },
+    "aether": {
+      "version": "1.4.0",
+      "windows-x64": {
+        "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-windows-x86_64.zip",
+        "sha256": "4b4ac4c2dcade01c13bc6f1706f7f62e94c3b3058184212692bd9d598c0ce9b4"
+      },
+      "linux-x86_64": {
+        "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-linux-x86_64.tar.gz",
+        "sha256": "683dc190a948e8555fc9738ef2d1be403d95606e191e75f0e6941012c6b869cd"
+      },
+      "android": {"state": "unsupportedInThisBuild"}
+    },
+    "warp": {
+      "version": "4.2.1",
+      "windows-x64": {
+        "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_windows_amd64.zip",
+        "sha256": "f6f7f0a1a2bc9bcc15cf563ec1f892d00690a92c086b23ed3211b802209099e7"
+      },
+      "linux-x86_64": {
+        "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_amd64.zip",
+        "sha256": "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313"
+      },
+      "android": {"state": "unsupportedInThisBuild"}
+    },
+    "psiphon": {
+      "version": "2.0.39",
+      "state": "missingAuthorizedConfig"
+    }
+  }
+}

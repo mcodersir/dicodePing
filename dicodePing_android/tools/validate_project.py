@@ -46,14 +46,14 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "1.8.0"' not in build_file:
-    errors.append("versionName must be 1.8.0 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.8.0-rc.2\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 1.8.0-rc.2 for this release")
+if 'versionName = "1.8.0-rc.3"' not in build_file:
+    errors.append("versionName must be 1.8.0-rc.3 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.8.0-rc.3\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 1.8.0-rc.3 for this release")
 
 if 'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")' not in build_file:
     errors.append("Android core must be resolved through the local Maven repository")
-if '367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e' not in build_file:
+if '0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352' not in build_file:
     errors.append("Android core SHA-256 must be pinned in the Gradle preBuild check")
 if 'implementation(files(' in build_file:
     errors.append("Direct local AAR file dependencies are forbidden because AGP may report a null extracted folder")
@@ -74,7 +74,7 @@ for required in (
     "build_apk.bat",
     "build_apk.sh",
     "INSTALL_ANDROID_CORE.txt",
-    "local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.pom",
+    "local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.pom",
     "app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt",
 ):
     if not (ROOT / required).exists():
@@ -91,5 +91,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 1.8.0-rc.2")
+print("Version is 1.8.0-rc.3")
 print("Project structure is ready for Android build")

@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import concurrent.futures
 import html
+import json
 import re
+import threading
+import time
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,15 +36,15 @@ LOGGER = get_logger("crawler")
 # --- Channel list --------------------------------------------------------
 
 CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
+CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
 
 # Regexes used to extract config URIs from the Telegram preview HTML.
 # These match the patterns used by DicodeConfigChecker, but we only keep
-# the proxy-style protocols that dicodePing can actually probe through
-# xray (vmess / vless / trojan / ss / ssr).  Telegram MTProto and SOCKS
+# protocols that dicodePing can build into its Xray outbound
+# (vmess / vless / trojan / shadowsocks). Telegram MTProto and SOCKS
 # links are ignored because dicodePing does not run a Telegram tunnel.
 CONFIG_REGEXES = [
-    re.compile(r"\b(?:vmess|vless|trojan|ss|ssr|snell)://[^\s<>\"'`\\]+", re.I),
-    re.compile(r"\b(?:hysteria2|hy2|tuic)://[^\s<>\"'`\\]+", re.I),
+    re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I),
 ]
 
 
@@ -58,6 +61,35 @@ class ChannelResult:
     error: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class ChannelSpec:
+    name: str
+    rank: int
+
+
+def load_channel_specs(path: Path | None = None) -> list[ChannelSpec]:
+    target = path or CANONICAL_CHANNELS_FILE
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+        rows = payload.get("channels", [])
+    except (OSError, ValueError, TypeError):
+        return []
+    result: list[ChannelSpec] = []
+    seen: set[str] = set()
+    for row in rows if isinstance(rows, list) else []:
+        try:
+            name = str(row["name"]).strip().strip("/")
+            rank = int(row["rank"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        key = name.casefold()
+        if not name or rank not in (1, 2) or key in seen:
+            continue
+        seen.add(key)
+        result.append(ChannelSpec(name=name, rank=rank))
+    return result
+
+
 def load_channels(path: Path | None = None) -> list[str]:
     """Return the curated list of Telegram channels.
 
@@ -65,6 +97,10 @@ def load_channels(path: Path | None = None) -> list[str]:
     ``t.me/`` (if any) is stripped so the value is just the channel
     username.
     """
+    if path is None:
+        specs = load_channel_specs()
+        if specs:
+            return [item.name for item in specs]
     target = path or CHANNELS_FILE
     if not target.exists():
         return []
@@ -229,6 +265,8 @@ def crawl_telegram_channels(
     max_workers: int = 8,
     timeout: float = 12.0,
     progress: Callable[[int, int, str], None] | None = None,
+    stop_event: threading.Event | None = None,
+    retry_limit: int = 1,
 ) -> list[str]:
     """Crawl every channel in parallel and return a flat, deduped config list.
 
@@ -245,7 +283,7 @@ def crawl_telegram_channels(
             after each channel completes.
 
     Returns:
-        A list of unique, valid config URIs (vmess/vless/trojan/ss/ssr).
+        A list of unique, valid config URIs (vmess/vless/trojan/ss).
         Configs that cannot be parsed by the protocols module are dropped.
     """
     channels = channels if channels is not None else load_channels()
@@ -260,34 +298,77 @@ def crawl_telegram_channels(
     seen: set[str] = set()
     completed = 0
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {
-            pool.submit(fetch_channel, channel, per_channel_limit=per_channel_limit, timeout=timeout): channel
-            for channel in channels
-        }
-        for future in concurrent.futures.as_completed(futures):
-            channel = futures[future]
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, max_workers))
+    queue = iter(channels)
+    futures: dict[concurrent.futures.Future[ChannelResult], tuple[str, int]] = {}
+
+    def fill() -> None:
+        while len(futures) < max(1, max_workers * 2) and not (stop_event and stop_event.is_set()):
             try:
-                result: ChannelResult = future.result()
-            except Exception as exc:
-                LOGGER.debug("Crawler: channel %s raised %s", channel, exc)
-                result = ChannelResult(channel=channel, ok=False, found=0, picked=0, elapsed_ms=0, configs=[], error=str(exc))
-            completed += 1
-            if progress:
-                progress(completed, total, channel)
-            if not result.ok:
-                LOGGER.debug("Crawler: %s failed: %s", channel, result.error)
+                channel = next(queue)
+            except StopIteration:
+                return
+            futures[pool.submit(fetch_channel, channel, per_channel_limit=per_channel_limit, timeout=timeout)] = (
+                channel,
+                0,
+            )
+
+    fill()
+    try:
+        while futures:
+            if stop_event and stop_event.is_set():
+                for pending in futures:
+                    pending.cancel()
+                break
+            ready, _ = concurrent.futures.wait(
+                tuple(futures),
+                timeout=0.15,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+            if not ready:
                 continue
-            for raw in result.configs:
-                # Keep only configs that the protocols module can parse
-                # (drops malformed URIs and unsupported protocols).
-                if not parse_endpoint(raw):
+            for future in ready:
+                channel, attempt = futures.pop(future)
+                try:
+                    result: ChannelResult = future.result()
+                except Exception as exc:
+                    result = ChannelResult(
+                        channel=channel,
+                        ok=False,
+                        found=0,
+                        picked=0,
+                        elapsed_ms=0,
+                        configs=[],
+                        error=str(exc),
+                    )
+                if not result.ok and attempt < max(0, retry_limit) and not (stop_event and stop_event.is_set()):
+                    time.sleep(min(0.25 * (2**attempt), 1.0))
+                    futures[
+                        pool.submit(
+                            fetch_channel,
+                            channel,
+                            per_channel_limit=per_channel_limit,
+                            timeout=timeout,
+                        )
+                    ] = (channel, attempt + 1)
                     continue
-                key = _normalize_key(raw)
-                if key in seen:
+                completed += 1
+                if progress:
+                    progress(completed, total, channel)
+                if not result.ok:
+                    LOGGER.debug("Crawler: %s failed: %s", channel, result.error)
                     continue
-                seen.add(key)
-                raw_configs.append(raw)
+                for raw in result.configs:
+                    if not parse_endpoint(raw):
+                        continue
+                    key = _normalize_key(raw)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    raw_configs.append(raw)
+            fill()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
 
     LOGGER.info(
         "Crawler: crawled %d channels, collected %d unique configs",

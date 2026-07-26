@@ -118,6 +118,26 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("servers", arr.toString()).apply()
     }
 
+    fun saveScannerTransaction(
+        sources: List<SourceDefinition>,
+        servers: List<ServerRecord>,
+        metadata: JSONObject,
+    ) {
+        val sourceArray = JSONArray()
+        sources.sortedBy { it.order }.forEach { sourceArray.put(it.toJson()) }
+        val serverArray = JSONArray()
+        servers.forEach { serverArray.put(it.toJson()) }
+        // A single SharedPreferences commit publishes source metadata, healthy
+        // records and scanner history together or reports failure.
+        check(
+            prefs.edit()
+                .putString("sources", sourceArray.toString())
+                .putString("servers", serverArray.toString())
+                .putString("scanner_last_result", metadata.toString())
+                .commit()
+        ) { "Scanner transaction could not be committed" }
+    }
+
     companion object {
         const val DEFAULT_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
         val SERVER_REFRESH_INTERVAL_MS: Long = TimeUnit.DAYS.toMillis(2)

@@ -1,4 +1,4 @@
-"""Capture the RC2 desktop visual matrix with Qt's offscreen backend."""
+"""Capture the RC3 desktop visual matrix with Qt's offscreen backend."""
 from __future__ import annotations
 
 import os
@@ -65,7 +65,7 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.8.0-rc.2"
+    output = ROOT / "docs/screenshots/v1.8.0-rc.3"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     for font_file in (ROOT / "assets" / "fonts").glob("Vazirmatn-*.ttf"):

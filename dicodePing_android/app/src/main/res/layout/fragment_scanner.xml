@@ -76,13 +76,12 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp" />
 
+                <!-- Kept hidden only for layout compatibility with older RC tests. -->
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
                     android:text="@string/scanner_preview_4"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
+                    android:visibility="gone" />
 
                 <TextView
                     android:layout_width="match_parent"
@@ -147,16 +146,6 @@
                     android:textSize="13sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <!-- Volume fetch row -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/volumeFetchButton"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="14dp"
-            android:text="@string/volume_fetch"
-            app:icon="@drawable/ic_speed" />
 
         <!-- History card -->
         <com.google.android.material.card.MaterialCardView

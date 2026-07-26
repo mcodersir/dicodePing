@@ -11,6 +11,7 @@ from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QVBoxLayout, QWidget
 
 from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RELEASE_VERSION, RUNTIME_DIR, VERSION
+from dicodeping.core_manager import reverify_installed_cores
 from dicodeping.diagnostics import configure_logging, get_logger
 from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
 from dicodeping.sources import normalize_sources, serialize_sources
@@ -117,6 +118,8 @@ class StartupPrepareThread(QThread):
         startup_error = ""
         refresh_due = True
         try:
+            self.stage.emit(4, "در حال بررسی صحت هسته‌ها...", "Verifying installed cores...")
+            reverify_installed_cores()
             self.stage.emit(8, "در حال بارگذاری تنظیمات...", "Loading settings...")
             settings = store.load_settings()
             cached = store.load_servers()
@@ -234,6 +237,18 @@ def choose_persian_font() -> QFont:
 
 def main() -> int:
     smoke_mode = "--startup-smoke-test" in sys.argv
+    discovery_smoke_mode = (
+        "--discovery-smoke" in sys.argv
+        or os.environ.get("DICODEPING_DISCOVERY_SMOKE", "").strip() == "1"
+    )
+    smoke_report_argument = next(
+        (
+            argument.split("=", 1)[1]
+            for argument in sys.argv
+            if argument.startswith("--startup-smoke-report=")
+        ),
+        "",
+    ).strip()
     try:
         settings = JsonStore().load_settings()
     except Exception:
@@ -272,7 +287,12 @@ def main() -> int:
         cleanup_stale_owned_process()
     set_app_id()
 
-    qt_args = [argument for argument in sys.argv if argument != "--startup-smoke-test"]
+    qt_args = [
+        argument
+        for argument in sys.argv
+        if argument not in {"--startup-smoke-test", "--discovery-smoke"}
+        and not argument.startswith("--startup-smoke-report=")
+    ]
     app = QApplication(qt_args)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
@@ -287,7 +307,10 @@ def main() -> int:
     app.setLayoutDirection(Qt.LeftToRight if language == "en" else Qt.RightToLeft)
 
     if smoke_mode:
-        report_path = os.environ.get("DICODEPING_STARTUP_SMOKE_REPORT", "").strip()
+        report_path = (
+            smoke_report_argument
+            or os.environ.get("DICODEPING_STARTUP_SMOKE_REPORT", "").strip()
+        )
 
         def write_smoke_report(message: str) -> None:
             if not report_path:
@@ -311,7 +334,7 @@ def main() -> int:
             write_smoke_report(traceback.format_exc())
             return 2
 
-        if os.environ.get("DICODEPING_DISCOVERY_SMOKE", "").strip() == "1":
+        if discovery_smoke_mode:
             smoke_state = {"finished": False, "rows": 0}
             smoke_worker = DiscoverThread(
                 window.service,
@@ -371,6 +394,11 @@ def main() -> int:
 
         def finish_smoke_test() -> None:
             visible = window.isVisible()
+            write_smoke_report(
+                f"{'ok' if visible else 'window-not-visible'}\n"
+                f"visible={visible}\n"
+                "discovery_smoke=not-requested\n"
+            )
             window._is_closing = True
             window.close()
             app.exit(0 if visible else 3)

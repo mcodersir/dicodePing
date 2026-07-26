@@ -15,29 +15,56 @@ def extract(path: Path, pattern: str, label: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify dicodePing version consistency.")
-    parser.add_argument("--tag", default="", help="Optional release tag, for example v0.1.2")
+    parser = argparse.ArgumentParser(description="Verify stable and release-candidate version metadata.")
+    parser.add_argument("--tag", default="")
     args = parser.parse_args()
 
-    versions = {
-        "python package": extract(ROOT / "dicodeping" / "__init__.py", r'__version__\s*=\s*"([^"]+)"', "version"),
-        "constants": extract(ROOT / "dicodeping" / "constants.py", r'VERSION\s*=\s*"([^"]+)"', "version"),
-        "Windows builder": extract(ROOT / "tools" / "build_windows.py", r'APP_VERSION\s*=\s*"([^"]+)"', "version"),
-        "Android": extract(ROOT / "dicodePing_android" / "app" / "build.gradle.kts", r'versionName\s*=\s*"([^"]+)"', "version"),
-        "Windows metadata": extract(ROOT / "tools" / "windows_version_info.txt", r"StringStruct\('ProductVersion',\s*'([0-9]+\.[0-9]+\.[0-9]+)\.0'\)", "version"),
+    stable = extract(ROOT / "dicodeping/constants.py", r'(?m)^VERSION\s*=\s*"([^"]+)"', "stable version")
+    release = extract(
+        ROOT / "dicodeping/constants.py",
+        r'(?m)^RELEASE_VERSION\s*=\s*"([^"]+)"',
+        "release version",
+    )
+    rc = release.removeprefix(stable + "-")
+    python_expected = release.replace("-", "").replace("rc.", "rc")
+    checks = {
+        "python package": (
+            extract(ROOT / "dicodeping/__init__.py", r'(?m)^__version__\s*=\s*"([^"]+)"', "version"),
+            python_expected,
+        ),
+        "Windows builder": (
+            extract(ROOT / "tools/build_windows.py", r'(?m)^APP_VERSION\s*=\s*"([^"]+)"', "version"),
+            stable,
+        ),
+        "Windows RC": (
+            extract(ROOT / "tools/build_windows.py", r'(?m)^RC_VERSION\s*=\s*"([^"]+)"', "RC"),
+            rc,
+        ),
+        "Linux RC": (
+            extract(ROOT / "tools/build_linux.py", r'(?m)^RC_VERSION\s*=\s*"([^"]+)"', "RC"),
+            rc,
+        ),
+        "Android": (
+            extract(ROOT / "dicodePing_android/app/build.gradle.kts", r'(?m)^\s*versionName\s*=\s*"([^"]+)"', "version"),
+            release,
+        ),
+        "Windows metadata": (
+            extract(
+                ROOT / "tools/windows_version_info.txt",
+                r"StringStruct\('ProductVersion',\s*'([0-9]+\.[0-9]+\.[0-9]+)\.0'\)",
+                "version",
+            ),
+            stable,
+        ),
     }
-
-    expected = next(iter(versions.values()))
-    mismatches = {name: value for name, value in versions.items() if value != expected}
+    mismatches = {name: {"actual": actual, "expected": expected} for name, (actual, expected) in checks.items() if actual != expected}
     if mismatches:
-        print(f"Expected all versions to be {expected}; mismatches: {mismatches}")
+        print(f"Version mismatches: {mismatches}")
         return 1
-
-    if args.tag and args.tag != f"v{expected}":
-        print(f"Tag {args.tag!r} does not match version v{expected}")
+    if args.tag and args.tag != f"v{release}":
+        print(f"Tag {args.tag!r} does not match v{release}")
         return 1
-
-    print(f"dicodePing version is consistent: {expected}")
+    print(f"dicodePing versions are consistent: package={python_expected}, release={release}")
     return 0
 
 

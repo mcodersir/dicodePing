@@ -1318,7 +1318,7 @@ class MainWindow(QMainWindow):
         preview_title = QLabel(self.t("scanner_preview_title"))
         preview_title.setObjectName("sectionTitle")
         action_layout.addWidget(preview_title)
-        for i in range(1, 5):
+        for i in range(1, 4):
             preview_line = QLabel(self.t(f"scanner_preview_{i}"))
             preview_line.setObjectName("muted")
             preview_line.setWordWrap(True)
@@ -1337,16 +1337,12 @@ class MainWindow(QMainWindow):
         self.scanner_run_button.setIcon(tinted_icon("bolt.svg"))
         self.scanner_run_button.setIconSize(QSize(20, 20))
         self.scanner_run_button.setMinimumHeight(54)
-        self.scanner_run_button.clicked.connect(self.start_scanner)
+        self.scanner_run_button.clicked.connect(self._scanner_primary_action)
         action_top.addWidget(self.scanner_run_button, 1)
 
-        self.scanner_stop_button = QPushButton(self.t("scanner_stop"))
-        self.scanner_stop_button.setProperty("kind", "danger")
-        self.scanner_stop_button.setIcon(icon("close.svg"))
-        self.scanner_stop_button.setMinimumHeight(54)
-        self.scanner_stop_button.setVisible(False)
-        self.scanner_stop_button.clicked.connect(self.stop_scanner)
-        action_top.addWidget(self.scanner_stop_button)
+        # Legacy RC2 created a second widget here:
+        # self.scanner_stop_button = QPushButton(self.t("scanner_stop"))
+        # RC3 intentionally uses one primary button that changes behavior.
         action_layout.addLayout(action_top)
 
         # Optional custom sub name input.
@@ -1534,11 +1530,13 @@ class MainWindow(QMainWindow):
             return
         custom_name = self.scanner_name_edit.text().strip() if hasattr(self, "scanner_name_edit") else ""
         # Pull the per-channel limits from settings.
-        rank1_limit = int(self.settings.get("scanner_rank1_limit", 3))
-        rank2_limit = int(self.settings.get("scanner_rank2_limit", 3))
-        # Toggle buttons: hide Start, show Stop.
-        self.scanner_run_button.setVisible(False)
-        self.scanner_stop_button.setVisible(True)
+        from .scanner import normalize_rank_limit
+        rank1_limit = normalize_rank_limit(self.settings.get("scanner_rank1_limit", 3))
+        rank2_limit = normalize_rank_limit(self.settings.get("scanner_rank2_limit", 3))
+        self.scanner_run_button.setText(self.t("scanner_stop"))
+        self.scanner_run_button.setProperty("kind", "danger")
+        self.scanner_run_button.style().unpolish(self.scanner_run_button)
+        self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
         self.scanner_stage_label.setText(self.t("scanner_stage1"))
@@ -1561,6 +1559,7 @@ class MainWindow(QMainWindow):
             connect_callback=self._scanner_connect_bootstrap,
             disconnect_callback=self._scanner_disconnect_bootstrap,
             is_connected_callback=lambda: self.manager.connected,
+            validate_connection_callback=self.manager.verify_connection,
             bootstrap_server_id=bootstrap_server_id,
         )
         self.scanner_thread = thread
@@ -1575,12 +1574,18 @@ class MainWindow(QMainWindow):
         thread.finished.connect(thread.deleteLater)
         thread.start()
 
+    def _scanner_primary_action(self) -> None:
+        if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            self.stop_scanner()
+        else:
+            self.start_scanner()
+
     def stop_scanner(self) -> None:
         """Ask the running scanner to stop at the next safe point."""
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
             self.scanner_thread.requestStop()
-            self.scanner_stop_button.setEnabled(False)
-            self.scanner_stop_button.setText(self.t("busy_wait"))
+            self.scanner_run_button.setEnabled(False)
+            self.scanner_run_button.setText(self.t("busy_wait"))
 
     def _scanner_connect_bootstrap(self, server_id: str) -> None:
         """UI-thread callback: connect to the chosen bootstrap server."""
@@ -1647,9 +1652,9 @@ class MainWindow(QMainWindow):
         self.scanner_run_button.setVisible(True)
         self.scanner_run_button.setEnabled(True)
         self.scanner_run_button.setText(self.t("scanner_start"))
-        self.scanner_stop_button.setVisible(False)
-        self.scanner_stop_button.setEnabled(True)
-        self.scanner_stop_button.setText(self.t("scanner_stop"))
+        self.scanner_run_button.setProperty("kind", "primary")
+        self.scanner_run_button.style().unpolish(self.scanner_run_button)
+        self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(100)
         duration = getattr(result, "duration_seconds", 0.0)
@@ -1662,7 +1667,7 @@ class MainWindow(QMainWindow):
         self.scanner_stage_label.setText(self.t("scanner_done"))
         if stopped_early:
             self.scanner_result_label.setText(
-                self.t("scanner_stopped_early")
+                self.t("scanner_stopped_early", count=alive)
                 + "  •  "
                 + self.t("scanner_result", alive=alive, total=total, duration=f"{duration:.1f}")
             )
@@ -1688,9 +1693,9 @@ class MainWindow(QMainWindow):
         self.scanner_run_button.setVisible(True)
         self.scanner_run_button.setEnabled(True)
         self.scanner_run_button.setText(self.t("scanner_start"))
-        self.scanner_stop_button.setVisible(False)
-        self.scanner_stop_button.setEnabled(True)
-        self.scanner_stop_button.setText(self.t("scanner_stop"))
+        self.scanner_run_button.setProperty("kind", "primary")
+        self.scanner_run_button.style().unpolish(self.scanner_run_button)
+        self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
         self.scanner_eta_label.setVisible(False)
@@ -2235,10 +2240,15 @@ class MainWindow(QMainWindow):
 
     def _download_selected_core(self) -> None:
         """Download the core selected in the conn_method_combo."""
-        from .core_manager import download_core, is_core_available, get_core
+        from .core_manager import core_capability, download_core, is_core_available, get_core
+        from .core_runtime import CoreState
         core_id = self.conn_method_combo.currentData()
         if not core_id or core_id == "xray":
             self.conn_method_status_label.setText("Xray هسته پیش‌فرض است و نیازی به دانلود ندارد.")
+            return
+        capability, reason = core_capability(core_id)
+        if capability in (CoreState.MISSING_AUTHORIZED_CONFIG, CoreState.UNSUPPORTED):
+            self.conn_method_status_label.setText(reason)
             return
         if is_core_available(core_id):
             self.conn_method_status_label.setText(self.t("conn_method_download_done"))
@@ -2277,6 +2287,24 @@ class MainWindow(QMainWindow):
                 "هسته دانلود نشده است. ابتدا روی «دانلود هسته» بزنید."
             )
             return
+        if core_id == "warp":
+            from .connection_manager import register_warp
+            from .core_manager import core_dir
+            if not (core_dir("warp") / "config.json").is_file():
+                accepted = AppDialog.confirm(
+                    self,
+                    self.t("warp_registration_title"),
+                    self.t("warp_registration_terms"),
+                    accept_text=self.t("accept"),
+                    reject_text=self.t("cancel"),
+                )
+                if not accepted:
+                    return
+                try:
+                    register_warp(accept_terms=True)
+                except Exception as exc:
+                    self.conn_method_status_label.setText(str(exc))
+                    return
         try:
             set_active_core(core_id)
             self.manager.reload_selection()
@@ -2657,11 +2685,15 @@ class MainWindow(QMainWindow):
     def _connection_metrics_updated(self, payload: object) -> None:
         if not self.manager.connected or not isinstance(payload, dict):
             return
-        upload = int(payload.get("upload") or 0)
-        download = int(payload.get("download") or 0)
+        upload_value = payload.get("upload")
+        download_value = payload.get("download")
         ping = payload.get("ping")
-        self.live_upload_value.setText(format_bytes(upload))
-        self.live_download_value.setText(format_bytes(download))
+        self.live_upload_value.setText(
+            format_bytes(int(upload_value)) if isinstance(upload_value, (int, float)) else self.t("not_supported")
+        )
+        self.live_download_value.setText(
+            format_bytes(int(download_value)) if isinstance(download_value, (int, float)) else self.t("not_supported")
+        )
         if isinstance(ping, int) and ping > 0:
             self.live_ping_value.setText(f"{ping} ms")
             if ping != self._last_connected_ping:
@@ -2980,6 +3012,10 @@ class MainWindow(QMainWindow):
             # word and the volume label inline, so the user does not need
             # to hover to see them.
             info_text = rating.label_fa
+            profile_tag = getattr(server, "profile_tag", "unknown")
+            profile_label = self.t(f"config_profile_{profile_tag}")
+            if profile_tag != "unknown":
+                info_text += f"\n{profile_label}"
             if volume_label and volume_label != "—":
                 info_text += f"\n{volume_label}"
             info_item = QTableWidgetItem(info_text)
@@ -2988,7 +3024,7 @@ class MainWindow(QMainWindow):
             info_item.setBackground(ping_brush)
             info_item.setToolTip(
                 f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
-                f"{self.t('scanner_volume_title')}: {volume_label}"
+                f"{self.t('config_profile_title')}: {profile_label}"
             )
             self.table.setItem(row, 5, info_item)
 

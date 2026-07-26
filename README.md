@@ -46,8 +46,9 @@ dicodePing یک کلاینت متن‌باز Windows و Android برای مدی�
 
 نسخه آماده را از صفحه [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
 
-- **Windows:** `dicodePing-v0.1.2-windows.exe`
-- **Android:** `dicodePing-v0.1.2-android.apk`
+- **Windows:** `dicodePing-v1.8.0-rc.3-windows-x64.exe`
+- **Linux:** `dicodePing-v1.8.0-rc.3-linux-x86_64.tar.gz`
+- **Android:** `dicodePing-v1.8.0-rc.3-android.apk`
 
 برای بررسی اصالت فایل‌ها، مقدار آن‌ها را با `SHA256SUMS` همان Release مقایسه کنید.
 
@@ -69,8 +70,9 @@ dicodePing is an open-source Windows and Android client for managing and connect
 
 ### Downloads
 
-- **Windows:** `dicodePing-v0.1.2-windows.exe`
-- **Android:** `dicodePing-v0.1.2-android.apk`
+- **Windows:** `dicodePing-v1.8.0-rc.3-windows-x64.exe`
+- **Linux:** `dicodePing-v1.8.0-rc.3-linux-x86_64.tar.gz`
+- **Android:** `dicodePing-v1.8.0-rc.3-android.apk`
 
 Verify downloaded files using the accompanying `SHA256SUMS` file.
 
@@ -96,7 +98,11 @@ cd dicodePing_android
 ./gradlew --no-daemon lint test assembleDebug
 ```
 
-The Windows build pins Xray-core `26.7.11` and Wintun `0.14.1`. The Android build pins AndroidLibXrayLite `26.6.2`. Native dependencies are downloaded from upstream releases and verified before packaging.
+The desktop build pins Xray-core `26.7.11`, Aether `1.4.0`, Usque `4.2.1`
+and Wintun `0.14.1`. Android pins AndroidLibXrayLite `26.7.11`; optional
+Android transports are disabled in RC3 until same-package libraries exist.
+Native dependencies are downloaded from immutable upstream releases and
+verified with pinned SHA-256 values.
 
 ## License and responsibility
 

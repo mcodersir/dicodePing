@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.8.0-rc.3 — strict lifecycle, verified scanner, honest capabilities
+
+- Added a serialized core lifecycle with generation cancellation, central
+  process/port registries, bounded termination and application-exit disposal.
+- Added verified on-demand Aether 1.4.0 and Usque 4.2.1 desktop installers with
+  redirect, size, archive-bomb, staging, self-test and rollback controls.
+- Rebuilt Scanner bootstrap selection around real Xray HTTP probes and removed
+  every continue-on-TUN/disconnect-error path.
+- Added bounded concurrent Xray probing, live ETA/alive signals, Stop with
+  partial save and cross-file transactional persistence.
+- Added one canonical ranked channel manifest shared by desktop and Android;
+  removed Telegram proxy and volume paths from Scanner.
+- Moved Android scanning to an application-owned coordinator and foreground
+  service with Stop notification and no automatic reconnect.
+- Scanner now stops new probes after five HTTP-verified healthy results and
+  keeps the fastest five, reducing mobile scan time and resource use.
+- Server rows show conservative quota, Cloudflare Worker, or persistent hints
+  only when explicit config metadata supports the label.
+- Updated AndroidLibXrayLite to 26.7.11.
+- Disabled Android Aether, Psiphon and WARP honestly; no external APK, Termux,
+  or raw executable is downloaded.
+
 ## 1.8.0-rc.2 — responsive UI, Persian-first migration, adaptive Android
 
 - Added centralized design tokens and deterministic desktop/Android size classes.
