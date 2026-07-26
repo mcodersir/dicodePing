@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "1.8.0"
-RC_VERSION = "rc.3"
+RC_VERSION = "rc.4"
 APP_NAME = "dicodePing"
 
 
@@ -64,6 +64,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         root / "dicodeping" / "rc8_core.py",
         root / "dicodeping" / "rc8_runtime.py",
         root / "dicodeping" / "rc9_core.py",
+        root / "dicodeping" / "rc9_runtime.py",
+        root / "dicodeping" / "rc10_runtime.py",
         assets,
         assets / "app.ico",
         root / "tools" / "windows_version_info.txt",

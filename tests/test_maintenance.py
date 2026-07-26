@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 33", gradle)
+        self.assertIn("versionCode = 35", gradle)
         self.assertIn('versionName = "1.8.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -130,7 +130,7 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("geo_lookup_ips(records)", rc7)
         self.assertIn("QHeaderView.Fixed", rc8)
         self.assertIn("self.table.viewport().width()", rc8)
-        self.assertIn("waits = (0.25, 0.7)", workers)
+        self.assertIn("waits = (0.25, 0.8, 1.6)", workers)
         self.assertIn("allow_system_proxy=False", workers)
 
     def test_android_connection_lock_and_diagnostics(self) -> None:

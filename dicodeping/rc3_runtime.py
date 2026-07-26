@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QPushButton
 from . import net as net_module
 from . import service as service_module
 from .rc3_core import median_latency, trusted_latency
+from .protocols import blob_to_config
+from .xray import probe_outbound_delay
 
 _PATCHED = False
 
@@ -115,7 +117,19 @@ class _SelectedPingThread(QThread):
 
     def run(self):
         try:
-            result = _probe_server(self.server.id, self.server.host, int(self.server.port or 443))
+            ip = net_module.resolve_ipv4(self.server.host)
+            icmp_ms, _resolved = net_module.icmp_ping(
+                self.server.host,
+                attempts=1,
+                timeout=1.2,
+                resolved_ip=ip,
+            )
+            proxy_ms = probe_outbound_delay(
+                blob_to_config(self.server.config_blob),
+                timeout=4.5,
+            )
+            result = net_module.PingResult(self.server.id, proxy_ms, ip)
+            result.icmp_ms = icmp_ms
         except Exception:
             # Always emit completion so the UI cannot leave the button disabled
             # forever after an unexpected resolver/platform error.
@@ -162,6 +176,7 @@ def _install_ui_patch() -> None:
         def finished(result):
             server.last_checked = service_module.utc_now()
             if result and result.ping_ms is not None:
+                server.icmp_ms = getattr(result, "icmp_ms", server.icmp_ms)
                 server.ping_ms = result.ping_ms
                 server.ip = result.ip or server.ip
                 server.status = "online" if trusted_latency(result.ping_ms) else "unverified"

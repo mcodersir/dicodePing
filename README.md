@@ -46,9 +46,9 @@ dicodePing یک کلاینت متن‌باز Windows و Android برای مدی�
 
 نسخه آماده را از صفحه [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
 
-- **Windows:** `dicodePing-v1.8.0-rc.3-windows-x64.exe`
-- **Linux:** `dicodePing-v1.8.0-rc.3-linux-x86_64.tar.gz`
-- **Android:** `dicodePing-v1.8.0-rc.3-android.apk`
+- **Windows:** `dicodePing-v1.8.0-rc.4-windows-x64.exe`
+- **Linux:** `dicodePing-v1.8.0-rc.4-linux-x86_64.tar.gz`
+- **Android:** `dicodePing-v1.8.0-rc.4-android.apk`
 
 برای بررسی اصالت فایل‌ها، مقدار آن‌ها را با `SHA256SUMS` همان Release مقایسه کنید.
 
@@ -70,9 +70,9 @@ dicodePing is an open-source Windows and Android client for managing and connect
 
 ### Downloads
 
-- **Windows:** `dicodePing-v1.8.0-rc.3-windows-x64.exe`
-- **Linux:** `dicodePing-v1.8.0-rc.3-linux-x86_64.tar.gz`
-- **Android:** `dicodePing-v1.8.0-rc.3-android.apk`
+- **Windows:** `dicodePing-v1.8.0-rc.4-windows-x64.exe`
+- **Linux:** `dicodePing-v1.8.0-rc.4-linux-x86_64.tar.gz`
+- **Android:** `dicodePing-v1.8.0-rc.4-android.apk`
 
 Verify downloaded files using the accompanying `SHA256SUMS` file.
 

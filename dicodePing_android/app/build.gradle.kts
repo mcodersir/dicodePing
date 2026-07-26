@@ -81,11 +81,11 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 35
-        // RC2 used versionCode = 33; RC3 must be strictly greater.
-        versionCode = 34
+        // RC3 used versionCode = 34; RC4 must be strictly greater.
+        versionCode = 35
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.8.0-rc.3"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.8.0-rc.3\"")
+        versionName = "1.8.0-rc.4"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.8.0-rc.4\"")
         multiDexEnabled = true
 
         ndk {

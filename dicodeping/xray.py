@@ -466,6 +466,7 @@ def build_tun_config(
     raw_config: str,
     bypass_domains: list[str] | tuple[str, ...] | str | None = None,
     api_port: int = 0,
+    validation_socks_port: int = 0,
 ) -> dict[str, Any]:
     resources = current_resource_profile()
     outbound = build_xray_outbound(raw_config)
@@ -556,12 +557,29 @@ def build_tun_config(
         "outbounds": [outbound, {"tag": "direct", "protocol": "freedom"}, {"tag": "block", "protocol": "blackhole"}],
         "routing": {"domainStrategy": "IPIfNonMatch", "rules": rules},
     }
+    if validation_socks_port:
+        config["inbounds"].append(
+            {
+                "tag": "validation-socks",
+                "listen": "127.0.0.1",
+                "port": int(validation_socks_port),
+                "protocol": "socks",
+                "settings": {"auth": "noauth", "udp": False},
+            }
+        )
     if api_port:
         config["api"] = {
             "tag": "api",
             "listen": f"127.0.0.1:{int(api_port)}",
             "services": ["StatsService"],
         }
+        rules.append(
+            {
+                "type": "field",
+                "inboundTag": ["api"],
+                "outboundTag": "api",
+            },
+        )
     return config
 
 
@@ -675,6 +693,7 @@ class XrayManager:
         self.token = ""
         self.executable: Path | None = None
         self.api_port = 0
+        self.validation_socks_port = 0
         self.connected_host = ""
         self.connected_ip = ""
         self.connected_port = 0
@@ -768,8 +787,14 @@ class XrayManager:
             self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
 
         try:
-            self.api_port = _free_local_port()
-            config = build_tun_config(raw_config, bypass_domains=bypass_domains, api_port=self.api_port)
+            self.api_port = PORT_REGISTRY.acquire()
+            self.validation_socks_port = PORT_REGISTRY.acquire()
+            config = build_tun_config(
+                raw_config,
+                bypass_domains=bypass_domains,
+                api_port=self.api_port,
+                validation_socks_port=self.validation_socks_port,
+            )
             self.token = uuid.uuid4().hex
             self.config_path = RUNTIME_DIR / f"tun-{self.token}.json"
             self.config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -862,6 +887,37 @@ class XrayManager:
             LOGGER.error("Connection process stopped with code %s: %s", code, tail[-1100:])
             self.stop()
             raise RuntimeError("بخش اتصال آماده نشد؛ در صورت تکرار، گزارش عیب‌یابی را فعال کنید" if language != "en" else "The connection could not start; enable diagnostic logging if this repeats")
+
+        # Validate the exact credentials/transport through a private SOCKS
+        # inbound first. This makes a dead server distinguishable from delayed
+        # Windows/Linux TUN route propagation.
+        proxy_deadline = time.monotonic() + 8.0
+        proxy_ready = False
+        while time.monotonic() < proxy_deadline and self.process.poll() is None:
+            if cancel_start.is_set():
+                self.stop()
+                raise RuntimeError("Connection startup was cancelled")
+            for host in ("www.gstatic.com", "cp.cloudflare.com"):
+                if _socks_http_probe(
+                    self.validation_socks_port,
+                    host,
+                    "/generate_204",
+                    2.4,
+                ) is not None:
+                    proxy_ready = True
+                    break
+            if proxy_ready:
+                break
+            time.sleep(0.15)
+        if not proxy_ready:
+            tail = self._read_log_tail()
+            LOGGER.error("Xray outbound validation failed: %s", tail[-1100:])
+            self.stop()
+            raise RuntimeError(
+                "سرور انتخاب‌شده از داخل Xray ترافیک HTTP معتبر عبور نداد"
+                if language != "en"
+                else "The selected server did not carry verified HTTP traffic through Xray"
+            )
 
     def traffic_stats(self) -> tuple[int | None, int | None]:
         if not self.connected or not self.executable or not self.api_port:
@@ -973,7 +1029,12 @@ class XrayManager:
                         LOGGER.exception("Direct route cleanup failed")
                 self._direct_routes = []
                 self.executable = None
+                if self.api_port:
+                    PORT_REGISTRY.release(self.api_port)
+                if self.validation_socks_port:
+                    PORT_REGISTRY.release(self.validation_socks_port)
                 self.api_port = 0
+                self.validation_socks_port = 0
                 self.connected_host = ""
                 self.connected_ip = ""
                 self.connected_port = 0

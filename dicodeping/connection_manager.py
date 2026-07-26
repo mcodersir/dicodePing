@@ -242,7 +242,7 @@ class AlternativeCoreManager:
                     )
                 )
                 self.lifecycle.transition(token, CoreState.VALIDATING)
-                deadline = time.monotonic() + 75
+                deadline = time.monotonic() + 26
                 while time.monotonic() < deadline:
                     token.raise_if_cancelled()
                     if self.process.poll() is not None:
@@ -253,13 +253,50 @@ class AlternativeCoreManager:
                         self.lifecycle.transition(token, CoreState.CONNECTED)
                         return
                     token.wait(0.35)
-                raise RuntimeError(f"{self.core_id} did not establish a verified tunnel")
+                first_process, self.process = self.process, None
+                PROCESS_REGISTRY.stop(first_process, timeout=3)
+                if progress:
+                    progress(f"Retrying {self.core_id} over HTTP/2…")
+                self.process = PROCESS_REGISTRY.register(
+                    subprocess.Popen(
+                        self._command(executable, runtime, environment, transport="http2"),
+                        stdout=self._log_handle,
+                        stderr=self._log_handle,
+                        stdin=subprocess.DEVNULL,
+                        cwd=str(executable.parent),
+                        env=environment,
+                        text=True,
+                        creationflags=_creation_flags(),
+                        start_new_session=os.name != "nt",
+                    )
+                )
+                deadline = time.monotonic() + 42
+                while time.monotonic() < deadline:
+                    token.raise_if_cancelled()
+                    if self.process.poll() is not None:
+                        break
+                    if _http_probe_through_socks(self.socks_port, timeout=3.0) is not None:
+                        self._system_proxy.enable(self.socks_port)
+                        self.lifecycle.transition(token, CoreState.CONNECTED)
+                        return
+                    token.wait(0.35)
+                tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
+                raise RuntimeError(
+                    f"{self.core_id} did not establish verified HTTP traffic via QUIC or HTTP/2: {tail}"
+                )
             except Exception as exc:
                 self.lifecycle.fail(token, exc)
                 self._teardown()
                 raise
 
-    def _command(self, executable: Path, runtime: Path, environment: dict[str, str]) -> list[str]:
+    def _command(
+        self,
+        executable: Path,
+        runtime: Path,
+        environment: dict[str, str],
+        *,
+        transport: str = "quic",
+    ) -> list[str]:
         if self.core_id == "aether":
             environment.update(
                 {
@@ -268,21 +305,26 @@ class AlternativeCoreManager:
                     "AETHER_QUICK_RECONNECT": "1",
                 }
             )
-            return [
+            command = [
                 str(executable),
                 "--masque",
                 "-4",
-                "--scan",
-                "ironclad",
+                "--ironclad",
                 "--quick-reconnect",
                 "--bind",
                 f"127.0.0.1:{self.socks_port}",
             ]
+            identity = executable.parent / "aether-masque.toml"
+            if identity.is_file():
+                command.extend(["--masque-config", str(identity)])
+            if transport == "http2":
+                command.append("--h2")
+            return command
         if self.core_id == "warp":
             config = core_dir("warp") / "config.json"
             if not config.is_file():
                 raise RuntimeError("WARP registration is required; activate it from Settings first")
-            return [
+            command = [
                 str(executable),
                 "--config",
                 str(config),
@@ -292,6 +334,9 @@ class AlternativeCoreManager:
                 "-p",
                 str(self.socks_port),
             ]
+            if transport == "http2":
+                command.append("--http2")
+            return command
         if self.core_id == "psiphon":
             config = core_dir("psiphon") / "client.config"
             if not config.is_file():
