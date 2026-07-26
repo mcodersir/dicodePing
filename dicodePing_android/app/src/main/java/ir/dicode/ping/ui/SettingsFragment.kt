@@ -95,11 +95,12 @@ class SettingsFragment : Fragment() {
 
     private fun setupConnectionFeatures() {
         val store = vm.repo.settings
-        val coreIds = listOf("xray", "psiphon", "aether")
+        val coreIds = listOf("xray", "psiphon", "aether", "warp")
         val coreLabels = listOf(
             getString(R.string.conn_method_xray),
             getString(R.string.conn_method_psiphon),
             getString(R.string.conn_method_aether),
+            getString(R.string.conn_method_warp),
         )
         val coreManager = AndroidCoreManager(requireContext().applicationContext)
         binding.connectionCore.setAdapter(
@@ -115,11 +116,12 @@ class SettingsFragment : Fragment() {
                 when {
                     core == "xray" -> R.string.core_xray_builtin
                     coreManager.isInstalled(core) -> R.string.core_ready
-                    else -> R.string.core_not_downloaded
+                    else -> R.string.core_unsupported_build
                 }
             )
-            binding.downloadCore.isEnabled = core != "xray" && !coreManager.isInstalled(core)
-            binding.activateCore.isEnabled = core == "xray" || coreManager.isInstalled(core)
+            binding.downloadCore.isEnabled = coreManager.capability(core).canDownload
+            binding.activateCore.isEnabled = coreManager.capability(core).canConnect
+            if (core != "xray") binding.coreStatus.text = coreManager.capability(core).reason
         }
         binding.connectionCore.setOnItemClickListener { _, _, _, _ -> renderCoreStatus() }
         binding.downloadCore.setOnClickListener {

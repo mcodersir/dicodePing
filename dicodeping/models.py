@@ -75,6 +75,7 @@ class ServerRecord:
     last_checked: str = ""
     last_connected: str = ""
     failures: int = 0
+    profile_tag: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -106,4 +107,5 @@ class ServerRecord:
             last_checked=str(data.get("last_checked") or ""),
             last_connected=str(data.get("last_connected") or ""),
             failures=int(data.get("failures") or 0),
+            profile_tag=str(data.get("profile_tag") or "unknown"),
         )

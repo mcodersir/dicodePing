@@ -1,9 +1,9 @@
 # Android third-party notices
 
-- **AndroidLibXrayLite / libv2ray 26.6.2** — LGPL-3.0. The build downloads the
+- **AndroidLibXrayLite / libv2ray 26.7.11** — LGPL-3.0. The build downloads the
   unmodified upstream AAR from the official `2dust/AndroidLibXrayLite` Release
   and verifies SHA-256
-  `367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e`.
+  `0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352`.
   The application source and Gradle build configuration are provided so the AAR
   can be replaced and the combined APK can be rebuilt.
 - **AndroidX, Material Components, and OkHttp** — Apache License 2.0.

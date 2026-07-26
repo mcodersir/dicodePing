@@ -25,6 +25,8 @@ captures/
 .externalNativeBuild/
 *.apk
 *.aab
+*.aar
+/docs/screenshots/v1.8.0-rc.3/
 
 # Native runtime files are fetched from pinned upstream releases during build.
 core/xray.exe

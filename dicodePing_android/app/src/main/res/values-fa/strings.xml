@@ -162,6 +162,10 @@
     <string name="scanner_title">اسکنر</string>
     <string name="scanner_subtitle">با یک کلیک، سرورهای فعال را اسکن و پینگ بگیرید</string>
     <string name="scanner_run">اسکن سریع</string>
+    <string name="scanner_stop_save">توقف و ذخیره نتایج</string>
+    <string name="config_profile_worker">Worker کلادفلر</string>
+    <string name="config_profile_limited">حجمی (بر اساس نام)</string>
+    <string name="config_profile_persistent">دائمی (بر اساس نام)</string>
     <string name="scanner_start">شروع اسکن</string>
     <string name="scanner_running">در حال اسکن…</string>
     <string name="scanner_crawl">دریافت کانفیگ از کانال‌های تلگرام</string>
@@ -175,10 +179,10 @@
     <string name="scanner_name_prompt">نام ساب جدید</string>
     <string name="scanner_name_default">اسکنر • تاریخ</string>
     <string name="scanner_preview_title">مراحلی که خودکار انجام می‌شه:</string>
-    <string name="scanner_preview_1">۱. اتصال خودکار به بهترین سرور منبع اصلی</string>
-    <string name="scanner_preview_2">۲. دریافت کانفیگ از کانال‌های تلگرام</string>
-    <string name="scanner_preview_3">۳. قطع اتصال و تست هم‌زمان سرورها</string>
-    <string name="scanner_preview_4">۴. ذخیره سرورهای سالم به‌عنوان ساب جدید</string>
+    <string name="scanner_preview_1">۱. اتصال به بهترین سرور</string>
+    <string name="scanner_preview_2">۲. دریافت و آزمایش کانفیگ‌ها</string>
+    <string name="scanner_preview_3">۳. ذخیره ساب جدید</string>
+    <string name="scanner_preview_4">مرحله قدیمی پنهان</string>
     <string name="scanner_preview_hint">کافیه یک‌بار دکمه «شروع اسکن» رو بزنی. بقیه‌اش با خودمه!</string>
     <string name="volume_fetch">دریافت حجم‌ها</string>
     <string name="volume_fetching">در حال دریافت حجم‌ها…</string>
@@ -227,4 +231,7 @@
         <item quantity="one">%d سرور موجود</item>
         <item quantity="other">%d سرور موجود</item>
     </plurals>
+    <string name="core_unsupported_build">در این بیلد پشتیبانی نمی‌شود</string>
+    <string name="conn_method_warp">WARP / Usque</string>
+    <string name="psiphon_authorized_config_missing">برای این Build تنظیمات توزیع مجاز Psiphon فراهم نشده است.</string>
 </resources>

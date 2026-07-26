@@ -2,7 +2,9 @@ package ir.dicode.ping.net
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -26,8 +28,7 @@ object TelegramChannelCrawler {
     private const val TIMEOUT_SECONDS = 12L
 
     private val CONFIG_PATTERNS = listOf(
-        Pattern.compile("\\b(?:vmess|vless|trojan|ss|ssr|snell)://[^\\s<>\"'`\\\\]+", Pattern.CASE_INSENSITIVE),
-        Pattern.compile("\\b(?:hysteria2|hy2|tuic)://[^\\s<>\"'`\\\\]+", Pattern.CASE_INSENSITIVE),
+        Pattern.compile("\\b(?:vmess|vless|trojan|ss)://[^\\s<>\"'`\\\\]+", Pattern.CASE_INSENSITIVE),
     )
 
     private val client: OkHttpClient by lazy {
@@ -58,9 +59,11 @@ object TelegramChannelCrawler {
     suspend fun crawl(
         channels: List<String>,
         maxWorkers: Int = MAX_WORKERS,
+        perChannelLimits: Map<String, Int> = emptyMap(),
         progress: ((Int, Int, String) -> Unit)? = null,
     ): List<String> = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext emptyList()
+        val normalizedLimits = perChannelLimits.mapKeys { it.key.lowercase() }
         val total = channels.size
         progress?.invoke(0, total, "")
 
@@ -73,7 +76,10 @@ object TelegramChannelCrawler {
             coroutineScope {
                 batch.map { channel ->
                     async {
-                        val res = fetchChannel(channel)
+                        val res = fetchChannel(
+                            channel,
+                            normalizedLimits[channel.lowercase()]?.coerceIn(1, 20) ?: PER_CHANNEL_LIMIT,
+                        )
                         synchronized(result) {
                             for (cfg in res.configs) {
                                 val key = normalizeKey(cfg)
@@ -93,14 +99,27 @@ object TelegramChannelCrawler {
     }
 
     /** Fetch a single channel's preview page and extract configs. */
-    suspend fun fetchChannel(channel: String): ChannelResult = withContext(Dispatchers.IO) {
-        try {
-            val page = fetchPreview(channel)
-            val configs = extractConfigs(page).take(PER_CHANNEL_LIMIT)
-            ChannelResult(channel = channel, ok = true, configs = configs)
-        } catch (e: Exception) {
-            ChannelResult(channel = channel, ok = false, configs = emptyList(), error = e.message ?: e.javaClass.simpleName)
+    suspend fun fetchChannel(
+        channel: String,
+        perChannelLimit: Int = PER_CHANNEL_LIMIT,
+    ): ChannelResult = withContext(Dispatchers.IO) {
+        var lastError: Exception? = null
+        repeat(2) { attempt ->
+            try {
+                val page = fetchPreview(channel)
+                val configs = extractConfigs(page).take(perChannelLimit.coerceIn(1, 20))
+                return@withContext ChannelResult(channel = channel, ok = true, configs = configs)
+            } catch (e: Exception) {
+                lastError = e
+                if (attempt == 0) delay(350)
+            }
         }
+        ChannelResult(
+            channel = channel,
+            ok = false,
+            configs = emptyList(),
+            error = lastError?.message ?: lastError?.javaClass?.simpleName.orEmpty(),
+        )
     }
 
     private fun fetchPreview(channel: String): String {

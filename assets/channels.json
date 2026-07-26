@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "channels": [
+    {"name": "v2rayngvpn", "rank": 1},
+    {"name": "ConfigX2ray", "rank": 1},
+    {"name": "V2WRAY", "rank": 1},
+    {"name": "V2ray_official", "rank": 1},
+    {"name": "v2raysvmess", "rank": 1},
+    {"name": "vless_vmess", "rank": 1},
+    {"name": "v2rayshare", "rank": 1},
+    {"name": "ConfigV2rayNG", "rank": 1},
+    {"name": "Daily_Configs", "rank": 1},
+    {"name": "V2rayEnglish", "rank": 2},
+    {"name": "ConfigsHUB", "rank": 2},
+    {"name": "v2ray_fspeed", "rank": 2},
+    {"name": "V2rayConfigList", "rank": 2},
+    {"name": "V2rayng_Fast", "rank": 2},
+    {"name": "V2RFA", "rank": 2},
+    {"name": "VmessProtocol", "rank": 2},
+    {"name": "v2ray_configs_pool", "rank": 2},
+    {"name": "v2rayNGconfig", "rank": 2},
+    {"name": "V2rayNG3", "rank": 2},
+    {"name": "shadowsockskeys", "rank": 2}
+  ]
+}

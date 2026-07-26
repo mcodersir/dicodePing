@@ -32,8 +32,9 @@ LOGGER = get_logger("conn_methods")
 METHOD_XRAY = "xray"
 METHOD_PSION = "psiphon"
 METHOD_AETHER = "aether"
+METHOD_WARP = "warp"
 
-ALL_METHODS = (METHOD_XRAY, METHOD_PSION, METHOD_AETHER)
+ALL_METHODS = (METHOD_XRAY, METHOD_PSION, METHOD_AETHER, METHOD_WARP)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +62,12 @@ METHOD_CATALOG: dict[str, ConnectionMethod] = {
         id=METHOD_AETHER,
         name="Aether (Ironclad)",
         description="هسته جایگزین با حالت اسکن Ironclad که قبل از اعتماد به سرور یک تانل واقعی برقرار می‌کند. هسته در اولین استفاده دانلود می‌شود. در این حالت صفحه سرورها غیرفعال است.",
+        requires_core_download=True,
+    ),
+    METHOD_WARP: ConnectionMethod(
+        id=METHOD_WARP,
+        name="WARP / Usque",
+        description="Usque 4.2.1 with an internal, verified local SOCKS transport.",
         requires_core_download=True,
     ),
 }

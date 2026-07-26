@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-set "CORE=%CD%\local-maven\ir\dicode\local\libv2ray\26.6.2\libv2ray-26.6.2.aar"
+set "CORE=%CD%\local-maven\ir\dicode\local\libv2ray\26.7.11\libv2ray-26.7.11.aar"
 
 if not exist "%CORE%" (
   echo Missing Android core.
   echo Download:
-  echo https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar
-  echo Rename it to libv2ray-26.6.2.aar and place it at:
+  echo https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar
+  echo Rename it to libv2ray-26.7.11.aar and place it at:
   echo %CORE%
   echo.
   echo You can also download it to Downloads and run prepare_core.bat.

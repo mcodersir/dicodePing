@@ -7,8 +7,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val coreVersion = "26.6.2"
-val coreSha256 = "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e"
+val coreVersion = "26.7.11"
+val coreSha256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 val coreAar = rootProject.file(
     "local-maven/ir/dicode/local/libv2ray/$coreVersion/libv2ray-$coreVersion.aar"
 )
@@ -32,7 +32,7 @@ val verifyCore by tasks.registering {
         if (!coreAar.isFile) {
             throw GradleException(
                 "Missing Android core. Download libv2ray.aar from " +
-                    "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar " +
+                    "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar " +
                     "and save it as ${coreAar.absolutePath} before syncing/building."
             )
         }
@@ -81,9 +81,11 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 35
-        versionCode = 33
-        versionName = "1.8.0"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.8.0-rc.2\"")
+        // RC2 used versionCode = 33; RC3 must be strictly greater.
+        versionCode = 34
+        // Previous stable-display scheme used: versionName = "1.8.0"
+        versionName = "1.8.0-rc.3"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.8.0-rc.3\"")
         multiDexEnabled = true
 
         ndk {

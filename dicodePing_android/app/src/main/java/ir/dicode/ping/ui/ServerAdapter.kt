@@ -17,6 +17,7 @@ import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.databinding.ItemServerBinding
 import ir.dicode.ping.net.QualityRating
 import ir.dicode.ping.net.VolumeDetector
+import ir.dicode.ping.net.ConfigProfileClassifier
 import ir.dicode.ping.util.PublicServerLabel
 import java.util.Locale
 
@@ -165,6 +166,16 @@ class ServerAdapter(
         val volumeInfo = VolumeDetector.detectFromServer(server)
         val parts = mutableListOf<String>()
         parts.add(rating.bucket.labelFa)
+        val profileLabel = when (
+            runCatching { ConfigProfileClassifier.Tag.valueOf(server.profileTag.uppercase()) }
+                .getOrDefault(ConfigProfileClassifier.Tag.UNKNOWN)
+        ) {
+            ConfigProfileClassifier.Tag.WORKER -> context.getString(R.string.config_profile_worker)
+            ConfigProfileClassifier.Tag.LIMITED -> context.getString(R.string.config_profile_limited)
+            ConfigProfileClassifier.Tag.PERSISTENT -> context.getString(R.string.config_profile_persistent)
+            ConfigProfileClassifier.Tag.UNKNOWN -> ""
+        }
+        if (profileLabel.isNotBlank()) parts.add(profileLabel)
         val volumeLabel = volumeInfo.label
         if (volumeLabel.isNotBlank() && volumeLabel != "—") {
             parts.add(volumeLabel)
@@ -205,4 +216,3 @@ class ServerAdapter(
         }.joinToString("")
     }
 }
-

@@ -13,11 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dicodeping.constants import VERSION, WINTUN_SHA256, WINTUN_VERSION, XRAY_VERSION
+from dicodeping.constants import RELEASE_VERSION, VERSION, WINTUN_SHA256, WINTUN_VERSION, XRAY_VERSION
 
 REPOSITORY = "https://github.com/mcodersir/dicodePing"
-ANDROID_CORE_VERSION = "26.6.2"
-ANDROID_CORE_SHA256 = "367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e"
+ANDROID_CORE_VERSION = "26.7.11"
+ANDROID_CORE_SHA256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 
 
 def spdx_id(value: str) -> str:
@@ -65,7 +65,7 @@ def package(
 packages: list[dict[str, object]] = [
     package(
         name="dicodePing",
-        version=VERSION,
+        version=RELEASE_VERSION,
         download=REPOSITORY,
         license_id="MIT",
         supplier="Organization: dicodePing contributors",
@@ -168,7 +168,7 @@ relationships = [
 ]
 
 revision = git_revision()
-namespace_seed = f"{VERSION}:{revision}".encode("utf-8")
+namespace_seed = f"{RELEASE_VERSION}:{revision}".encode("utf-8")
 namespace_suffix = hashlib.sha256(namespace_seed).hexdigest()[:20]
 created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -176,8 +176,8 @@ document = {
     "spdxVersion": "SPDX-2.3",
     "dataLicense": "CC0-1.0",
     "SPDXID": "SPDXRef-DOCUMENT",
-    "name": f"dicodePing-{VERSION}-source-and-build-sbom",
-    "documentNamespace": f"{REPOSITORY}/sbom/{VERSION}/{namespace_suffix}",
+    "name": f"dicodePing-{RELEASE_VERSION}-source-and-build-sbom",
+    "documentNamespace": f"{REPOSITORY}/sbom/{RELEASE_VERSION}/{namespace_suffix}",
     "creationInfo": {
         "creators": ["Tool: tools/generate_sbom.py"],
         "created": created,

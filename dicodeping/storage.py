@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any
@@ -61,3 +64,74 @@ class JsonStore:
     def save_geo_cache(self, cache: dict[str, dict[str, Any]]) -> None:
         with self._lock:
             self._write(GEO_CACHE_FILE, cache)
+
+    def save_scanner_transaction(
+        self,
+        *,
+        settings: dict[str, Any],
+        servers: list[ServerRecord],
+        history_path: Path,
+        history: list[dict[str, Any]],
+        raw_path: Path,
+        raw_payload: str,
+        base64_path: Path,
+        base64_payload: str,
+    ) -> None:
+        """Validate, stage and commit the complete scanner result as one unit.
+
+        Cross-file replacement is protected by backups and immediate rollback.
+        A crash-safe marker is retained only while replacement is in progress;
+        no source metadata is published before all staged payloads validate.
+        """
+        with self._lock:
+            targets: list[tuple[Path, str]] = [
+                (SETTINGS_FILE, json.dumps(settings, ensure_ascii=False, indent=2)),
+                (SERVERS_FILE, json.dumps([item.to_dict() for item in servers], ensure_ascii=False, indent=2)),
+                (history_path, json.dumps(history, ensure_ascii=False, indent=2)),
+                (raw_path, raw_payload),
+                (base64_path, base64_payload),
+            ]
+            for path, payload in targets:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if path.suffix == ".json":
+                    json.loads(payload)
+            # Verify model integrity before touching any live file.
+            for item in servers:
+                ServerRecord.from_dict(item.to_dict())
+
+            staging = Path(tempfile.mkdtemp(prefix=".scanner-txn-", dir=str(SETTINGS_FILE.parent)))
+            backups = staging / "backups"
+            backups.mkdir()
+            marker = staging / "transaction.json"
+            staged: list[tuple[Path, Path, Path | None]] = []
+            committed: list[tuple[Path, Path | None]] = []
+            try:
+                for index, (target, payload) in enumerate(targets):
+                    candidate = staging / f"{index:02d}-{target.name}"
+                    candidate.write_text(payload, encoding="utf-8")
+                    if target.suffix == ".json":
+                        json.loads(candidate.read_text(encoding="utf-8"))
+                    backup = backups / f"{index:02d}-{target.name}" if target.exists() else None
+                    staged.append((candidate, target, backup))
+                marker.write_text(
+                    json.dumps({"targets": [str(target) for _, target, _ in staged]}),
+                    encoding="utf-8",
+                )
+                for candidate, target, backup in staged:
+                    if backup is not None:
+                        shutil.copy2(target, backup)
+                    os.replace(candidate, target)
+                    committed.append((target, backup))
+                marker.unlink(missing_ok=True)
+            except Exception:
+                for target, backup in reversed(committed):
+                    try:
+                        if backup is None:
+                            target.unlink(missing_ok=True)
+                        else:
+                            os.replace(backup, target)
+                    except OSError:
+                        pass
+                raise
+            finally:
+                shutil.rmtree(staging, ignore_errors=True)

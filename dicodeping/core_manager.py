@@ -10,10 +10,14 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tarfile
 import tempfile
 import threading
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -22,12 +26,29 @@ from typing import Callable
 
 from .constants import DATA_DIR
 from .diagnostics import get_logger
+from .core_runtime import CancellationToken, CoreState
 
 LOGGER = get_logger("core_manager")
 CORES_DIR = DATA_DIR / "cores"
 ACTIVE_CORE_FILE = DATA_DIR / "active_core.json"
 MAX_DOWNLOAD_BYTES = 300 * 1024 * 1024
 MAX_MEMBER_BYTES = 256 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 128
+MAX_EXPANDED_BYTES = 350 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 120
+MAX_REDIRECTS = 4
+CONNECT_TIMEOUT_SECONDS = 15.0
+READ_TIMEOUT_SECONDS = 30.0
+OVERALL_TIMEOUT_SECONDS = 180.0
+MIN_FREE_SPACE_BYTES = 700 * 1024 * 1024
+ALLOWED_DOWNLOAD_HOSTS = frozenset(
+    {
+        "github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+        "raw.githubusercontent.com",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +101,7 @@ CORE_CATALOG: dict[str, CoreDescriptor] = {
         "binary",
         "psiphon-tunnel-core.exe" if _windows else "psiphon-tunnel-core",
         28 if _windows else 11,
-        "https://github.com/shirokhorshid/psiphon-tunnel-core",
+        "https://github.com/Psiphon-Labs/psiphon-tunnel-core",
         "24b8381cc3",
     ),
     "aether": CoreDescriptor(
@@ -100,6 +121,23 @@ CORE_CATALOG: dict[str, CoreDescriptor] = {
         "https://github.com/CluvexStudio/Aether",
         "1.4.0",
     ),
+    "warp": CoreDescriptor(
+        "warp",
+        "WARP / Usque",
+        "Cloudflare WARP-compatible userspace tunnel powered by Usque.",
+        "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/"
+        + ("usque_4.2.1_windows_amd64.zip" if _windows else "usque_4.2.1_linux_amd64.zip"),
+        (
+            "f6f7f0a1a2bc9bcc15cf563ec1f892d00690a92c086b23ed3211b802209099e7"
+            if _windows
+            else "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313"
+        ),
+        "zip",
+        "usque.exe" if _windows else "usque",
+        6,
+        "https://github.com/Diniboy1123/usque",
+        "4.2.1",
+    ),
 }
 _install_locks = {core_id: threading.Lock() for core_id in CORE_CATALOG}
 
@@ -110,6 +148,23 @@ def list_cores() -> list[CoreDescriptor]:
 
 def get_core(core_id: str) -> CoreDescriptor | None:
     return CORE_CATALOG.get(core_id)
+
+
+def core_capability(core_id: str) -> tuple[CoreState, str]:
+    if core_id == "xray":
+        return CoreState.INSTALLED, "Built-in Xray core"
+    if core_id == "psiphon" and not (core_dir("psiphon") / "client.config").is_file():
+        return (
+            CoreState.MISSING_AUTHORIZED_CONFIG,
+            "Authorized Psiphon distribution configuration is unavailable in this build.",
+        )
+    if core_id not in CORE_CATALOG:
+        return CoreState.UNSUPPORTED, "Unsupported in this build"
+    return (
+        (CoreState.INSTALLED, "SHA-256 verified")
+        if is_core_available(core_id)
+        else (CoreState.NOT_INSTALLED, "Verified download is available")
+    )
 
 
 def core_dir(core_id: str) -> Path:
@@ -164,6 +219,7 @@ def _download_file(
     *,
     timeout: float = 120.0,
     progress: Callable[[int, int], None] | None = None,
+    cancel_token: CancellationToken | threading.Event | None = None,
 ) -> None:
     partial = target.with_suffix(target.suffix + ".part")
     partial.unlink(missing_ok=True)
@@ -171,14 +227,46 @@ def _download_file(
         url,
         headers={"User-Agent": "dicodePing/1.8", "Accept": "application/octet-stream,*/*"},
     )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or (parsed.hostname or "").lower() not in ALLOWED_DOWNLOAD_HOSTS:
+        raise RuntimeError("core URL is not on the approved HTTPS host list")
+
+    class _SafeRedirect(urllib.request.HTTPRedirectHandler):
+        def __init__(self) -> None:
+            super().__init__()
+            self.count = 0
+
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            self.count += 1
+            host = (urllib.parse.urlparse(newurl).hostname or "").lower()
+            if self.count > MAX_REDIRECTS or host not in ALLOWED_DOWNLOAD_HOSTS:
+                raise RuntimeError("core download redirect was rejected")
+            return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _SafeRedirect())
+    started = time.monotonic()
+
+    def _cancelled() -> bool:
+        if cancel_token is None:
+            return False
+        method = getattr(cancel_token, "is_cancelled", None)
+        return bool(method()) if callable(method) else bool(cancel_token.is_set())
+
     try:
-        with opener.open(request, timeout=timeout) as response, partial.open("wb") as output:
+        with opener.open(request, timeout=min(timeout, CONNECT_TIMEOUT_SECONDS)) as response, partial.open("wb") as output:
             total = int(response.headers.get("Content-Length") or 0)
             if total > MAX_DOWNLOAD_BYTES:
                 raise RuntimeError("core download exceeds the safety limit")
             done = 0
             while True:
+                if _cancelled():
+                    raise RuntimeError("core download cancelled")
+                if time.monotonic() - started > min(timeout, OVERALL_TIMEOUT_SECONDS):
+                    raise TimeoutError("core download exceeded the overall timeout")
+                try:
+                    response.fp.raw._sock.settimeout(READ_TIMEOUT_SECONDS)  # type: ignore[attr-defined]
+                except (AttributeError, OSError):
+                    pass
                 chunk = response.read(1024 * 1024)
                 if not chunk:
                     break
@@ -188,6 +276,8 @@ def _download_file(
                 output.write(chunk)
                 if progress:
                     progress(done, total)
+            if total and done != total:
+                raise RuntimeError(f"core download length mismatch: expected {total}, got {done}")
         if not partial.is_file() or partial.stat().st_size == 0:
             raise RuntimeError("downloaded core is empty")
         partial.replace(target)
@@ -208,21 +298,46 @@ def _extract_archive(archive: Path, destination: Path, kind: str) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     if kind == "zip":
         with zipfile.ZipFile(archive) as bundle:
-            for member in bundle.infolist():
+            members = bundle.infolist()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                raise RuntimeError("archive contains too many members")
+            expanded = 0
+            for member in members:
                 _safe_destination(destination, member.filename)
+                mode = (member.external_attr >> 16) & 0xFFFF
+                if (mode & 0o170000) == 0o120000:
+                    raise RuntimeError(f"archive links are not allowed: {member.filename}")
                 if member.file_size > MAX_MEMBER_BYTES:
                     raise RuntimeError(f"archive member is too large: {member.filename}")
-            bundle.extractall(destination)
+                expanded += member.file_size
+                if member.compress_size and member.file_size / member.compress_size > MAX_COMPRESSION_RATIO:
+                    raise RuntimeError(f"suspicious compression ratio: {member.filename}")
+            if expanded > MAX_EXPANDED_BYTES:
+                raise RuntimeError("expanded archive exceeds the safety limit")
+            for member in members:
+                target = _safe_destination(destination, member.filename)
+                if member.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with bundle.open(member) as source, target.open("wb") as output:
+                    shutil.copyfileobj(source, output, length=1024 * 1024)
         return
     if kind == "tar.gz":
         with tarfile.open(archive, "r:gz") as bundle:
             members = bundle.getmembers()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                raise RuntimeError("archive contains too many members")
+            expanded = 0
             for member in members:
                 _safe_destination(destination, member.name)
                 if member.issym() or member.islnk():
                     raise RuntimeError(f"archive links are not allowed: {member.name}")
                 if member.size > MAX_MEMBER_BYTES:
                     raise RuntimeError(f"archive member is too large: {member.name}")
+                expanded += member.size
+            if expanded > MAX_EXPANDED_BYTES:
+                raise RuntimeError("expanded archive exceeds the safety limit")
             bundle.extractall(destination, members=members, filter="data")
         return
     raise RuntimeError(f"unsupported core archive: {kind}")
@@ -233,6 +348,7 @@ def download_core(
     *,
     progress: Callable[[int, int], None] | None = None,
     stage: Callable[[str], None] | None = None,
+    cancel_token: CancellationToken | threading.Event | None = None,
 ) -> Path:
     descriptor = get_core(core_id)
     if descriptor is None:
@@ -242,6 +358,9 @@ def download_core(
         if executable is None:
             raise RuntimeError("Xray core is not available")
         return executable
+    capability, reason = core_capability(core_id)
+    if capability in (CoreState.MISSING_AUTHORIZED_CONFIG, CoreState.UNSUPPORTED):
+        raise RuntimeError(reason)
     if not descriptor.download_url or len(descriptor.sha256) != 64:
         raise RuntimeError(f"incomplete verified manifest for {core_id}")
 
@@ -252,10 +371,18 @@ def download_core(
             return existing
         staging = Path(tempfile.mkdtemp(prefix=f".{core_id}-", dir=str(CORES_DIR)))
         try:
+            free = shutil.disk_usage(CORES_DIR).free
+            if free < max(MIN_FREE_SPACE_BYTES, descriptor.size_hint_mb * 4 * 1024 * 1024):
+                raise RuntimeError("not enough free disk space to install this core safely")
             if stage:
                 stage(f"Downloading {descriptor.name}…")
             source = staging / ("core.bin" if descriptor.archive_kind == "binary" else "core.archive")
-            _download_file(descriptor.download_url, source, progress=progress)
+            _download_file(
+                descriptor.download_url,
+                source,
+                progress=progress,
+                cancel_token=cancel_token,
+            )
             if stage:
                 stage("Verifying SHA-256…")
             actual = _sha256_of(source)
@@ -277,6 +404,19 @@ def download_core(
                 raise RuntimeError(f"{descriptor.executable_name} is missing from the verified asset")
             if os.name != "nt":
                 executable.chmod(0o755)
+            self_test_args = ["--help"] if core_id == "warp" else ["--version"]
+            self_test = subprocess.run(
+                [str(executable), *self_test_args],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                timeout=12,
+                cwd=str(payload),
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            )
+            if self_test.returncode != 0:
+                raise RuntimeError(f"{core_id} failed its version self-test")
             (payload / "install.json").write_text(
                 json.dumps(
                     {
@@ -286,6 +426,8 @@ def download_core(
                         "source_url": descriptor.download_url,
                         "source_sha256": descriptor.sha256,
                         "executable_sha256": _sha256_of(executable),
+                        "integrity": "SHA-256 verified",
+                        "self_test": (self_test.stdout or self_test.stderr or "").strip()[:500],
                     },
                     indent=2,
                 ),
@@ -294,8 +436,8 @@ def download_core(
 
             destination = core_dir(core_id)
             previous = CORES_DIR / f".{core_id}-previous"
-            shutil.rmtree(previous, ignore_errors=True)
             if destination.exists():
+                shutil.rmtree(previous, ignore_errors=True)
                 destination.replace(previous)
             try:
                 payload.replace(destination)
@@ -303,7 +445,6 @@ def download_core(
                 if previous.exists() and not destination.exists():
                     previous.replace(destination)
                 raise
-            shutil.rmtree(previous, ignore_errors=True)
             installed = destination / descriptor.executable_name
             LOGGER.info("Installed %s %s at %s", core_id, descriptor.version, installed)
             if stage:
@@ -320,6 +461,51 @@ def remove_core(core_id: str) -> None:
         shutil.rmtree(core_dir(core_id), ignore_errors=True)
         if get_active_core() == core_id:
             set_active_core("xray")
+
+
+def rollback_core(core_id: str) -> bool:
+    """Atomically restore the single retained previous installation."""
+    if core_id == "xray" or core_id not in CORE_CATALOG:
+        return False
+    with _install_locks[core_id]:
+        destination = core_dir(core_id)
+        previous = CORES_DIR / f".{core_id}-previous"
+        if not previous.is_dir():
+            return False
+        failed = CORES_DIR / f".{core_id}-failed-{int(time.time())}"
+        try:
+            if destination.exists():
+                destination.replace(failed)
+            previous.replace(destination)
+            shutil.rmtree(failed, ignore_errors=True)
+            return is_core_available(core_id)
+        except Exception:
+            if failed.exists() and not destination.exists():
+                failed.replace(destination)
+            return False
+
+
+def reverify_installed_cores() -> dict[str, bool]:
+    """Verify installed payload hashes and quarantine corrupted installs."""
+    result: dict[str, bool] = {}
+    for core_id in CORE_CATALOG:
+        if core_id == "xray":
+            result[core_id] = is_core_available(core_id)
+            continue
+        destination = core_dir(core_id)
+        if not destination.exists():
+            result[core_id] = False
+            continue
+        valid = is_core_available(core_id)
+        result[core_id] = valid
+        if not valid:
+            quarantine = CORES_DIR / f".{core_id}-corrupt-{int(time.time())}"
+            try:
+                destination.replace(quarantine)
+                shutil.rmtree(quarantine, ignore_errors=True)
+            except OSError:
+                LOGGER.warning("Could not quarantine corrupt %s install", core_id)
+    return result
 
 
 def get_active_core() -> str:

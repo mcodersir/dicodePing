@@ -19,22 +19,22 @@
 - JDK 17
 - Android SDK 35
 - Gradle Wrapper پروژه
-- AndroidLibXrayLite `26.6.2` در مسیر زیر:
+- AndroidLibXrayLite `26.7.11` در مسیر زیر:
 
 ```text
-local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar
+local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar
 ```
 
 دارایی رسمی:
 
 ```text
-https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.6.2/libv2ray.aar
+https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar
 ```
 
 SHA-256 مورد انتظار:
 
 ```text
-367d6b2f74e62c974c61210c56802127812be4c9410a83a6b8b6cac765a7595e
+0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352
 ```
 
 workflow اصلی مخزن فایل را دریافت و پیش از Gradle هش آن را کنترل می‌کند.

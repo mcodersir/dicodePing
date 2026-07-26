@@ -236,16 +236,8 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val activeCore = vm.repo.settings.activeCore
         if (activeCore != "xray") {
             val manager = AndroidCoreManager(applicationContext)
-            if (!manager.isInstalled(activeCore)) {
-                MaterialAlertDialogBuilder(this)
-                    .setMessage(R.string.core_select_first)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-                return
-            }
-            val opened = runCatching { manager.open(activeCore) }.getOrDefault(false)
             MaterialAlertDialogBuilder(this)
-                .setMessage(if (opened) R.string.core_opened else R.string.conn_method_download_failed)
+                .setMessage(manager.capability(activeCore).reason)
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
             return
