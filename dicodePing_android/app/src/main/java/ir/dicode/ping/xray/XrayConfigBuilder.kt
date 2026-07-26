@@ -10,6 +10,7 @@ object XrayConfigBuilder {
         bypassDomains: String = "",
         bufferSizeKiB: Int = 256,
         cdnDomain: String = "",
+        secureDnsDoh: Boolean = true,
     ): String {
         val node = ConfigParser.parse(raw) ?: error("Unsupported or invalid configuration")
         val proxyOutbound = JSONObject(node.outbound.toString()).put("tag", "proxy")
@@ -117,7 +118,16 @@ object XrayConfigBuilder {
             put(
                 "dns",
                 JSONObject()
-                    .put("servers", JSONArray(listOf("1.1.1.1", "8.8.8.8")))
+                    .put(
+                        "servers",
+                        JSONArray(
+                            if (secureDnsDoh) {
+                                listOf("https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query")
+                            } else {
+                                listOf("1.1.1.1", "8.8.8.8")
+                            }
+                        )
+                    )
                     .put("queryStrategy", "UseIP")
             )
         }.toString()

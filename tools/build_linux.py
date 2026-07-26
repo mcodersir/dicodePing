@@ -9,8 +9,8 @@ import sys
 import tarfile
 from pathlib import Path
 
-APP_VERSION = "1.8.0"
-RC_VERSION = "rc.4"
+APP_VERSION = "1.9.0"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -30,6 +30,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         run([python, "-m", "pip", "install", "-r", "requirements-build.txt"], root)
     if not skip_core:
         run([python, "-m", "tools.prepare_core"], root)
+        run([python, "-m", "tools.prepare_optional_cores"], root)
 
     core = root / "core"
     assets = root / "assets"
@@ -48,6 +49,9 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         "--hidden-import", "PySide6.QtSvg", "--collect-submodules", "dicodeping",
         "--add-data", f"{assets}{separator}assets",
         "--add-binary", f"{core / 'xray'}{separator}core",
+        "--add-binary", f"{core / 'aether'}{separator}core",
+        "--add-binary", f"{core / 'usque'}{separator}core",
+        "--add-data", f"{core / 'bundled-cores.json'}{separator}core",
     ]
     for data_name in ("geoip.dat", "geosite.dat"):
         path = core / data_name

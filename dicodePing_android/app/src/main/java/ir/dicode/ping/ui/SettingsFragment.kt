@@ -59,6 +59,10 @@ class SettingsFragment : Fragment() {
             store.diagnosticLogging = enabled
             AppLog.setEnabled(requireContext(), enabled)
         }
+        binding.secureDnsDoh.isChecked = store.secureDnsDoh
+        binding.secureDnsDoh.setOnCheckedChangeListener { _, enabled ->
+            store.secureDnsDoh = enabled
+        }
 
         binding.bypassDomains.setText(store.bypassDomains)
         updateBypassAppsSummary()

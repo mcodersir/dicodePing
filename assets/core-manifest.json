@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "release": "1.8.0-rc.4",
+  "release": "1.9.0-rc.1",
   "integrity": "SHA-256 verified",
   "signature": null,
   "cores": {
@@ -13,6 +13,16 @@
       "linux-x86_64": {
         "url": "https://github.com/XTLS/Xray-core/releases/download/v26.7.11/Xray-linux-64.zip",
         "sha256": "aa11c3685c71da0ffc71e511db50404609e7e963bb914b048f59a6a00af8930e"
+      },
+      "macos-arm64": {
+        "url": "https://github.com/XTLS/Xray-core/releases/download/v26.7.11/Xray-macos-arm64-v8a.zip",
+        "sha256": "61f8f74d099098af710fa43613d9934d97b901dee909801d34f496cd463956d1",
+        "bundled": true
+      },
+      "macos-x86_64": {
+        "url": "https://github.com/XTLS/Xray-core/releases/download/v26.7.11/Xray-macos-64.zip",
+        "sha256": "d8c116756d3a88a38a833a94bdf8bc801f69243ee888befcb56df8b4f1ec4878",
+        "bundled": true
       },
       "android": {
         "url": "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar",
@@ -29,6 +39,16 @@
         "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-linux-x86_64.tar.gz",
         "sha256": "683dc190a948e8555fc9738ef2d1be403d95606e191e75f0e6941012c6b869cd"
       },
+      "macos-arm64": {
+        "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-arm64.tar.gz",
+        "sha256": "a966c0d72aa90a6db000172f9bf88f225377fe4d8546cf2340ef6aee1ccbd958",
+        "bundled": true
+      },
+      "macos-x86_64": {
+        "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-x86_64.tar.gz",
+        "sha256": "ae2cd0a987d709ae017a9ea762b26f9276c418beb2a6f882253563c44b5aec1f",
+        "bundled": true
+      },
       "android": {"state": "unsupportedInThisBuild"}
     },
     "warp": {
@@ -40,6 +60,16 @@
       "linux-x86_64": {
         "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_amd64.zip",
         "sha256": "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313"
+      },
+      "macos-arm64": {
+        "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_arm64.zip",
+        "sha256": "762e2dc875669566207a3c776a53dc6bb50770da25f90e1ab69fbc53e91f8da1",
+        "bundled": true
+      },
+      "macos-x86_64": {
+        "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_amd64.zip",
+        "sha256": "1eb41e34bf4cd0b81e06222ef844cea75eb56229a62fe29c07cf8e7bd253357d",
+        "bundled": true
       },
       "android": {"state": "unsupportedInThisBuild"}
     },

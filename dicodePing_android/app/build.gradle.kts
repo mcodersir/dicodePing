@@ -82,10 +82,10 @@ android {
         minSdk = 24
         targetSdk = 35
         // RC3 used versionCode = 34; RC4 must be strictly greater.
-        versionCode = 35
+        versionCode = 36
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.8.0-rc.4"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.8.0-rc.4\"")
+        versionName = "1.9.0-rc.1"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.1\"")
         multiDexEnabled = true
 
         ndk {

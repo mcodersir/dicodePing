@@ -69,7 +69,7 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.8.0-rc.4"
+    output = ROOT / "docs/screenshots/v1.9.0-rc.1"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     for font_file in (ROOT / "assets" / "fonts").glob("Vazirmatn-*.ttf"):

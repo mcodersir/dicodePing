@@ -46,9 +46,11 @@ dicodePing یک کلاینت متن‌باز Windows و Android برای مدی�
 
 نسخه آماده را از صفحه [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
 
-- **Windows:** `dicodePing-v1.8.0-rc.4-windows-x64.exe`
-- **Linux:** `dicodePing-v1.8.0-rc.4-linux-x86_64.tar.gz`
-- **Android:** `dicodePing-v1.8.0-rc.4-android.apk`
+- **Windows:** `dicodePing-v1.9.0-rc.1-windows-x64.exe`
+- **Linux:** `dicodePing-v1.9.0-rc.1-linux-x86_64.tar.gz`
+- **macOS Apple Silicon:** `dicodePing-v1.9.0-rc.1-macos-arm64.dmg`
+- **macOS Intel:** `dicodePing-v1.9.0-rc.1-macos-x86_64.dmg`
+- **Android:** `dicodePing-v1.9.0-rc.1-android.apk`
 
 برای بررسی اصالت فایل‌ها، مقدار آن‌ها را با `SHA256SUMS` همان Release مقایسه کنید.
 
@@ -70,9 +72,17 @@ dicodePing is an open-source Windows and Android client for managing and connect
 
 ### Downloads
 
-- **Windows:** `dicodePing-v1.8.0-rc.4-windows-x64.exe`
-- **Linux:** `dicodePing-v1.8.0-rc.4-linux-x86_64.tar.gz`
-- **Android:** `dicodePing-v1.8.0-rc.4-android.apk`
+- **Windows:** `dicodePing-v1.9.0-rc.1-windows-x64.exe`
+- **Linux:** `dicodePing-v1.9.0-rc.1-linux-x86_64.tar.gz`
+- **macOS Apple Silicon:** `dicodePing-v1.9.0-rc.1-macos-arm64.dmg`
+- **macOS Intel:** `dicodePing-v1.9.0-rc.1-macos-x86_64.dmg`
+- **Android:** `dicodePing-v1.9.0-rc.1-android.apk`
+
+Xray, Aether and Usque are prepared and SHA-256 verified during Desktop release
+builds and are shipped inside the application package. No separate in-app core
+download is required. Android embeds the supported `libv2ray` transport; the
+upstream Aether Android files target Termux and are not exposed as a fake
+`VpnService` transport.
 
 Verify downloaded files using the accompanying `SHA256SUMS` file.
 

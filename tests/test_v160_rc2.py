@@ -13,11 +13,10 @@ class V160Rc2Tests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         # The RC2+ line.  The exact RC suffix changes per release.
-        self.assertIn('RELEASE_VERSION = "1.8.0-rc.', constants)
+        self.assertIn('RELEASE_VERSION = "1.9.0-rc.1"', constants)
         self.assertIn('versionCode = 3', gradle)  # 25 (rc.2) or 26 (rc.3)
-        self.assertIn('versionName = "1.8.0"', gradle)
-        self.assertIn('1.8.0-rc.', gradle)
-        self.assertIn('RC_VERSION = "rc.', linux_builder)
+        self.assertIn('versionName = "1.9.0-rc.1"', gradle)
+        self.assertIn('RC_VERSION = "rc.1"', linux_builder)
 
     def test_channels_file_is_bundled(self) -> None:
         channels = ROOT / "assets" / "channels.txt"

@@ -467,6 +467,7 @@ def build_tun_config(
     bypass_domains: list[str] | tuple[str, ...] | str | None = None,
     api_port: int = 0,
     validation_socks_port: int = 0,
+    secure_dns: bool = True,
 ) -> dict[str, Any]:
     resources = current_resource_profile()
     outbound = build_xray_outbound(raw_config)
@@ -515,10 +516,17 @@ def build_tun_config(
     config: dict[str, Any] = {
         "log": {"loglevel": "warning"},
         "dns": {
-            "servers": [
-                {"address": "1.1.1.1", "skipFallback": False},
-                {"address": "8.8.8.8", "skipFallback": False},
-            ],
+            "servers": (
+                [
+                    {"address": "https://cloudflare-dns.com/dns-query", "domains": ["geosite:geolocation-!cn"]},
+                    {"address": "https://dns.google/dns-query"},
+                ]
+                if secure_dns
+                else [
+                    {"address": "1.1.1.1", "skipFallback": False},
+                    {"address": "8.8.8.8", "skipFallback": False},
+                ]
+            ),
             "queryStrategy": "UseIP",
         },
         "stats": {},
@@ -763,6 +771,7 @@ class XrayManager:
         bypass_domains: list[str] | tuple[str, ...] | str | None = None,
         endpoint_host: str = "",
         endpoint_port: int = 0,
+        secure_dns: bool = True,
     ) -> None:
         # Every attempt owns a cancellation token. Clearing and reusing the
         # old Event could erase a concurrent Disconnect request.
@@ -794,6 +803,7 @@ class XrayManager:
                 bypass_domains=bypass_domains,
                 api_port=self.api_port,
                 validation_socks_port=self.validation_socks_port,
+                secure_dns=secure_dns,
             )
             self.token = uuid.uuid4().hex
             self.config_path = RUNTIME_DIR / f"tun-{self.token}.json"

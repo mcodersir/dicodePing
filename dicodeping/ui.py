@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFrame,
+    QFormLayout,
     QGraphicsOpacityEffect,
     QHBoxLayout,
     QHeaderView,
@@ -1826,6 +1827,10 @@ class MainWindow(QMainWindow):
         self.auto_scan_checkbox.setChecked(bool(self.settings.get("auto_scan_empty", True)))
         behavior_layout.addWidget(self.auto_connect_checkbox)
         behavior_layout.addWidget(self.auto_scan_checkbox)
+        self.secure_dns_checkbox = QCheckBox(self.t("secure_dns_doh"))
+        self.secure_dns_checkbox.setChecked(bool(self.settings.get("secure_dns_doh", True)))
+        self.secure_dns_checkbox.setToolTip(self.t("secure_dns_doh_help"))
+        behavior_layout.addWidget(self.secure_dns_checkbox)
         self.connection_mode_combo.currentIndexChanged.connect(
             lambda: self.auto_connect_checkbox.setEnabled(self.connection_mode_combo.currentData() == "auto")
         )
@@ -2173,6 +2178,7 @@ class MainWindow(QMainWindow):
         button_row = QHBoxLayout()
         self.conn_method_download_button = QPushButton(self.t("conn_method_download"))
         self.conn_method_download_button.clicked.connect(self._download_selected_core)
+        self.conn_method_download_button.setVisible(False)
         button_row.addWidget(self.conn_method_download_button)
         self.conn_method_activate_button = QPushButton(self.t("conn_method_activate"))
         self.conn_method_activate_button.setProperty("kind", "primary")
@@ -2186,6 +2192,38 @@ class MainWindow(QMainWindow):
         self.conn_method_status_label.setWordWrap(True)
         method_layout.addWidget(self.conn_method_status_label)
         layout.addWidget(method_card)
+
+        profile_card = QFrame()
+        profile_card.setObjectName("settingCard")
+        profile_layout = QFormLayout(profile_card)
+        profile_layout.setContentsMargins(16, 14, 16, 14)
+        profile_layout.setSpacing(10)
+        profile_layout.setRowWrapPolicy(QFormLayout.WrapAllRows)
+        profile_layout.addRow(self._section_label(self.t("alternative_profile_title")))
+        self.aether_protocol_combo = QComboBox()
+        for label, value in (("MASQUE", "masque"), ("WireGuard", "wireguard"), ("WARP-in-WARP", "gool")):
+            self.aether_protocol_combo.addItem(label, value)
+        self.aether_protocol_combo.setCurrentIndex(max(0, self.aether_protocol_combo.findData(self.settings.get("aether_protocol", "masque"))))
+        profile_layout.addRow(self.t("alternative_protocol"), self.aether_protocol_combo)
+        self.aether_scan_combo = QComboBox()
+        for value in ("turbo", "balanced", "thorough", "stealth", "ironclad"):
+            self.aether_scan_combo.addItem(value.title(), value)
+        self.aether_scan_combo.setCurrentIndex(max(0, self.aether_scan_combo.findData(self.settings.get("aether_scan", "ironclad"))))
+        profile_layout.addRow(self.t("alternative_scan_mode"), self.aether_scan_combo)
+        self.aether_transport_combo = QComboBox()
+        self.aether_transport_combo.addItem("HTTP/3 (QUIC) → HTTP/2 fallback", "auto")
+        self.aether_transport_combo.addItem("HTTP/2", "http2")
+        self.aether_transport_combo.setCurrentIndex(max(0, self.aether_transport_combo.findData(self.settings.get("aether_transport", "auto"))))
+        profile_layout.addRow(self.t("alternative_transport"), self.aether_transport_combo)
+        self.aether_perf_combo = QComboBox()
+        for value in ("low", "medium", "high"):
+            self.aether_perf_combo.addItem(value.title(), value)
+        self.aether_perf_combo.setCurrentIndex(max(0, self.aether_perf_combo.findData(self.settings.get("aether_perf", "medium"))))
+        profile_layout.addRow(self.t("alternative_performance"), self.aether_perf_combo)
+        self.aether_quick_reconnect = QCheckBox(self.t("alternative_quick_reconnect"))
+        self.aether_quick_reconnect.setChecked(bool(self.settings.get("aether_quick_reconnect", True)))
+        profile_layout.addRow(self.aether_quick_reconnect)
+        layout.addWidget(profile_card)
 
         # --- CDN formatting ---
         cdn_card = QFrame()
@@ -3391,6 +3429,14 @@ class MainWindow(QMainWindow):
             self.language,
             bypass_domains=bypass_domains,
             cdn_domain=cdn_domain,
+            secure_dns=bool(self.settings.get("secure_dns_doh", True)),
+            core_options={
+                "protocol": self.settings.get("aether_protocol", "masque"),
+                "scan": self.settings.get("aether_scan", "ironclad"),
+                "transport": self.settings.get("aether_transport", "auto"),
+                "performance": self.settings.get("aether_perf", "medium"),
+                "quick_reconnect": bool(self.settings.get("aether_quick_reconnect", True)),
+            },
         )
         worker.success.connect(self.connect_finished)
         worker.failed.connect(self.connect_failed)
@@ -3711,6 +3757,7 @@ class MainWindow(QMainWindow):
         self.settings["auto_connect"] = self.auto_connect_checkbox.isChecked()
         self.settings["auto_scan_empty"] = self.auto_scan_checkbox.isChecked()
         self.settings["connection_mode"] = self.connection_mode_combo.currentData()
+        self.settings["secure_dns_doh"] = self.secure_dns_checkbox.isChecked()
         bypass_domains = normalize_bypass_domains(self.bypass_domains_input.toPlainText())
         self.settings["bypass_enabled"] = self.bypass_enabled_checkbox.isChecked()
         self.settings["bypass_domains"] = bypass_domains
@@ -3729,6 +3776,12 @@ class MainWindow(QMainWindow):
         if hasattr(self, "cdn_enabled_checkbox"):
             self.settings["cdn_formatting_enabled"] = self.cdn_enabled_checkbox.isChecked()
             self.settings["cdn_formatting_domain"] = self.cdn_domain_combo.currentText().strip()
+        if hasattr(self, "aether_protocol_combo"):
+            self.settings["aether_protocol"] = self.aether_protocol_combo.currentData()
+            self.settings["aether_scan"] = self.aether_scan_combo.currentData()
+            self.settings["aether_transport"] = self.aether_transport_combo.currentData()
+            self.settings["aether_perf"] = self.aether_perf_combo.currentData()
+            self.settings["aether_quick_reconnect"] = self.aether_quick_reconnect.isChecked()
         if hasattr(self, "vpn_sharing_usb_checkbox"):
             self.settings["vpn_sharing_usb"] = self.vpn_sharing_usb_checkbox.isChecked()
             self.settings["vpn_sharing_hotspot"] = self.vpn_sharing_hotspot_checkbox.isChecked()

@@ -144,6 +144,7 @@
     <string name="clear_logs">Clear log</string>
     <string name="logs_cleared">Diagnostic log cleared</string>
     <string name="diagnostic_logging">Enable diagnostic reporting (off by default)</string>
+    <string name="secure_dns_doh">Secure DNS (DNS-over-HTTPS, inspired by Intra)</string>
     <string name="log_share_failed">Could not share the diagnostic log</string>
     <string name="server_change_locked">Disconnect before changing the server</string>
     <string name="server_disabled">Disabled</string>

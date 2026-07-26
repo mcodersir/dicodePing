@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.9.0 RC1
+
+- Added the first macOS Apple Silicon release artifact.
+- Bundled SHA-256 verified Aether 1.4.0 and Usque 4.2.1 with Desktop builds.
+- Added independent Aether/WARP protocol, scan, transport, performance and
+  quick-reconnect controls.
+- Added Xray-backed DNS-over-HTTPS to Desktop and Android.
+- Documented AGPL/MIT/MPL/LGPL obligations and non-copied GUI references.
+- Kept unsupported Android CLI-only transports explicitly disabled instead of
+  reporting fake availability.
+
 ## 1.8.0-rc.4 — honest latency, reliable connect, live locale, core-first Home
 
 - Server rows now preserve and display two separate measurements: endpoint
