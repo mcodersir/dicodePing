@@ -276,7 +276,7 @@ def main() -> int:
     app = QApplication(qt_args)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
-    app.setApplicationVersion(VERSION)
+    app.setApplicationVersion(RELEASE_VERSION)
     app.setOrganizationName("Dicode")
     app.setOrganizationDomain("dicode.ir")
     application_icon = load_application_icon()

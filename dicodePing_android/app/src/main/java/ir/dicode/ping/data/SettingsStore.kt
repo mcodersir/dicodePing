@@ -11,9 +11,14 @@ class SettingsStore(context: Context) {
 
     var language: String
         get() = prefs.getString("language", "fa") ?: "fa"
-        set(value) = prefs.edit().putString("language", value).apply()
+        set(value) = prefs.edit()
+            .putString("language", value)
+            .putBoolean("language_explicitly_selected", true)
+            .apply()
+    val languageExplicitlySelected: Boolean
+        get() = prefs.getBoolean("language_explicitly_selected", false)
     var theme: String
-        get() = prefs.getString("theme", "dark") ?: "dark"
+        get() = prefs.getString("theme", "system") ?: "system"
         set(value) = prefs.edit().putString("theme", value).apply()
     var connectionMode: String
         get() = prefs.getString("connection_mode", "auto") ?: "auto"

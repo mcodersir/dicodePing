@@ -292,15 +292,15 @@ def _install_ui_patch() -> None:
         self.installEventFilter(self)
         self.table.setTextElideMode(Qt.ElideRight)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(6, QHeaderView.Fixed)
-        self.table.setColumnWidth(6, 112)
+        header.setSectionResizeMode(7, QHeaderView.Fixed)
+        self.table.setColumnWidth(7, 124)
         header.setMinimumSectionSize(72)
         # Keep Persian settings tabs visible instead of collapsing the first
         # tab into the right-side overflow button.
         settings_bar = self.settings_tabs.tabBar()
-        settings_bar.setUsesScrollButtons(False)
-        settings_bar.setExpanding(True)
-        settings_bar.setElideMode(Qt.ElideNone)
+        settings_bar.setUsesScrollButtons(True)
+        settings_bar.setExpanding(False)
+        settings_bar.setElideMode(Qt.ElideRight)
 
     def event_filter(self, obj, event):
         if self.isMaximized() or obj is not self:

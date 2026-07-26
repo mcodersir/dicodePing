@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_release_version_and_optional_cores_are_not_bundled():
     constants = (ROOT / "dicodeping/constants.py").read_text(encoding="utf-8")
     spec = (ROOT / "dicodePing.spec").read_text(encoding="utf-8")
-    assert 'RELEASE_VERSION = "1.8.0-rc.1"' in constants
+    assert 'RELEASE_VERSION = "1.8.0-rc.2"' in constants
     assert "aether" not in spec.lower()
     assert "psiphon-tunnel-core" not in spec.lower()
 

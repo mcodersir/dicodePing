@@ -26,10 +26,10 @@ def _install_ui_patch() -> None:
         # the action button collapse. rc8 owns this column after the full chain.
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(6, QHeaderView.Fixed)
-        self.table.setColumnWidth(6, 116)
+        header.setSectionResizeMode(7, QHeaderView.Fixed)
+        self.table.setColumnWidth(7, 124)
         for row in range(self.table.rowCount()):
-            button = self.table.cellWidget(row, 6)
+            button = self.table.cellWidget(row, 7)
             if button:
                 button.setMinimumWidth(104)
                 button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)

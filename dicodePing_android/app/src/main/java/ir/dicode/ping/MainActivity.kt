@@ -36,6 +36,8 @@ import ir.dicode.ping.ui.MainViewModel
 import ir.dicode.ping.ui.ScannerFragment
 import ir.dicode.ping.ui.ServersFragment
 import ir.dicode.ping.ui.SettingsFragment
+import ir.dicode.ping.ui.DicodeWindowSizeClass
+import ir.dicode.ping.ui.dicodeWindowSizeClass
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.util.PublicServerLabel
@@ -190,7 +192,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         currentPageId = id
         val target = existing ?: createPage(id)
         val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
-        if (animate) {
+        if (animate && resources.dicodeWindowSizeClass() != DicodeWindowSizeClass.COMPACT) {
             transaction.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
