@@ -37,7 +37,7 @@ if missing_resource_refs:
     errors.append(f"Missing @string resources: {missing_resource_refs}")
 
 code_refs: set[str] = set()
-for path in (ROOT / "app/src/main/java").rglob("*.kt"):
+for path in (ROOT / "app/src").rglob("*.kt"):
     source = path.read_text(encoding="utf-8")
     source = source.replace("android.R.string.", "android_R_string_")
     code_refs.update(re.findall(r"(?<!android\.)R\.string\.([A-Za-z0-9_]+)", source))
@@ -46,10 +46,10 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "1.9.0-rc.1"' not in build_file:
-    errors.append("versionName must be 1.9.0-rc.1 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.1\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 1.9.0-rc.1 for this release")
+if 'versionName = "1.9.0-rc.4"' not in build_file:
+    errors.append("versionName must be 1.9.0-rc.4 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.4\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 1.9.0-rc.4 for this release")
 
 if 'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")' not in build_file:
     errors.append("Android core must be resolved through the local Maven repository")
@@ -57,6 +57,22 @@ if '0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352' not in bui
     errors.append("Android core SHA-256 must be pinned in the Gradle preBuild check")
 if 'implementation(files(' in build_file:
     errors.append("Direct local AAR file dependencies are forbidden because AGP may report a null extracted folder")
+
+standard_controller = (ROOT / "app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt")
+rooted_controller = (ROOT / "app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt")
+if not standard_controller.is_file() or not rooted_controller.is_file():
+    errors.append("Android tethering controller flavors are incomplete")
+else:
+    standard_source = standard_controller.read_text(encoding="utf-8")
+    rooted_source = rooted_controller.read_text(encoding="utf-8")
+    if "ProcessBuilder" in standard_source or "iptables" in standard_source or '"su"' in standard_source:
+        errors.append("Standard Android release must not contain root shell or iptables code")
+    if "ProcessBuilder" not in rooted_source:
+        errors.append("Rooted flavor lost its explicitly isolated advanced implementation")
+if 'create("standard")' not in build_file or 'ENABLE_ROOT_TETHERING", "false"' not in build_file:
+    errors.append("Standard Android distribution flavor is missing")
+if 'android:allowBackup="false"' not in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
+    errors.append("Android backup must remain disabled for VPN configuration data")
 
 visible_code = "\n".join(
     (ROOT / rel).read_text(encoding="utf-8")
@@ -91,5 +107,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 1.9.0-rc.1")
+print("Version is 1.9.0-rc.4")
 print("Project structure is ready for Android build")

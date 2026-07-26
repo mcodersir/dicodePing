@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 9, 0, 1),
-    prodvers=(1, 9, 0, 1),
+    filevers=(1, 9, 0, 4),
+    prodvers=(1, 9, 0, 4),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,7 +16,7 @@ VSVersionInfo(
         [
           StringStruct('CompanyName', 'Dicode'),
           StringStruct('FileDescription', 'dicodePing - Windows and Android connectivity client'),
-          StringStruct('FileVersion', '1.9.0.1'),
+          StringStruct('FileVersion', '1.9.0.4'),
           StringStruct('InternalName', 'dicodePing'),
           StringStruct('LegalCopyright', 'Copyright (c) dicodePing contributors'),
           StringStruct('OriginalFilename', 'dicodePing.exe'),

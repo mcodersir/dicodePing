@@ -264,6 +264,40 @@ class CoreDownloadThread(QThread):
             self.failed.emit(str(exc))
 
 
+class CoreActivationThread(QThread):
+    """Register WARP when needed and persist the selected connection core."""
+
+    stage = Signal(str)
+    success = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, core_id: str, *, accept_warp_terms: bool = False, language: str = "fa") -> None:
+        super().__init__()
+        self.core_id = core_id
+        self.accept_warp_terms = bool(accept_warp_terms)
+        self.language = language
+
+    def run(self) -> None:
+        try:
+            if self.core_id == "warp":
+                self.stage.emit(
+                    "در حال ثبت امن WARP…" if self.language != "en" else "Registering WARP securely…"
+                )
+                from .connection_manager import register_warp
+
+                register_warp(accept_terms=self.accept_warp_terms)
+            self.stage.emit(
+                "در حال ذخیره و فعال‌سازی هسته…" if self.language != "en" else "Saving and activating the core…"
+            )
+            from .core_manager import set_active_core
+
+            set_active_core(self.core_id)
+            self.success.emit(self.core_id)
+        except Exception as exc:
+            LOGGER.exception("Core activation failed: %s", self.core_id)
+            self.failed.emit(str(exc))
+
+
 class SharingThread(QThread):
     completed = Signal(str)
 
@@ -286,24 +320,18 @@ class SharingThread(QThread):
 
 
 class ScannerThread(QThread):
-    """Background worker that runs the staged one-click scanner.
+    """Crash-resistant scanner worker with queued UI requests and batched logs."""
 
-    Signals:
-      stage — current stage status text.
-      stage_change — (stage_number, stage_label) when the stage advances.
-      progress — (current, total) probe count.
-      alive_count — emitted whenever the live healthy-server count changes.
-      eta — formatted ETA string.
-      log_line — live log line for the scanner log panel.
-      success — ScannerResult on completion.
-      failed — localized error message on failure.
-    """
     stage = Signal(str)
     stage_change = Signal(int, str)
     progress = Signal(int, int)
     alive_count = Signal(int)
-    eta = Signal(str)
-    log_line = Signal(str)
+    eta = Signal(str)  # compatibility only; RC3 does not calculate or display ETA
+    metrics = Signal(object)
+    log_line = Signal(str)  # compatibility with older integrations
+    log_batch = Signal(object)
+    connect_requested = Signal(str)
+    disconnect_requested = Signal()
     success = Signal(object)
     failed = Signal(str)
 
@@ -318,6 +346,7 @@ class ScannerThread(QThread):
         disconnect_callback=None,
         is_connected_callback=None,
         validate_connection_callback=None,
+        proxy_port_callback=None,
         bootstrap_server_id: str | None = None,
     ) -> None:
         super().__init__()
@@ -326,19 +355,59 @@ class ScannerThread(QThread):
         self.custom_name = custom_name
         self.rank1_limit = rank1_limit
         self.rank2_limit = rank2_limit
+        # Non-GUI callers may still provide callbacks. The desktop UI leaves
+        # these unset and connects to the queued request signals instead.
         self.connect_callback = connect_callback
         self.disconnect_callback = disconnect_callback
         self.is_connected_callback = is_connected_callback
         self.validate_connection_callback = validate_connection_callback
+        self.proxy_port_callback = proxy_port_callback
         self.bootstrap_server_id = bootstrap_server_id
         self._stop_event = threading.Event()
+        self._log_lock = threading.Lock()
+        self._log_buffer: list[str] = []
+        self._last_log_flush = time.monotonic()
 
     def requestStop(self) -> None:  # noqa: N802
         self._stop_event.set()
+        self.requestInterruption()
+
+    def _request_connect(self, server_id: str) -> None:
+        if self.connect_callback is not None:
+            self.connect_callback(server_id)
+        else:
+            self.connect_requested.emit(server_id)
+
+    def _request_disconnect(self) -> None:
+        if self.disconnect_callback is not None:
+            self.disconnect_callback()
+        else:
+            self.disconnect_requested.emit()
+
+    def _queue_log(self, line: str) -> None:
+        line = str(line).rstrip()
+        if not line:
+            return
+        now = time.monotonic()
+        with self._log_lock:
+            self._log_buffer.append(line)
+            should_flush = len(self._log_buffer) >= 16 or now - self._last_log_flush >= 0.12
+        if should_flush:
+            self._flush_logs()
+
+    def _flush_logs(self) -> None:
+        with self._log_lock:
+            if not self._log_buffer:
+                return
+            rows = tuple(self._log_buffer)
+            self._log_buffer.clear()
+            self._last_log_flush = time.monotonic()
+        self.log_batch.emit(rows)
 
     def run(self) -> None:
         try:
             from .scanner import run_scan
+
             result = run_scan(
                 store=self.store,
                 language=self.language,
@@ -347,20 +416,25 @@ class ScannerThread(QThread):
                 rank2_limit=self.rank2_limit,
                 stage=self.stage.emit,
                 stage_change=self.stage_change.emit,
-                crawl_progress=lambda _d, _t: None,
+                crawl_progress=self.progress.emit,
                 probe_progress=self.progress.emit,
-                eta_callback=self.eta.emit,
+                eta_callback=None,
                 alive_count_callback=self.alive_count.emit,
-                log_callback=self.log_line.emit,
+                metrics_callback=self.metrics.emit,
+                log_callback=self._queue_log,
                 stop_event=self._stop_event,
-                connect_callback=self.connect_callback,
-                disconnect_callback=self.disconnect_callback,
+                connect_callback=self._request_connect,
+                disconnect_callback=self._request_disconnect,
                 is_connected_callback=self.is_connected_callback,
                 validate_connection_callback=self.validate_connection_callback,
+                proxy_port_callback=self.proxy_port_callback,
                 bootstrap_server_id=self.bootstrap_server_id,
             )
+            self._flush_logs()
             self.success.emit(result)
         except Exception as exc:
+            self._queue_log(f"[FATAL][ERR] {exc}")
+            self._flush_logs()
             LOGGER.exception("Scanner background task failed")
             self.failed.emit(str(exc))
 
@@ -423,7 +497,7 @@ class ConnectThread(TaskThread):
             if self.isInterruptionRequested():
                 return
             self.stage.emit(tr(self.language, "starting_tun"))
-            self.progress.emit(20, 100)
+            self.progress.emit(6, 100)
             raw_config = (
                 blob_to_config(self.server.config_blob)
                 if getattr(self.manager, "active_core", "xray") == "xray"
@@ -441,11 +515,12 @@ class ConnectThread(TaskThread):
                 endpoint_port=self.server.port,
                 secure_dns=self.secure_dns,
                 core_options=self.core_options,
+                progress_value=self.progress.emit,
             )
             if self.isInterruptionRequested():
                 self.manager.stop()
                 return
-            self.progress.emit(72, 100)
+            self.progress.emit(94, 100)
             self.stage.emit(tr(self.language, "checking_connection"))
             if not _tunnel_passes_real_traffic(self.manager):
                 self.manager.stop()

@@ -8,17 +8,17 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.1"
+RC_VERSION = "rc.4"
 APP_NAME = "dicodePing"
 
 
 def run(command: list[str], cwd: Path) -> None:
-    printable = subprocess.list2cmdline(command)
-    print(f"> {printable}", flush=True)
+    print(f"> {subprocess.list2cmdline(command)}", flush=True)
     subprocess.run(command, cwd=cwd, check=True)
 
 
 def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
+    """Build the same portable one-file Windows artifact used by v1.8.0-rc.4."""
     if os.name != "nt":
         raise RuntimeError("The Windows EXE builder must be run on Windows.")
 
@@ -33,49 +33,28 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         print("[1/4] Dependency installation skipped.", flush=True)
 
     if not skip_core:
-        print("[2/4] Preparing the verified bundled cores...", flush=True)
+        print("[2/4] Preparing and verifying the official Xray core...", flush=True)
         run([python, "-m", "tools.prepare_core"], root)
-        run([python, "-m", "tools.prepare_optional_cores"], root)
     else:
         print("[2/4] Xray preparation skipped.", flush=True)
 
-    print("[3/4] Building the Windows executable...", flush=True)
-
+    print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app_rc3.py"
-    generated_spec_dir = root / "build" / "generated-spec"
+    entrypoint = root / "app_v190_rc4.py"
+    generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 
-    required_paths = [
-        root / "requirements-build.txt",
+    required = [
         entrypoint,
-        root / "app.py",
-        root / "dicodeping" / "rc2_core.py",
-        root / "dicodeping" / "rc2_runtime.py",
-        root / "dicodeping" / "rc3_core.py",
-        root / "dicodeping" / "rc3_runtime.py",
-        root / "dicodeping" / "rc4_core.py",
-        root / "dicodeping" / "rc4_runtime.py",
-        root / "dicodeping" / "rc5_core.py",
-        root / "dicodeping" / "rc5_runtime.py",
-        root / "dicodeping" / "rc6_runtime.py",
-        root / "dicodeping" / "rc7_core.py",
-        root / "dicodeping" / "rc7_runtime.py",
-        root / "dicodeping" / "rc8_core.py",
-        root / "dicodeping" / "rc8_runtime.py",
-        root / "dicodeping" / "rc9_core.py",
-        root / "dicodeping" / "rc9_runtime.py",
-        root / "dicodeping" / "rc10_runtime.py",
-        assets,
         assets / "app.ico",
         root / "tools" / "windows_version_info.txt",
         core / "xray.exe",
         core / "wintun.dll",
     ]
-    missing = [str(path) for path in required_paths if not path.exists()]
+    missing = [str(path) for path in required if not path.exists()]
     if missing:
-        raise FileNotFoundError("Missing required build files:\n- " + "\n- ".join(missing))
+        raise FileNotFoundError("Missing required Windows build files:\n- " + "\n- ".join(missing))
 
     separator = os.pathsep
     command = [
@@ -101,21 +80,15 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         "dicodeping",
         "--add-data",
         f"{assets}{separator}assets",
+        "--add-binary",
+        f"{core / 'xray.exe'}{separator}core",
+        "--add-binary",
+        f"{core / 'wintun.dll'}{separator}core",
     ]
-
-    optional_files = (
-        (core / "xray.exe", "--add-binary"),
-        (core / "geoip.dat", "--add-data"),
-        (core / "geosite.dat", "--add-data"),
-        (core / "wintun.dll", "--add-binary"),
-        (core / "aether.exe", "--add-binary"),
-        (core / "usque.exe", "--add-binary"),
-        (core / "bundled-cores.json", "--add-data"),
-    )
-    for path, switch in optional_files:
+    for data_name in ("geoip.dat", "geosite.dat"):
+        path = core / data_name
         if path.exists():
-            command.extend([switch, f"{path}{separator}core"])
-
+            command.extend(["--add-data", f"{path}{separator}core"])
     command.append(str(entrypoint))
     run(command, root)
 
@@ -128,23 +101,22 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     release_dir.mkdir(parents=True, exist_ok=True)
     output = release_dir / f"{APP_NAME}-v{APP_VERSION}-{RC_VERSION}-windows-x64.exe"
     shutil.copy2(built_exe, output)
-    print(f"Build completed: {output}", flush=True)
+    print(f"Windows build completed: {output}", flush=True)
     return output
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build dicodePing for Windows.")
+    parser = argparse.ArgumentParser(description="Build the portable dicodePing Windows EXE.")
     parser.add_argument("--skip-install", action="store_true")
     parser.add_argument("--skip-core", action="store_true")
     args = parser.parse_args()
-
     try:
         build(skip_install=args.skip_install, skip_core=args.skip_core)
     except subprocess.CalledProcessError as exc:
         print(f"Build command failed with exit code {exc.returncode}.", file=sys.stderr)
         return exc.returncode or 1
     except Exception as exc:
-        print(f"Build failed: {exc}", file=sys.stderr)
+        print(f"Windows build failed: {exc}", file=sys.stderr)
         return 1
     return 0
 

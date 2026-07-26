@@ -1,119 +1,65 @@
-<div align="center">
-  <img src="assets/app.png" alt="dicodePing logo" width="128" />
+# dicodePing 1.9.0 RC4 — Git Deploy Hotfix 5
 
-# dicodePing
+این نسخه خروجی‌ها را مثل Release نسخه `v1.8.0-rc.4` می‌سازد و macOS را نیز اضافه می‌کند.
 
+## ساخت EXE ویندوز
 
-**کلاینت سریع و متن‌باز Windows و Android برای اتصال مبتنی بر Xray**  
-**A fast, open-source Xray connectivity client for Windows and Android**
+ZIP را در یک مسیر کوتاه استخراج و اجرا کن:
 
-کانال تلگرامی ما:https://t.me/dicodeping 
-
-[![CI](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml/badge.svg)](https://github.com/mcodersir/dicodePing/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/mcodersir/dicodePing/actions/workflows/codeql.yml/badge.svg)](https://github.com/mcodersir/dicodePing/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing?display_name=tag)](https://github.com/mcodersir/dicodePing/releases/latest)
-[![License](https://img.shields.io/github/license/mcodersir/dicodePing)](LICENSE)
-
-[دانلود آخرین نسخه](https://github.com/mcodersir/dicodePing/releases/latest) ·
-[مستندات فارسی](docs/README.fa.md) ·
-[English documentation](docs/README.en.md) ·
-[صفحه مستندات](https://mcodersir.github.io/dicodePing/)
-
-</div>
-
----
-<img width="1122" height="1402" alt="image" src="https://github.com/user-attachments/assets/b7f3f90f-0772-40d2-bba7-766d7f38433b" />
-
-
-
-## فارسی
-
-dicodePing یک کلاینت متن‌باز Windows و Android برای مدیریت و اتصال به کانفیگ‌های مبتنی بر Xray است. بررسی نهایی سرورها از داخل مسیر واقعی Xray انجام می‌شود؛ بنابراین باز بودن پورت یا پاسخ ICMP به تنهایی به‌عنوان اتصال سالم در نظر گرفته نمی‌شود.
-
-### امکانات اصلی
-
-- دریافت و مدیریت subscription و کانفیگ‌های پشتیبانی‌شده
-- سنجش TCP اولیه و تست واقعی HTTPS از داخل مسیر پراکسی
-- انتخاب خودکار سرور بر اساس latency، jitter و سلامت اتصال
-- TUN/VPN برای Windows و Android با پشتیبانی IPv4 و IPv6 در Android
-- نمایش وضعیت اتصال، پینگ و آمار دانلود و آپلود
-- امکان تعریف دامنه‌ها و برنامه‌های خارج از تونل
-- رابط فارسی و انگلیسی، حالت روشن و تاریک و انیمیشن‌های سبک
-- اجرای عملیات شبکه خارج از thread رابط کاربری
-- بررسی نسخه و SHA-256 هسته‌های Xray، Wintun و Android هنگام ساخت
-
-### دانلود و نصب
-
-نسخه آماده را از صفحه [Releases](https://github.com/mcodersir/dicodePing/releases/latest) دریافت کنید:
-
-- **Windows:** `dicodePing-v1.9.0-rc.1-windows-x64.exe`
-- **Linux:** `dicodePing-v1.9.0-rc.1-linux-x86_64.tar.gz`
-- **macOS Apple Silicon:** `dicodePing-v1.9.0-rc.1-macos-arm64.dmg`
-- **macOS Intel:** `dicodePing-v1.9.0-rc.1-macos-x86_64.dmg`
-- **Android:** `dicodePing-v1.9.0-rc.1-android.apk`
-
-برای بررسی اصالت فایل‌ها، مقدار آن‌ها را با `SHA256SUMS` همان Release مقایسه کنید.
-
-## English
-
-dicodePing is an open-source Windows and Android client for managing and connecting to Xray-based profiles. Final server validation runs through the actual Xray path instead of relying only on ICMP or an open TCP port.
-
-### Highlights
-
-- Subscription and supported-profile management
-- Real HTTPS checks through the active proxy path
-- Automatic selection based on latency, jitter, and connection health
-- Windows TUN and Android VPN connectivity
-- IPv4 and IPv6 routing on Android
-- Live connection, latency, download, and upload statistics
-- Domain and application bypass controls
-- Persian and English interfaces with light and dark themes
-- Version-pinned and SHA-256-verified native dependencies
-
-### Downloads
-
-- **Windows:** `dicodePing-v1.9.0-rc.1-windows-x64.exe`
-- **Linux:** `dicodePing-v1.9.0-rc.1-linux-x86_64.tar.gz`
-- **macOS Apple Silicon:** `dicodePing-v1.9.0-rc.1-macos-arm64.dmg`
-- **macOS Intel:** `dicodePing-v1.9.0-rc.1-macos-x86_64.dmg`
-- **Android:** `dicodePing-v1.9.0-rc.1-android.apk`
-
-Xray, Aether and Usque are prepared and SHA-256 verified during Desktop release
-builds and are shipped inside the application package. No separate in-app core
-download is required. Android embeds the supported `libv2ray` transport; the
-upstream Aether Android files target Termux and are not exposed as a fake
-`VpnService` transport.
-
-Verify downloaded files using the accompanying `SHA256SUMS` file.
-
-## Build locally
-
-```bash
-python -m pip install -r requirements-build.txt
-python tools/verify_version.py
-python -m unittest discover -s tests -v
-python tools/quality_gate.py
+```bat
+BUILD_RELEASE_RC4.bat
 ```
 
-Windows executable:
+خروجی:
 
-```powershell
-python tools/build_windows.py
+```text
+release\dicodePing-v1.9.0-rc.4-windows-x64.exe
 ```
 
-Android:
+## ساخت APK امضاشده
 
-```bash
-cd dicodePing_android
-./gradlew --no-daemon lint test assembleDebug
+متغیرهای keystore را تنظیم کن و اجرا کن:
+
+```bat
+BUILD_SIGNED_APK_RC4.bat
 ```
 
-The desktop build pins Xray-core `26.7.11`, Aether `1.4.0`, Usque `4.2.1`
-and Wintun `0.14.1`. Android pins AndroidLibXrayLite `26.7.11`; optional
-Android transports are disabled in RC3 until same-package libraries exist.
-Native dependencies are downloaded from immutable upstream releases and
-verified with pinned SHA-256 values.
+خروجی:
 
-## License and responsibility
+```text
+dicodePing_android\release\dicodePing-v1.9.0-rc.4-android.apk
+```
 
-The repository's original code is released under the [MIT License](LICENSE). Bundled or downloaded third-party components retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Users remain responsible for applicable laws, network policies, imported profiles, and upstream service terms.
+## ساخت همه پلتفرم‌ها
+
+Workflow زیر را در GitHub Actions اجرا کن:
+
+```text
+.github/workflows/v1.9.0-rc.4-release.yml
+```
+
+Release شامل EXE ویندوز، APK اندروید، tar.gz لینوکس، DMG مک برای arm64 و x86_64، Coreهای مستقل Aether/WARP، سورس، SBOM و SHA256SUMS خواهد بود.
+
+## اجرای مستقیم سورس
+
+```bat
+RUN_SOURCE_RC4.bat
+```
+
+## انتشار کامل و خودکار روی GitHub
+
+برای Push سورس، ساخت Tag، اجرای GitHub Actions و ایجاد Pre-Release فقط این فایل را اجرا کن:
+
+```bat
+DEPLOY_PRERELEASE_RC4.bat
+```
+
+این نسخه از **Git for Windows و Git Credential Manager** استفاده می‌کند و به GitHub CLI یا بررسی API Token وابسته نیست. اگر ورود Git روی سیستم ذخیره نشده باشد، مرورگر برای ورود به GitHub باز می‌شود.
+
+اسکریپت به‌ترتیب شاخه `main` را Clone می‌کند، سورس RC4 را جایگزین می‌کند، Commit را Push می‌کند و Tag زیر را می‌فرستد:
+
+```text
+v1.9.0-rc.4
+```
+
+Push شدن Tag، Workflow چندپلتفرمی را خودکار اجرا می‌کند. در پایان، Pre-Release شامل EXE، APK، Linux و دو خروجی macOS ساخته می‌شود. Secrets امضای Android باید از قبل در Repository تنظیم شده باشند.

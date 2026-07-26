@@ -1,8 +1,10 @@
 """Verified connection-core discovery and installation.
 
-Release builds bundle the supported desktop cores after CI verifies the
-immutable upstream archives.  The guarded downloader remains for repair and
-development builds, but a normal user never needs to fetch a core separately.
+Unsigned Windows/Linux packages keep third-party tunnel executables outside
+the GUI bundle. A core installed at runtime requires explicit user action, an
+allow-listed HTTPS download, strict archive extraction, and pinned SHA-256
+verification. Trusted Windows/macOS releases may instead carry visible helpers
+that are signed as part of the platform release.
 """
 from __future__ import annotations
 
@@ -184,7 +186,7 @@ def core_capability(core_id: str) -> tuple[CoreState, str]:
     if core_id not in CORE_CATALOG:
         return CoreState.UNSUPPORTED, "Unsupported in this build"
     return (
-        (CoreState.INSTALLED, "Bundled; upstream archive SHA-256 verified")
+        (CoreState.INSTALLED, "Installed; upstream archive SHA-256 verified")
         if is_core_available(core_id)
         else (CoreState.NOT_INSTALLED, "Verified download is available")
     )

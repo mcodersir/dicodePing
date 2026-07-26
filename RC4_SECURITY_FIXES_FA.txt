@@ -1,0 +1,14 @@
+dicodePing 1.9.0 RC4 - Legacy Release Hotfix 2
+
+ساخت خروجی‌ها به الگوی نسخه 1.8.0 RC4 برگشته است:
+- ویندوز: یک فایل EXE قابل حمل با PyInstaller onefile
+- لینوکس: فایل tar.gz شامل باینری قابل حمل
+- اندروید: فقط APK استاندارد Release با keystore مالک پروژه
+- مک: DMG جدا برای Apple Silicon و Intel
+
+Xray داخل خروجی دسکتاپ قرار می‌گیرد. Aether و WARP/Usque به‌صورت فایل‌های Core جداگانه
+در GitHub Release منتشر می‌شوند و با SHA-256 کنترل می‌شوند.
+
+BUILD_RELEASE_RC4.bat فقط EXE ویندوز را روی سیستم ویندوز می‌سازد.
+برای ساخت همه پلتفرم‌ها Workflow زیر را اجرا کنید:
+.github/workflows/v1.9.0-rc.4-release.yml

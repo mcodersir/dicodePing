@@ -1,4 +1,39 @@
+## 1.9.0 RC4 Git Deploy Hotfix 5
+
+- Replaced GitHub CLI token validation with native Git HTTPS authentication.
+- Added Git Credential Manager browser login fallback for Windows.
+- Deployment now pushes `main` and the `v1.9.0-rc.4` tag using Git.
+- The release workflow starts automatically from the tag push.
+- Added local release polling and early GitHub Actions failure detection.
+
 # Changelog
+
+## 1.9.0 RC4 Legacy Release Hotfix 2
+
+- Restored the v1.8.0-rc.4 release layout: one-file Windows EXE, portable Linux tar.gz and signed Android APK.
+- Added macOS DMG artifacts for Apple Silicon and Intel runners.
+- Kept desktop signing optional and limited mandatory owner signing to the Android release APK.
+- Restored SHA-256-pinned Aether and WARP/Usque core archives as separate GitHub Release assets for Windows, Linux and macOS.
+- Pinned all CI desktop builds to Python 3.12 and kept packaged smoke tests for Windows and Linux.
+
+## 1.9.0 RC3
+
+- Reworked the Telegram scanner around bounded adaptive concurrency to prevent UI stalls and process storms.
+- Added highlighted structured scanner logs with capped history and batched GUI delivery.
+- Replaced unreliable ETA output with live Telegram throughput, channel rate, config count, probe rate, and healthy count.
+- Added direct SOCKS5 crawling through Aether/WARP while keeping Xray TUN crawling on direct sockets.
+- Fixed duplicate scanner log retention, leaked watcher threads, repeated reconnect of an already-active bootstrap connection, and unsafe cross-thread UI/connection calls.
+- Added cooperative cancellation, bounded retries, early stop after five healthy servers, and clean application shutdown.
+- Added RC3 Windows build/run entrypoints and focused scanner regression tests.
+
+## 1.9.0 RC2
+
+- Fixed the Xray `core_options` startup crash.
+- Corrected Aether 1.4.0 CLI flags and removed unsupported `--perf` / `--wireguard` arguments.
+- Added MASQUE-only HTTP/2 fallback and faster Balanced defaults.
+- Made WARP registration non-interactive, atomic, validated, and bounded by timeout.
+- Added background core activation, visible progress, persistent core/profile settings, and a durable Aether identity/last-route config.
+- Added a one-click Windows RC2 release builder and regression tests.
 
 ## 1.9.0 RC1
 
@@ -439,3 +474,9 @@
 ## 0.1.1
 
 - Connection, startup, Android UI, routing, Gradle, and stability maintenance release.
+
+### RC4 Auto Deploy Hotfix 3
+- Added `DEPLOY_PRERELEASE_RC4.bat` for one-click GitHub authentication, Android secret setup, clean staging, commit/push, workflow dispatch, run monitoring and pre-release opening.
+- Changed the RC4 release workflow to `workflow_dispatch` only to prevent duplicate builds after source pushes.
+
+- Hotfix 4: deployment BAT now supports ephemeral classic-token authentication through a hidden prompt, validates repo access, configures Git HTTPS through GitHub CLI, and clears token variables on exit.

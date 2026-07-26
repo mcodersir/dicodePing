@@ -82,14 +82,28 @@ android {
         minSdk = 24
         targetSdk = 35
         // RC3 used versionCode = 34; RC4 must be strictly greater.
-        versionCode = 36
+        versionCode = 39
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.1"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.1\"")
+        versionName = "1.9.0-rc.4"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.4\"")
         multiDexEnabled = true
 
         ndk {
             abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        }
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("standard") {
+            dimension = "distribution"
+            buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "false")
+        }
+        create("rooted") {
+            dimension = "distribution"
+            applicationIdSuffix = ".rooted"
+            versionNameSuffix = "-rooted"
+            buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "true")
         }
     }
 
@@ -147,7 +161,10 @@ tasks.matching { it.name == "preBuild" }.configureEach {
     dependsOn(verifyCore)
 }
 
-tasks.matching { it.name in setOf("preReleaseBuild", "validateSigningRelease", "assembleRelease") }.configureEach {
+tasks.matching { task ->
+    task.name.contains("Release", ignoreCase = true) &&
+        (task.name.startsWith("assemble") || task.name.startsWith("bundle") || task.name.startsWith("validateSigning"))
+}.configureEach {
     doFirst {
         if (!releaseSigningReady) {
             throw GradleException(

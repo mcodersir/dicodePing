@@ -9,10 +9,10 @@ from dicodeping.connection_manager import AlternativeCoreManager
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_v190_versions_and_four_platform_release():
-    assert 'RELEASE_VERSION = "1.9.0-rc.1"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc1"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
-    workflow = (ROOT / ".github/workflows/v1.9.0-rc.1-release.yml").read_text("utf-8")
+def test_v190_rc2_versions_and_four_platform_release():
+    assert 'RELEASE_VERSION = "1.9.0-rc.4"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc4"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    workflow = (ROOT / ".github/workflows/v1.9.0-rc.4-release.yml").read_text("utf-8")
     for platform in ("windows", "linux", "macos", "android"):
         assert platform in workflow
     assert "prerelease: true" in workflow
@@ -30,12 +30,19 @@ def test_secure_dns_is_real_xray_doh():
     assert plain["dns"]["servers"][0]["address"] == "1.1.1.1"
 
 
-def test_optional_desktop_cores_are_bundled_by_build_pipeline():
-    for name in ("build_windows.py", "build_linux.py", "build_macos.py"):
-        text = (ROOT / "tools" / name).read_text("utf-8")
-        assert "prepare_optional_cores" in text
-        assert "aether" in text
-        assert "usque" in text
+def test_desktop_core_distribution_matches_legacy_release_model():
+    windows = (ROOT / "tools/build_windows.py").read_text("utf-8")
+    linux = (ROOT / "tools/build_linux.py").read_text("utf-8")
+    macos = (ROOT / "tools/build_macos.py").read_text("utf-8")
+    assert '"--onefile"' in windows
+    assert '"--uac-admin"' in windows
+    assert "xray.exe" in windows and "wintun.dll" in windows
+    assert "prepare_optional_cores" not in windows
+    assert '"--onefile"' in linux
+    assert "prepare_optional_cores" not in linux
+    assert '"--windowed"' in macos
+    assert "prepare_optional_cores" not in macos
+    assert "xray" in macos
 
 
 def test_aether_profile_uses_real_cli_contract(tmp_path):
@@ -48,11 +55,13 @@ def test_aether_profile_uses_real_cli_contract(tmp_path):
         "quick_reconnect": False,
     }
     command = manager._command(tmp_path / "aether", tmp_path, {}, transport="http2")
-    assert "--wireguard" in command
+    assert "--wg" in command
+    assert "--wireguard" not in command
     assert command[command.index("--scan") + 1] == "balanced"
-    assert command[command.index("--perf") + 1] == "low"
+    assert "--perf" not in command
     assert "--no-quick-reconnect" in command
-    assert "--h2" in command
+    assert "--h2" not in command  # HTTP/2 is MASQUE-only in Aether.
+    assert command[command.index("--noize") + 1] == "balanced"
 
 
 def test_manifest_pins_macos_core_assets():
@@ -60,7 +69,8 @@ def test_manifest_pins_macos_core_assets():
     for core_id in ("aether", "warp"):
         for platform in ("macos-arm64", "macos-x86_64"):
             item = manifest["cores"][core_id][platform]
-            assert item["bundled"] is True
+            assert item["bundled"] is False
+            assert item["publishedAsset"] is True
             assert len(item["sha256"]) == 64
 
 

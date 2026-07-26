@@ -26,13 +26,13 @@ goto install_and_run
 if defined PYTHON_ARG goto install_with_launcher
 "%PYTHON_EXE%" -m pip install -r requirements.txt
 if errorlevel 1 goto run_failed
-"%PYTHON_EXE%" app.py
+"%PYTHON_EXE%" app_v190_rc4.py
 goto app_finished
 
 :install_with_launcher
 "%PYTHON_EXE%" %PYTHON_ARG% -m pip install -r requirements.txt
 if errorlevel 1 goto run_failed
-"%PYTHON_EXE%" %PYTHON_ARG% app.py
+"%PYTHON_EXE%" %PYTHON_ARG% app_v190_rc4.py
 
 :app_finished
 set "APP_EXIT=%ERRORLEVEL%"

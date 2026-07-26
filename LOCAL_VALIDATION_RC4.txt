@@ -1,0 +1,11 @@
+dicodePing RC4 Legacy Release Hotfix 2 local validation
+
+Run from the project root:
+  python tools\prepare_build_workspace.py
+  python tools\verify_version.py --tag v1.9.0-rc.4
+  python -m pytest -q
+  python tools\quality_gate.py
+  python dicodePing_android\tools\validate_project.py
+
+Only the Android release APK requires the owner's release keystore.
+Desktop artifacts use the legacy portable release layout.

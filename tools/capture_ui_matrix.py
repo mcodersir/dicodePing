@@ -69,12 +69,12 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.9.0-rc.1"
+    output = ROOT / "docs/screenshots/v1.9.0-rc.4"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
-    for font_file in (ROOT / "assets" / "fonts").glob("Vazirmatn-*.ttf"):
-        QFontDatabase.addApplicationFont(str(font_file))
-    app.setFont(QFont("Vazirmatn", 10))
+    available = set(QFontDatabase.families())
+    family = next((name for name in ("Vazirmatn", "Tahoma", "Segoe UI", "Noto Sans Arabic") if name in available), "Sans Serif")
+    app.setFont(QFont(family, 10))
     pages = ("home", "servers", "scanner", "settings", "about")
     sizes = {"compact": (680, 720), "medium": (1000, 760), "expanded": (1440, 900)}
     for language in ("fa", "en"):

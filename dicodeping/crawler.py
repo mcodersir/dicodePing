@@ -1,57 +1,40 @@
-"""Telegram channel crawler for the dicodePing scanner.
+"""Fast, bounded Telegram preview crawler used by the desktop scanner.
 
-This module mirrors the "stage 1" logic of DicodeConfigChecker
-(https://github.com/mcodersir/DicodeConfigChecker) but is intentionally
-simpler:
-
-* No two-stage disconnect-then-test flow.  The scanner crawls Telegram
-  previews using the **program's own already-running VPN**, so the user's
-  network is already able to reach t.me.
-* No per-channel configuration UI.  The list of channels lives in
-  ``assets/channels.txt`` and is shipped with the build.
-* No reporting files.  The crawler returns a flat list of raw config
-  URIs that the scanner then probes.
-
-The crawler is exposed as a single function, ``crawl_telegram_channels``,
-which the scanner calls from a background worker thread.
+RC3 keeps all network work outside the GUI thread, supports the local SOCKS5
+proxy exposed by Aether/WARP, reports per-channel transfer statistics, and
+uses a bounded worker pool so cancellation and shutdown stay predictable.
 """
 from __future__ import annotations
 
 import concurrent.futures
 import html
+import http.client
 import json
 import re
+import socket
+import ssl
+import struct
 import threading
 import time
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 
 from .diagnostics import get_logger
 from .protocols import parse_endpoint
 
 LOGGER = get_logger("crawler")
 
-# --- Channel list --------------------------------------------------------
-
 CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
 CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
-
-# Regexes used to extract config URIs from the Telegram preview HTML.
-# These match the patterns used by DicodeConfigChecker, but we only keep
-# protocols that dicodePing can build into its Xray outbound
-# (vmess / vless / trojan / shadowsocks). Telegram MTProto and SOCKS
-# links are ignored because dicodePing does not run a Telegram tunnel.
-CONFIG_REGEXES = [
-    re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I),
-]
+CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I)]
+_MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
 
 @dataclass
 class ChannelResult:
-    """Result of fetching a single Telegram channel."""
-
     channel: str
     ok: bool
     found: int
@@ -59,6 +42,8 @@ class ChannelResult:
     elapsed_ms: int
     configs: list[str]
     error: str = ""
+    bytes_received: int = 0
+    transport: str = "direct"
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,12 +76,6 @@ def load_channel_specs(path: Path | None = None) -> list[ChannelSpec]:
 
 
 def load_channels(path: Path | None = None) -> list[str]:
-    """Return the curated list of Telegram channels.
-
-    Lines that start with ``#`` or are blank are skipped.  The leading
-    ``t.me/`` (if any) is stripped so the value is just the channel
-    username.
-    """
     if path is None:
         specs = load_channel_specs()
         if specs:
@@ -110,90 +89,173 @@ def load_channels(path: Path | None = None) -> list[str]:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        # Allow both "ChannelName" and "t.me/ChannelName" forms.
-        if line.lower().startswith("t.me/"):
-            line = line[5:]
-        if line.lower().startswith("https://t.me/"):
-            line = line[len("https://t.me/") :]
+        for prefix in ("https://t.me/", "http://t.me/", "t.me/"):
+            if line.lower().startswith(prefix):
+                line = line[len(prefix) :]
+                break
         line = line.strip("/")
-        if not line or line.lower() in seen:
+        key = line.casefold()
+        if not line or key in seen:
             continue
-        seen.add(line.lower())
+        seen.add(key)
         channels.append(line)
     return channels
 
 
-# --- HTTP fetch ----------------------------------------------------------
+def _read_exact(sock: socket.socket, count: int) -> bytes:
+    chunks: list[bytes] = []
+    remaining = count
+    while remaining:
+        chunk = sock.recv(remaining)
+        if not chunk:
+            raise OSError("truncated SOCKS5 response")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
 
-def _fetch_url(url: str, *, timeout: float = 12.0) -> str:
-    """Fetch a URL with a browser-like UA and return its text body."""
+
+def _open_socks5_tunnel(proxy_port: int, host: str, port: int, timeout: float) -> socket.socket:
+    sock = socket.create_connection(("127.0.0.1", int(proxy_port)), timeout=timeout)
+    sock.settimeout(timeout)
+    try:
+        sock.sendall(b"\x05\x01\x00")
+        if _read_exact(sock, 2) != b"\x05\x00":
+            raise OSError("SOCKS5 authentication negotiation failed")
+        encoded = host.encode("idna")
+        if len(encoded) > 255:
+            raise OSError("SOCKS5 hostname is too long")
+        sock.sendall(b"\x05\x01\x00\x03" + bytes((len(encoded),)) + encoded + struct.pack("!H", port))
+        header = _read_exact(sock, 4)
+        if header[1] != 0:
+            raise OSError(f"SOCKS5 connect failed with status {header[1]}")
+        address_type = header[3]
+        if address_type == 1:
+            _read_exact(sock, 4)
+        elif address_type == 4:
+            _read_exact(sock, 16)
+        elif address_type == 3:
+            _read_exact(sock, _read_exact(sock, 1)[0])
+        else:
+            raise OSError("invalid SOCKS5 address type")
+        _read_exact(sock, 2)
+        return sock
+    except Exception:
+        sock.close()
+        raise
+
+
+def _decode_response(data: bytes, content_type: str) -> str:
+    charset = "utf-8"
+    match = re.search(r"charset=([^;\s]+)", content_type or "", re.I)
+    if match:
+        charset = match.group(1).strip("\"'")
+    return data.decode(charset, errors="ignore")
+
+
+def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
+    current = url
+    for _ in range(max(1, redirects + 1)):
+        parsed = urllib.parse.urlsplit(current)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("unsupported Telegram preview URL")
+        host = parsed.hostname
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        path = urllib.parse.urlunsplit(("", "", parsed.path or "/", parsed.query, ""))
+        raw_sock = _open_socks5_tunnel(socks_port, host, port, timeout)
+        conn_sock: socket.socket = raw_sock
+        try:
+            if parsed.scheme == "https":
+                conn_sock = ssl.create_default_context().wrap_socket(raw_sock, server_hostname=host)
+                conn_sock.settimeout(timeout)
+            request = (
+                f"GET {path} HTTP/1.1\r\n"
+                f"Host: {host}\r\n"
+                "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9\r\n"
+                "Accept: text/html,application/xhtml+xml,text/plain,*/*\r\n"
+                "Accept-Language: en-US,en;q=0.8,fa;q=0.7\r\n"
+                "Accept-Encoding: identity\r\n"
+                "Connection: close\r\n\r\n"
+            ).encode("ascii", errors="ignore")
+            conn_sock.sendall(request)
+            response = http.client.HTTPResponse(conn_sock)
+            response.begin()
+            if response.status in {301, 302, 303, 307, 308}:
+                location = response.getheader("Location")
+                response.close()
+                if not location:
+                    raise OSError("redirect without Location header")
+                current = urllib.parse.urljoin(current, location)
+                continue
+            if response.status < 200 or response.status >= 400:
+                raise OSError(f"HTTP {response.status}")
+            data = response.read(_MAX_RESPONSE_BYTES + 1)
+            if len(data) > _MAX_RESPONSE_BYTES:
+                raise OSError("Telegram preview response is unexpectedly large")
+            return _decode_response(data, response.getheader("Content-Type", "")), len(data)
+        finally:
+            try:
+                conn_sock.close()
+            except OSError:
+                pass
+    raise OSError("too many redirects")
+
+
+def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -> tuple[str, int, str]:
+    if socks_port:
+        text, size = _fetch_via_socks(url, socks_port=socks_port, timeout=timeout)
+        return text, size, "socks5"
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "dicodePing-Scanner/1.6"
-            ),
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9",
             "Accept": "text/html,application/xhtml+xml,text/plain,*/*",
             "Accept-Language": "en-US,en;q=0.8,fa;q=0.7",
+            "Accept-Encoding": "identity",
+            "Connection": "close",
         },
     )
+    # Explicitly avoid stale OS proxy settings. Aether/WARP are handled through
+    # the SOCKS5 path above; Xray's TUN route works as a normal direct socket.
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     with opener.open(request, timeout=timeout) as response:
-        data = response.read()
+        data = response.read(_MAX_RESPONSE_BYTES + 1)
+        if len(data) > _MAX_RESPONSE_BYTES:
+            raise OSError("Telegram preview response is unexpectedly large")
         charset = response.headers.get_content_charset() or "utf-8"
-        return data.decode(charset, errors="ignore")
+        return data.decode(charset, errors="ignore"), len(data), "direct"
+
+
+def _fetch_url(url: str, *, timeout: float = 8.0, socks_port: int = 0) -> str:
+    """Compatibility wrapper used by older tests and callers."""
+    return _fetch_url_payload(url, timeout=timeout, socks_port=socks_port)[0]
 
 
 def _is_usable_preview(page: str) -> bool:
-    """Reject generic/block pages returned as HTTP 200 by a broken route."""
     if not page or not page.strip():
         return False
     lower = page.lower()
-    return (
-        "tgme_widget_message" in lower
-        or "tgme_channel_info" in lower
-        or bool(extract_configs(page))
-    )
+    return "tgme_widget_message" in lower or "tgme_channel_info" in lower or bool(extract_configs(page))
 
 
-def _decode_text(s: str) -> str:
-    s = html.unescape(s)
-    s = s.replace("\\u0026", "&")
-    s = s.replace("&amp;", "&")
-    return s
+def _decode_text(value: str) -> str:
+    return html.unescape(value).replace("\\u0026", "&").replace("&amp;", "&")
 
 
-def _clean_config(s: str) -> str:
-    s = _decode_text(s).strip()
-    s = re.sub(r"[\u200c\u200f\u202a-\u202e]", "", s)
-    # Trim trailing punctuation that Telegram's preview HTML sometimes
-    # leaves attached to the URI.
-    while s and re.search(r"[)\]}\"'<>،,.;]+$", s):
-        s = s[:-1]
-    return s.strip()
+def _clean_config(value: str) -> str:
+    value = _decode_text(value).strip()
+    value = re.sub(r"[\u200c\u200f\u202a-\u202e]", "", value)
+    while value and re.search(r"[)\]}\"'<>،,.;]+$", value):
+        value = value[:-1]
+    return value.strip()
 
 
 def _normalize_key(raw: str) -> str:
-    """Return a stable dedup key for a config URI.
-
-    For vmess, the entire URI is kept (its JSON body is canonicalised by
-    the protocols module later).  For everything else we drop the remark
-    (#name) so two configs that differ only by display name are treated
-    as the same.
-    """
-    lower = raw.strip().lower()
-    if lower.startswith("vmess://"):
+    if raw.strip().lower().startswith("vmess://"):
         return raw.strip()
     return raw.strip().split("#", 1)[0]
 
 
 def extract_configs(page: str) -> list[str]:
-    """Extract unique config URIs from a Telegram preview page.
-
-    Order is preserved (newest first, matching the Telegram widget order
-    after we reverse).
-    """
     if not page:
         return []
     text = _decode_text(page)
@@ -201,35 +263,50 @@ def extract_configs(page: str) -> list[str]:
     seen: set[str] = set()
     for regex in CONFIG_REGEXES:
         for match in regex.findall(text):
-            cfg = _clean_config(match)
-            if not cfg:
-                continue
-            key = _normalize_key(cfg)
-            if key in seen:
+            config = _clean_config(match)
+            key = _normalize_key(config)
+            if not config or key in seen:
                 continue
             seen.add(key)
-            found.append(cfg)
+            found.append(config)
     found.reverse()
     return found
 
 
-def fetch_channel(channel: str, *, per_channel_limit: int = 30, timeout: float = 12.0) -> ChannelResult:
-    """Fetch a single Telegram channel's preview page and extract configs.
-
-    Tries ``t.me`` first and falls back to ``telegram.me`` if the primary
-    host returns an unusable page (mirrors DicodeConfigChecker).
-    """
-    import time
-
+def fetch_channel(
+    channel: str,
+    *,
+    per_channel_limit: int = 30,
+    timeout: float = 8.0,
+    socks_port: int = 0,
+    stop_event: threading.Event | None = None,
+) -> ChannelResult:
     started = time.monotonic()
+    deadline = started + max(1.0, float(timeout))
+    size = 0
+    transport = "socks5" if socks_port else "direct"
+
+    def remaining_timeout() -> float:
+        return max(0.35, deadline - time.monotonic())
+
     try:
+        if stop_event is not None and stop_event.is_set():
+            raise RuntimeError("cancelled")
         try:
-            page = _fetch_url(f"https://t.me/s/{channel}", timeout=timeout)
+            page, size, transport = _fetch_url_payload(
+                f"https://t.me/s/{channel}", timeout=remaining_timeout(), socks_port=socks_port
+            )
             if not _is_usable_preview(page):
                 raise RuntimeError("t.me returned an unusable preview page")
         except Exception as primary_error:
+            if stop_event is not None and stop_event.is_set():
+                raise RuntimeError("cancelled") from primary_error
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"t.me unavailable ({primary_error}); timeout budget exhausted") from primary_error
             try:
-                page = _fetch_url(f"https://telegram.me/s/{channel}", timeout=timeout)
+                page, size, transport = _fetch_url_payload(
+                    f"https://telegram.me/s/{channel}", timeout=remaining_timeout(), socks_port=socks_port
+                )
                 if not _is_usable_preview(page):
                     raise RuntimeError("telegram.me returned an unusable preview page")
             except Exception as fallback_error:
@@ -237,14 +314,16 @@ def fetch_channel(channel: str, *, per_channel_limit: int = 30, timeout: float =
                     f"t.me unavailable ({primary_error}); telegram.me also failed ({fallback_error})"
                 ) from fallback_error
         configs = extract_configs(page)
-        picked = configs[:per_channel_limit]
+        picked = configs[: max(1, int(per_channel_limit))]
         return ChannelResult(
             channel=channel,
             ok=True,
             found=len(configs),
             picked=len(picked),
-            elapsed_ms=int((time.monotonic() - started) * 1000),
+            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
             configs=picked,
+            bytes_received=size,
+            transport=transport,
         )
     except Exception as exc:
         return ChannelResult(
@@ -252,9 +331,11 @@ def fetch_channel(channel: str, *, per_channel_limit: int = 30, timeout: float =
             ok=False,
             found=0,
             picked=0,
-            elapsed_ms=int((time.monotonic() - started) * 1000),
+            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
             configs=[],
             error=str(exc),
+            bytes_received=size,
+            transport=transport,
         )
 
 
@@ -262,30 +343,15 @@ def crawl_telegram_channels(
     *,
     channels: list[str] | None = None,
     per_channel_limit: int = 30,
+    per_channel_limits: dict[str, int] | None = None,
     max_workers: int = 8,
-    timeout: float = 12.0,
+    timeout: float = 8.0,
     progress: Callable[[int, int, str], None] | None = None,
+    result_callback: Callable[[ChannelResult, int, int], None] | None = None,
     stop_event: threading.Event | None = None,
     retry_limit: int = 1,
+    socks_port: int = 0,
 ) -> list[str]:
-    """Crawl every channel in parallel and return a flat, deduped config list.
-
-    Args:
-        channels: The list of channel usernames to fetch.  If ``None``,
-            the bundled ``assets/channels.txt`` is loaded.
-        per_channel_limit: Maximum number of configs to keep per channel.
-            Telegram preview pages show the most recent ~20 posts, so
-            anything above 30 has no effect in practice.
-        max_workers: Parallel HTTP fetches.  Eight is a safe default that
-            does not trigger Telegram's rate limiter.
-        timeout: Per-request timeout, in seconds.
-        progress: Optional callback ``(done, total, channel)`` called
-            after each channel completes.
-
-    Returns:
-        A list of unique, valid config URIs (vmess/vless/trojan/ss).
-        Configs that cannot be parsed by the protocols module are dropped.
-    """
     channels = channels if channels is not None else load_channels()
     if not channels:
         return []
@@ -293,68 +359,72 @@ def crawl_telegram_channels(
     total = len(channels)
     if progress:
         progress(0, total, "")
-
     raw_configs: list[str] = []
     seen: set[str] = set()
     completed = 0
-
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, max_workers))
+    worker_count = max(1, min(int(max_workers), total, 16))
+    pool = concurrent.futures.ThreadPoolExecutor(
+        max_workers=worker_count,
+        thread_name_prefix="dicodePing-telegram",
+    )
     queue = iter(channels)
     futures: dict[concurrent.futures.Future[ChannelResult], tuple[str, int]] = {}
 
+    def limit_for(channel: str) -> int:
+        if per_channel_limits and channel in per_channel_limits:
+            return max(1, int(per_channel_limits[channel]))
+        return max(1, int(per_channel_limit))
+
+    def submit(channel: str, attempt: int) -> None:
+        future = pool.submit(
+            fetch_channel,
+            channel,
+            per_channel_limit=limit_for(channel),
+            timeout=timeout,
+            socks_port=socks_port,
+            stop_event=stop_event,
+        )
+        futures[future] = (channel, attempt)
+
     def fill() -> None:
-        while len(futures) < max(1, max_workers * 2) and not (stop_event and stop_event.is_set()):
+        while len(futures) < worker_count * 2 and not (stop_event and stop_event.is_set()):
             try:
-                channel = next(queue)
+                submit(next(queue), 0)
             except StopIteration:
                 return
-            futures[pool.submit(fetch_channel, channel, per_channel_limit=per_channel_limit, timeout=timeout)] = (
-                channel,
-                0,
-            )
 
     fill()
+    cancelled = False
     try:
         while futures:
             if stop_event and stop_event.is_set():
+                cancelled = True
                 for pending in futures:
                     pending.cancel()
                 break
             ready, _ = concurrent.futures.wait(
-                tuple(futures),
-                timeout=0.15,
-                return_when=concurrent.futures.FIRST_COMPLETED,
+                tuple(futures), timeout=0.10, return_when=concurrent.futures.FIRST_COMPLETED
             )
             if not ready:
                 continue
             for future in ready:
                 channel, attempt = futures.pop(future)
                 try:
-                    result: ChannelResult = future.result()
+                    result = future.result()
                 except Exception as exc:
-                    result = ChannelResult(
-                        channel=channel,
-                        ok=False,
-                        found=0,
-                        picked=0,
-                        elapsed_ms=0,
-                        configs=[],
-                        error=str(exc),
-                    )
-                if not result.ok and attempt < max(0, retry_limit) and not (stop_event and stop_event.is_set()):
-                    time.sleep(min(0.25 * (2**attempt), 1.0))
-                    futures[
-                        pool.submit(
-                            fetch_channel,
-                            channel,
-                            per_channel_limit=per_channel_limit,
-                            timeout=timeout,
-                        )
-                    ] = (channel, attempt + 1)
+                    result = ChannelResult(channel, False, 0, 0, 1, [], str(exc))
+                if (
+                    not result.ok
+                    and attempt < max(0, int(retry_limit))
+                    and not (stop_event and stop_event.is_set())
+                ):
+                    submit(channel, attempt + 1)
                     continue
                 completed += 1
                 if progress:
                     progress(completed, total, channel)
+                if result_callback:
+                    result_callback(result, completed, total)
                 if not result.ok:
                     LOGGER.debug("Crawler: %s failed: %s", channel, result.error)
                     continue
@@ -368,10 +438,7 @@ def crawl_telegram_channels(
                     raw_configs.append(raw)
             fill()
     finally:
-        pool.shutdown(wait=True, cancel_futures=True)
+        pool.shutdown(wait=True, cancel_futures=cancelled)
 
-    LOGGER.info(
-        "Crawler: crawled %d channels, collected %d unique configs",
-        total, len(raw_configs),
-    )
+    LOGGER.info("Crawler: crawled %d channels, collected %d unique configs", completed, len(raw_configs))
     return raw_configs

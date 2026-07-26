@@ -126,6 +126,15 @@ def relaunch_as_admin() -> bool:
         return False
 
 
+def _emit_progress_value(callback: Callable[[int, int], None] | None, current: int, total: int = 100) -> None:
+    if callback is None:
+        return
+    try:
+        callback(max(0, int(current)), max(1, int(total)))
+    except Exception:
+        LOGGER.debug("Progress callback failed", exc_info=True)
+
+
 def _creation_flags() -> int:
     if not is_windows():
         return 0
@@ -278,6 +287,14 @@ def _download_file(url: str, target: Path, timeout: float = 90.0) -> None:
 def _pinned_asset_url() -> tuple[str, str]:
     name = _asset_name()
     return name, f"{XRAY_RELEASE_BASE}/{name}"
+
+
+_XRAY_ARCHIVE_SHA256 = {
+    "Xray-windows-64.zip": "af801b62c4d41d248d3db8016d4c6e2a7ccfb7ed443e3738aeb6f9e062321512",
+    "Xray-linux-64.zip": "aa11c3685c71da0ffc71e511db50404609e7e963bb914b048f59a6a00af8930e",
+    "Xray-macos-arm64-v8a.zip": "61f8f74d099098af710fa43613d9934d97b901dee909801d34f496cd463956d1",
+    "Xray-macos-64.zip": "d8c116756d3a88a38a833a94bdf8bc801f69243ee888befcb56df8b4f1ec4878",
+}
 
 
 def _parse_sha256_digest(text: str) -> str:
@@ -444,18 +461,16 @@ def ensure_xray(progress: Callable[[str], None] | None = None, force_download: b
     if progress:
         progress(tr(language, "downloading_core"))
     archive = CORE_DIR / f"xray-{XRAY_VERSION}.zip"
-    digest_file = CORE_DIR / f"xray-{XRAY_VERSION}.zip.dgst"
-    _name, url = _pinned_asset_url()
+    asset_name, url = _pinned_asset_url()
+    expected = _XRAY_ARCHIVE_SHA256.get(asset_name)
+    if not expected:
+        raise RuntimeError(f"No pinned Xray digest exists for {asset_name}")
     _download_file(url, archive)
     try:
-        _download_file(f"{url}.dgst", digest_file, timeout=45)
-        expected = _parse_sha256_digest(digest_file.read_text(encoding="utf-8", errors="ignore"))
         _verify_sha256(archive, expected, "Xray")
     except Exception:
         archive.unlink(missing_ok=True)
         raise
-    finally:
-        digest_file.unlink(missing_ok=True)
     executable = _extract_core(archive, CORE_DIR)
     archive.unlink(missing_ok=True)
     ensure_wintun(executable, progress=progress, language=language)
@@ -772,7 +787,13 @@ class XrayManager:
         endpoint_host: str = "",
         endpoint_port: int = 0,
         secure_dns: bool = True,
+        progress_value: Callable[[int, int], None] | None = None,
+        core_options: dict[str, object] | None = None,
     ) -> None:
+        # ``core_options`` is accepted for API compatibility with the shared
+        # ConnectionManager facade. Xray does not consume alternative-core options.
+        _ = core_options
+        _emit_progress_value(progress_value, 8)
         # Every attempt owns a cancellation token. Clearing and reusing the
         # old Event could erase a concurrent Disconnect request.
         with self._stop_lock:
@@ -781,6 +802,7 @@ class XrayManager:
             self._cancel_start = cancel_start
         cleanup_stale_owned_process()
         executable = ensure_xray(progress, language=language)
+        _emit_progress_value(progress_value, 22)
         if cancel_start.is_set():
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         wintun = ensure_wintun(executable, progress=progress, language=language)
@@ -794,6 +816,7 @@ class XrayManager:
         self.connected_ip = endpoint_ips[0] if endpoint_ips else ""
         if endpoint_ips:
             self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
+        _emit_progress_value(progress_value, 32)
 
         try:
             self.api_port = PORT_REGISTRY.acquire()
@@ -808,6 +831,7 @@ class XrayManager:
             self.token = uuid.uuid4().hex
             self.config_path = RUNTIME_DIR / f"tun-{self.token}.json"
             self.config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+            _emit_progress_value(progress_value, 42)
         except Exception:
             self.stop()
             raise
@@ -825,6 +849,7 @@ class XrayManager:
                 validation_text = (validation.stderr or validation.stdout or "").strip()
             except Exception:
                 pass
+        _emit_progress_value(progress_value, 52)
         if validation.returncode != 0:
             error = (validation_text or "کانفیگ Xray نامعتبر است")[-1200:]
             LOGGER.error("Connection configuration validation failed: %s", error)
@@ -862,6 +887,7 @@ class XrayManager:
         if cancel_start.is_set():
             self.stop()
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
+        _emit_progress_value(progress_value, 66)
         PID_FILE.write_text(
             json.dumps(
                 {
@@ -898,10 +924,12 @@ class XrayManager:
             self.stop()
             raise RuntimeError("بخش اتصال آماده نشد؛ در صورت تکرار، گزارش عیب‌یابی را فعال کنید" if language != "en" else "The connection could not start; enable diagnostic logging if this repeats")
 
+        _emit_progress_value(progress_value, 74)
         # Validate the exact credentials/transport through a private SOCKS
         # inbound first. This makes a dead server distinguishable from delayed
         # Windows/Linux TUN route propagation.
-        proxy_deadline = time.monotonic() + 8.0
+        proxy_started = time.monotonic()
+        proxy_deadline = proxy_started + 8.0
         proxy_ready = False
         while time.monotonic() < proxy_deadline and self.process.poll() is None:
             if cancel_start.is_set():
@@ -912,13 +940,16 @@ class XrayManager:
                     self.validation_socks_port,
                     host,
                     "/generate_204",
-                    2.4,
+                    1.25,
                 ) is not None:
                     proxy_ready = True
                     break
             if proxy_ready:
                 break
-            time.sleep(0.15)
+            elapsed = time.monotonic() - proxy_started
+            _emit_progress_value(progress_value, 74 + min(14, round((elapsed / 8.0) * 14)))
+            time.sleep(0.12)
+        _emit_progress_value(progress_value, 90)
         if not proxy_ready:
             tail = self._read_log_tail()
             LOGGER.error("Xray outbound validation failed: %s", tail[-1100:])

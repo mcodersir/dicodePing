@@ -10,7 +10,7 @@ import tarfile
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.1"
+RC_VERSION = "rc.4"
 APP_NAME = "dicodePing"
 
 
@@ -20,6 +20,7 @@ def run(command: list[str], cwd: Path) -> None:
 
 
 def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
+    """Build the portable one-file Linux archive used by the older releases."""
     if not sys.platform.startswith("linux"):
         raise RuntimeError("The Linux builder must run on Linux.")
 
@@ -30,12 +31,18 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         run([python, "-m", "pip", "install", "-r", "requirements-build.txt"], root)
     if not skip_core:
         run([python, "-m", "tools.prepare_core"], root)
-        run([python, "-m", "tools.prepare_optional_cores"], root)
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_rc3.py"
-    required = [entrypoint, core / "xray", assets / "app.png", root / "packaging" / "linux" / "run-dicodePing.sh"]
+    entrypoint = root / "app_v190_rc4.py"
+    required = [
+        entrypoint,
+        core / "xray",
+        assets / "app.png",
+        root / "packaging" / "linux" / "run-dicodePing.sh",
+        root / "packaging" / "linux" / "README-LINUX.txt",
+        root / "packaging" / "linux" / "dicodePing.desktop",
+    ]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError("Missing Linux build files:\n- " + "\n- ".join(missing))
@@ -44,14 +51,27 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     spec_dir = root / "build" / "linux-spec"
     spec_dir.mkdir(parents=True, exist_ok=True)
     command = [
-        python, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--windowed",
-        "--name", APP_NAME, "--specpath", str(spec_dir), "--icon", str(assets / "app.png"),
-        "--hidden-import", "PySide6.QtSvg", "--collect-submodules", "dicodeping",
-        "--add-data", f"{assets}{separator}assets",
-        "--add-binary", f"{core / 'xray'}{separator}core",
-        "--add-binary", f"{core / 'aether'}{separator}core",
-        "--add-binary", f"{core / 'usque'}{separator}core",
-        "--add-data", f"{core / 'bundled-cores.json'}{separator}core",
+        python,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--clean",
+        "--onefile",
+        "--windowed",
+        "--name",
+        APP_NAME,
+        "--specpath",
+        str(spec_dir),
+        "--icon",
+        str(assets / "app.png"),
+        "--hidden-import",
+        "PySide6.QtSvg",
+        "--collect-submodules",
+        "dicodeping",
+        "--add-data",
+        f"{assets}{separator}assets",
+        "--add-binary",
+        f"{core / 'xray'}{separator}core",
     ]
     for data_name in ("geoip.dat", "geosite.dat"):
         path = core / data_name
@@ -81,6 +101,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     release = root / "release"
     release.mkdir(parents=True, exist_ok=True)
     output = release / f"{bundle_name}.tar.gz"
+    output.unlink(missing_ok=True)
     with tarfile.open(output, "w:gz") as archive:
         archive.add(staging, arcname=bundle_name)
     print(f"Linux build completed: {output}", flush=True)

@@ -13,8 +13,12 @@ from PySide6.QtCore import (
     QTimer,
     QUrl,
     Signal,
+    Slot,
 )
-from PySide6.QtGui import QBrush, QCloseEvent, QColor, QDesktopServices, QIcon, QMouseEvent, QPainter, QPen, QPixmap, QResizeEvent
+from PySide6.QtGui import (
+    QBrush, QCloseEvent, QColor, QDesktopServices, QFont, QIcon, QMouseEvent,
+    QPainter, QPen, QPixmap, QResizeEvent, QSyntaxHighlighter, QTextCharFormat,
+)
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -57,7 +61,16 @@ from .protocols import blob_to_config, config_to_blob, set_display_name
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
-from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshSubsetThread, RefreshThread, SharingThread
+from .workers import (
+    ApplicationUpdateThread,
+    ConnectionMonitorThread,
+    ConnectThread,
+    CoreActivationThread,
+    DiscoverThread,
+    RefreshSubsetThread,
+    RefreshThread,
+    SharingThread,
+)
 from .xray import normalize_bypass_domains
 from .design_system import TOKENS, WindowClass, window_class
 
@@ -110,6 +123,32 @@ LIGHT = {
     "selection": "#E8EEFA",
 }
 
+
+
+class ScannerLogHighlighter(QSyntaxHighlighter):
+    """Color whole scanner log lines without using expensive HTML widgets."""
+
+    def highlightBlock(self, text: str) -> None:  # noqa: N802
+        fmt = QTextCharFormat()
+        upper = text.upper()
+        if "[ERR]" in upper or "[FATAL]" in upper or "✗" in text:
+            fmt.setForeground(QColor("#FF7884"))
+        elif "[OK]" in upper or "[DONE]" in upper or "✓" in text:
+            fmt.setForeground(QColor("#4FD08A"))
+        elif "[STAGE]" in upper or "[CONNECT]" in upper:
+            fmt.setForeground(QColor("#6D8EFF"))
+            fmt.setFontWeight(QFont.Weight.DemiBold)
+        elif "[TEST]" in upper:
+            fmt.setForeground(QColor("#F1B95A"))
+        elif "[TG]" in upper:
+            fmt.setForeground(QColor("#8FB3FF"))
+        elif "[STOP]" in upper:
+            fmt.setForeground(QColor("#C7A0FF"))
+        else:
+            fmt.setForeground(QColor("#B8C4D6"))
+        if "KIB/S" in upper or "SPEED=" in upper or "AVG=" in upper:
+            fmt.setFontWeight(QFont.Weight.DemiBold)
+        self.setFormat(0, len(text), fmt)
 
 def build_stylesheet(theme: str) -> str:
     c = DARK if theme == "dark" else LIGHT
@@ -791,6 +830,9 @@ class MainWindow(QMainWindow):
         self.service = ServerService(self.store)
         self.manager = ConnectionManager()
         self.settings = dict(preloaded_settings) if preloaded_settings is not None else self.store.load_settings()
+        from .core_manager import get_active_core
+
+        self.settings["active_core"] = get_active_core()
         if not self.settings.get("language_explicitly_selected"):
             self.settings["language"] = "fa"
             self.settings["language_explicitly_selected"] = False
@@ -1408,15 +1450,18 @@ class MainWindow(QMainWindow):
         )
         self.scanner_alive_label.setVisible(False)
         stage_row.addWidget(self.scanner_alive_label)
-        # ETA badge.
-        self.scanner_eta_label = QLabel("")
-        self.scanner_eta_label.setObjectName("muted")
-        self.scanner_eta_label.setStyleSheet(
-            "background:#19233E;color:#6D8EFF;border-radius:10px;"
+        # RC3: real throughput instead of an unreliable finish-time estimate.
+        self.scanner_speed_label = QLabel(
+            "تلگرام: —  |  تست اتصال: —" if self.language != "en" else "Telegram: —  |  Tests: —"
+        )
+        self.scanner_speed_label.setObjectName("muted")
+        self.scanner_speed_label.setStyleSheet(
+            "background:#19233E;color:#8FB3FF;border-radius:10px;"
             "padding:3px 10px;font-weight:700;"
         )
-        self.scanner_eta_label.setVisible(False)
-        stage_row.addWidget(self.scanner_eta_label)
+        self.scanner_speed_label.setVisible(False)
+        self.scanner_eta_label = self.scanner_speed_label  # compatibility alias
+        stage_row.addWidget(self.scanner_speed_label)
         action_layout.addLayout(stage_row)
 
         # Status line.
@@ -1459,13 +1504,15 @@ class MainWindow(QMainWindow):
         log_layout.addLayout(log_top)
         self.scanner_log_view = QPlainTextEdit()
         self.scanner_log_view.setReadOnly(True)
-        self.scanner_log_view.setMaximumBlockCount(2000)
+        self.scanner_log_view.setMaximumBlockCount(1200)
+        self.scanner_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.scanner_log_view.setStyleSheet(
             "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
             "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; }"
         )
         self.scanner_log_view.setPlaceholderText(self.t("scanner_log_empty"))
         self.scanner_log_view.setMinimumHeight(140)
+        self._scanner_log_highlighter = ScannerLogHighlighter(self.scanner_log_view.document())
         log_layout.addWidget(self.scanner_log_view)
         layout.addWidget(log_card, 1)
 
@@ -1555,8 +1602,14 @@ class MainWindow(QMainWindow):
         self.scanner_progress.setValue(0)
         self.scanner_stage_label.setText(self.t("scanner_stage1"))
         self.scanner_result_label.setText("")
-        self.scanner_eta_label.setVisible(True)
-        self.scanner_eta_label.setText(self.t("eta_label", eta="—"))
+        self._scanner_crawl_metric = ""
+        self._scanner_probe_metric = ""
+        self.scanner_speed_label.setVisible(True)
+        self.scanner_speed_label.setText(
+            "تلگرام: در انتظار…  |  تست اتصال: در انتظار…"
+            if self.language != "en"
+            else "Telegram: waiting…  |  Tests: waiting…"
+        )
         self.scanner_alive_label.setVisible(False)
         self._scanner_alive_count = 0
         self._set_scanner_stage_dot(1)
@@ -1570,21 +1623,26 @@ class MainWindow(QMainWindow):
             custom_name=custom_name or None,
             rank1_limit=rank1_limit,
             rank2_limit=rank2_limit,
-            connect_callback=self._scanner_connect_bootstrap,
-            disconnect_callback=self._scanner_disconnect_bootstrap,
-            is_connected_callback=lambda: self.manager.connected,
-            validate_connection_callback=self.manager.verify_connection,
+            is_connected_callback=lambda: bool(self.connected_id) and self.manager.connected,
+            validate_connection_callback=None,  # ConnectThread already performs real traffic validation.
+            proxy_port_callback=lambda: self.manager.local_socks_port,
             bootstrap_server_id=bootstrap_server_id,
         )
         self.scanner_thread = thread
+        # Queued signals guarantee that all UI and connection actions execute
+        # in the main Qt thread. RC2 called these methods from QThread.run(),
+        # which could freeze or crash Qt on Windows.
+        thread.connect_requested.connect(self._scanner_connect_bootstrap, Qt.QueuedConnection)
+        thread.disconnect_requested.connect(self._scanner_disconnect_bootstrap, Qt.QueuedConnection)
         thread.stage.connect(self._scanner_stage_updated)
         thread.stage_change.connect(self._scanner_stage_changed)
         thread.progress.connect(self._scanner_progress_updated)
-        thread.eta.connect(self._scanner_eta_updated)
         thread.alive_count.connect(self._scanner_alive_count_updated)
-        thread.log_line.connect(self._scanner_log_line)
+        thread.metrics.connect(self._scanner_metrics_updated)
+        thread.log_batch.connect(self._scanner_log_batch)
         thread.success.connect(self._scanner_succeeded)
         thread.failed.connect(self._scanner_failed)
+        thread.finished.connect(self._scanner_thread_finished)
         thread.finished.connect(thread.deleteLater)
         thread.start()
 
@@ -1601,6 +1659,7 @@ class MainWindow(QMainWindow):
             self.scanner_run_button.setEnabled(False)
             self.scanner_run_button.setText(self.t("busy_wait"))
 
+    @Slot(str)
     def _scanner_connect_bootstrap(self, server_id: str) -> None:
         """UI-thread callback: connect to the chosen bootstrap server."""
         try:
@@ -1608,6 +1667,7 @@ class MainWindow(QMainWindow):
         except Exception:
             LOGGER.exception("Scanner: bootstrap connect failed")
 
+    @Slot()
     def _scanner_disconnect_bootstrap(self) -> None:
         """UI-thread callback: tear down the bootstrap TUN connection."""
         try:
@@ -1645,18 +1705,76 @@ class MainWindow(QMainWindow):
                 self.t("scanner_alive_count", count=self._scanner_alive_count)
             )
 
-    def _scanner_eta_updated(self, eta_text: str) -> None:
-        self.scanner_eta_label.setText(self.t("eta_label", eta=eta_text))
+    def _scanner_eta_updated(self, _eta_text: str) -> None:
+        # Kept for binary/plugin compatibility. RC3 intentionally removed ETA.
+        return
 
     def _scanner_alive_count_updated(self, count: int) -> None:
         self._scanner_alive_count = count
         if self.scanner_alive_label.isVisible():
             self.scanner_alive_label.setText(self.t("scanner_alive_count", count=count))
 
+    @staticmethod
+    def _format_scanner_rate(bytes_per_second: float) -> str:
+        value = max(0.0, float(bytes_per_second or 0.0))
+        if value >= 1024 * 1024:
+            return f"{value / 1024 / 1024:.2f} MiB/s"
+        return f"{value / 1024:.1f} KiB/s"
+
+    @Slot(object)
+    def _scanner_metrics_updated(self, metrics: object) -> None:
+        if not isinstance(metrics, dict):
+            return
+        phase = str(metrics.get("phase") or "")
+        if phase == "crawl":
+            rate = self._format_scanner_rate(float(metrics.get("bytes_per_second") or 0.0))
+            channels_rate = float(metrics.get("channels_per_second") or 0.0)
+            configs = int(metrics.get("configs") or 0)
+            self._scanner_crawl_metric = (
+                f"تلگرام: {rate} • {channels_rate:.1f} کانال/ث • {configs} کانفیگ"
+                if self.language != "en"
+                else f"Telegram: {rate} • {channels_rate:.1f} ch/s • {configs} configs"
+            )
+        elif phase == "probe":
+            tests_rate = float(metrics.get("tests_per_second") or 0.0)
+            alive = int(metrics.get("alive") or 0)
+            self._scanner_probe_metric = (
+                f"تست اتصال: {tests_rate:.1f}/ث • سالم {alive}"
+                if self.language != "en"
+                else f"Tests: {tests_rate:.1f}/s • alive {alive}"
+            )
+        crawl = getattr(
+            self, "_scanner_crawl_metric",
+            "تلگرام: در انتظار…" if self.language != "en" else "Telegram: waiting…",
+        )
+        probe = getattr(
+            self, "_scanner_probe_metric",
+            "تست اتصال: در انتظار…" if self.language != "en" else "Tests: waiting…",
+        )
+        self.scanner_speed_label.setText(f"{crawl}  |  {probe}")
+        self.scanner_speed_label.setVisible(True)
+
+    @Slot(object)
+    def _scanner_log_batch(self, rows: object) -> None:
+        if not hasattr(self, "scanner_log_view"):
+            return
+        lines = [str(row).rstrip() for row in (rows or ()) if str(row).strip()]
+        if not lines:
+            return
+        bar = self.scanner_log_view.verticalScrollBar()
+        follow_tail = bar.value() >= max(0, bar.maximum() - 4)
+        self.scanner_log_view.appendPlainText("\n".join(lines))
+        if follow_tail:
+            bar.setValue(bar.maximum())
+
     def _scanner_log_line(self, line: str) -> None:
-        """Append a live log line to the scanner log panel."""
-        if hasattr(self, "scanner_log_view"):
-            self.scanner_log_view.appendPlainText(line)
+        self._scanner_log_batch((line,))
+
+    @Slot()
+    def _scanner_thread_finished(self) -> None:
+        thread = self.sender()
+        if self.scanner_thread is thread:
+            self.scanner_thread = None
 
     def _clear_scanner_log(self) -> None:
         if hasattr(self, "scanner_log_view"):
@@ -1675,7 +1793,7 @@ class MainWindow(QMainWindow):
         alive = len(getattr(result, "servers", []))
         total = getattr(result, "downloaded", 0)
         stopped_early = bool(getattr(result, "stopped_early", False))
-        self.scanner_eta_label.setVisible(False)
+        self.scanner_speed_label.setVisible(True)
         self.scanner_alive_label.setVisible(False)
         self._set_scanner_stage_dot(3)
         self.scanner_stage_label.setText(self.t("scanner_done"))
@@ -1712,7 +1830,7 @@ class MainWindow(QMainWindow):
         self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
-        self.scanner_eta_label.setVisible(False)
+        self.scanner_speed_label.setVisible(True)
         self.scanner_alive_label.setVisible(False)
         self.scanner_stage_label.setText(self.t("operation_failed"))
         self.scanner_result_label.setText(message)
@@ -2191,6 +2309,12 @@ class MainWindow(QMainWindow):
         self.conn_method_status_label.setObjectName("muted")
         self.conn_method_status_label.setWordWrap(True)
         method_layout.addWidget(self.conn_method_status_label)
+        self.conn_method_progress = QProgressBar()
+        self.conn_method_progress.setRange(0, 100)
+        self.conn_method_progress.setValue(0)
+        self.conn_method_progress.setTextVisible(True)
+        self.conn_method_progress.setVisible(False)
+        method_layout.addWidget(self.conn_method_progress)
         layout.addWidget(method_card)
 
         profile_card = QFrame()
@@ -2208,7 +2332,7 @@ class MainWindow(QMainWindow):
         self.aether_scan_combo = QComboBox()
         for value in ("turbo", "balanced", "thorough", "stealth", "ironclad"):
             self.aether_scan_combo.addItem(value.title(), value)
-        self.aether_scan_combo.setCurrentIndex(max(0, self.aether_scan_combo.findData(self.settings.get("aether_scan", "ironclad"))))
+        self.aether_scan_combo.setCurrentIndex(max(0, self.aether_scan_combo.findData(self.settings.get("aether_scan", "balanced"))))
         profile_layout.addRow(self.t("alternative_scan_mode"), self.aether_scan_combo)
         self.aether_transport_combo = QComboBox()
         self.aether_transport_combo.addItem("HTTP/3 (QUIC) → HTTP/2 fallback", "auto")
@@ -2305,31 +2429,73 @@ class MainWindow(QMainWindow):
             self.conn_method_status_label.setText(self.t("conn_method_download_done"))
             return
         self.conn_method_download_button.setEnabled(False)
+        self.conn_method_activate_button.setEnabled(False)
         self.conn_method_download_button.setText(self.t("conn_method_downloading"))
+        self.conn_method_progress.setRange(0, 0)
+        self.conn_method_progress.setVisible(True)
         # Run the download in a background thread to avoid blocking the UI.
         from .workers import CoreDownloadThread
         self._core_download_thread = CoreDownloadThread(core_id, language=self.language)
         self._core_download_thread.stage.connect(
             lambda text: self.conn_method_status_label.setText(text)
         )
+        self._core_download_thread.progress.connect(self._on_core_download_progress)
         self._core_download_thread.success.connect(self._on_core_download_success)
         self._core_download_thread.failed.connect(self._on_core_download_failed)
         self._core_download_thread.finished.connect(self._core_download_thread.deleteLater)
         self._core_download_thread.start()
 
+    def _on_core_download_progress(self, done: int, total: int) -> None:
+        if total > 0:
+            self.conn_method_progress.setRange(0, total)
+            self.conn_method_progress.setValue(min(done, total))
+        else:
+            self.conn_method_progress.setRange(0, 0)
+
     def _on_core_download_success(self, core_id: str) -> None:
         self.conn_method_download_button.setEnabled(True)
+        self.conn_method_activate_button.setEnabled(True)
         self.conn_method_download_button.setText(self.t("conn_method_download"))
+        self.conn_method_progress.setVisible(False)
         self.conn_method_status_label.setText(self.t("conn_method_download_done"))
 
     def _on_core_download_failed(self, message: str) -> None:
         self.conn_method_download_button.setEnabled(True)
+        self.conn_method_activate_button.setEnabled(True)
         self.conn_method_download_button.setText(self.t("conn_method_download"))
+        self.conn_method_progress.setVisible(False)
         self.conn_method_status_label.setText(self.t("conn_method_download_failed") + f": {message}")
 
+    def _capture_connection_core_settings(self) -> None:
+        if hasattr(self, "aether_protocol_combo"):
+            self.settings["aether_protocol"] = self.aether_protocol_combo.currentData()
+            self.settings["aether_scan"] = self.aether_scan_combo.currentData()
+            self.settings["aether_transport"] = self.aether_transport_combo.currentData()
+            self.settings["aether_perf"] = self.aether_perf_combo.currentData()
+            self.settings["aether_quick_reconnect"] = self.aether_quick_reconnect.isChecked()
+
+    def _finish_core_activation_ui(self) -> None:
+        self.conn_method_download_button.setEnabled(True)
+        self.conn_method_activate_button.setEnabled(True)
+        self.conn_method_progress.setVisible(False)
+
+    def _on_core_activation_success(self, core_id: str) -> None:
+        self._finish_core_activation_ui()
+        self.settings["active_core"] = core_id
+        self.store.save_settings(self.settings)
+        self.manager.reload_selection()
+        self._sync_core_mode_ui()
+        self.switch_page(0)
+        self.conn_method_status_label.setText(self.t("conn_method_active") + f": {core_id}")
+
+    def _on_core_activation_failed(self, message: str) -> None:
+        self._finish_core_activation_ui()
+        self.conn_method_status_label.setText(f"خطا: {message}")
+
     def _activate_selected_core(self) -> None:
-        """Activate the core selected in the conn_method_combo."""
-        from .core_manager import set_active_core, is_core_available
+        """Persist options and activate the selected core without blocking the UI."""
+        from .core_manager import core_dir, is_core_available, set_active_core
+
         core_id = self.conn_method_combo.currentData()
         if not core_id:
             return
@@ -2338,32 +2504,47 @@ class MainWindow(QMainWindow):
                 "هسته دانلود نشده است. ابتدا روی «دانلود هسته» بزنید."
             )
             return
-        if core_id == "warp":
-            from .connection_manager import register_warp
-            from .core_manager import core_dir
-            if not (core_dir("warp") / "config.json").is_file():
-                accepted = AppDialog.confirm(
-                    self,
-                    self.t("warp_registration_title"),
-                    self.t("warp_registration_terms"),
-                    accept_text=self.t("accept"),
-                    reject_text=self.t("cancel"),
-                )
-                if not accepted:
-                    return
-                try:
-                    register_warp(accept_terms=True)
-                except Exception as exc:
-                    self.conn_method_status_label.setText(str(exc))
-                    return
+
+        self._capture_connection_core_settings()
+        self.store.save_settings(self.settings)
+
+        accept_warp_terms = False
+        if core_id == "warp" and not (core_dir("warp") / "config.json").is_file():
+            accept_warp_terms = AppDialog.confirm(
+                self,
+                self.t("warp_registration_title"),
+                self.t("warp_registration_terms"),
+                accept_text=self.t("accept"),
+                reject_text=self.t("cancel"),
+            )
+            if not accept_warp_terms:
+                return
+
+        if core_id == "warp" and accept_warp_terms:
+            self.conn_method_download_button.setEnabled(False)
+            self.conn_method_activate_button.setEnabled(False)
+            self.conn_method_progress.setRange(0, 0)
+            self.conn_method_progress.setVisible(True)
+            self.conn_method_status_label.setText(
+                "در حال ثبت امن WARP…" if self.language != "en" else "Registering WARP securely…"
+            )
+            self._core_activation_thread = CoreActivationThread(
+                core_id,
+                accept_warp_terms=True,
+                language=self.language,
+            )
+            self._core_activation_thread.stage.connect(self.conn_method_status_label.setText)
+            self._core_activation_thread.success.connect(self._on_core_activation_success)
+            self._core_activation_thread.failed.connect(self._on_core_activation_failed)
+            self._core_activation_thread.finished.connect(self._core_activation_thread.deleteLater)
+            self._core_activation_thread.start()
+            return
+
         try:
             set_active_core(core_id)
-            self.manager.reload_selection()
-            self._sync_core_mode_ui()
-            self.switch_page(0)
-            self.conn_method_status_label.setText(self.t("conn_method_active") + f": {core_id}")
+            self._on_core_activation_success(core_id)
         except Exception as exc:
-            self.conn_method_status_label.setText(f"خطا: {exc}")
+            self._on_core_activation_failed(str(exc))
 
     def _build_about_page(self) -> QWidget:
         content = QWidget()
@@ -3432,7 +3613,7 @@ class MainWindow(QMainWindow):
             secure_dns=bool(self.settings.get("secure_dns_doh", True)),
             core_options={
                 "protocol": self.settings.get("aether_protocol", "masque"),
-                "scan": self.settings.get("aether_scan", "ironclad"),
+                "scan": self.settings.get("aether_scan", "balanced"),
                 "transport": self.settings.get("aether_transport", "auto"),
                 "performance": self.settings.get("aether_perf", "medium"),
                 "quick_reconnect": bool(self.settings.get("aether_quick_reconnect", True)),
@@ -3776,12 +3957,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "cdn_enabled_checkbox"):
             self.settings["cdn_formatting_enabled"] = self.cdn_enabled_checkbox.isChecked()
             self.settings["cdn_formatting_domain"] = self.cdn_domain_combo.currentText().strip()
-        if hasattr(self, "aether_protocol_combo"):
-            self.settings["aether_protocol"] = self.aether_protocol_combo.currentData()
-            self.settings["aether_scan"] = self.aether_scan_combo.currentData()
-            self.settings["aether_transport"] = self.aether_transport_combo.currentData()
-            self.settings["aether_perf"] = self.aether_perf_combo.currentData()
-            self.settings["aether_quick_reconnect"] = self.aether_quick_reconnect.isChecked()
+        self._capture_connection_core_settings()
         if hasattr(self, "vpn_sharing_usb_checkbox"):
             self.settings["vpn_sharing_usb"] = self.vpn_sharing_usb_checkbox.isChecked()
             self.settings["vpn_sharing_hotspot"] = self.vpn_sharing_hotspot_checkbox.isChecked()
@@ -3850,9 +4026,24 @@ class MainWindow(QMainWindow):
         self.render_servers()
         self.switch_page(1)
 
+    def _shutdown_scanner(self, timeout_ms: int = 9000) -> None:
+        thread = getattr(self, "scanner_thread", None)
+        if thread is None or not thread.isRunning():
+            return
+        thread.requestStop()
+        # Stop the bootstrap core directly. Waiting for a queued disconnect
+        # signal while the GUI thread is closing would deadlock shutdown.
+        try:
+            self.manager.stop()
+        except Exception:
+            LOGGER.exception("Scanner: failed to stop connection during shutdown")
+        if not thread.wait(max(1000, int(timeout_ms))):
+            LOGGER.warning("Scanner worker did not finish within %d ms", timeout_ms)
+
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._is_closing:
             self._stop_connection_monitor()
+            self._shutdown_scanner()
             self.manager.stop()
             event.accept()
             return
@@ -3871,5 +4062,6 @@ class MainWindow(QMainWindow):
         self._is_closing = True
         self._stop_connect_animation()
         self._stop_connection_monitor()
+        self._shutdown_scanner()
         self.manager.stop()
         event.accept()

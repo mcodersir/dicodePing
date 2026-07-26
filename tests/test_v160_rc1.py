@@ -19,14 +19,14 @@ class V160Rc1Tests(unittest.TestCase):
         # The 1.6.0 line.  The RC suffix changes per release; we assert
         # the major version is present in every metadata location.
         self.assertIn('VERSION = "1.9.0"', constants)
-        self.assertIn('RELEASE_VERSION = "1.9.0-rc.1"', constants)
-        self.assertIn('__version__ = "1.9.0rc1"', init)
+        self.assertIn('RELEASE_VERSION = "1.9.0-rc.4"', constants)
+        self.assertIn('__version__ = "1.9.0rc4"', init)
         self.assertIn('APP_VERSION = "1.9.0"', windows_builder)
         self.assertIn('APP_VERSION = "1.9.0"', linux_builder)
-        self.assertIn('RC_VERSION = "rc.1"', linux_builder)
-        self.assertIn("filevers=(1, 9, 0, 1)", version_info)
+        self.assertIn('RC_VERSION = "rc.4"', linux_builder)
+        self.assertIn("filevers=(1, 9, 0, 4)", version_info)
         self.assertIn("'ProductVersion', '1.9.0.0'", version_info)
-        self.assertIn('versionName = "1.9.0-rc.1"', gradle)
+        self.assertIn('versionName = "1.9.0-rc.4"', gradle)
 
     def test_scanner_module_is_present_and_wired(self) -> None:
         scanner = (ROOT / "dicodeping/scanner.py").read_text(encoding="utf-8")
@@ -118,19 +118,16 @@ class V160Rc1Tests(unittest.TestCase):
         self.assertIn("dicodePing راه‌اندازی نشد", launcher)
         self.assertIn("dicodePing could not be launched", launcher)
 
-    def test_linux_bundle_includes_vazirmatn_font(self) -> None:
-        # The font files must be present in assets/fonts.
-        for name in ("Vazirmatn-Regular.ttf", "Vazirmatn-Bold.ttf", "Vazirmatn-Medium.ttf"):
-            path = ROOT / "assets" / "fonts" / name
-            self.assertTrue(path.exists(), msg=f"Missing bundled font: {path}")
-            self.assertGreater(path.stat().st_size, 50_000, msg=f"Font {name} is suspiciously small")
-
-        # app.py must register the bundled fonts via QFontDatabase.
+    def test_linux_bundle_uses_system_font_fallbacks(self) -> None:
+        # Public source packages do not redistribute font binaries. The app
+        # selects a suitable installed Persian-capable family at runtime.
+        self.assertFalse(any((ROOT / "assets").rglob("*.ttf")))
+        self.assertFalse(any((ROOT / "assets").rglob("*.otf")))
         app = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn("Vazirmatn-Regular.ttf", app)
-        self.assertIn("QFontDatabase.addApplicationFont", app)
+        self.assertIn("Noto Sans Arabic", app)
+        self.assertNotIn("addApplicationFont", app)
 
-        # The Linux builder must ship a .desktop file.
+        # The Linux builder must still ship desktop integration assets.
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         self.assertIn("dicodePing.desktop", linux_builder)
         self.assertIn("app.png", linux_builder)

@@ -40,7 +40,6 @@ from typing import Callable
 from .constants import DATA_DIR, MAX_DISCOVERY_CONFIGS
 from .crawler import crawl_telegram_channels, load_channels, load_channel_specs
 from .diagnostics import get_logger
-from .eta import ETAEstimator, format_seconds
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition, utc_now
 from .protocols import (
@@ -58,12 +57,12 @@ LOGGER = get_logger("scanner")
 
 # --- Adaptive scanner profile -------------------------------------------
 RESOURCE_PROFILE = current_resource_profile()
-SCAN_CRAWL_WORKERS = RESOURCE_PROFILE.crawl_workers
-SCAN_CRAWL_TIMEOUT_S = 12.0
-SCAN_PROBE_WORKERS = min(12, RESOURCE_PROFILE.probe_workers)
-SCAN_PROBE_TIMEOUT_S = 3.5
+SCAN_CRAWL_WORKERS = min(12, max(4, RESOURCE_PROFILE.crawl_workers))
+SCAN_CRAWL_TIMEOUT_S = 8.0
+SCAN_PROBE_WORKERS = min(12, max(4, RESOURCE_PROFILE.probe_workers // 2))
+SCAN_PROBE_TIMEOUT_S = 3.2
 SCAN_PROBE_RETRY_LIMIT = 1
-SCAN_PROBE_RETRY_WORKERS = RESOURCE_PROFILE.retry_workers
+SCAN_PROBE_RETRY_WORKERS = min(4, max(2, RESOURCE_PROFILE.retry_workers))
 SCAN_PROBE_QUEUE_LIMIT = min(
     24,
     max(SCAN_PROBE_WORKERS, RESOURCE_PROFILE.internal_queue_limit),
@@ -79,9 +78,10 @@ DEFAULT_RANK2_PER_CHANNEL = 3
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
 StageChangeCallback = Callable[[int, str], None]
-ETACallback = Callable[[str], None]
+ETACallback = Callable[[str], None]  # retained for API compatibility; RC3 no longer shows ETA
 AliveCountCallback = Callable[[int], None]
-LogCallback = Callable[[str], None]  # live log line
+LogCallback = Callable[[str], None]
+MetricsCallback = Callable[[dict[str, object]], None]
 
 
 @dataclass
@@ -175,24 +175,26 @@ def _crawl_only(
     stage: StageCallback | None = None,
     crawl_progress: ProgressCallback | None = None,
     eta_callback: ETACallback | None = None,
+    metrics_callback: MetricsCallback | None = None,
     log_callback: LogCallback | None = None,
+    socks_port: int = 0,
     state: _ProbeState,
 ) -> list[str]:
-    """Crawl Telegram channels and return raw config URIs.
+    """Crawl all Telegram channels in one bounded parallel pass."""
+    del eta_callback  # RC3 intentionally removed finish-time estimates.
 
-    v1.7.0-rc.3: separated from probing so that the VPN can be
-    disconnected between crawl and probe (exactly as DicodeConfigChecker
-    does in its two-stage flow).
-    """
     def _log(line: str) -> None:
-        state.log_lines.append(line)
+        # The top-level run_scan logger owns history and diagnostics. Avoid
+        # duplicate UI rows, duplicate file writes, and unnecessary disk I/O.
         if log_callback:
             log_callback(line)
-        LOGGER.info("scanner: %s", line)
+        else:
+            state.log_lines.append(line)
+            LOGGER.info("scanner: %s", line)
 
     if stage:
         stage(tr(language, "scanner_stage2_crawl"))
-    _log(tr(language, "scanner_stage2_crawl"))
+    _log("[STAGE] " + tr(language, "scanner_stage2_crawl"))
 
     specs = load_channel_specs()
     if not specs:
@@ -204,44 +206,73 @@ def _crawl_only(
     rank1_limit = normalize_rank_limit(rank1_limit)
     rank2_limit = normalize_rank_limit(rank2_limit)
     channels = [item.name for item in specs]
-    _log(f"Channels: {len(channels)} (rank1={rank1_limit}/ch, rank2={rank2_limit}/ch)")
+    limits = {item.name: (rank1_limit if item.rank == 1 else rank2_limit) for item in specs}
+    rank1_count = sum(1 for item in specs if item.rank == 1)
+    rank2_count = len(specs) - rank1_count
+    route = f"SOCKS5 127.0.0.1:{socks_port}" if socks_port else "TUN/direct"
+    _log(
+        f"[TG][INFO] channels={len(channels)} rank1={rank1_count} rank2={rank2_count} "
+        f"workers={SCAN_CRAWL_WORKERS} route={route}"
+    )
 
-    rank1 = [item.name for item in specs if item.rank == 1]
-    rank2 = [item.name for item in specs if item.rank == 2]
-    _log(f"Rank-1: {len(rank1)}, Rank-2: {len(rank2)}")
+    started = time.monotonic()
+    transferred = 0
+    collected = 0
+    metric_lock = threading.Lock()
 
-    crawl_eta = ETAEstimator()
-    crawl_done_count = 0
-    total_channels = len(channels)
+    def _channel_result(result, done: int, total: int) -> None:
+        nonlocal transferred, collected
+        with metric_lock:
+            transferred += max(0, int(getattr(result, "bytes_received", 0)))
+            collected += max(0, int(getattr(result, "picked", 0)))
+            elapsed = max(0.001, time.monotonic() - started)
+            channels_per_second = done / elapsed
+            bytes_per_second = transferred / elapsed
+        if result.ok:
+            local_rate = int(result.bytes_received / max(0.001, result.elapsed_ms / 1000))
+            _log(
+                f"[TG][OK] {done}/{total} @{result.channel} | "
+                f"configs={result.picked}/{result.found} | "
+                f"{result.bytes_received / 1024:.1f} KiB | "
+                f"{result.elapsed_ms} ms | {local_rate / 1024:.1f} KiB/s"
+            )
+        else:
+            compact_error = str(result.error).replace("\n", " ")[-320:]
+            _log(f"[TG][ERR] {done}/{total} @{result.channel} | {compact_error}")
+        if metrics_callback:
+            metrics_callback(
+                {
+                    "phase": "crawl",
+                    "current": done,
+                    "total": total,
+                    "channels_per_second": channels_per_second,
+                    "bytes_per_second": bytes_per_second,
+                    "configs": collected,
+                    "bytes": transferred,
+                }
+            )
 
-    def _crawl_group(group: list[str], limit: int, label: str) -> list[str]:
-        nonlocal crawl_done_count
-        if not group:
-            return []
-        _log(f"Crawling {len(group)} {label} channels...")
-        result = crawl_telegram_channels(
-            channels=group,
-            per_channel_limit=limit,
-            max_workers=SCAN_CRAWL_WORKERS,
-            timeout=SCAN_CRAWL_TIMEOUT_S,
-            progress=lambda done, total, ch: (
-                crawl_progress and crawl_progress(min(total_channels, crawl_done_count + done), total_channels),
-                crawl_eta.update(min(total_channels, crawl_done_count + done), total_channels),
-                eta_callback and eta_callback(format_seconds(crawl_eta.remaining_seconds())),
-            ),
-            stop_event=state.stop_requested,
-            retry_limit=1,
-        )
-        crawl_done_count += len(group)
-        return result
-
-    raw_configs = _crawl_group(rank1, rank1_limit, "rank-1") + _crawl_group(rank2, rank2_limit, "rank-2")
-    crawl_progress and crawl_progress(total_channels, total_channels)
-    eta_callback and eta_callback(format_seconds(0))
-    _log(f"Crawl done: {len(raw_configs)} raw configs")
+    raw_configs = crawl_telegram_channels(
+        channels=channels,
+        per_channel_limits=limits,
+        max_workers=SCAN_CRAWL_WORKERS,
+        timeout=SCAN_CRAWL_TIMEOUT_S,
+        progress=lambda done, total, _ch: crawl_progress and crawl_progress(done, total),
+        result_callback=_channel_result,
+        stop_event=state.stop_requested,
+        retry_limit=1,
+        socks_port=socks_port,
+    )
+    if crawl_progress:
+        crawl_progress(len(channels), len(channels))
+    elapsed = max(0.001, time.monotonic() - started)
+    _log(
+        f"[TG][DONE] raw={len(raw_configs)} | transferred={transferred / 1024:.1f} KiB | "
+        f"avg={transferred / elapsed / 1024:.1f} KiB/s | duration={elapsed:.2f}s"
+    )
 
     if state.stop_requested.is_set():
-        _log("Stop requested after crawl.")
+        _log("[STOP] Stop requested after Telegram crawl.")
         return []
     if not raw_configs:
         raise RuntimeError(
@@ -260,7 +291,7 @@ def _crawl_only(
         unique.append(raw)
         if len(unique) >= MAX_DISCOVERY_CONFIGS:
             break
-    _log(f"After dedup: {len(unique)} unique configs")
+    _log(f"[TG][DEDUP] unique={len(unique)} dropped={max(0, len(raw_configs) - len(unique))}")
     return unique
 
 
@@ -272,38 +303,34 @@ def _probe_only(
     probe_progress: ProgressCallback | None = None,
     eta_callback: ETACallback | None = None,
     alive_count_callback: AliveCountCallback | None = None,
+    metrics_callback: MetricsCallback | None = None,
     log_callback: LogCallback | None = None,
     state: _ProbeState,
 ) -> list[str]:
-    """Probe a list of config URIs and return the alive ones.
+    """Probe configs with a bounded Xray process window and live throughput."""
+    del eta_callback  # RC3 shows real throughput instead of unreliable ETA.
 
-    v1.7.0-rc.3: separated from crawling so that the VPN can be
-    disconnected before probing.
-    """
     def _log(line: str) -> None:
-        state.log_lines.append(line)
         if log_callback:
             log_callback(line)
-        LOGGER.info("scanner: %s", line)
+        else:
+            state.log_lines.append(line)
+            LOGGER.info("scanner: %s", line)
 
     if not configs:
         return []
-
     if stage:
         stage(tr(language, "scanner_stage2_probe"))
-    _log(tr(language, "scanner_stage2_probe"))
-    _log(f"Testing {len(configs)} configs with {SCAN_PROBE_WORKERS} parallel workers...")
+    _log("[STAGE] " + tr(language, "scanner_stage2_probe"))
+    _log(f"[TEST][INFO] configs={len(configs)} workers={SCAN_PROBE_WORKERS} timeout={SCAN_PROBE_TIMEOUT_S:.1f}s")
 
     state.total = len(configs)
     state.completed = 0
     if probe_progress:
         probe_progress(0, state.total)
 
-    probe_eta = ETAEstimator()
-    probe_eta.update(0, state.total)
-
-    # Submit a bounded window instead of allocating one Future (and one Xray
-    # process shortly afterwards) for every discovered config.
+    started = time.monotonic()
+    failed_raws: list[str] = []
     pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=SCAN_PROBE_WORKERS,
         thread_name_prefix="dicodePing-probe",
@@ -312,18 +339,14 @@ def _probe_only(
     future_to_raw: dict[concurrent.futures.Future[int | None], str] = {}
 
     def _fill_queue() -> None:
-        while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT:
+        while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT and not state.stop_requested.is_set():
             try:
                 raw = next(config_iter)
             except StopIteration:
                 return
-            future = pool.submit(
-                _probe_one,
-                raw,
-                timeout=SCAN_PROBE_TIMEOUT_S,
-                stop_event=state.stop_requested,
-            )
-            future_to_raw[future] = raw
+            future_to_raw[pool.submit(
+                _probe_one, raw, timeout=SCAN_PROBE_TIMEOUT_S, stop_event=state.stop_requested
+            )] = raw
 
     _fill_queue()
     cancelled = False
@@ -333,16 +356,14 @@ def _probe_only(
                 cancelled = True
                 for pending in future_to_raw:
                     pending.cancel()
-                _log("Stop requested; cancelling active probes.")
+                _log("[STOP] cancelling active connection tests")
                 break
-            completed, _ = concurrent.futures.wait(
-                tuple(future_to_raw),
-                timeout=0.15,
-                return_when=concurrent.futures.FIRST_COMPLETED,
+            ready, _ = concurrent.futures.wait(
+                tuple(future_to_raw), timeout=0.10, return_when=concurrent.futures.FIRST_COMPLETED
             )
-            if not completed:
+            if not ready:
                 continue
-            for future in completed:
+            for future in ready:
                 raw = future_to_raw.pop(future)
                 try:
                     ping_ms = future.result()
@@ -352,78 +373,92 @@ def _probe_only(
                     state.completed += 1
                     if ping_ms is not None:
                         state.alive.append((raw, ping_ms))
+                    else:
+                        failed_raws.append(raw)
                     done = state.completed
                     alive_count = len(state.alive)
                 if probe_progress:
                     probe_progress(done, state.total)
                 if alive_count_callback:
                     alive_count_callback(alive_count)
-                probe_eta.update(done, state.total)
-                if eta_callback:
-                    eta_callback(format_seconds(probe_eta.remaining_seconds()))
-                host = ""
-                try:
-                    ep = parse_endpoint(raw)
-                    if ep:
-                        host = f"{ep.host}:{ep.port}"
-                except Exception:
-                    pass
+                elapsed = max(0.001, time.monotonic() - started)
+                tests_per_second = done / elapsed
+                if metrics_callback:
+                    metrics_callback(
+                        {
+                            "phase": "probe",
+                            "current": done,
+                            "total": state.total,
+                            "tests_per_second": tests_per_second,
+                            "alive": alive_count,
+                        }
+                    )
+                endpoint = parse_endpoint(raw)
+                host = f"{endpoint.host}:{endpoint.port}" if endpoint else "unknown"
                 if ping_ms is not None:
-                    _log(f"[{done}/{state.total}] ✓ {host} → {ping_ms}ms (alive={alive_count})")
+                    _log(
+                        f"[TEST][OK] {done}/{state.total} {host} | {ping_ms} ms | "
+                        f"alive={alive_count} | speed={tests_per_second:.1f}/s"
+                    )
                 else:
-                    _log(f"[{done}/{state.total}] ✗ {host}")
+                    _log(
+                        f"[TEST][ERR] {done}/{state.total} {host} | timeout/invalid | "
+                        f"speed={tests_per_second:.1f}/s"
+                    )
             if len(state.alive) >= SCAN_TARGET_HEALTHY:
                 cancelled = True
                 for pending in future_to_raw:
                     pending.cancel()
-                _log(
-                    f"Healthy target reached ({SCAN_TARGET_HEALTHY}); "
-                    "stopping new probe submissions."
-                )
+                _log(f"[TEST][TARGET] healthy={SCAN_TARGET_HEALTHY}; stopping extra tests")
                 break
             _fill_queue()
     finally:
-        # Even an early stop joins the bounded active set. Each probe observes
-        # the stop event and owns a short timeout, so no executor thread or
-        # Xray child can outlive the ScannerSession.
         pool.shutdown(wait=True, cancel_futures=cancelled)
 
-    _log(f"Test done: {len(state.alive)} alive out of {state.total}")
-
-    if not state.stop_requested.is_set() and SCAN_PROBE_RETRY_LIMIT > 0:
-        with state.lock:
-            alive_keys = {a[0] for a in state.alive}
-            retried = [raw for raw in configs if raw not in alive_keys][:SCAN_PROBE_RETRY_LIMIT]
-        if retried:
-            _log(f"Retrying {len(retried)} failed configs...")
-            with concurrent.futures.ThreadPoolExecutor(max_workers=SCAN_PROBE_RETRY_WORKERS) as pool:
-                future_to_raw = {
-                    pool.submit(
-                        _probe_one,
-                        raw,
-                        timeout=SCAN_PROBE_TIMEOUT_S,
-                        stop_event=state.stop_requested,
-                    ): raw
-                    for raw in retried
-                }
-                for future in concurrent.futures.as_completed(future_to_raw):
-                    if state.stop_requested.is_set():
-                        for f in future_to_raw:
-                            f.cancel()
-                        break
-                    try:
-                        ping_ms = future.result()
-                    except Exception:
-                        ping_ms = None
-                    if ping_ms is not None:
-                        with state.lock:
-                            state.alive.append((future_to_raw[future], ping_ms))
-                        _log(f"Retry ✓ → {ping_ms}ms")
+    # Only retry a small bounded sample when the first pass did not reach the
+    # healthy target. Retrying every failure was a major source of RC2 stalls.
+    if (
+        not state.stop_requested.is_set()
+        and len(state.alive) < SCAN_TARGET_HEALTHY
+        and failed_raws
+        and SCAN_PROBE_RETRY_LIMIT > 0
+    ):
+        retry_rows = failed_raws[: min(8, len(failed_raws))]
+        _log(f"[TEST][RETRY] count={len(retry_rows)}")
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(SCAN_PROBE_RETRY_WORKERS, len(retry_rows)),
+            thread_name_prefix="dicodePing-retry",
+        ) as retry_pool:
+            retry_map = {
+                retry_pool.submit(
+                    _probe_one, raw, timeout=SCAN_PROBE_TIMEOUT_S + 0.8, stop_event=state.stop_requested
+                ): raw
+                for raw in retry_rows
+            }
+            for future in concurrent.futures.as_completed(retry_map):
+                if state.stop_requested.is_set() or len(state.alive) >= SCAN_TARGET_HEALTHY:
+                    for pending in retry_map:
+                        pending.cancel()
+                    break
+                try:
+                    ping_ms = future.result()
+                except Exception:
+                    ping_ms = None
+                if ping_ms is not None:
+                    with state.lock:
+                        state.alive.append((retry_map[future], ping_ms))
+                    if alive_count_callback:
+                        alive_count_callback(len(state.alive))
+                    _log(f"[TEST][RETRY-OK] {ping_ms} ms")
 
     with state.lock:
         state.alive.sort(key=lambda item: item[1])
         state.alive = state.alive[: min(SCAN_MAX_SERVERS, SCAN_TARGET_HEALTHY)]
-        _log(f"Final alive: {len(state.alive)}")
+        elapsed = max(0.001, time.monotonic() - started)
+        _log(
+            f"[TEST][DONE] checked={state.completed}/{state.total} alive={len(state.alive)} "
+            f"avg={state.completed / elapsed:.1f}/s duration={elapsed:.2f}s"
+        )
         return [raw for raw, _ in state.alive]
 
 
@@ -440,12 +475,14 @@ def run_scan(
     probe_progress: ProgressCallback | None = None,
     eta_callback: ETACallback | None = None,
     alive_count_callback: AliveCountCallback | None = None,
+    metrics_callback: MetricsCallback | None = None,
     log_callback: LogCallback | None = None,
     stop_event: threading.Event | None = None,
     connect_callback: Callable[[str], None] | None = None,
     disconnect_callback: Callable[[], None] | None = None,
     is_connected_callback: Callable[[], bool] | None = None,
     validate_connection_callback: Callable[[], bool] | None = None,
+    proxy_port_callback: Callable[[], int] | None = None,
     bootstrap_server_id: str | None = None,
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
@@ -462,6 +499,8 @@ def run_scan(
 
     def _log(line: str) -> None:
         state.log_lines.append(line)
+        if len(state.log_lines) > 1200:
+            del state.log_lines[: len(state.log_lines) - 1200]
         if log_callback:
             log_callback(line)
         LOGGER.info("scanner: %s", line)
@@ -491,28 +530,46 @@ def run_scan(
                 if validate_connection_callback and not validate_connection_callback():
                     raise RuntimeError("Bootstrap TUN failed real HTTP validation.")
         except Exception:
-            _log(f"Stage 1 failed: {__import__('traceback').format_exc()}")
+            import traceback
+            compact = traceback.format_exc().strip().splitlines()[-1]
+            _log(f"[CONNECT][ERR] {compact}")
             raise
     else:
         _log(tr(language, "scanner_stage1_skip"))
-        if connect_callback:
+        already_connected = bool(is_connected_callback and is_connected_callback())
+        if already_connected:
+            _log("[CONNECT][OK] Reusing the active bootstrap connection.")
+        elif connect_callback:
+            _log(f"[CONNECT][INFO] Restoring bootstrap server {bootstrap_server_id}...")
             connect_callback(bootstrap_server_id)
             deadline = time.monotonic() + 20.0
             while time.monotonic() < deadline:
                 if state.stop_requested.is_set():
                     raise RuntimeError("Scanner stopped while connecting; no results were saved.")
                 if is_connected_callback and is_connected_callback():
+                    already_connected = True
                     break
                 time.sleep(0.25)
-            else:
+            if not already_connected:
                 raise RuntimeError("Existing bootstrap TUN is not connected.")
-            if validate_connection_callback and not validate_connection_callback():
-                raise RuntimeError("Existing bootstrap TUN failed real HTTP validation.")
+        else:
+            raise RuntimeError("Existing bootstrap connection is unavailable.")
+        if validate_connection_callback and not validate_connection_callback():
+            raise RuntimeError("Existing bootstrap TUN failed real HTTP validation.")
 
     try:
         # --- Stage 2a: Crawl (through the bootstrap VPN) ---------------
         if stage_change:
             stage_change(2, tr(language, "scanner_stage2"))
+        socks_port = 0
+        if proxy_port_callback:
+            try:
+                socks_port = max(0, int(proxy_port_callback() or 0))
+            except Exception:
+                socks_port = 0
+        if socks_port:
+            _log(f"[CONNECT][PROXY] scanner traffic uses SOCKS5 127.0.0.1:{socks_port}")
+
         configs = _crawl_only(
             language=language,
             rank1_limit=rank1_limit,
@@ -520,7 +577,9 @@ def run_scan(
             stage=stage,
             crawl_progress=crawl_progress,
             eta_callback=eta_callback,
+            metrics_callback=metrics_callback,
             log_callback=_log,
+            socks_port=socks_port,
             state=state,
         )
 
@@ -558,6 +617,7 @@ def run_scan(
             probe_progress=probe_progress,
             eta_callback=eta_callback,
             alive_count_callback=alive_count_callback,
+            metrics_callback=metrics_callback,
             log_callback=_log,
             state=state,
         )

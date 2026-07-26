@@ -40,14 +40,19 @@ def test_android_per_app_is_wired_from_settings_to_vpn_builder():
 
 def test_platform_sharing_has_real_backends_and_cleanup():
     desktop = (ROOT / "dicodeping/vpn_sharing.py").read_text()
-    android = (
+    android_rooted = (
         ROOT
-        / "dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+        / "dicodePing_android/app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+    ).read_text()
+    android_standard = (
+        ROOT
+        / "dicodePing_android/app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
     ).read_text()
     assert "HNetCfg.HNetShare" in desktop
     assert "hostapd" in desktop and "dnsmasq" in desktop
-    assert "DICODEPING_SHARE" in android
-    assert "ip rule del" in android
+    assert "DICODEPING_SHARE" in android_rooted
+    assert "ip rule del" in android_rooted
+    assert "ProcessBuilder" not in android_standard
 
 
 def test_optional_core_downloads_are_sha_verified_and_atomic():

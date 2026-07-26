@@ -1,8 +1,13 @@
 {
   "schema": 1,
-  "release": "1.9.0-rc.1",
+  "release": "1.9.0-rc.4",
   "integrity": "SHA-256 verified",
-  "signature": null,
+  "signature": {
+    "windows": "legacy-style portable EXE; unsigned debug/test desktop build",
+    "linux": "legacy-style portable tar.gz; unsigned debug/test desktop build",
+    "macos": "portable DMG; unsigned debug/test desktop build",
+    "android": "release-signed APK"
+  },
   "cores": {
     "xray": {
       "version": "26.7.11",
@@ -42,14 +47,18 @@
       "macos-arm64": {
         "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-arm64.tar.gz",
         "sha256": "a966c0d72aa90a6db000172f9bf88f225377fe4d8546cf2340ef6aee1ccbd958",
-        "bundled": true
+        "bundled": false,
+        "publishedAsset": true
       },
       "macos-x86_64": {
         "url": "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-x86_64.tar.gz",
         "sha256": "ae2cd0a987d709ae017a9ea762b26f9276c418beb2a6f882253563c44b5aec1f",
-        "bundled": true
+        "bundled": false,
+        "publishedAsset": true
       },
-      "android": {"state": "unsupportedInThisBuild"}
+      "android": {
+        "state": "unsupportedInThisBuild"
+      }
     },
     "warp": {
       "version": "4.2.1",
@@ -64,14 +73,18 @@
       "macos-arm64": {
         "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_arm64.zip",
         "sha256": "762e2dc875669566207a3c776a53dc6bb50770da25f90e1ab69fbc53e91f8da1",
-        "bundled": true
+        "bundled": false,
+        "publishedAsset": true
       },
       "macos-x86_64": {
         "url": "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_amd64.zip",
         "sha256": "1eb41e34bf4cd0b81e06222ef844cea75eb56229a62fe29c07cf8e7bd253357d",
-        "bundled": true
+        "bundled": false,
+        "publishedAsset": true
       },
-      "android": {"state": "unsupportedInThisBuild"}
+      "android": {
+        "state": "unsupportedInThisBuild"
+      }
     },
     "psiphon": {
       "version": "2.0.39",

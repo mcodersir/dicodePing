@@ -19,6 +19,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
+import ir.dicode.ping.BuildConfig
 import ir.dicode.ping.MainActivity
 import ir.dicode.ping.core.AndroidCoreManager
 import ir.dicode.ping.data.SourceDefinition
@@ -186,10 +187,16 @@ class SettingsFragment : Fragment() {
             }
         }
 
-        binding.sharingUsb.isChecked = store.vpnSharingUsb
-        binding.sharingHotspot.isChecked = store.vpnSharingHotspot
-        binding.sharingUsb.setOnCheckedChangeListener { _, checked -> store.vpnSharingUsb = checked }
-        binding.sharingHotspot.setOnCheckedChangeListener { _, checked -> store.vpnSharingHotspot = checked }
+        binding.sharingCard.visibility = if (BuildConfig.ENABLE_ROOT_TETHERING) View.VISIBLE else View.GONE
+        if (BuildConfig.ENABLE_ROOT_TETHERING) {
+            binding.sharingUsb.isChecked = store.vpnSharingUsb
+            binding.sharingHotspot.isChecked = store.vpnSharingHotspot
+            binding.sharingUsb.setOnCheckedChangeListener { _, checked -> store.vpnSharingUsb = checked }
+            binding.sharingHotspot.setOnCheckedChangeListener { _, checked -> store.vpnSharingHotspot = checked }
+        } else {
+            store.vpnSharingUsb = false
+            store.vpnSharingHotspot = false
+        }
         binding.cdnFormatting.isChecked = store.cdnFormattingEnabled
         binding.cdnDomain.setText(store.cdnFormattingDomain)
         binding.cdnFormatting.setOnCheckedChangeListener { _, checked ->

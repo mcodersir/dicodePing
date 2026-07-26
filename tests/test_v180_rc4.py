@@ -47,8 +47,9 @@ def test_alternative_cores_have_filtered_network_fallback() -> None:
     aether = AlternativeCoreManager("aether")
     aether.socks_port = 18081
     aether_h2 = aether._command(Path("aether"), Path("."), {}, transport="http2")
-    assert "--ironclad" in aether_h2
+    assert aether_h2[aether_h2.index("--scan") + 1] == "balanced"
     assert "--h2" in aether_h2
+    assert "--noize" in aether_h2
 
     warp = AlternativeCoreManager("warp")
     warp.socks_port = 18082
@@ -64,7 +65,7 @@ def test_desktop_live_language_and_core_specific_home_are_wired() -> None:
     assert "self.body_layout.insertWidget(0, self.sidebar)" in ui
     assert "alternative_core_connect" in ui
     assert "self.home_recent_card.setVisible(not alternative)" in ui
-    assert "install_rc10_patches()" in (ROOT / "app_rc3.py").read_text(encoding="utf-8")
+    assert "install_rc10_patches," in (ROOT / "app_v190_rc4.py").read_text(encoding="utf-8")
 
 
 def test_table_names_both_latency_semantics() -> None:
