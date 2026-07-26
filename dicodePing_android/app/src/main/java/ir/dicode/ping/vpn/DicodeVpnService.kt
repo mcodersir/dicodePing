@@ -223,6 +223,7 @@ class DicodeVpnService : VpnService() {
                     bypassDomains,
                     resources.bufferSizeKiB,
                     settings.cdnFormattingDomain.takeIf { settings.cdnFormattingEnabled }.orEmpty(),
+                    settings.secureDnsDoh,
                 ),
                 tun!!.fd,
             )

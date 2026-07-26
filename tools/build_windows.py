@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_VERSION = "1.8.0"
-RC_VERSION = "rc.4"
+APP_VERSION = "1.9.0"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -33,8 +33,9 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         print("[1/4] Dependency installation skipped.", flush=True)
 
     if not skip_core:
-        print("[2/4] Preparing the official Xray core...", flush=True)
+        print("[2/4] Preparing the verified bundled cores...", flush=True)
         run([python, "-m", "tools.prepare_core"], root)
+        run([python, "-m", "tools.prepare_optional_cores"], root)
     else:
         print("[2/4] Xray preparation skipped.", flush=True)
 
@@ -107,6 +108,9 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         (core / "geoip.dat", "--add-data"),
         (core / "geosite.dat", "--add-data"),
         (core / "wintun.dll", "--add-binary"),
+        (core / "aether.exe", "--add-binary"),
+        (core / "usque.exe", "--add-binary"),
+        (core / "bundled-cores.json", "--add-data"),
     )
     for path, switch in optional_files:
         if path.exists():

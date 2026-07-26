@@ -1,17 +1,19 @@
-"""Verified, on-demand connection-core installation.
+"""Verified connection-core discovery and installation.
 
-Alternative cores are deliberately excluded from the application bundle.  This
-module downloads immutable upstream assets, verifies SHA-256 before extraction,
-prevents archive traversal, and atomically installs one version per core.
+Release builds bundle the supported desktop cores after CI verifies the
+immutable upstream archives.  The guarded downloader remains for repair and
+development builds, but a normal user never needs to fetch a core separately.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import platform
 import shutil
 import socket
 import subprocess
+import sys
 import tarfile
 import tempfile
 import threading
@@ -24,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from .constants import DATA_DIR
+from .constants import BUNDLED_CORE_DIR, DATA_DIR
 from .diagnostics import get_logger
 from .core_runtime import CancellationToken, CoreState
 
@@ -66,6 +68,37 @@ class CoreDescriptor:
 
 
 _windows = os.name == "nt"
+_macos = sys.platform == "darwin"
+_machine = platform.machine().lower()
+_arm64 = _machine in {"arm64", "aarch64"}
+
+
+def _platform_asset(
+    *,
+    windows: tuple[str, str],
+    linux: tuple[str, str],
+    macos_x64: tuple[str, str],
+    macos_arm64: tuple[str, str],
+) -> tuple[str, str]:
+    if _windows:
+        return windows
+    if _macos:
+        return macos_arm64 if _arm64 else macos_x64
+    return linux
+
+
+_aether_asset, _aether_sha = _platform_asset(
+    windows=("aether-windows-x86_64.zip", "4b4ac4c2dcade01c13bc6f1706f7f62e94c3b3058184212692bd9d598c0ce9b4"),
+    linux=("aether-linux-x86_64.tar.gz", "683dc190a948e8555fc9738ef2d1be403d95606e191e75f0e6941012c6b869cd"),
+    macos_x64=("aether-macos-x86_64.tar.gz", "ae2cd0a987d709ae017a9ea762b26f9276c418beb2a6f882253563c44b5aec1f"),
+    macos_arm64=("aether-macos-arm64.tar.gz", "a966c0d72aa90a6db000172f9bf88f225377fe4d8546cf2340ef6aee1ccbd958"),
+)
+_usque_asset, _usque_sha = _platform_asset(
+    windows=("usque_4.2.1_windows_amd64.zip", "f6f7f0a1a2bc9bcc15cf563ec1f892d00690a92c086b23ed3211b802209099e7"),
+    linux=("usque_4.2.1_linux_amd64.zip", "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313"),
+    macos_x64=("usque_4.2.1_darwin_amd64.zip", "1eb41e34bf4cd0b81e06222ef844cea75eb56229a62fe29c07cf8e7bd253357d"),
+    macos_arm64=("usque_4.2.1_darwin_arm64.zip", "762e2dc875669566207a3c776a53dc6bb50770da25f90e1ab69fbc53e91f8da1"),
+)
 CORE_CATALOG: dict[str, CoreDescriptor] = {
     "xray": CoreDescriptor(
         "xray",
@@ -108,14 +141,9 @@ CORE_CATALOG: dict[str, CoreDescriptor] = {
         "aether",
         "Aether 1.4 (Ironclad)",
         "MASQUE/WireGuard core with real-tunnel Ironclad validation.",
-        "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/"
-        + ("aether-windows-x86_64.zip" if _windows else "aether-linux-x86_64.tar.gz"),
-        (
-            "4b4ac4c2dcade01c13bc6f1706f7f62e94c3b3058184212692bd9d598c0ce9b4"
-            if _windows
-            else "683dc190a948e8555fc9738ef2d1be403d95606e191e75f0e6941012c6b869cd"
-        ),
-        "zip" if _windows else "tar.gz",
+        "https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/" + _aether_asset,
+        _aether_sha,
+        "zip" if _aether_asset.endswith(".zip") else "tar.gz",
         "aether.exe" if _windows else "aether",
         22,
         "https://github.com/CluvexStudio/Aether",
@@ -125,13 +153,8 @@ CORE_CATALOG: dict[str, CoreDescriptor] = {
         "warp",
         "WARP / Usque",
         "Cloudflare WARP-compatible userspace tunnel powered by Usque.",
-        "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/"
-        + ("usque_4.2.1_windows_amd64.zip" if _windows else "usque_4.2.1_linux_amd64.zip"),
-        (
-            "f6f7f0a1a2bc9bcc15cf563ec1f892d00690a92c086b23ed3211b802209099e7"
-            if _windows
-            else "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313"
-        ),
+        "https://github.com/Diniboy1123/usque/releases/download/v4.2.1/" + _usque_asset,
+        _usque_sha,
         "zip",
         "usque.exe" if _windows else "usque",
         6,
@@ -161,7 +184,7 @@ def core_capability(core_id: str) -> tuple[CoreState, str]:
     if core_id not in CORE_CATALOG:
         return CoreState.UNSUPPORTED, "Unsupported in this build"
     return (
-        (CoreState.INSTALLED, "SHA-256 verified")
+        (CoreState.INSTALLED, "Bundled; upstream archive SHA-256 verified")
         if is_core_available(core_id)
         else (CoreState.NOT_INSTALLED, "Verified download is available")
     )
@@ -186,6 +209,9 @@ def is_core_available(core_id: str) -> bool:
     descriptor = get_core(core_id)
     if descriptor is None:
         return False
+    bundled = BUNDLED_CORE_DIR / descriptor.executable_name
+    if bundled.is_file() and (os.name == "nt" or os.access(bundled, os.X_OK)):
+        return True
     executable = core_dir(core_id) / descriptor.executable_name
     metadata_path = core_dir(core_id) / "install.json"
     if not executable.is_file() or not metadata_path.is_file():
@@ -208,7 +234,12 @@ def resolve_core_path(core_id: str) -> Path | None:
         from .xray import find_xray
         return find_xray()
     descriptor = get_core(core_id)
-    if descriptor is None or not is_core_available(core_id):
+    if descriptor is None:
+        return None
+    bundled = BUNDLED_CORE_DIR / descriptor.executable_name
+    if bundled.is_file() and (os.name == "nt" or os.access(bundled, os.X_OK)):
+        return bundled
+    if not is_core_available(core_id):
         return None
     return core_dir(core_id) / descriptor.executable_name
 
@@ -225,7 +256,7 @@ def _download_file(
     partial.unlink(missing_ok=True)
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "dicodePing/1.8", "Accept": "application/octet-stream,*/*"},
+        headers={"User-Agent": "dicodePing/1.9", "Accept": "application/octet-stream,*/*"},
     )
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or (parsed.hostname or "").lower() not in ALLOWED_DOWNLOAD_HOSTS:

@@ -8,6 +8,7 @@ import shutil
 import socket
 import struct
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -104,7 +105,7 @@ def _http_probe_through_socks(port: int, timeout: float = 5.0) -> int | None:
             with _socks5_connect(port, host, 80, timeout) as sock:
                 request = (
                     f"GET {path} HTTP/1.1\r\nHost: {host}\r\n"
-                    "Connection: close\r\nUser-Agent: dicodePing/1.8\r\n\r\n"
+                    "Connection: close\r\nUser-Agent: dicodePing/1.9\r\n\r\n"
                 ).encode("ascii")
                 sock.sendall(request)
                 status = sock.recv(128)
@@ -121,6 +122,7 @@ class _SystemProxy:
     def __init__(self) -> None:
         self._windows_previous: tuple[int, str] | None = None
         self._gnome_previous: dict[str, str] | None = None
+        self._mac_previous: dict[str, tuple[bool, str, str]] = {}
 
     @staticmethod
     def _value_exists(key, name: str) -> bool:
@@ -146,6 +148,36 @@ class _SystemProxy:
                 winreg.SetValueEx(key, "ProxyEnable", 0, winreg.REG_DWORD, 1)
             ctypes.windll.Wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.Wininet.InternetSetOptionW(0, 37, 0, 0)
+            return
+        if sys.platform == "darwin" and shutil.which("networksetup"):
+            listing = subprocess.run(
+                ["networksetup", "-listallnetworkservices"],
+                capture_output=True, text=True, timeout=5, check=True,
+            ).stdout.splitlines()[1:]
+            services = [line.strip().lstrip("*").strip() for line in listing if line.strip()]
+            for service in services:
+                state = subprocess.run(
+                    ["networksetup", "-getsocksfirewallproxy", service],
+                    capture_output=True, text=True, timeout=5,
+                ).stdout
+                values = {}
+                for line in state.splitlines():
+                    if ":" in line:
+                        key, value = line.split(":", 1)
+                        values[key.strip()] = value.strip()
+                self._mac_previous[service] = (
+                    values.get("Enabled", "No").lower() == "yes",
+                    values.get("Server", ""),
+                    values.get("Port", "0"),
+                )
+                subprocess.run(
+                    ["networksetup", "-setsocksfirewallproxy", service, "127.0.0.1", str(port)],
+                    check=True, timeout=5,
+                )
+                subprocess.run(
+                    ["networksetup", "-setsocksfirewallproxystate", service, "on"],
+                    check=True, timeout=5,
+                )
             return
         if shutil.which("gsettings"):
             keys = {
@@ -179,6 +211,18 @@ class _SystemProxy:
             ctypes.windll.Wininet.InternetSetOptionW(0, 39, 0, 0)
             ctypes.windll.Wininet.InternetSetOptionW(0, 37, 0, 0)
             self._windows_previous = None
+        if self._mac_previous and shutil.which("networksetup"):
+            for service, (enabled, host, port) in self._mac_previous.items():
+                if host and port and port != "0":
+                    subprocess.run(
+                        ["networksetup", "-setsocksfirewallproxy", service, host, port],
+                        check=False, timeout=5,
+                    )
+                subprocess.run(
+                    ["networksetup", "-setsocksfirewallproxystate", service, "on" if enabled else "off"],
+                    check=False, timeout=5,
+                )
+            self._mac_previous.clear()
         if self._gnome_previous is not None and shutil.which("gsettings"):
             previous = self._gnome_previous
             subprocess.run(["gsettings", "set", "org.gnome.system.proxy.socks", "host", previous["host"]], check=False)
@@ -195,6 +239,7 @@ class AlternativeCoreManager:
         self._log_handle = None
         self._lock = threading.RLock()
         self._system_proxy = _SystemProxy()
+        self._options: dict[str, object] = {}
         self.lifecycle = LifecycleController()
         atexit.register(self.stop)
 
@@ -210,10 +255,12 @@ class AlternativeCoreManager:
     def state(self) -> CoreState:
         return self.lifecycle.status.state
 
-    def start(self, _raw_config: str = "", progress: Callable[[str], None] | None = None, **_kwargs) -> None:
+    def start(self, _raw_config: str = "", progress: Callable[[str], None] | None = None, **kwargs) -> None:
         with self._lock:
             self.stop()
             token = self.lifecycle.begin(CoreState.STARTING)
+            raw_options = kwargs.get("core_options")
+            self._options = dict(raw_options) if isinstance(raw_options, dict) else {}
             executable = resolve_core_path(self.core_id)
             if executable is None:
                 self.lifecycle.fail(token, f"{self.core_id} core is not downloaded")
@@ -225,7 +272,9 @@ class AlternativeCoreManager:
             environment = os.environ.copy()
             self.socks_port = PORT_REGISTRY.acquire()
             try:
-                command = self._command(executable, runtime, environment)
+                requested_transport = str(self._options.get("transport", "auto"))
+                first_transport = "http2" if requested_transport == "http2" else "quic"
+                command = self._command(executable, runtime, environment, transport=first_transport)
                 if progress:
                     progress(f"Starting {self.core_id}…")
                 self.process = PROCESS_REGISTRY.register(
@@ -253,6 +302,9 @@ class AlternativeCoreManager:
                         self.lifecycle.transition(token, CoreState.CONNECTED)
                         return
                     token.wait(0.35)
+                if requested_transport == "http2":
+                    tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
+                    raise RuntimeError(f"{self.core_id} did not establish verified HTTP traffic over HTTP/2: {tail}")
                 first_process, self.process = self.process, None
                 PROCESS_REGISTRY.stop(first_process, timeout=3)
                 if progress:
@@ -298,22 +350,36 @@ class AlternativeCoreManager:
         transport: str = "quic",
     ) -> list[str]:
         if self.core_id == "aether":
+            protocol = str(self._options.get("protocol", "masque"))
+            if protocol not in {"masque", "wireguard", "gool"}:
+                protocol = "masque"
+            scan = str(self._options.get("scan", "ironclad"))
+            if scan not in {"turbo", "balanced", "thorough", "stealth", "ironclad"}:
+                scan = "ironclad"
+            performance = str(self._options.get("performance", "medium"))
+            if performance not in {"low", "medium", "high"}:
+                performance = "medium"
             environment.update(
                 {
-                    "AETHER_PROTOCOL": "masque",
-                    "AETHER_SCAN": "ironclad",
-                    "AETHER_QUICK_RECONNECT": "1",
+                    "AETHER_PROTOCOL": protocol,
+                    "AETHER_SCAN": scan,
+                    "AETHER_QUICK_RECONNECT": "1" if self._options.get("quick_reconnect", True) else "0",
                 }
             )
             command = [
                 str(executable),
-                "--masque",
+                f"--{protocol}",
                 "-4",
-                "--ironclad",
-                "--quick-reconnect",
+                "--perf",
+                performance,
                 "--bind",
                 f"127.0.0.1:{self.socks_port}",
             ]
+            command.extend(["--ironclad"] if scan == "ironclad" else ["--scan", scan])
+            if self._options.get("quick_reconnect", True):
+                command.append("--quick-reconnect")
+            else:
+                command.append("--no-quick-reconnect")
             identity = executable.parent / "aether-masque.toml"
             if identity.is_file():
                 command.extend(["--masque-config", str(identity)])

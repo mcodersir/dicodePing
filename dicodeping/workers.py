@@ -406,6 +406,8 @@ class ConnectThread(TaskThread):
         language: str = "fa",
         bypass_domains: list[str] | None = None,
         cdn_domain: str = "",
+        secure_dns: bool = True,
+        core_options: dict[str, object] | None = None,
     ) -> None:
         super().__init__()
         self.manager = manager
@@ -413,6 +415,8 @@ class ConnectThread(TaskThread):
         self.language = language
         self.bypass_domains = list(bypass_domains or [])
         self.cdn_domain = cdn_domain.strip()
+        self.secure_dns = bool(secure_dns)
+        self.core_options = dict(core_options or {})
 
     def run(self) -> None:
         try:
@@ -435,6 +439,8 @@ class ConnectThread(TaskThread):
                 bypass_domains=self.bypass_domains,
                 endpoint_host=self.server.host,
                 endpoint_port=self.server.port,
+                secure_dns=self.secure_dns,
+                core_options=self.core_options,
             )
             if self.isInterruptionRequested():
                 self.manager.stop()

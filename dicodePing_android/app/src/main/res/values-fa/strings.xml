@@ -144,6 +144,7 @@
     <string name="clear_logs">پاک کردن لاگ</string>
     <string name="logs_cleared">لاگ تشخیصی پاک شد</string>
     <string name="diagnostic_logging">ثبت گزارش عیب‌یابی (پیش‌فرض خاموش)</string>
+    <string name="secure_dns_doh">DNS امن (DNS-over-HTTPS، برگرفته از Intra)</string>
     <string name="log_share_failed">اشتراک لاگ تشخیصی انجام نشد</string>
     <string name="server_change_locked">برای تغییر سرور ابتدا اتصال را قطع کنید</string>
     <string name="server_disabled">غیرفعال</string>

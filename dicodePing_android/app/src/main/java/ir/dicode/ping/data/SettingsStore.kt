@@ -65,6 +65,9 @@ class SettingsStore(context: Context) {
     var diagnosticLogging: Boolean
         get() = prefs.getBoolean("diagnostic_logging", false)
         set(value) = prefs.edit().putBoolean("diagnostic_logging", value).apply()
+    var secureDnsDoh: Boolean
+        get() = prefs.getBoolean("secure_dns_doh", true)
+        set(value) = prefs.edit().putBoolean("secure_dns_doh", value).apply()
     var sourceRevisions: Map<String, String>
         get() = runCatching {
             val json = JSONObject(prefs.getString("source_revisions", "{}") ?: "{}")
