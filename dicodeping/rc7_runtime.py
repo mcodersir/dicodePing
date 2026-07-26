@@ -70,6 +70,31 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
         if address:
             row.ip = address
 
+    # ICMP answers a different question from the Xray HTTP probe.  Collect it
+    # once per endpoint for an honest UI comparison, but never use it to mark a
+    # configuration healthy or to select the best server.
+    endpoint_rows: dict[tuple[str, str], list[ServerRecord]] = defaultdict(list)
+    for row in rows:
+        endpoint_rows[(row.host, row.ip)].append(row)
+
+    def endpoint_icmp(endpoint: tuple[str, str]) -> tuple[tuple[str, str], int | None]:
+        host, resolved_ip = endpoint
+        try:
+            latency, _ip = net_module.icmp_ping(
+                host,
+                attempts=1,
+                timeout=1.2,
+                resolved_ip=resolved_ip,
+            )
+            return endpoint, latency
+        except Exception:
+            return endpoint, None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, max(1, len(endpoint_rows)))) as pool:
+        for endpoint, latency in pool.map(endpoint_icmp, endpoint_rows):
+            for row in endpoint_rows[endpoint]:
+                row.icmp_ms = latency
+
     timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3000, 1500, 5000)
     timeout = max(2.5, timeout_ms / 1000.0)
     # v2rayNG tests a batch concurrently (16 by default). The previous cap of
@@ -186,6 +211,7 @@ def _install_service_patch() -> None:
                 source_name=entry.source_name, source_order=entry.source_order,
                 favorite=previous.favorite if previous else False,
                 last_connected=previous.last_connected if previous else "",
+                icmp_ms=previous.icmp_ms if previous else None,
                 ping_ms=previous.ping_ms if previous else None,
                 ip=previous.ip if previous else "",
                 country=previous.country if previous else ("Unknown" if kwargs.get("language") == "en" else "نامشخص"),

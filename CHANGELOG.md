@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.8.0-rc.4 — honest latency, reliable connect, live locale, core-first Home
+
+- Server rows now preserve and display two separate measurements: endpoint
+  ICMP RTT and verified HTTP latency through the exact Xray configuration.
+  Health and automatic selection continue to require the Xray HTTP probe.
+- Selected-server refresh no longer promotes a TCP-only result to healthy.
+- Xray startup now validates the selected outbound through a private SOCKS
+  inbound before validating system-wide TUN routing, waits for bounded
+  Windows/Linux route propagation, and routes the Stats API correctly.
+- Xray validation/API ports use the central registry and are released on every
+  stop/error path.
+- English navigation is fixed to the left and Persian navigation to the right.
+  Changing language rebuilds the presentation tree immediately without a
+  process restart or losing the active connection manager.
+- Activating Aether or WARP changes Home into a dedicated core control screen
+  with an explicit Connect/Disconnect action; server/scanner content is hidden.
+- Aether uses Ironclad correctly and both Aether and Usque automatically retry
+  filtered QUIC/MASQUE startup over HTTP/2.
+- Alternative-core monitoring accepts explicit unsupported traffic counters
+  without crashing, and teardown still waits for every owned process.
+- Python package `1.8.0rc4`, Android `versionName 1.8.0-rc.4` and
+  `versionCode 35`.
+
 ## 1.8.0-rc.3 — strict lifecycle, verified scanner, honest capabilities
 
 - Added a serialized core lifecycle with generation cancellation, central

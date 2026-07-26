@@ -875,7 +875,9 @@ class MainWindow(QMainWindow):
         self.body_layout = QHBoxLayout(body)
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(0)
-        self.body_layout.setDirection(QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
+        # Place the rail explicitly below. Relying on both application
+        # layoutDirection and a mirrored QBox direction double-flipped it.
+        self.body_layout.setDirection(QBoxLayout.LeftToRight)
         shell_layout.addWidget(body, 1)
 
         content = QWidget()
@@ -916,7 +918,9 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar(self)
         self.sidebar.page_requested.connect(self.switch_page)
-        self.body_layout.addWidget(self.sidebar)
+        # The application layout direction mirrors this logical leading item:
+        # left in English and right in Persian.
+        self.body_layout.insertWidget(0, self.sidebar)
 
     def _page_header(self, title: str, subtitle: str) -> QWidget:
         container = QWidget()
@@ -946,7 +950,11 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
-        layout.addWidget(self._page_header(self.t("home"), self.t("home_subtitle")))
+        self.home_page_header = self._page_header(self.t("home"), self.t("home_subtitle"))
+        home_header_labels = self.home_page_header.findChildren(QLabel)
+        self.home_page_title_label = home_header_labels[0]
+        self.home_page_subtitle_label = home_header_labels[1]
+        layout.addWidget(self.home_page_header)
 
         hero = QFrame()
         hero.setObjectName("heroCard")
@@ -1005,6 +1013,7 @@ class MainWindow(QMainWindow):
         self.hero_layout.addWidget(self.hero_divider)
 
         info_widget = QWidget()
+        self.home_target_widget = info_widget
         info = QVBoxLayout(info_widget)
         info.setContentsMargins(0, 0, 0, 0)
         info.setSpacing(10)
@@ -1030,11 +1039,11 @@ class MainWindow(QMainWindow):
         self.home_best_meta.setMinimumHeight(42)
         info.addWidget(self.home_best_meta)
         info.addStretch()
-        open_servers = QPushButton(self.t("open_all_servers"))
-        open_servers.setProperty("kind", "ghost")
-        open_servers.setIcon(icon("servers.svg"))
-        open_servers.clicked.connect(lambda: self.switch_page(1))
-        info.addWidget(open_servers)
+        self.home_open_servers_button = QPushButton(self.t("open_all_servers"))
+        self.home_open_servers_button.setProperty("kind", "ghost")
+        self.home_open_servers_button.setIcon(icon("servers.svg"))
+        self.home_open_servers_button.clicked.connect(lambda: self.switch_page(1))
+        info.addWidget(self.home_open_servers_button)
         self.hero_layout.addWidget(info_widget, 2)
         layout.addWidget(hero)
 
@@ -1069,11 +1078,13 @@ class MainWindow(QMainWindow):
         self.stat_total = self._stat_card(self.t("saved_servers"), "0", "servers.svg")
         self.stat_online = self._stat_card(self.t("responsive_servers"), "0", "check.svg")
         self.stat_ping = self._stat_card(self.t("best_ping"), "—", "speed.svg")
-        for card in (self.stat_total[0], self.stat_online[0], self.stat_ping[0]):
+        self.home_stat_cards = (self.stat_total[0], self.stat_online[0], self.stat_ping[0])
+        for card in self.home_stat_cards:
             self.stats_layout.addWidget(card)
         layout.addLayout(self.stats_layout)
 
         recent_card = QFrame()
+        self.home_recent_card = recent_card
         recent_card.setObjectName("card")
         recent_layout = QVBoxLayout(recent_card)
         recent_layout.setContentsMargins(16, 14, 16, 14)
@@ -1086,7 +1097,9 @@ class MainWindow(QMainWindow):
         recent_header.addWidget(recent_hint)
         recent_layout.addLayout(recent_header)
         self.home_table = QTableWidget(0, 3)
-        self.home_table.setHorizontalHeaderLabels([self.t("server"), self.t("location"), self.t("ping")])
+        self.home_table.setHorizontalHeaderLabels(
+            [self.t("server"), self.t("location"), self.t("latency_columns")]
+        )
         self.home_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.home_table.setSelectionMode(QAbstractItemView.NoSelection)
         self.home_table.setFocusPolicy(Qt.NoFocus)
@@ -1210,7 +1223,7 @@ class MainWindow(QMainWindow):
             self.t("server"),
             self.t("location"),
             self.t("ip"),
-            self.t("ping"),
+            self.t("latency_columns"),
             self.t("quality_label"),
             self.t("pin"),
             self.t("action"),
@@ -2309,6 +2322,7 @@ class MainWindow(QMainWindow):
             set_active_core(core_id)
             self.manager.reload_selection()
             self._sync_core_mode_ui()
+            self.switch_page(0)
             self.conn_method_status_label.setText(self.t("conn_method_active") + f": {core_id}")
         except Exception as exc:
             self.conn_method_status_label.setText(f"خطا: {exc}")
@@ -2480,7 +2494,14 @@ class MainWindow(QMainWindow):
         effective = "dark" if theme == "system" and palette.window().color().lightness() < 128 else theme
         if effective == "system":
             effective = "light"
-        QApplication.instance().setStyleSheet(build_stylesheet(effective))
+        colors = DARK if effective == "dark" else LIGHT
+        separator = (
+            f"QFrame#sidebar {{ border-right: 0; border-left: 1px solid {colors['border']}; }}"
+            if self.is_rtl
+            else
+            f"QFrame#sidebar {{ border-left: 0; border-right: 1px solid {colors['border']}; }}"
+        )
+        QApplication.instance().setStyleSheet(build_stylesheet(effective) + separator)
         if hasattr(self, "theme_combo"):
             index = self.theme_combo.findData(theme)
             if index >= 0:
@@ -2707,7 +2728,11 @@ class MainWindow(QMainWindow):
                     if name_item and name_item.data(Qt.UserRole) == self.connected_id:
                         ping_item = self.table.item(row, 4)
                         if ping_item:
-                            ping_item.setText(f"{ping} ms")
+                            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+                            ping_item.setText(
+                                f"{self.t('icmp_short')} {icmp_text}\n"
+                                f"{self.t('xray_short')} {ping} ms"
+                            )
                             ping_item.setData(Qt.UserRole, ping)
                         break
 
@@ -2806,7 +2831,12 @@ class MainWindow(QMainWindow):
                 continue
             ping = self.table.item(row, 4)
             if ping:
-                ping.setText(f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable"))
+                icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+                xray_text = f"{server.ping_ms} ms" if server.ping_ms is not None else "—"
+                ping.setText(
+                    f"{self.t('icmp_short')} {icmp_text}\n"
+                    f"{self.t('xray_short')} {xray_text}"
+                )
                 ping.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
             location = self.table.item(row, 2)
             if location:
@@ -2988,7 +3018,12 @@ class MainWindow(QMainWindow):
             # and hover-inspection still work.
             from .volume import rate_quality
             rating = rate_quality(server.ping_ms)
-            ping_text = f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable")
+            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+            xray_text = f"{server.ping_ms} ms" if server.ping_ms is not None else "—"
+            ping_text = (
+                f"{self.t('icmp_short')} {icmp_text}\n"
+                f"{self.t('xray_short')} {xray_text}"
+            )
             ping_item = QTableWidgetItem(ping_text)
             ping_item.setTextAlignment(Qt.AlignCenter)
             ping_item.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
@@ -3003,6 +3038,8 @@ class MainWindow(QMainWindow):
             ping_item.setBackground(ping_brush)
             volume_label = getattr(server, "_volume_label", None) or "—"
             ping_item.setToolTip(
+                self.t("latency_details", icmp=icmp_text, xray=xray_text)
+                + "\n"
                 f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
                 f"{self.t('scanner_volume_title')}: {volume_label}"
             )
@@ -3114,7 +3151,11 @@ class MainWindow(QMainWindow):
         for row, server in enumerate(top):
             self.home_table.setItem(row, 0, QTableWidgetItem(server.name))
             self.home_table.setCellWidget(row, 1, self._home_location_widget(server))
-            ping = QTableWidgetItem(f"{server.ping_ms} ms")
+            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+            ping = QTableWidgetItem(
+                f"{self.t('icmp_short')} {icmp_text}\n"
+                f"{self.t('xray_short')} {server.ping_ms} ms"
+            )
             ping.setTextAlignment(Qt.AlignCenter)
             self.home_table.setItem(row, 2, ping)
             self.home_table.setRowHeight(row, 46)
@@ -3287,17 +3328,39 @@ class MainWindow(QMainWindow):
     def _sync_core_mode_ui(self) -> None:
         if not hasattr(self, "sidebar"):
             return
-        alternative = getattr(self.manager, "active_core", "xray") != "xray"
+        core_id = getattr(self.manager, "active_core", "xray")
+        alternative = core_id != "xray"
         for index in (1, 2):
             self.sidebar.buttons[index].setEnabled(not alternative)
         if hasattr(self, "home_scan_button"):
+            self.home_scan_button.setVisible(not alternative)
             self.home_scan_button.setEnabled(not alternative)
         if hasattr(self, "home_refresh_button"):
+            self.home_refresh_button.setVisible(not alternative)
             self.home_refresh_button.setEnabled(not alternative)
+        for card in getattr(self, "home_stat_cards", ()):
+            card.setVisible(not alternative)
+        if hasattr(self, "home_recent_card"):
+            self.home_recent_card.setVisible(not alternative)
+        if hasattr(self, "home_open_servers_button"):
+            self.home_open_servers_button.setVisible(not alternative)
+        if hasattr(self, "home_target_widget"):
+            self.home_target_widget.setVisible(not alternative)
+        if hasattr(self, "hero_divider"):
+            self.hero_divider.setVisible(not alternative)
+            self.hero_divider.setMaximumWidth(0 if alternative else 16777215)
+        self.home_best_flag.setVisible(False if alternative else self.home_best_flag.isVisible())
         if alternative:
-            core_name = getattr(self.manager, "active_core", "").title()
+            core_name = "WARP / Usque" if core_id == "warp" else "Aether (Ironclad)" if core_id == "aether" else core_id.title()
+            self.home_target_label.setText(self.t("active_connection_core"))
             self.home_best_name.setText(core_name)
-            self.home_best_meta.setText(self.t("conn_method_help"))
+            self.home_best_meta.setText(self.t("alternative_core_integrity"))
+            self.home_page_subtitle_label.setText(
+                self.t("alternative_home_subtitle", core=core_name)
+            )
+        else:
+            self.home_page_subtitle_label.setText(self.t("home_subtitle"))
+        self.update_connection_ui()
 
     def connect_server(self, server: ServerRecord, *, automatic: bool = False) -> None:
         if self.worker or self.manager.connected:
@@ -3435,6 +3498,45 @@ class MainWindow(QMainWindow):
 
     def update_connection_ui(self) -> None:
         connected = self.manager.connected
+        core_id = getattr(self.manager, "active_core", "xray")
+        if core_id != "xray":
+            core_name = "WARP / Usque" if core_id == "warp" else "Aether (Ironclad)" if core_id == "aether" else core_id.title()
+            if connected:
+                self.live_metrics_card.setVisible(True)
+                self._set_status_visual("online", self.t("connected"))
+                self.home_hero_title.setText(self.t("connected"))
+                self.home_hero_detail.setText(
+                    self.t("alternative_core_connected", core=core_name)
+                )
+                self.home_primary_button.setText(self.t("disconnect"))
+                self.home_primary_button.setIcon(tinted_icon("power.svg"))
+                self.home_primary_button.setProperty("kind", "danger")
+            elif self.worker:
+                self.live_metrics_card.setVisible(False)
+                self._set_status_visual("busy", self.t("processing"))
+                self.home_hero_title.setText(self.t("connecting_button"))
+                self.home_hero_detail.setText(
+                    self.t("alternative_core_ready", core=core_name)
+                )
+                self.home_primary_button.setText(self.t("cancel_connection"))
+                self.home_primary_button.setIcon(tinted_icon("refresh.svg"))
+                self.home_primary_button.setProperty("kind", "primary")
+            else:
+                self.live_metrics_card.setVisible(False)
+                self._set_status_visual("offline", self.t("disconnected"))
+                self.home_hero_title.setText(core_name)
+                self.home_hero_detail.setText(
+                    self.t("alternative_core_ready", core=core_name)
+                )
+                self.home_primary_button.setText(
+                    self.t("alternative_core_connect", core=core_name)
+                )
+                self.home_primary_button.setIcon(tinted_icon("power.svg"))
+                self.home_primary_button.setProperty("kind", "primary")
+            self.sidebar.set_connection_state(connected, bool(self.worker))
+            repolish(self.home_primary_button)
+            self._update_manual_connect_state()
+            return
         manual = self.settings.get("connection_mode", "auto") == "manual"
         if connected:
             server = next((item for item in self.servers if item.id == self.connected_id), None)
@@ -3647,7 +3749,37 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(2200, lambda: self.settings_saved_label.setText(""))
         self.update_connection_ui()
         if self.settings["language"] != old_language:
-            AppDialog.info(self, self.t("restart_title"), self.t("language_restart"), self.t("ok"))
+            self._apply_language_live(str(self.settings["language"]))
+            self.settings_saved_label.setText(self.t("settings_saved"))
+
+    def _apply_language_live(self, language: str) -> None:
+        """Rebuild translated widgets without restarting the process.
+
+        Runtime managers, connections and worker ownership stay on the window;
+        only the presentation tree is replaced.
+        """
+        new_language = "en" if language == "en" else "fa"
+        if new_language == self.language:
+            return
+        page_index = self.pages.currentIndex() if hasattr(self, "pages") else 0
+        expanded = self.sidebar.expanded if hasattr(self, "sidebar") else True
+        old_root = self.takeCentralWidget()
+        self.language = new_language
+        self.is_rtl = new_language == "fa"
+        direction = Qt.RightToLeft if self.is_rtl else Qt.LeftToRight
+        application = QApplication.instance()
+        application.setLayoutDirection(direction)
+        self.setLayoutDirection(direction)
+        self._build_ui()
+        self.sidebar.set_expanded(expanded, animate=False)
+        self._sync_core_mode_ui()
+        self.apply_theme(str(self.settings.get("theme", "dark")), save=False)
+        self.render_subscription_list()
+        self.render_servers()
+        self.switch_page(page_index, animate=False)
+        self.update_connection_ui()
+        if old_root is not None:
+            old_root.deleteLater()
 
     def clear_servers(self) -> None:
         accepted = AppDialog.confirm(

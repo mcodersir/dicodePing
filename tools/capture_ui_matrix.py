@@ -25,6 +25,7 @@ from dicodeping.rc6_runtime import install_rc6_patches  # noqa: E402
 from dicodeping.rc7_runtime import install_rc7_patches  # noqa: E402
 from dicodeping.rc8_runtime import install_rc8_patches  # noqa: E402
 from dicodeping.rc9_runtime import install_rc9_patches  # noqa: E402
+from dicodeping.rc10_runtime import install_rc10_patches  # noqa: E402
 
 for install in (
     install_rc2_patches,
@@ -35,10 +36,12 @@ for install in (
     install_rc7_patches,
     install_rc8_patches,
     install_rc9_patches,
+    install_rc10_patches,
 ):
     install()
 
 from dicodeping.ui import MainWindow  # noqa: E402
+from dicodeping.core_manager import ACTIVE_CORE_FILE  # noqa: E402
 
 
 def sample_servers() -> list[ServerRecord]:
@@ -51,6 +54,7 @@ def sample_servers() -> list[ServerRecord]:
             host=f"edge-{index + 1}.example.net",
             port=443,
             config_blob="dmxlc3M6Ly9zYW1wbGU=",
+            icmp_ms=47 + index * 31,
             ping_ms=82 + index * 37,
             ip=f"203.0.113.{index + 10}",
             country=country,
@@ -65,7 +69,7 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.8.0-rc.3"
+    output = ROOT / "docs/screenshots/v1.8.0-rc.4"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     for font_file in (ROOT / "assets" / "fonts").glob("Vazirmatn-*.ttf"):
@@ -100,6 +104,35 @@ def main() -> int:
                         raise RuntimeError(f"Could not save {target}")
             window.close()
             app.processEvents()
+    for core_id in ("aether", "warp"):
+        ACTIVE_CORE_FILE.write_text(
+            '{"core_id": "' + core_id + '"}\n',
+            encoding="utf-8",
+        )
+        for language in ("fa", "en"):
+            settings = {
+                "accepted_disclaimer": True,
+                "language": language,
+                "language_explicitly_selected": True,
+                "theme": "dark",
+                "reduced_motion": True,
+            }
+            window = MainWindow(
+                preloaded_servers=sample_servers(),
+                preloaded_settings=settings,
+                startup_prepared=True,
+            )
+            window.setWindowOpacity(1)
+            window.resize(1200, 760)
+            window.show()
+            window.switch_page(0, animate=False)
+            app.processEvents()
+            target = output / f"home-{core_id}-{language}-dark-expanded.png"
+            if not window.grab().save(str(target), "PNG"):
+                raise RuntimeError(f"Could not save {target}")
+            window.close()
+            app.processEvents()
+    ACTIVE_CORE_FILE.write_text('{"core_id": "xray"}\n', encoding="utf-8")
     print(f"Captured {len(list(output.glob('*.png')))} screenshots in {output}")
     return 0
 

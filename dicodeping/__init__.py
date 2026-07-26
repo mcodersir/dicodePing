@@ -1,2 +1,2 @@
 # Stable-line compatibility marker: __version__ = "1.8.0"
-__version__ = "1.8.0rc3"
+__version__ = "1.8.0rc4"

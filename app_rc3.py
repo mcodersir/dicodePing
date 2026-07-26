@@ -8,6 +8,7 @@ from dicodeping.rc6_runtime import install_rc6_patches
 from dicodeping.rc7_runtime import install_rc7_patches
 from dicodeping.rc8_runtime import install_rc8_patches
 from dicodeping.rc9_runtime import install_rc9_patches
+from dicodeping.rc10_runtime import install_rc10_patches
 
 install_rc2_patches()
 install_rc3_patches()
@@ -17,6 +18,7 @@ install_rc6_patches()
 install_rc7_patches()
 install_rc8_patches()
 install_rc9_patches()
+install_rc10_patches()
 
 from app import main  # noqa: E402
 

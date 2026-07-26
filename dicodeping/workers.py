@@ -81,16 +81,16 @@ def _tunnel_passes_real_traffic(manager) -> bool:
     # Race several endpoints once.  Repeating long 5.5-second probes made a
     # healthy Windows TUN look broken whenever a single public endpoint was
     # filtered or slow.
-    # Two short rounds are enough to cover Windows route propagation. The old
-    # three-round sequence could hold every failed auto candidate for ~12 s.
-    waits = (0.25, 0.7)
+    # Three bounded rounds cover slower Windows route/DNS propagation without
+    # falling back to the old long sequential endpoint checks.
+    waits = (0.25, 0.8, 1.6)
     for wait in waits:
         time.sleep(wait)
         if not manager.connected:
             return False
         if is_any_url_reachable_parallel(
             HEALTH_URLS,
-            timeout=2.6,
+            timeout=3.2,
             attempts=1,
             allow_system_proxy=False,
         ):
@@ -482,10 +482,10 @@ class ConnectionMonitorThread(QThread):
 
             if now >= next_stats:
                 upload, download = self.manager.traffic_stats()
-                if upload >= last_upload and upload != last_upload:
+                if isinstance(upload, int) and upload >= last_upload and upload != last_upload:
                     last_upload = upload
                     changed = True
-                if download >= last_download and download != last_download:
+                if isinstance(download, int) and download >= last_download and download != last_download:
                     last_download = download
                     changed = True
                 next_stats = now + 2.5
