@@ -87,6 +87,29 @@
             </FrameLayout>
 
             <FrameLayout
+                android:id="@+id/navScanner"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:contentDescription="@string/nav_scanner"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
+
+                <ImageView
+                    android:id="@+id/navScannerIcon"
+                    android:layout_width="50dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_nav_item"
+                    android:contentDescription="@null"
+                    android:duplicateParentState="true"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="@color/nav_item_tint" />
+            </FrameLayout>
+
+            <FrameLayout
                 android:id="@+id/navSettings"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.0-rc.2 — responsive UI, Persian-first migration, adaptive Android
+
+- Added centralized design tokens and deterministic desktop/Android size classes.
+- Replaced overflowing Settings tabs with adaptive category navigation.
+- Added compact server cards and fixed the Pin/Action column regression.
+- Rebuilt the Scanner stepper and removed its ambiguous date placeholder.
+- Added System/Light/Dark themes, reduced motion and Persian-first migration.
+- Added Android medium Scanner navigation and expanded navigation rail.
+- Preserved connection, discovery, probe and Xray backend contracts.
+
 ## 1.8.0-rc.1 — verified optional cores, real sharing, named scanner sources
 
 - Added one-active-core runtime selection for Xray, Psiphon and Aether.

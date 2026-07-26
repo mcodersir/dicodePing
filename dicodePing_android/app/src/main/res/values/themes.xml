@@ -130,5 +130,23 @@
 
     <style name="Widget.DicodePing.Button.ServerAction" parent="Widget.DicodePing.Button.Primary" />
 
+    <style name="RailNavigationItem">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?attr/selectableItemBackgroundBorderless</item>
+    </style>
+
+    <style name="RailNavigationIcon">
+        <item name="android:layout_width">52dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:background">@drawable/bg_nav_item</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:contentDescription">@null</item>
+        <item name="android:duplicateParentState">true</item>
+    </style>
+
 
 </resources>

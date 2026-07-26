@@ -47,8 +47,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __version__
-from .constants import ASSET_DIR, DEFAULT_SUBSCRIPTION_URL, LOG_FILE, MAX_CUSTOM_SUBSCRIPTIONS
+from .constants import ASSET_DIR, DEFAULT_SUBSCRIPTION_URL, LOG_FILE, MAX_CUSTOM_SUBSCRIPTIONS, RELEASE_VERSION
 from .connection_manager import ConnectionManager
 from .diagnostics import get_logger
 from .i18n import tr
@@ -59,6 +58,7 @@ from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
 from .workers import ApplicationUpdateThread, ConnectionMonitorThread, ConnectThread, DiscoverThread, RefreshSubsetThread, RefreshThread, SharingThread
 from .xray import normalize_bypass_domains
+from .design_system import TOKENS, WindowClass, window_class
 
 LOGGER = get_logger("ui")
 
@@ -642,7 +642,7 @@ class Sidebar(QFrame):
         status_layout.addWidget(self.status_value)
         layout.addWidget(self.status_card)
 
-        version = QLabel(f"dicodePing  v{__version__}")
+        version = QLabel(f"dicodePing  v{RELEASE_VERSION}")
         version.setObjectName("tiny")
         version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)
@@ -680,7 +680,7 @@ class Sidebar(QFrame):
         self.menu_button.setText(self.window.t("menu") if expanded else "")
         self.navigation_label.setVisible(expanded)
         self.status_card.setVisible(expanded)
-        self.version_label.setText(f"dicodePing  v{__version__}" if expanded else f"v{__version__}")
+        self.version_label.setText(f"dicodePing  v{RELEASE_VERSION}" if expanded else f"v{RELEASE_VERSION}")
         if not animate:
             self.setMinimumWidth(target)
             self.setMaximumWidth(target)
@@ -790,6 +790,9 @@ class MainWindow(QMainWindow):
         self.service = ServerService(self.store)
         self.manager = ConnectionManager()
         self.settings = dict(preloaded_settings) if preloaded_settings is not None else self.store.load_settings()
+        if not self.settings.get("language_explicitly_selected"):
+            self.settings["language"] = "fa"
+            self.settings["language_explicitly_selected"] = False
         self._startup_prepared = startup_prepared
         self._startup_error = startup_error
         self.language = "en" if self.settings.get("language") == "en" else "fa"
@@ -820,7 +823,7 @@ class MainWindow(QMainWindow):
         self._connecting_server_id = ""
         self._sharing_thread: SharingThread | None = None
 
-        self.setWindowTitle(f"dicodePing {__version__}")
+        self.setWindowTitle(f"dicodePing {RELEASE_VERSION}")
         application_icon = QApplication.instance().windowIcon() if QApplication.instance() else QIcon()
         self.setWindowIcon(application_icon if not application_icon.isNull() else icon("app.png"))
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
@@ -1259,6 +1262,15 @@ class MainWindow(QMainWindow):
         self.server_stack.addWidget(table_page)
         self.server_stack.addWidget(empty_page)
         self.server_stack.addWidget(self.loading_skeleton)
+        self.server_card_list = QListWidget()
+        self.server_card_list.setObjectName("serverCardList")
+        self.server_card_list.setAccessibleName(self.t("servers"))
+        self.server_card_list.setSpacing(TOKENS.space_sm)
+        self.server_card_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.server_card_list.itemDoubleClicked.connect(
+            lambda item: self.connect_by_id(str(item.data(Qt.UserRole)))
+        )
+        self.server_stack.addWidget(self.server_card_list)
         layout.addWidget(self.server_stack, 1)
         return page
 
@@ -1346,18 +1358,23 @@ class MainWindow(QMainWindow):
         name_label.setMinimumWidth(110)
         name_row.addWidget(name_label)
         self.scanner_name_edit = QLineEdit()
-        self.scanner_name_edit.setPlaceholderText(self.t("scanner_name_placeholder"))
+        self.scanner_name_edit.setPlaceholderText(self.t("scanner_name_prompt"))
         self.scanner_name_edit.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
         self.scanner_name_edit.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
         name_row.addWidget(self.scanner_name_edit, 1)
         action_layout.addLayout(name_row)
 
         # Stage indicator (3 dots / labels).
-        stage_row = QHBoxLayout()
+        stage_row = QBoxLayout(QBoxLayout.LeftToRight)
+        self.scanner_stepper_layout = stage_row
         stage_row.setSpacing(10)
         self.scanner_stage_labels: list[QLabel] = []
         for i in range(1, 4):
-            dot = QLabel(f"  {i}  ")
+            step = QWidget()
+            step_layout = QHBoxLayout(step)
+            step_layout.setContentsMargins(0, 0, 0, 0)
+            step_layout.setSpacing(7)
+            dot = QLabel(str(i))
             dot.setObjectName("scannerStageDot")
             dot.setAlignment(Qt.AlignCenter)
             dot.setStyleSheet(
@@ -1365,9 +1382,13 @@ class MainWindow(QMainWindow):
                 "min-width:20px;max-width:20px;min-height:20px;max-height:20px;"
                 "font-weight:700;"
             )
-            stage_row.addWidget(dot)
+            caption = QLabel(self.t(f"scanner_stage{i}").split("—", 1)[-1].strip())
+            caption.setObjectName("muted")
+            caption.setWordWrap(True)
+            step_layout.addWidget(dot)
+            step_layout.addWidget(caption, 1)
+            stage_row.addWidget(step, 1)
             self.scanner_stage_labels.append(dot)
-        stage_row.addStretch()
         # Live "alive count" badge.
         self.scanner_alive_label = QLabel("")
         self.scanner_alive_label.setObjectName("muted")
@@ -1468,6 +1489,7 @@ class MainWindow(QMainWindow):
         self.scanner_history_list.setAlternatingRowColors(True)
         self.scanner_history_list.setSelectionMode(QAbstractItemView.SingleSelection)
         self.scanner_history_list.itemSelectionChanged.connect(self._scanner_selection_changed)
+        self.scanner_history_list.setMinimumHeight(120)
         result_layout.addWidget(self.scanner_history_list)
 
         layout.addWidget(result_card, 1)
@@ -1480,7 +1502,7 @@ class MainWindow(QMainWindow):
         self._scanner_alive_count = 0
 
         self._refresh_scanner_history()
-        return page
+        return self._scrollable(page)
 
     def _set_scanner_stage_dot(self, stage_number: int) -> None:
         """Highlight the given stage dot (1, 2, or 3)."""
@@ -1905,9 +1927,13 @@ class MainWindow(QMainWindow):
         theme_label = QLabel(self.t("theme"))
         theme_label.setObjectName("muted")
         self.theme_combo = QComboBox()
+        self.theme_combo.addItem(self.t("system_theme"), "system")
         self.theme_combo.addItem(self.t("dark"), "dark")
         self.theme_combo.addItem(self.t("light"), "light")
-        self.theme_combo.setCurrentIndex(max(0, self.theme_combo.findData(self.settings.get("theme", "dark"))))
+        self.theme_combo.setCurrentIndex(max(0, self.theme_combo.findData(self.settings.get("theme", "system"))))
+        self.theme_combo.currentIndexChanged.connect(
+            lambda: self.apply_theme(str(self.theme_combo.currentData()), save=False)
+        )
         theme_box.addWidget(theme_label)
         theme_box.addWidget(self.theme_combo)
         language_box = QVBoxLayout()
@@ -1922,6 +1948,9 @@ class MainWindow(QMainWindow):
         appearance_row.addLayout(theme_box, 1)
         appearance_row.addLayout(language_box, 1)
         appearance_layout.addLayout(appearance_row)
+        self.reduced_motion_checkbox = QCheckBox(self.t("reduced_motion"))
+        self.reduced_motion_checkbox.setChecked(bool(self.settings.get("reduced_motion", False)))
+        appearance_layout.addWidget(self.reduced_motion_checkbox)
         restart_note = QLabel(self.t("language_restart"))
         restart_note.setObjectName("tiny")
         restart_note.setWordWrap(True)
@@ -2032,6 +2061,32 @@ class MainWindow(QMainWindow):
         sharing_tab_layout.addWidget(self._build_vpn_sharing_section())
         sharing_tab_layout.addStretch()
         tabs.addTab(sharing_tab, self.t("vpn_sharing_title"))
+
+        settings_body = QWidget()
+        settings_body_layout = QBoxLayout(QBoxLayout.LeftToRight, settings_body)
+        self.settings_body_layout = settings_body_layout
+        settings_body_layout.setContentsMargins(0, 0, 0, 0)
+        settings_body_layout.setSpacing(14)
+        self.settings_category_list = QListWidget()
+        self.settings_category_list.setObjectName("settingsCategoryList")
+        self.settings_category_list.setFixedWidth(210)
+        self.settings_category_combo = QComboBox()
+        for index in range(tabs.count()):
+            title = tabs.tabText(index)
+            self.settings_category_list.addItem(title)
+            self.settings_category_combo.addItem(title, index)
+        self.settings_category_list.currentRowChanged.connect(tabs.setCurrentIndex)
+        self.settings_category_combo.currentIndexChanged.connect(tabs.setCurrentIndex)
+        tabs.currentChanged.connect(self.settings_category_list.setCurrentRow)
+        tabs.currentChanged.connect(self.settings_category_combo.setCurrentIndex)
+        self.settings_category_list.setCurrentRow(0)
+        tabs.tabBar().hide()
+        settings_body_layout.addWidget(self.settings_category_list)
+        settings_body_layout.addWidget(self.settings_category_combo)
+        settings_body_layout.addWidget(tabs, 1)
+        layout.removeWidget(tabs)
+        layout.insertWidget(1, settings_body, 1)
+        self.settings_body = settings_body
 
         actions = QHBoxLayout()
         self.settings_saved_label = QLabel("")
@@ -2251,7 +2306,7 @@ class MainWindow(QMainWindow):
         desc.setObjectName("muted")
         desc.setWordWrap(True)
         desc.setMinimumHeight(48)
-        version = QLabel(f"dicodePing  •  v{__version__}  •  {self.t('built_by')} M_CODER")
+        version = QLabel(f"dicodePing  •  v{RELEASE_VERSION}  •  {self.t('built_by')} M_CODER")
         version.setObjectName("tiny")
         text.addWidget(name)
         text.addWidget(desc)
@@ -2391,9 +2446,13 @@ class MainWindow(QMainWindow):
         # Do not repeat it after the main window becomes visible.
 
     def apply_theme(self, theme: str, *, save: bool = True) -> None:
-        theme = "light" if theme == "light" else "dark"
+        theme = theme if theme in {"system", "light", "dark"} else "system"
         self.settings["theme"] = theme
-        QApplication.instance().setStyleSheet(build_stylesheet(theme))
+        palette = QApplication.instance().palette()
+        effective = "dark" if theme == "system" and palette.window().color().lightness() < 128 else theme
+        if effective == "system":
+            effective = "light"
+        QApplication.instance().setStyleSheet(build_stylesheet(effective))
         if hasattr(self, "theme_combo"):
             index = self.theme_combo.findData(theme)
             if index >= 0:
@@ -2461,6 +2520,18 @@ class MainWindow(QMainWindow):
             self.scanner_action_layout.setDirection(direction)
             self.scanner_name_layout.setDirection(direction)
             self.scanner_result_layout.setDirection(direction)
+        mode = window_class(width)
+        if hasattr(self, "settings_category_list"):
+            self.settings_category_list.setVisible(mode is not WindowClass.COMPACT)
+            self.settings_category_combo.setVisible(mode is WindowClass.COMPACT)
+            self.settings_body_layout.setDirection(
+                QBoxLayout.TopToBottom if mode is WindowClass.COMPACT else
+                (QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
+            )
+        if hasattr(self, "scanner_stepper_layout"):
+            self.scanner_stepper_layout.setDirection(
+                QBoxLayout.TopToBottom if mode is WindowClass.COMPACT else QBoxLayout.LeftToRight
+            )
         super().resizeEvent(event)
 
     def set_busy(self, busy: bool, stage: str = "") -> None:
@@ -2960,9 +3031,18 @@ class MainWindow(QMainWindow):
             finally:
                 self._restoring_server_selection = False
         self.server_count_label.setText(self.t("shown_count", shown=len(rows), total=len(self.servers), online=online))
+        self.server_card_list.clear()
+        for server in rows:
+            latency = f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable")
+            item = QListWidgetItem(f"{server.name}\n{self._server_location_text(server)}  •  {latency}")
+            item.setData(Qt.UserRole, server.id)
+            item.setToolTip(f"{server.host}:{server.port}")
+            item.setSizeHint(QSize(0, 72))
+            self.server_card_list.addItem(item)
         self.table.setUpdatesEnabled(True)
         self.table.blockSignals(False)
-        self.server_stack.setCurrentIndex(0 if rows else 1)
+        compact_cards = window_class(self.width()) is WindowClass.COMPACT
+        self.server_stack.setCurrentIndex(3 if rows and compact_cards else (0 if rows else 1))
         self._render_home_summary()
         self.update_connection_ui()
         self._update_manual_connect_state()
@@ -3498,6 +3578,7 @@ class MainWindow(QMainWindow):
         self.settings["bypass_domains"] = bypass_domains
         self.bypass_domains_input.setPlainText("\n".join(bypass_domains))
         self.settings["language"] = self.language_combo.currentData()
+        self.settings["language_explicitly_selected"] = True
         self.settings["test_concurrency"] = self.test_concurrency_spin.value()
         self.settings["test_batch_size"] = self.test_batch_spin.value()
         self.settings["test_timeout_ms"] = self.test_timeout_spin.value()
@@ -3505,6 +3586,7 @@ class MainWindow(QMainWindow):
         self.settings["retry_failed_tests"] = self.retry_failed_checkbox.isChecked()
         self.settings["diagnostic_logging"] = self.diagnostic_logging_checkbox.isChecked()
         self.settings["log_level"] = self.log_level_combo.currentData()
+        self.settings["reduced_motion"] = self.reduced_motion_checkbox.isChecked()
         # v1.7.0-rc.1: new settings.
         if hasattr(self, "cdn_enabled_checkbox"):
             self.settings["cdn_formatting_enabled"] = self.cdn_enabled_checkbox.isChecked()
