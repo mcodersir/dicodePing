@@ -35,7 +35,7 @@ def test_scanner_transaction_connects_collects_disconnects_then_probes() -> None
     disconnect = coordinator.index("disconnectStrict(ignoreFailure = false)")
     probe = coordinator.index("repo.importScannerConfigs(")
     assert connect < crawl < persist < disconnect < probe
-    assert "repo.primaryAutomaticCandidates(8) + repo.automaticCandidates(8)" in coordinator
+    assert "repo.connectionCandidates(8, primaryOnly = true) + repo.connectionCandidates(8)" in coordinator
     assert "DicodeVpnService publishes CONNECTED only after a real HTTP probe" in coordinator
 
 

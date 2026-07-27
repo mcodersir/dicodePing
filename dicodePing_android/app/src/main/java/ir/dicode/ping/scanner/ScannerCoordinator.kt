@@ -106,6 +106,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         }
     }
 
+    @Synchronized
     fun requestStop() {
         stop.set(true)
         _state.value = _state.value.copy(stopRequested = true)
@@ -140,12 +141,12 @@ class ScannerCoordinator private constructor(private val context: Context) {
             maxWorkers = tuning.crawlWorkers.coerceIn(2, 8),
             perChannelLimits = channelPlan,
             progress = { done, total, channel ->
-                _state.value = _state.value.copy(
+                update(
+                    stage = ScannerStage.CRAWLING,
                     progress = 5 + if (total > 0) done * 40 / total else 0,
                     done = done,
                     total = total,
-                    etaSeconds = null,
-                    log = (_state.value.log + "Fetched ${mask(channel)}").takeLast(MAX_LOG_LINES),
+                    log = "Fetched ${mask(channel)}",
                 )
             },
         )
@@ -182,12 +183,12 @@ class ScannerCoordinator private constructor(private val context: Context) {
                 update(ScannerStage.SAVING, progress = 97, log = "Committing the verified SUB transaction")
             },
             onProgress = { done, total, alive ->
-                _state.value = _state.value.copy(
+                update(
+                    stage = ScannerStage.PROBING,
                     progress = 50 + if (total > 0) done * 45 / total else 0,
                     done = done,
                     total = total,
                     alive = alive,
-                    etaSeconds = null,
                 )
             },
         )
@@ -224,7 +225,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         disconnectStrict(ignoreFailure = true)
 
         val candidates = linkedMapOf<String, ServerRecord>()
-        (repo.primaryAutomaticCandidates(8) + repo.automaticCandidates(8)).forEach { candidates.putIfAbsent(it.id, it) }
+        (repo.connectionCandidates(8, primaryOnly = true) + repo.connectionCandidates(8)).forEach { candidates.putIfAbsent(it.id, it) }
         check(candidates.isNotEmpty()) { "No verified automatic bootstrap server is available." }
 
         var lastError = "No bootstrap candidate reached the connected state."
@@ -309,6 +310,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         if (stop.get()) throw CancellationException("scanner stopped")
     }
 
+    @Synchronized
     private fun update(
         stage: ScannerStage,
         progress: Int = _state.value.progress,
@@ -333,7 +335,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private fun mask(value: String): String = value.take(48).replace(Regex("[?&#].*"), "")
 
     companion object {
-        private const val CONNECTION_TIMEOUT_MS = 55_000L
+        private const val CONNECTION_TIMEOUT_MS = 35_000L
         private const val DISCONNECT_TIMEOUT_MS = 18_000L
         private const val MAX_LOG_LINES = 160
         @Volatile private var instance: ScannerCoordinator? = null

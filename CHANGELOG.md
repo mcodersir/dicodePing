@@ -1,4 +1,20 @@
+
+## 1.9.0-rc.9 hotfix 3
+
+- Align Android automatic-server tests with the positive real HTTP latency policy.
+- Add validated fallback candidates for dashboard and scanner bootstrap connections.
+- Harden Android scanner lifecycle, crawler memory/time bounds, and progress state updates.
+- Remove current Android/CI deprecation and native-strip warnings.
+
 # Changelog
+
+## 1.9.0-rc.9 Hotfix 3
+
+- Fixed the stale Android automatic-server unit test that blocked release.
+- Removed Locale and native-strip warnings from the Android release build.
+- Upgraded the active RC9 release workflow to Node 24-compatible actions.
+- Allowed automatic connection to start immediately while background ping refresh continues.
+- Serialized scanner stop publication and foreground-service teardown.
 
 ## 1.9.0-rc.9 Hotfix 2
 

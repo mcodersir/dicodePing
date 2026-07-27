@@ -175,7 +175,7 @@ android {
         // packaging makes PackageManager extract them into read-only
         // nativeLibraryDir; Android 10+ forbids executing copies from filesDir.
         jniLibs.useLegacyPackaging = true
-        jniLibs.keepDebugSymbols += setOf("**/libaether.so", "**/libusque.so")
+        jniLibs.keepDebugSymbols += setOf("**/libgojni.so", "**/libaether.so", "**/libusque.so")
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 }

@@ -26,6 +26,7 @@ object TelegramChannelCrawler {
     private const val PER_CHANNEL_LIMIT = 30
     private const val MAX_WORKERS = 10
     private const val TIMEOUT_SECONDS = 15L
+    private const val MAX_PREVIEW_BYTES = 1_500_000L
 
     private val CONFIG_PATTERNS = listOf(
         Pattern.compile("\\b(?:vmess|vless|trojan|ss)://[^\\s<>\"'`\\\\]+", Pattern.CASE_INSENSITIVE),
@@ -35,6 +36,7 @@ object TelegramChannelCrawler {
         OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(TIMEOUT_SECONDS + 5, TimeUnit.SECONDS)
             .followRedirects(true)
             .retryOnConnectionFailure(true)
             .build()
@@ -141,7 +143,10 @@ object TelegramChannelCrawler {
             .build()
         try {
             client.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
+                val body = response.body?.source()?.let { source ->
+                    source.request(MAX_PREVIEW_BYTES)
+                    source.buffer.clone().readUtf8(minOf(source.buffer.size, MAX_PREVIEW_BYTES))
+                }.orEmpty()
                 if (response.isSuccessful && isUsablePreview(body)) return body
             }
         } catch (_: Exception) {
@@ -152,7 +157,10 @@ object TelegramChannelCrawler {
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.6")
             .build()
         client.newCall(fallback).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body?.source()?.let { source ->
+                source.request(MAX_PREVIEW_BYTES)
+                source.buffer.clone().readUtf8(minOf(source.buffer.size, MAX_PREVIEW_BYTES))
+            }.orEmpty()
             if (!response.isSuccessful || !isUsablePreview(body)) {
                 throw RuntimeException("t.me and telegram.me both returned unusable preview pages")
             }

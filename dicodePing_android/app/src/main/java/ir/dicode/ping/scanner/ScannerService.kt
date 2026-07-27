@@ -39,8 +39,16 @@ class ScannerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val coordinator = ScannerCoordinator.get(applicationContext)
         if (intent?.action == ACTION_STOP) {
-            coordinator.requestStop()
             ensureForeground(ScannerState(stage = ScannerStage.STOPPED, result = "Stopping scanner"))
+            observeJob?.cancel()
+            observeJob = null
+            coordinator.requestStop()
+            scope.launch {
+                runCatching { coordinator.join() }
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                foregroundStarted = false
+                stopSelf(startId)
+            }
             return START_NOT_STICKY
         }
 
@@ -64,7 +72,7 @@ class ScannerService : Service() {
                 if (!state.running && state.stage !in setOf(ScannerStage.IDLE, ScannerStage.CONNECTING)) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     foregroundStarted = false
-                    stopSelf()
+                    stopSelf(startId)
                 }
             }
         }

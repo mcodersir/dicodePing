@@ -692,6 +692,36 @@ class AppRepository private constructor(context: Context) {
             .toList()
     }
 
+    /**
+     * Fast automatic-connect pool. Verified HTTP-probed records are always
+     * preferred. If startup sampling has not completed yet, saved configs are
+     * retained as fallbacks and DicodeVpnService validates each one with real
+     * tunnel traffic before publishing CONNECTED.
+     */
+    fun connectionCandidates(limit: Int = 8, primaryOnly: Boolean = false): List<ServerRecord> {
+        val usedNetworks = hashSetOf<String>()
+        return servers.value.asSequence()
+            .filter { !primaryOnly || it.sourceId == "default" }
+            .filter { it.raw.isNotBlank() && it.host.isNotBlank() && it.port in 1..65535 }
+            .filterNot(ServerPolicy::isRestricted)
+            .sortedWith(
+                compareBy<ServerRecord> {
+                    when {
+                        ServerPolicy.isAutoEligible(it) -> 0
+                        it.healthy && (it.pingMs ?: 0) > 0 -> 1
+                        else -> 2
+                    }
+                }.thenBy { it.pingMs ?: Int.MAX_VALUE }
+                    .thenBy { it.name.lowercase() }
+            )
+            .filter { server ->
+                val network = server.ip.ifBlank { server.host }.trim().lowercase()
+                network.isNotBlank() && usedNetworks.add(network)
+            }
+            .take(limit.coerceIn(1, 8))
+            .toList()
+    }
+
     fun connectionTarget(): ServerRecord? = if (connectionMode.value == "manual") {
         selectedServer()?.takeUnless(ServerPolicy::isRestricted)
     } else {

@@ -23,9 +23,18 @@ class ServerPolicyTest {
     )
 
     @Test
-    fun automaticModeRejectsSub70Latency() {
-        assertFalse(ServerPolicy.isAutoEligible(server(69)))
+    fun automaticModeAcceptsAnyPositiveVerifiedLatency() {
+        assertTrue(ServerPolicy.isAutoEligible(server(1)))
+        assertTrue(ServerPolicy.isAutoEligible(server(69)))
         assertTrue(ServerPolicy.isAutoEligible(server(70)))
+    }
+
+    @Test
+    fun automaticModeRejectsMissingZeroOrNonHttpProbeResults() {
+        assertFalse(ServerPolicy.isAutoEligible(server(0)))
+        assertFalse(ServerPolicy.isAutoEligible(server(70).copy(pingMs = null)))
+        assertFalse(ServerPolicy.isAutoEligible(server(70).copy(pingKind = "TCP")))
+        assertFalse(ServerPolicy.isAutoEligible(server(70).copy(healthy = false)))
     }
 
     @Test

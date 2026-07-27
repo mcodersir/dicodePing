@@ -19,7 +19,7 @@ ANDROID_API = 24
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.9-hotfix2"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.9-hotfix3"})
     with urllib.request.urlopen(request, timeout=90) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output)
 
@@ -116,6 +116,8 @@ def prepare_usque(work: Path, jni: Path) -> None:
     run(
         [
             "git",
+            "-c",
+            "advice.detachedHead=false",
             "clone",
             "--depth",
             "1",

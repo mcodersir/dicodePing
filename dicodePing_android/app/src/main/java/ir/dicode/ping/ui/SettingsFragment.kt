@@ -418,7 +418,7 @@ class SettingsFragment : Fragment() {
             pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
         }
         val collator = Collator.getInstance(
-            if (vm.repo.settings.language == "fa") Locale("fa") else Locale.getDefault(),
+            if (vm.repo.settings.language == "fa") Locale.forLanguageTag("fa") else Locale.getDefault(),
         )
         return activities.asSequence()
             .filter { it.activityInfo.packageName != context.packageName }

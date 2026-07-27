@@ -33,6 +33,6 @@ Default per-channel extraction limits are 8 for rank 1 and 9 for rank 2. The des
 
 Bilingual release notes: `docs/releases/v1.9.0-rc.9.md`.
 
-## RC9 Hotfix 2
+## RC9 Hotfix 3
 
-This source fixes the Android x86_64 bundled-Usque build by using NDK CGO cross-linking. It also serializes native Xray probes, hardens the scanner foreground service and VPN permission lifecycle, and makes automatic connection try up to eight real-verified candidates. The release tag remains `v1.9.0-rc.9` so the recovery workflow can replace the failed partial RC9 assets.
+This source keeps the NDK/CGO Android core fix and additionally aligns the automatic-server unit tests with the real positive-latency policy, removes current Android and GitHub Actions warnings, hardens scanner teardown/state publication, and lets automatic connection begin immediately from saved ranked candidates while background measurement continues. The release tag remains `v1.9.0-rc.9` so the recovery workflow replaces the failed partial RC9 assets.

@@ -269,16 +269,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             prepareAndStart(synthetic)
             return
         }
-        if (vm.repo.progress.value.active) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.preparing_servers)
-                .setMessage(R.string.servers_still_preparing)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-            return
-        }
+        // Startup ping refresh must never make the Connect button inert.  The
+        // saved candidate pool is available immediately and each candidate is
+        // still accepted only after DicodeVpnService passes a real HTTP probe.
         if (server == null && vm.repo.connectionMode.value == "auto") {
-            val candidates = vm.repo.automaticCandidates(AUTO_RETRY_LIMIT)
+            val candidates = vm.repo.connectionCandidates(AUTO_RETRY_LIMIT)
             if (candidates.isNotEmpty()) {
                 clearAutomaticQueue()
                 automaticQueue.addAll(candidates.drop(1))
