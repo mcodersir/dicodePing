@@ -7,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc10_release_sequence_and_pipeline(self) -> None:
+    def test_android_rc11_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 45", gradle)
+        self.assertIn("versionCode = 46", gradle)
         self.assertIn('versionName = "1.8.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -70,20 +70,20 @@ class MaintenanceTests(unittest.TestCase):
         self.assertIn("splash.close()", app)
         self.assertIn("--startup-smoke-test", app)
 
-    def test_rc10_filter_callbacks_do_not_bind_a_runtime_patched_method(self) -> None:
+    def test_rc11_filter_callbacks_do_not_bind_a_runtime_patched_method(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
         self.assertIn("textChanged.connect(lambda _text: self.render_servers())", ui)
         self.assertIn("currentIndexChanged.connect(lambda _index: self.render_servers())", ui)
         self.assertNotIn("textChanged.connect(self.render_servers)", ui)
 
-    def test_rc10_resize_filter_is_scoped_to_the_main_window(self) -> None:
+    def test_rc11_resize_filter_is_scoped_to_the_main_window(self) -> None:
         runtime = (ROOT / "dicodeping/rc7_runtime.py").read_text(encoding="utf-8")
         self.assertIn("self.installEventFilter(self)", runtime)
         self.assertIn("self.removeEventFilter(self)", runtime)
         self.assertNotIn("QApplication.instance().installEventFilter(self)", runtime)
         self.assertIn("obj is not self", runtime)
 
-    def test_rc10_packaged_desktop_smoke_tests_require_success(self) -> None:
+    def test_rc11_packaged_desktop_smoke_tests_require_success(self) -> None:
         windows = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
         linux = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
         self.assertIn("--startup-smoke-test", windows)

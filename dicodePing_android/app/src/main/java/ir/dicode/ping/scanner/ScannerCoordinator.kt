@@ -2,10 +2,7 @@ package ir.dicode.ping.scanner
 
 import android.content.Context
 import android.content.Intent
-import android.net.VpnService
-import androidx.core.content.ContextCompat
 import ir.dicode.ping.data.AppRepository
-import ir.dicode.ping.data.ServerRecord
 import ir.dicode.ping.net.TelegramChannelCrawler
 import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.vpn.DicodeVpnService
@@ -56,7 +53,7 @@ data class ScannerState(
  * Application-owned scanner pipeline.
  *
  * The scanner follows a strict transaction:
- * 1) connect dicodePing's verified Xray VPN,
+ * 1) require the dashboard's already verified dicodePing Xray VPN,
  * 2) collect and persist Telegram candidates,
  * 3) fully stop the bootstrap VPN,
  * 4) run serialized native Xray HTTP probes,
@@ -77,7 +74,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         _state.value = ScannerState(
             stage = ScannerStage.CONNECTING,
             progress = 1,
-            log = listOf("Preparing dicodePing bootstrap VPN"),
+            log = listOf("Waiting for the dashboard's verified VPN connection"),
         )
         job = scope.launch {
             try {
@@ -136,8 +133,8 @@ class ScannerCoordinator private constructor(private val context: Context) {
         val channels = channelPlan.keys.toList()
         check(channels.isNotEmpty()) { "The canonical Telegram channel list is empty." }
 
-        update(ScannerStage.CONNECTING, progress = 2, log = "Selecting a verified automatic bootstrap server")
-        connectBootstrap()
+        update(ScannerStage.CONNECTING, progress = 2, log = "Checking the dashboard VPN state")
+        requireConnectedBootstrap()
         ensureRunning()
 
         val tuning = RuntimeTuning.detect(context)
@@ -199,7 +196,9 @@ class ScannerCoordinator private constructor(private val context: Context) {
                 update(ScannerStage.CRAWLING, progress = 45, log = "[TG][CACHE] Telegram was unavailable; using ${it.size} recent raw candidates")
             }.orEmpty()
         }
-        check(configs.isNotEmpty()) { "No valid Xray configs were collected from Telegram and no fresh scanner cache is available." }
+        check(configs.isNotEmpty()) {
+            context.getString(ir.dicode.ping.R.string.scanner_telegram_unreachable)
+        }
 
         atomicWrite(
             context.filesDir.resolve("scanner-stage1-raw.txt"),
@@ -279,65 +278,24 @@ class ScannerCoordinator private constructor(private val context: Context) {
         )
     }
 
-    private suspend fun connectBootstrap() {
-        check(VpnService.prepare(context) == null) {
-            "مجوز VPN صادر نشده است؛ اسکن را دوباره بزنید و مجوز سیستم را تایید کنید."
+    private suspend fun requireConnectedBootstrap() {
+        val state = VpnStateStore.state.value
+        check(state.status == VpnStatus.CONNECTED && state.serverId.isNotBlank()) {
+            "برای شروع اسکن ابتدا از صفحه خانه به یک سرور dicodePing وصل شوید."
         }
-        disconnectStrict(ignoreFailure = true)
-
-        val candidates = linkedMapOf<String, ServerRecord>()
-        (repo.connectionCandidates(8, primaryOnly = true) + repo.connectionCandidates(8)).forEach { candidates.putIfAbsent(it.id, it) }
-        check(candidates.isNotEmpty()) { "No verified automatic bootstrap server is available." }
-
-        var lastError = "No bootstrap candidate reached the connected state."
-        candidates.values.forEachIndexed { index, server ->
-            ensureRunning()
-            update(
-                ScannerStage.CONNECTING,
-                progress = 2 + ((index + 1) * 3).coerceAtMost(18),
-                log = "Bootstrap attempt ${index + 1}/${candidates.size}: ${mask(server.name)}",
-            )
-            val settings = repo.settings
-            val intent = Intent(context, DicodeVpnService::class.java)
-                .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
-                .putExtra(DicodeVpnService.EXTRA_CORE_ID, "xray")
-                .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
-                .putExtra(DicodeVpnService.EXTRA_NAME, server.name)
-                .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, settings.bypassDomains)
-                .putStringArrayListExtra(DicodeVpnService.EXTRA_BYPASS_APPS, arrayListOf())
-                .putExtra(DicodeVpnService.EXTRA_PER_APP_MODE, "allowlist")
-                .putStringArrayListExtra(DicodeVpnService.EXTRA_PER_APP_PACKAGES, arrayListOf(context.packageName))
-                .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_USB, false)
-                .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_HOTSPOT, false)
-
-            val started = runCatching { ContextCompat.startForegroundService(context, intent) }
-            if (started.isFailure) {
-                lastError = started.exceptionOrNull()?.message ?: "Cannot start the VPN foreground service."
-                return@forEachIndexed
-            }
-
-            val outcome = runCatching {
-                val state = withTimeout(CONNECTION_TIMEOUT_MS) {
-                    VpnStateStore.state.first {
-                        it.serverId == server.id && it.status in setOf(VpnStatus.CONNECTED, VpnStatus.ERROR)
-                    }
-                }
-                check(state.status == VpnStatus.CONNECTED) {
-                    state.message.ifBlank { "Bootstrap VPN failed" }
-                }
-                // DicodeVpnService publishes CONNECTED only after a real HTTP probe,
-                // so no single Telegram channel is allowed to invalidate a healthy VPN.
-                delay(300)
-                ensureRunning()
-            }
-            if (outcome.isSuccess) {
-                update(ScannerStage.CONNECTING, progress = 22, log = "[CONNECT][OK] Bootstrap VPN connected and HTTP-verified")
-                return
-            }
-            lastError = outcome.exceptionOrNull()?.message ?: lastError
-            disconnectStrict(ignoreFailure = true)
+        // CONNECTED is published by DicodeVpnService only after the Xray core
+        // is running and a real HTTP request succeeds through the tunnel.
+        delay(250)
+        ensureRunning()
+        val confirmed = VpnStateStore.state.value
+        check(confirmed.status == VpnStatus.CONNECTED && confirmed.serverId == state.serverId) {
+            "اتصال VPN پیش از شروع دریافت تلگرام قطع شد؛ کانفیگ و اینترنت را بررسی کنید."
         }
-        error(lastError)
+        update(
+            ScannerStage.CONNECTING,
+            progress = 22,
+            log = "[CONNECT][OK] Dashboard Xray VPN is connected and HTTP-verified",
+        )
     }
 
     private suspend fun disconnectStrict(ignoreFailure: Boolean) {
@@ -421,7 +379,6 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private fun mask(value: String): String = value.take(48).replace(Regex("[?&#].*"), "")
 
     companion object {
-        private const val CONNECTION_TIMEOUT_MS = 35_000L
         private const val DISCONNECT_TIMEOUT_MS = 18_000L
         private const val CRAWL_TIMEOUT_MS = 8 * 60_000L
         private const val PROBE_TIMEOUT_MS = 14 * 60_000L

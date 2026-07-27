@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v190_rc2_versions_and_four_platform_release():
-    assert 'RELEASE_VERSION = "1.9.0-rc.10"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc10"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
-    workflow = (ROOT / ".github/workflows/v1.9.0-rc.10-release.yml").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.11"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc11"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    workflow = (ROOT / ".github/workflows/v1.9.0-rc.11-release.yml").read_text("utf-8")
     for platform in ("windows", "linux", "macos", "android"):
         assert platform in workflow
     assert "prerelease: true" in workflow

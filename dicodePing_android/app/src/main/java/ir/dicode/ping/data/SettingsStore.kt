@@ -71,6 +71,9 @@ class SettingsStore(context: Context) {
     var secureDnsDoh: Boolean
         get() = prefs.getBoolean("secure_dns_doh", false)
         set(value) = prefs.edit().putBoolean("secure_dns_doh", value).apply()
+    var scannerVpnNoticeSeen: Boolean
+        get() = prefs.getBoolean("scanner_vpn_notice_seen", false)
+        set(value) = prefs.edit().putBoolean("scanner_vpn_notice_seen", value).apply()
     var sourceRevisions: Map<String, String>
         get() = runCatching {
             val json = JSONObject(prefs.getString("source_revisions", "{}") ?: "{}")

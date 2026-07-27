@@ -162,6 +162,16 @@
     <string name="nav_scanner">Scanner</string>
     <string name="scanner_title">Scanner</string>
     <string name="scanner_subtitle">One-click scan and ping of live servers</string>
+    <string name="scanner_vpn_notice_title">A VPN is required for scanning</string>
+    <string name="scanner_vpn_notice_message">Connect to a VPN before collecting configs from Telegram. You may use dicodePing or another VPN. The automatic flow opens Home, connects dicodePing to the best verified Xray server, and starts the scan only after the connection is confirmed.</string>
+    <string name="scanner_go_home_connect">Go Home and connect</string>
+    <string name="scanner_waiting_for_vpn">Waiting for VPN…</string>
+    <string name="scanner_launch_failed">The scanner could not be started safely.</string>
+    <string name="scanner_connection_failed_title">Scanner VPN connection failed</string>
+    <string name="scanner_connection_failed_message">Telegram could not be reached. Check the server config, internet access, and VPN permission, then try again.
+
+Details: %1$s</string>
+    <string name="later">Later</string>
     <string name="scanner_run">Quick scan</string>
     <string name="scanner_stop_save">Stop and save results</string>
     <string name="config_profile_worker">Cloudflare Worker</string>
@@ -249,4 +259,5 @@
     <string name="scanner_log_empty">Scanner log will appear here.</string>
     <string name="scanner_disconnecting">Stopping bootstrap VPN…</string>
     <string name="scanner_saving">Saving verified SUB…</string>
+    <string name="scanner_telegram_unreachable">Telegram could not be reached through the active VPN. Check the selected server configuration, internet access, and VPN permission, then try again.</string>
 </resources>

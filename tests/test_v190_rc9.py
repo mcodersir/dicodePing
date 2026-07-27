@@ -7,23 +7,27 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_scanner_requests_vpn_permission_and_starts_its_own_foreground_pipeline() -> None:
+def test_scanner_routes_vpn_permission_and_connection_through_home() -> None:
     fragment = read("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ScannerFragment.kt")
+    activity = read("dicodePing_android/app/src/main/java/ir/dicode/ping/MainActivity.kt")
     coordinator = read("dicodePing_android/app/src/main/java/ir/dicode/ping/scanner/ScannerCoordinator.kt")
-    assert "VpnService.prepare(requireContext())" in fragment
-    assert "ActivityResultContracts.StartActivityForResult" in fragment
-    assert "startScannerService()" in fragment
-    assert "ContextCompat.startForegroundService(context, intent)" in coordinator
-    assert 'putExtra(DicodeVpnService.EXTRA_CORE_ID, "xray")' in coordinator
+    assert "host.requestScannerLaunch()" in fragment
+    assert "VpnService.prepare(requireContext())" not in fragment
+    assert "scannerVpnNoticeSeen" in activity
+    assert "showPage(R.id.nav_home)" in activity
+    assert "launchScannerAfterConnection()" in activity
+    assert "ContextCompat.startForegroundService(" in activity
+    assert "requireConnectedBootstrap()" in coordinator
+    assert "connectBootstrap()" not in coordinator
     assert "Stopping bootstrap VPN before native probes" in coordinator
 
 
-def test_android_permission_callback_is_view_lifecycle_safe() -> None:
+def test_android_scanner_fragment_has_no_permission_callback_or_expired_view_access() -> None:
     fragment = read("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ScannerFragment.kt")
-    assert "val activeBinding = _binding" in fragment
-    assert "activeBinding?.scannerRunButton?.isEnabled = true" in fragment
+    assert "ActivityResultContracts.StartActivityForResult" not in fragment
+    assert "scannerStartPending" not in fragment
     assert "Snackbar.make(requireView()" not in fragment
-
+    assert "private var _binding" in fragment
 
 def test_per_app_vpn_controls_live_in_routing_section() -> None:
     layout = read("dicodePing_android/app/src/main/res/layout/fragment_settings.xml")
@@ -36,7 +40,7 @@ def test_android_bundles_aether_and_usque_as_apk_owned_native_executables() -> N
     preparation = read("dicodePing_android/tools/prepare_bundled_cores.py")
     process = read("dicodePing_android/app/src/main/java/ir/dicode/ping/core/AndroidExternalCoreProcess.kt")
     gradle = read("dicodePing_android/app/build.gradle.kts")
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
     assert '"libaether.so"' in preparation
     assert '"libusque.so"' in preparation
     assert '"-buildmode=pie"' in preparation
@@ -53,7 +57,7 @@ def test_desktop_release_builders_embed_optional_working_cores() -> None:
         assert "tools.prepare_optional_cores" in text
         assert "aether" in text.lower()
         assert "usque" in text.lower()
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
     assert "dicodePing-core-aether" not in workflow
     assert "dicodePing-core-usque" not in workflow
 
@@ -68,10 +72,10 @@ def test_connection_ui_publishes_feedback_before_permission_or_service_start() -
     assert "previousStart?.cancelAndJoin()" in service
 
 
-def test_rc10_release_metadata_and_bilingual_notes_exist() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.10.md")
-    assert "v1.9.0-rc.10" in workflow
+def test_rc11_release_metadata_and_bilingual_notes_exist() -> None:
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.11.md")
+    assert "v1.9.0-rc.11" in workflow
     assert "## فارسی" in notes
     assert "## English" in notes
 
@@ -92,7 +96,7 @@ def test_android_external_process_is_api24_compatible_and_lint_strict() -> None:
 
 
 def test_android_ci_always_uploads_lint_reports() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
     assert "Upload Android lint reports" in workflow
     assert "if: always()" in workflow
     assert "android-lint-reports" in workflow

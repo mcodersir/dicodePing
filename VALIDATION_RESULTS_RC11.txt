@@ -1,0 +1,27 @@
+dicodePing v1.9.0-rc.11 local source validation
+
+PASS  Python tests: 255
+PASS  Quality gate: 0 errors, 0 warnings
+PASS  Python compileall
+PASS  Version consistency: package 1.9.0rc11 / release 1.9.0-rc.11
+PASS  Android Gradle Kotlin DSL preflight
+PASS  Android resource validation: 55 XML files
+PASS  Android localized strings: 236
+PASS  Android project structure validation
+PASS  GitHub Actions YAML parsing
+PASS  RC11 shell syntax checks
+PASS  Native release artifacts and credentials excluded from source manifest
+
+RC11 regression coverage includes:
+- one-time VPN prerequisite notice on desktop and Android
+- Home-owned automatic Xray connection before scanner launch
+- Activity recreation-safe pending scanner transaction
+- actionable Telegram/config/internet/VPN permission failures
+- serialized Android VPN revoke/TUN/Xray cleanup
+- guarded Android scanner foreground-service startup
+- no scanner-owned VPN permission or hidden VPN start
+
+Not executed in this local environment:
+- signed APK build and installation on physical Android devices
+- packaged Windows/Linux/macOS binaries and platform smoke tests
+These are performed by .github/workflows/v1.9.0-rc.11-release.yml.

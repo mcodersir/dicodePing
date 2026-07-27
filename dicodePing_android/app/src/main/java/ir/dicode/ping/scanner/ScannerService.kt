@@ -40,7 +40,11 @@ class ScannerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val coordinator = ScannerCoordinator.get(applicationContext)
         if (intent?.action == ACTION_STOP) {
-            ensureForeground(ScannerState(stage = ScannerStage.STOPPED, result = "Stopping scanner"))
+            if (!startForegroundSafely(ScannerState(stage = ScannerStage.STOPPED, result = "Stopping scanner"))) {
+                ScannerCoordinator.get(applicationContext).requestStop()
+                stopSelf(startId)
+                return START_NOT_STICKY
+            }
             observeJob?.cancel()
             observeJob = null
             coordinator.requestStop()
@@ -53,7 +57,10 @@ class ScannerService : Service() {
             return START_NOT_STICKY
         }
 
-        ensureForeground(ScannerState(stage = ScannerStage.CONNECTING, progress = 1))
+        if (!startForegroundSafely(ScannerState(stage = ScannerStage.CONNECTING, progress = 1))) {
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         runCatching { coordinator.start(intent?.getStringExtra(EXTRA_NAME).orEmpty()) }
             .onFailure { error ->
                 AppLog.e("ScannerService", "Cannot start scanner", error)
@@ -80,6 +87,15 @@ class ScannerService : Service() {
             }
         }
         return START_NOT_STICKY
+    }
+
+
+    private fun startForegroundSafely(state: ScannerState): Boolean = runCatching {
+        ensureForeground(state)
+        true
+    }.getOrElse { error ->
+        AppLog.e("ScannerService", "Cannot enter foreground state", error)
+        false
     }
 
     private fun ensureForeground(state: ScannerState) {

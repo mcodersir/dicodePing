@@ -162,6 +162,16 @@
     <string name="nav_scanner">اسکنر</string>
     <string name="scanner_title">اسکنر</string>
     <string name="scanner_subtitle">با یک کلیک، سرورهای فعال را اسکن و پینگ بگیرید</string>
+    <string name="scanner_vpn_notice_title">برای اسکن باید VPN روشن باشد</string>
+    <string name="scanner_vpn_notice_message">قبل از دریافت کانفیگ از تلگرام به یک VPN وصل شوید. می‌توانید از dicodePing یا VPN دیگری استفاده کنید. در روند خودکار، صفحه خانه باز می‌شود، dicodePing با هسته Xray به بهترین سرور تاییدشده وصل می‌شود و فقط بعد از تایید اتصال، اسکن شروع خواهد شد.</string>
+    <string name="scanner_go_home_connect">رفتن به خانه و اتصال</string>
+    <string name="scanner_waiting_for_vpn">در انتظار اتصال VPN…</string>
+    <string name="scanner_launch_failed">اسکنر به‌صورت امن شروع نشد.</string>
+    <string name="scanner_connection_failed_title">اتصال لازم برای اسکن برقرار نشد</string>
+    <string name="scanner_connection_failed_message">دسترسی به تلگرام برقرار نشد. کانفیگ سرور، اینترنت و مجوز VPN را بررسی کنید و دوباره تلاش کنید.
+
+جزئیات: %1$s</string>
+    <string name="later">بعداً</string>
     <string name="scanner_run">اسکن سریع</string>
     <string name="scanner_stop_save">توقف و ذخیره نتایج</string>
     <string name="config_profile_worker">Worker کلادفلر</string>
@@ -249,4 +259,5 @@
     <string name="scanner_log_empty">لاگ اسکنر اینجا نمایش داده می‌شود.</string>
     <string name="scanner_disconnecting">در حال قطع VPN اولیه…</string>
     <string name="scanner_saving">در حال ذخیره SUB تاییدشده…</string>
+    <string name="scanner_telegram_unreachable">دسترسی به تلگرام از طریق VPN فعال ممکن نشد. کانفیگ سرور انتخابی، اینترنت و مجوز VPN را بررسی کنید و دوباره تلاش کنید.</string>
 </resources>

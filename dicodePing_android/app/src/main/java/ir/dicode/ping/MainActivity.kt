@@ -34,6 +34,8 @@ import ir.dicode.ping.ui.AboutFragment
 import ir.dicode.ping.ui.HomeFragment
 import ir.dicode.ping.ui.MainViewModel
 import ir.dicode.ping.ui.ScannerFragment
+import ir.dicode.ping.scanner.ScannerCoordinator
+import ir.dicode.ping.scanner.ScannerService
 import ir.dicode.ping.ui.ServersFragment
 import ir.dicode.ping.ui.SettingsFragment
 import ir.dicode.ping.ui.DicodeWindowSizeClass
@@ -57,6 +59,8 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     private val automaticQueue = ArrayDeque<ServerRecord>()
     private var automaticAttemptId = ""
     private var automaticRetryScheduled = false
+    private var pendingScannerStart = false
+    private var scannerLaunchScheduled = false
 
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val server = pendingServer ?: return@registerForActivityResult
@@ -70,7 +74,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                     serverName = server.name,
                     message = getString(R.string.vpn_permission_failed_message),
                 )
-                showVpnPermissionError()
+                if (pendingScannerStart) {
+                    failPendingScannerConnection(getString(R.string.vpn_permission_failed_message))
+                } else {
+                    showVpnPermissionError()
+                }
                 return@launch
             }
             var granted = false
@@ -86,7 +94,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                     serverName = server.name,
                     message = getString(R.string.vpn_permission_failed_message),
                 )
-                showVpnPermissionError()
+                if (pendingScannerStart) {
+                    failPendingScannerConnection(getString(R.string.vpn_permission_failed_message))
+                } else {
+                    showVpnPermissionError()
+                }
             }
         }
     }
@@ -123,18 +135,26 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         applyCoreMode()
 
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
+        pendingScannerStart = savedInstanceState?.getBoolean(KEY_PENDING_SCANNER, false) ?: false
         currentPageId = 0
         showPage(restoredPage, animate = false)
 
         lifecycleScope.launch {
             VpnStateStore.state.collect { state ->
                 when {
-                    state.status == ir.dicode.ping.vpn.VpnStatus.CONNECTED &&
-                        state.serverId == automaticAttemptId -> clearAutomaticQueue()
-                    state.status == ir.dicode.ping.vpn.VpnStatus.ERROR &&
+                    state.status == VpnStatus.CONNECTED -> {
+                        if (state.serverId == automaticAttemptId) clearAutomaticQueue()
+                        if (pendingScannerStart) launchScannerAfterConnection()
+                    }
+                    state.status == VpnStatus.ERROR &&
                         state.serverId == automaticAttemptId &&
                         automaticAttemptId.isNotBlank() &&
                         !automaticRetryScheduled -> retryAutomaticConnection()
+                    state.status == VpnStatus.ERROR &&
+                        pendingScannerStart &&
+                        automaticAttemptId.isBlank() -> failPendingScannerConnection(
+                            state.message.ifBlank { getString(R.string.connection_failed_retry) },
+                        )
                 }
             }
         }
@@ -142,6 +162,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt(KEY_CURRENT_PAGE, currentPageId.takeIf { it != 0 } ?: R.id.nav_home)
+        outState.putBoolean(KEY_PENDING_SCANNER, pendingScannerStart)
         super.onSaveInstanceState(outState)
     }
 
@@ -243,6 +264,93 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         binding.navAboutIcon?.isSelected = binding.navAbout.isSelected
     }
 
+    override fun requestScannerLaunch() {
+        if (isFinishing || isDestroyed) return
+        val coordinator = ScannerCoordinator.get(applicationContext)
+        if (coordinator.state.value.running) {
+            showPage(R.id.nav_scanner)
+            return
+        }
+        val settings = vm.repo.settings
+        if (!settings.scannerVpnNoticeSeen) {
+            // Persist the one-time flag only after Android successfully displays
+            // the dialog. A lifecycle race must not silently consume the notice.
+            runCatching {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.scanner_vpn_notice_title)
+                    .setMessage(R.string.scanner_vpn_notice_message)
+                    .setNegativeButton(R.string.later, null)
+                    .setPositiveButton(R.string.scanner_go_home_connect) { _, _ -> continueScannerLaunch() }
+                    .show()
+            }.onSuccess {
+                settings.scannerVpnNoticeSeen = true
+            }.onFailure { error ->
+                AppLog.e("ScannerLaunch", "Cannot show scanner VPN notice", error)
+            }
+            return
+        }
+        continueScannerLaunch()
+    }
+
+    private fun continueScannerLaunch() {
+        if (isFinishing || isDestroyed) return
+        pendingScannerStart = true
+        scannerLaunchScheduled = false
+        // The scanner uses the app-owned Xray connection so it can stop it
+        // deterministically before probing the collected configs.
+        vm.repo.settings.activeCore = "xray"
+        applyCoreMode()
+        showPage(R.id.nav_home)
+        when (VpnStateStore.state.value.status) {
+            VpnStatus.CONNECTED -> launchScannerAfterConnection()
+            VpnStatus.CONNECTING -> Unit
+            else -> connect(null)
+        }
+    }
+
+    private fun launchScannerAfterConnection() {
+        if (!pendingScannerStart || scannerLaunchScheduled || isFinishing || isDestroyed) return
+        if (VpnStateStore.state.value.status != VpnStatus.CONNECTED) return
+        scannerLaunchScheduled = true
+        // Keep the pending flag until startForegroundService succeeds. This
+        // lets a recreated Activity resume the transaction after rotation.
+        showPage(R.id.nav_scanner)
+        lifecycleScope.launch {
+            delay(180)
+            if (isFinishing || isDestroyed) return@launch
+            if (VpnStateStore.state.value.status != VpnStatus.CONNECTED) {
+                scannerLaunchScheduled = false
+                failPendingScannerConnection(getString(R.string.connection_failed_retry))
+                return@launch
+            }
+            runCatching {
+                ContextCompat.startForegroundService(
+                    applicationContext,
+                    Intent(applicationContext, ScannerService::class.java)
+                        .putExtra(ScannerService.EXTRA_NAME, "SUB"),
+                )
+            }.onSuccess {
+                pendingScannerStart = false
+                scannerLaunchScheduled = false
+            }.onFailure { error ->
+                scannerLaunchScheduled = false
+                AppLog.e("ScannerLaunch", "Cannot start scanner service", error)
+                failPendingScannerConnection(error.message ?: getString(R.string.scanner_launch_failed))
+            }
+        }
+    }
+
+    private fun failPendingScannerConnection(detail: String) {
+        pendingScannerStart = false
+        scannerLaunchScheduled = false
+        if (isFinishing || isDestroyed) return
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.scanner_connection_failed_title)
+            .setMessage(getString(R.string.scanner_connection_failed_message, detail.take(240)))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
     override fun connect(server: ServerRecord?) {
         val selectedCore = vm.repo.settings.activeCore
         if (selectedCore != "xray") {
@@ -285,19 +393,27 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
         val candidate = server ?: vm.repo.connectionTarget()
         if (candidate == null) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.no_server_title)
-                .setMessage(R.string.no_server_message)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            if (pendingScannerStart) {
+                failPendingScannerConnection(getString(R.string.no_server_message))
+            } else {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.no_server_title)
+                    .setMessage(R.string.no_server_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
             return
         }
         if (ServerPolicy.isRestricted(candidate)) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.server_disabled)
-                .setMessage(R.string.restricted_server_message)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            if (pendingScannerStart) {
+                failPendingScannerConnection(getString(R.string.restricted_server_message))
+            } else {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.server_disabled)
+                    .setMessage(R.string.restricted_server_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
             return
         }
 
@@ -347,6 +463,9 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val next = automaticQueue.removeFirstOrNull()
         if (next == null) {
             clearAutomaticQueue()
+            if (pendingScannerStart) {
+                failPendingScannerConnection(getString(R.string.connection_failed_retry))
+            }
         } else {
             automaticAttemptId = next.id
             prepareAndStart(next)
@@ -410,6 +529,8 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     override fun disconnect() {
         AppLog.i("Main", "Disconnect requested")
+        pendingScannerStart = false
+        scannerLaunchScheduled = false
         clearAutomaticQueue()
         runCatching {
             startService(
@@ -433,6 +554,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     companion object {
         private const val KEY_CURRENT_PAGE = "current_page"
+        private const val KEY_PENDING_SCANNER = "pending_scanner_start"
         private const val AUTO_RETRY_LIMIT = 8
         private const val AUTO_RETRY_DELAY_MS = 450L
     }
@@ -441,4 +563,5 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 interface ConnectionHost {
     fun connect(server: ServerRecord? = null)
     fun disconnect()
+    fun requestScannerLaunch()
 }

@@ -21,7 +21,7 @@ def test_scanner_has_review_output_tabs_and_cancellable_http():
 
 def test_android_core_calls_are_process_serialized_and_apk_inventory_is_strict():
     bridge=read('dicodePing_android/app/src/main/java/ir/dicode/ping/xray/CoreBridge.kt')
-    workflow=read('.github/workflows/v1.9.0-rc.10-release.yml')
+    workflow=read('.github/workflows/v1.9.0-rc.11-release.yml')
     assert 'PROCESS_CORE_LOCK' in bridge
     assert 'verify_apk_cores.py' in workflow
     assert 'libgojni.so' in workflow and 'libaether.so' in workflow and 'libusque.so' in workflow

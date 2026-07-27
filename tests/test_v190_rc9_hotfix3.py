@@ -20,7 +20,7 @@ def test_android_warning_cleanup_and_node24_release_actions() -> None:
     gradle = read("dicodePing_android/app/build.gradle.kts")
     settings = read("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/SettingsFragment.kt")
     locale = read("dicodePing_android/app/src/main/java/ir/dicode/ping/util/LocaleHelper.kt")
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
     assert '"**/libgojni.so"' in gradle
     assert 'Locale.forLanguageTag("fa")' in settings
     assert "Locale.forLanguageTag(language)" in locale
@@ -45,7 +45,8 @@ def test_scanner_and_auto_connect_use_resilient_candidate_pool() -> None:
     service = read("dicodePing_android/app/src/main/java/ir/dicode/ping/scanner/ScannerService.kt")
     assert "fun connectionCandidates(" in repo
     assert "DicodeVpnService validates each one with real" in repo
-    assert "repo.connectionCandidates(8, primaryOnly = true)" in scanner
+    assert "requireConnectedBootstrap()" in scanner
+    assert "connectBootstrap()" not in scanner
     assert "vm.repo.connectionCandidates(AUTO_RETRY_LIMIT)" in activity
     assert "if (vm.repo.progress.value.active)" not in activity
     assert "runCatching { coordinator.join() }" in service

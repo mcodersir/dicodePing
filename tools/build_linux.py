@@ -10,7 +10,7 @@ import tarfile
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.10"
+RC_VERSION = "rc.11"
 APP_NAME = "dicodePing"
 
 
@@ -35,7 +35,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v190_rc10.py"
+    entrypoint = root / "app_v190_rc11.py"
     required = [
         entrypoint,
         core / "xray",

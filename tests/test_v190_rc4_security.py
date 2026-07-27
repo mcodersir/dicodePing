@@ -58,30 +58,30 @@ def test_android_standard_release_excludes_root_shell_code() -> None:
 
 
 def test_only_android_release_apk_builder_requires_owner_signing_key() -> None:
-    root_builder = (ROOT / "BUILD_SIGNED_APK_RC10.bat").read_text("utf-8")
-    apk_builder = (ROOT / "dicodePing_android/build_apk_rc10.bat").read_text("utf-8")
+    root_builder = (ROOT / "BUILD_SIGNED_APK_RC11.bat").read_text("utf-8")
+    apk_builder = (ROOT / "dicodePing_android/build_apk_rc11.bat").read_text("utf-8")
     debug_builder = (ROOT / "dicodePing_android/build_debug_apk.bat").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
 
-    assert "dicodePing_android\\build_apk_rc10.bat" in root_builder
+    assert "dicodePing_android\\build_apk_rc11.bat" in root_builder
     assert "ANDROID_KEYSTORE_PATH" in apk_builder
     assert ":app:assembleStandardRelease" in apk_builder
     assert "bundleStandardRelease" not in apk_builder
     assert ".aab" not in apk_builder.lower()
-    assert "dicodePing-v1.9.0-rc.10-android.apk" in apk_builder
+    assert "dicodePing-v1.9.0-rc.11-android.apk" in apk_builder
     assert ":app:assembleStandardDebug" in debug_builder
     assert "ANDROID_KEYSTORE_PATH" not in debug_builder
     assert 'signingConfigs.findByName("release")' in gradle
 
 
 def test_ci_publishes_the_same_asset_shape_as_v180_rc4_plus_macos() -> None:
-    workflow = (ROOT / ".github/workflows/v1.9.0-rc.10-release.yml").read_text("utf-8")
-    shell_builder = (ROOT / "dicodePing_android/build_apk_rc10.sh").read_text("utf-8")
+    workflow = (ROOT / ".github/workflows/v1.9.0-rc.11-release.yml").read_text("utf-8")
+    shell_builder = (ROOT / "dicodePing_android/build_apk_rc11.sh").read_text("utf-8")
 
-    assert "dicodePing-v1.9.0-rc.10-windows-x64.exe" in workflow
-    assert "dicodePing-v1.9.0-rc.10-linux-x86_64.tar.gz" in workflow
-    assert "dicodePing-v1.9.0-rc.10-macos-${{ matrix.architecture }}.dmg" in workflow
-    assert "dicodePing-v1.9.0-rc.10-android.apk" in workflow
+    assert "dicodePing-v1.9.0-rc.11-windows-x64.exe" in workflow
+    assert "dicodePing-v1.9.0-rc.11-linux-x86_64.tar.gz" in workflow
+    assert "dicodePing-v1.9.0-rc.11-macos-${{ matrix.architecture }}.dmg" in workflow
+    assert "dicodePing-v1.9.0-rc.11-android.apk" in workflow
     assert "dicodePing-core-aether" not in workflow
     assert "dicodePing-core-usque" not in workflow
     assert "prepare_bundled_cores.py" in workflow
@@ -91,4 +91,4 @@ def test_ci_publishes_the_same_asset_shape_as_v180_rc4_plus_macos() -> None:
     assert "MACOS_CODESIGN_IDENTITY" not in workflow
     assert "bundleStandardRelease" not in workflow
     assert ".aab" not in workflow.lower()
-    assert "dicodePing-v1.9.0-rc.10-android.apk" in shell_builder
+    assert "dicodePing-v1.9.0-rc.11-android.apk" in shell_builder

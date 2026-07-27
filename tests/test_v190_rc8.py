@@ -62,22 +62,24 @@ def test_rc8_scanner_feedback_and_server_cards_are_explicit() -> None:
     assert "self.scanner_connection_log_view" in ui
     assert "self.scanner_tg_log_view" in ui
     assert "self.scanner_test_log_view" in ui
-    assert "Starting VPN" in ui
+    assert "def _request_scanner_launch" in ui
+    assert "scanner_vpn_notice_seen" in ui
+    assert "self.switch_page(0)" in ui
     assert 'f"SUB {index:03d}"' in read("dicodeping/scanner.py")
     assert "server_ping_badge" in ui or "ping_badge" in ui
 
 
 def test_rc8_release_payload_is_bilingual_and_multiplatform() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.10.md")
-    deploy = read("DEPLOY_PRERELEASE_RC10.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.11.md")
+    deploy = read("DEPLOY_PRERELEASE_RC11.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in (
-        "dicodePing-v1.9.0-rc.10-windows-x64.exe",
-        "dicodePing-v1.9.0-rc.10-linux-x86_64.tar.gz",
-        "dicodePing-v1.9.0-rc.10-macos-${{ matrix.architecture }}.dmg",
-        "dicodePing-v1.9.0-rc.10-android.apk",
+        "dicodePing-v1.9.0-rc.11-windows-x64.exe",
+        "dicodePing-v1.9.0-rc.11-linux-x86_64.tar.gz",
+        "dicodePing-v1.9.0-rc.11-macos-${{ matrix.architecture }}.dmg",
+        "dicodePing-v1.9.0-rc.11-android.apk",
     ):
         assert asset in workflow
-    assert "v1.9.0-rc.10" in deploy
-    assert "wait_for_github_release_rc10.ps1" in deploy
+    assert "v1.9.0-rc.11" in deploy
+    assert "wait_for_github_release_rc11.ps1" in deploy

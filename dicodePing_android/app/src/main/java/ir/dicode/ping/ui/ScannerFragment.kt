@@ -1,12 +1,10 @@
 package ir.dicode.ping.ui
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
-import android.net.VpnService
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -16,7 +14,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -27,6 +24,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
+import ir.dicode.ping.ConnectionHost
 import ir.dicode.ping.databinding.FragmentScannerBinding
 import ir.dicode.ping.scanner.ScannerCoordinator
 import ir.dicode.ping.scanner.ScannerService
@@ -38,27 +36,13 @@ class ScannerFragment : Fragment() {
     private var _binding: FragmentScannerBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
-    private var scannerStartPending = false
     private var selectedLogTab = 0
-
-    private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val shouldStart = scannerStartPending
-        scannerStartPending = false
-        val activeBinding = _binding
-        activeBinding?.scannerRunButton?.isEnabled = true
-        val appContext = context?.applicationContext
-        if (!shouldStart || !isAdded || appContext == null) return@registerForActivityResult
-        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(appContext) == null) startScannerService()
-        else _binding?.root?.let { Snackbar.make(it, R.string.vpn_permission_failed_message, Snackbar.LENGTH_LONG).show() }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        scannerStartPending = savedInstanceState?.getBoolean(KEY_SCANNER_START_PENDING, false) ?: false
         selectedLogTab = savedInstanceState?.getInt(KEY_LOG_TAB, 0) ?: 0
     }
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean(KEY_SCANNER_START_PENDING, scannerStartPending)
         outState.putInt(KEY_LOG_TAB, selectedLogTab)
         super.onSaveInstanceState(outState)
     }
@@ -73,7 +57,14 @@ class ScannerFragment : Fragment() {
         binding.scannerRunButton.setOnClickListener {
             if (coordinator.state.value.running) {
                 requireContext().startService(Intent(requireContext(), ScannerService::class.java).setAction(ScannerService.ACTION_STOP))
-            } else beginScannerWithVpnPermission()
+            } else {
+                val host = activity as? ConnectionHost
+                if (host == null) {
+                    Snackbar.make(binding.root, R.string.scanner_launch_failed, Snackbar.LENGTH_LONG).show()
+                } else {
+                    host.requestScannerLaunch()
+                }
+            }
         }
         binding.copyAllButton.setOnClickListener {
             val servers = vm.repo.servers.value.filter { it.sourceId == "scanner-sub" && it.healthy }
@@ -176,25 +167,6 @@ class ScannerFragment : Fragment() {
         }
     }
 
-    private fun beginScannerWithVpnPermission() {
-        val permissionIntent = runCatching { VpnService.prepare(requireContext()) }.getOrNull()
-        if (permissionIntent == null) startScannerService() else {
-            scannerStartPending = true
-            binding.scannerRunButton.isEnabled = false
-            binding.scannerRunButton.text = getString(R.string.preparing_vpn)
-            vpnPermission.launch(permissionIntent)
-        }
-    }
-    private fun startScannerService() {
-        val appContext = context?.applicationContext ?: return
-        _binding?.scannerRunButton?.apply { isEnabled = false; text = getString(R.string.preparing_vpn) }
-        runCatching { ContextCompat.startForegroundService(appContext, Intent(appContext, ScannerService::class.java).putExtra(ScannerService.EXTRA_NAME, "SUB")) }
-            .onSuccess { _binding?.scannerRunButton?.isEnabled = true }
-            .onFailure { error ->
-                _binding?.scannerRunButton?.apply { isEnabled = true; text = getString(R.string.scanner_run) }
-                _binding?.root?.let { Snackbar.make(it, error.message ?: getString(R.string.connection_failed_retry), Snackbar.LENGTH_LONG).show() }
-            }
-    }
     override fun onDestroyView() { _binding = null; super.onDestroyView() }
-    private companion object { const val KEY_SCANNER_START_PENDING = "scanner_start_pending"; const val KEY_LOG_TAB = "scanner_log_tab" }
+    private companion object { const val KEY_LOG_TAB = "scanner_log_tab" }
 }

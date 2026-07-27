@@ -9,7 +9,7 @@ def read(path: str) -> str:
 
 def test_usque_android_x86_64_uses_ndk_cgo_external_linking() -> None:
     prep = read("dicodePing_android/tools/prepare_bundled_cores.py")
-    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
     assert '"CGO_ENABLED": "1"' in prep
     assert '"x86_64-linux-android"' in prep
     assert '"GOARCH": goarch' in prep
@@ -27,16 +27,17 @@ def test_android_native_xray_batch_probes_are_process_serialized() -> None:
     assert "runBatch(input, 1" in repository
 
 
-def test_scanner_transaction_connects_collects_disconnects_then_probes() -> None:
+def test_scanner_transaction_requires_home_connection_then_collects_disconnects_and_probes() -> None:
     coordinator = read("dicodePing_android/app/src/main/java/ir/dicode/ping/scanner/ScannerCoordinator.kt")
-    connect = coordinator.index("connectBootstrap()")
+    activity = read("dicodePing_android/app/src/main/java/ir/dicode/ping/MainActivity.kt")
+    connected = coordinator.index("requireConnectedBootstrap()")
     crawl = coordinator.index("TelegramChannelCrawler.crawl(")
     persist = coordinator.index('scanner-stage1-raw.txt')
     disconnect = coordinator.index("disconnectStrict(ignoreFailure = false)")
     probe = coordinator.index("repo.importScannerConfigs(")
-    assert connect < crawl < persist < disconnect < probe
-    assert "repo.connectionCandidates(8, primaryOnly = true) + repo.connectionCandidates(8)" in coordinator
-    assert "DicodeVpnService publishes CONNECTED only after a real HTTP probe" in coordinator
+    assert connected < crawl < persist < disconnect < probe
+    assert "vm.repo.connectionCandidates(AUTO_RETRY_LIMIT)" in activity
+    assert "CONNECTED is published by DicodeVpnService only after" in coordinator
 
 
 def test_android_services_publish_state_and_never_throw_from_ui_service_calls() -> None:

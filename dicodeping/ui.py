@@ -904,6 +904,8 @@ class MainWindow(QMainWindow):
         self._automatic_connect_attempt = False
         self._connecting_server_id = ""
         self._sharing_thread: SharingThread | None = None
+        self._pending_scanner_launch = False
+        self._pending_scanner_started_at = 0.0
 
         self.setWindowTitle(f"dicodePing {RELEASE_VERSION}")
         application_icon = QApplication.instance().windowIcon() if QApplication.instance() else QIcon()
@@ -1664,11 +1666,70 @@ class MainWindow(QMainWindow):
                     "font-weight:700;"
                 )
 
+    def _request_scanner_launch(self) -> None:
+        """Route scanner startup through the dashboard connection state machine.
+
+        The scanner never starts or replaces a VPN by itself.  A one-time notice
+        explains the requirement, then the dashboard owns the automatic Xray
+        connection.  Once that connection is verified, the pending scan resumes.
+        """
+        if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            return
+        if not bool(self.settings.get("scanner_vpn_notice_seen", False)):
+            accepted = AppDialog.confirm(
+                self,
+                "VPN برای اسکن لازم است" if self.language != "en" else "A VPN is required",
+                (
+                    "برای دریافت کانفیگ از تلگرام ابتدا باید به VPN وصل شوید. "
+                    "می‌توانید از dicodePing یا VPN دیگری استفاده کنید. "
+                    "در روند خودکار، به خانه می‌رویم، dicodePing به بهترین سرور وصل می‌شود "
+                    "و بعد از تایید اتصال، اسکن خودکار شروع خواهد شد."
+                    if self.language != "en" else
+                    "Connect to a VPN before collecting Telegram configs. You may use dicodePing "
+                    "or another VPN. The automatic flow returns to Home, connects dicodePing to "
+                    "the best verified server, and starts scanning only after the connection is confirmed."
+                ),
+                accept_text="رفتن به خانه و اتصال" if self.language != "en" else "Go Home and connect",
+                reject_text=self.t("later"),
+            )
+            # The notice is intentionally one-time, even when the user postpones.
+            self.settings["scanner_vpn_notice_seen"] = True
+            self.store.save_settings(self.settings)
+            if not accepted:
+                return
+
+        self._pending_scanner_launch = True
+        self._pending_scanner_started_at = time.monotonic()
+        self.switch_page(0)
+        self.footer_state.setText(
+            "پس از اتصال تاییدشده، اسکن خودکار شروع می‌شود…"
+            if self.language != "en" else
+            "The scan will start automatically after a verified connection…"
+        )
+        if self.manager.connected and self.connected_id:
+            QTimer.singleShot(120, self._resume_pending_scanner)
+            return
+        if isinstance(self.worker, ConnectThread):
+            return
+        QTimer.singleShot(120, self.connect_best)
+
+    def _resume_pending_scanner(self) -> None:
+        if not self._pending_scanner_launch:
+            return
+        if not self.manager.connected or not self.connected_id:
+            return
+        self._pending_scanner_launch = False
+        self.switch_page(2)
+        QTimer.singleShot(140, self.start_scanner)
+
     def start_scanner(self) -> None:
-        """Kick off the staged scan in the background."""
+        """Start scanning only after the dashboard has verified a VPN connection."""
         from .workers import ScannerThread
 
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            return
+        if not self.manager.connected or not self.connected_id:
+            self._request_scanner_launch()
             return
         custom_name = "SUB"
         # Pull the per-channel limits from settings.
@@ -1687,16 +1748,16 @@ class MainWindow(QMainWindow):
             DEFAULT_RANK2_PER_CHANNEL,
         )
         self.scanner_run_button.setText(
-            "در حال روشن‌کردن VPN…" if self.language != "en" else "Starting VPN…"
+            "توقف اسکن — دریافت تلگرام…" if self.language != "en" else "Stop scan — fetching Telegram…"
         )
         self.scanner_run_button.setProperty("kind", "danger")
         self.scanner_run_button.style().unpolish(self.scanner_run_button)
         self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 0)
         self.scanner_stage_label.setText(
-            "در حال روشن‌کردن VPN داخلی dicodePing…"
+            "VPN تایید شد؛ آماده دریافت کانفیگ از تلگرام…"
             if self.language != "en" else
-            "Starting the dicodePing bootstrap VPN…"
+            "VPN verified; preparing Telegram collection…"
         )
         self.scanner_result_label.setText("")
         self._scanner_crawl_metric = ""
@@ -1715,14 +1776,14 @@ class MainWindow(QMainWindow):
 
         self._scanner_log_batch((
             "────────────────────────────────────────────────",
-            "[CONNECT][START] درخواست اسکن ثبت شد؛ روشن‌کردن VPN داخلی"
+            "[CONNECT][OK] اتصال از صفحه خانه تایید شد؛ اسکن آغاز شد"
             if self.language != "en" else
-            "[CONNECT][START] scan accepted; starting the internal VPN",
+            "[CONNECT][OK] dashboard connection verified; scan started",
             f"[TG][PLAN] rank1={rank1_limit} config/channel • rank2={rank2_limit} config/channel",
         ))
-        # If we are already connected to a server, reuse it; otherwise Stage 1
-        # immediately starts the app-owned bootstrap connection.
-        bootstrap_server_id = self.connected_id or None
+        # RC11 never starts a VPN from the scanner.  The dashboard owns the
+        # connection and this worker reuses the already verified server.
+        bootstrap_server_id = self.connected_id
 
         thread = ScannerThread(
             self.store,
@@ -1757,7 +1818,7 @@ class MainWindow(QMainWindow):
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
             self.stop_scanner()
         else:
-            self.start_scanner()
+            self._request_scanner_launch()
 
     def stop_scanner(self) -> None:
         """Ask the running scanner to stop at the next safe point."""
@@ -1999,6 +2060,14 @@ class MainWindow(QMainWindow):
         self.scanner_alive_label.setVisible(False)
         self.scanner_stage_label.setText(self.t("operation_failed"))
         self.scanner_result_label.setText(message)
+        lowered = str(message or "").lower()
+        if any(token in lowered for token in ("telegram", "تلگرام", "no configs", "هیچ کانفیگ")):
+            AppDialog.error(
+                self,
+                "دسترسی به تلگرام برقرار نشد" if self.language != "en" else "Telegram connection failed",
+                str(message),
+                self.t("ok"),
+            )
 
     def _refresh_scanner_history(self) -> None:
         from .scanner import list_scanner_subs
@@ -3780,7 +3849,20 @@ class MainWindow(QMainWindow):
             self._auto_connect_queue = list(candidates[1:])
             self.connect_server(candidates[0], automatic=True)
         else:
-            AppDialog.info(self, self.t("no_healthy_title"), self.t("need_refresh"), self.t("ok"))
+            if self._pending_scanner_launch:
+                self._pending_scanner_launch = False
+                AppDialog.error(
+                    self,
+                    "سرور مناسبی برای شروع اسکن نیست" if self.language != "en" else "No scanner bootstrap server",
+                    (
+                        "هیچ سرور تاییدشده‌ای برای اتصال پیدا نشد. ابتدا منابع و پینگ سرورها را به‌روزرسانی کنید، سپس دوباره اسکن را بزنید."
+                        if self.language != "en" else
+                        "No verified server is available. Refresh sources and server tests, then start the scanner again."
+                    ),
+                    self.t("ok"),
+                )
+            else:
+                AppDialog.info(self, self.t("no_healthy_title"), self.t("need_refresh"), self.t("ok"))
 
     def connect_alternative_core(self) -> None:
         core_id = getattr(self.manager, "active_core", "xray")
@@ -3909,6 +3991,8 @@ class MainWindow(QMainWindow):
                 self._sharing_thread.start()
         self.render_servers()
         self.update_connection_ui()
+        if self._pending_scanner_launch:
+            QTimer.singleShot(180, self._resume_pending_scanner)
 
     def _sharing_finished(self, error: str) -> None:
         self._sharing_thread = None
@@ -3954,7 +4038,19 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(300, self._continue_auto_connect)
         else:
             self._auto_connect_queue.clear()
-            if not scanner_waiting:
+            if self._pending_scanner_launch:
+                self._pending_scanner_launch = False
+                AppDialog.error(
+                    self,
+                    "اتصال لازم برای اسکن برقرار نشد" if self.language != "en" else "Scanner VPN connection failed",
+                    (
+                        "اتصال به تلگرام برقرار نشد. کانفیگ‌ها، اینترنت و مجوز VPN را بررسی کنید و دوباره اسکن را بزنید.\n\n" + message
+                        if self.language != "en" else
+                        "Telegram could not be reached. Check the server config, internet access, and VPN permission, then try the scanner again.\n\n" + message
+                    ),
+                    self.t("ok"),
+                )
+            elif not scanner_waiting:
                 AppDialog.error(self, self.t("connection_error"), message, self.t("ok"))
         self.render_servers()
 

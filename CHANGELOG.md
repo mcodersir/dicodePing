@@ -1,3 +1,15 @@
+## 1.9.0-rc.11
+
+- Scanner no longer starts a VPN from inside the scanner page.
+- Added a one-time VPN requirement notice.
+- Scanner launch now routes through Home, automatic Xray connection and real connection verification.
+- Added automatic return to Scanner after a verified connection.
+- Added explicit Telegram/config/permission guidance when bootstrap connection fails.
+- Hardened Android activity/service lifecycle and desktop Qt pending-action state handling.
+- Kept pending scanner launches across Android Activity recreation until the foreground scanner service starts successfully.
+- Serialized VPN revoke cleanup so Android cannot destroy the service before Xray and TUN handles close.
+- Added guarded scanner foreground-service startup and actionable Telegram/config/internet/permission errors.
+
 ## 1.9.0-rc.10 Android Lint Hotfix 3
 
 - Marked the English 30% splash status as a non-format Android string resource.

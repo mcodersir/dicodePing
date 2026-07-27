@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_rc3_versions_are_consistent():
-    assert 'RELEASE_VERSION = "1.9.0-rc.10"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc10"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.11"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc11"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'versionName = "1.9.0-rc.10"' in gradle
-    assert "versionCode = 45" in gradle
+    assert 'versionName = "1.9.0-rc.11"' in gradle
+    assert "versionCode = 46" in gradle
 
 
 def test_manifest_is_sha_only_fallback_and_never_claims_signature():
@@ -220,8 +220,9 @@ def test_android_scanner_routes_crawl_through_bootstrap_and_saves_transactionall
         ROOT
         / "dicodePing_android/app/src/main/java/ir/dicode/ping/net/TelegramChannelCrawler.kt"
     ).read_text("utf-8")
-    assert 'EXTRA_PER_APP_MODE, "allowlist"' in coordinator
-    assert "connectionCandidates(8, primaryOnly = true)" in coordinator
+    assert "requireConnectedBootstrap()" in coordinator
+    assert "Dashboard Xray VPN is connected and HTTP-verified" in coordinator
+    assert "connectBootstrap()" not in coordinator
     assert "onSaving" in coordinator
     assert "saveScannerTransaction" in repository
     assert '"rawSubscription"' in repository

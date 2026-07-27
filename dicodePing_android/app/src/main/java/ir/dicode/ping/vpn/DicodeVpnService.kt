@@ -521,8 +521,16 @@ class DicodeVpnService : VpnService() {
 
     override fun onRevoke() {
         AppLog.w("VPN", "VPN permission was revoked by the system")
-        stopVpn()
-        super.onRevoke()
+        // Android may invoke onRevoke off the main thread. The platform's
+        // default implementation calls stopSelf() immediately, which can race
+        // our native Xray/TUN cleanup. Let the serialized stop transaction own
+        // service termination after all handles are closed.
+        runCatching { stopVpn() }
+            .onFailure { error ->
+                AppLog.e("VPN", "Graceful revoke cleanup failed", error)
+                VpnStateStore.state.value = VpnState()
+                stopSelf()
+            }
     }
 
     override fun onDestroy() {
