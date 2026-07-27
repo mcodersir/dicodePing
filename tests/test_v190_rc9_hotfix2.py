@@ -9,7 +9,7 @@ def read(path: str) -> str:
 
 def test_usque_android_x86_64_uses_ndk_cgo_external_linking() -> None:
     prep = read("dicodePing_android/tools/prepare_bundled_cores.py")
-    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
     assert '"CGO_ENABLED": "1"' in prep
     assert '"x86_64-linux-android"' in prep
     assert '"GOARCH": goarch' in prep

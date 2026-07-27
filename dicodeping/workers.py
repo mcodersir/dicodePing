@@ -457,8 +457,12 @@ class ScannerThread(QThread):
                 rank2_limit=self.rank2_limit,
                 stage=self.stage.emit,
                 stage_change=self.stage_change.emit,
-                crawl_progress=self.progress.emit,
-                probe_progress=self.progress.emit,
+                crawl_progress=lambda done, total: self.progress.emit(
+                    5 + (40 * max(0, done) // max(1, total)), 100
+                ),
+                probe_progress=lambda done, total: self.progress.emit(
+                    50 + (45 * max(0, done) // max(1, total)), 100
+                ),
                 eta_callback=None,
                 alive_count_callback=self.alive_count.emit,
                 metrics_callback=self.metrics.emit,

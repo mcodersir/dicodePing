@@ -26,7 +26,7 @@ def test_vpn_service_does_not_replay_stale_connect_intents() -> None:
 def test_scanner_has_runtime_preflight_deadlines_and_atomic_stage1_cache() -> None:
     coordinator = read("dicodePing_android/app/src/main/java/ir/dicode/ping/scanner/ScannerCoordinator.kt")
     assert "Embedded Xray core is unavailable on this device/ABI" in coordinator
-    assert "CRAWL_TIMEOUT_MS = 8 * 60_000L" in coordinator
+    assert "CRAWL_TIMEOUT_MS = 4 * 60_000L" in coordinator
     assert "PROBE_TIMEOUT_MS = 14 * 60_000L" in coordinator
     assert "STAGE1_CACHE_MAX_AGE_MS = 12 * 60 * 60_000L" in coordinator
     assert "atomicWrite(" in coordinator

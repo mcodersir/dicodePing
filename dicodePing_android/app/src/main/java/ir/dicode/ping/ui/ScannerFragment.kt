@@ -82,8 +82,8 @@ class ScannerFragment : Fragment() {
                     val b = _binding ?: return@collect
                     b.scannerProgressBar.isVisible = state.running || state.progress > 0
                     b.scannerProgressBar.isIndeterminate = state.total == 0 && state.running
-                    b.scannerProgressBar.progress = state.progress
-                    b.scannerStageLabel.text = stageText(state.stage, state.done, state.total, state.alive)
+                    b.scannerProgressBar.setProgress(state.progress, true)
+                    b.scannerStageLabel.text = stageText(state.stage, state.done, state.total, state.alive, state.progress)
                     b.scannerResultLabel.text = state.result
                     b.scannerRunButton.isEnabled = !state.stopRequested
                     b.scannerRunButton.text = getString(if (state.running) R.string.scanner_stop_save else R.string.scanner_run)
@@ -112,7 +112,7 @@ class ScannerFragment : Fragment() {
         binding.scannerLogTabs.getTabAt(selectedLogTab)?.select()
     }
 
-    private fun stageText(stage: ScannerStage, done: Int, total: Int, alive: Int): String = buildString {
+    private fun stageText(stage: ScannerStage, done: Int, total: Int, alive: Int, progress: Int): String = buildString {
         append(when (stage) {
             ScannerStage.IDLE -> getString(R.string.ready_to_connect)
             ScannerStage.CONNECTING -> getString(R.string.preparing_vpn)
@@ -124,6 +124,7 @@ class ScannerFragment : Fragment() {
             ScannerStage.FAILED -> getString(R.string.connection_failed_retry)
             ScannerStage.STOPPED -> getString(R.string.scanner_stop_save)
         })
+        if (progress > 0) append(" • ${progress.coerceIn(0, 100)}%")
         if (total > 0) append(" • $done/$total")
         if (alive > 0) append(" • $alive healthy")
     }

@@ -72,14 +72,14 @@ def test_rc7_sidebar_and_live_scanner_log_views_are_directional_and_separate() -
 
 
 def test_rc7_release_is_bilingual_and_multi_platform() -> None:
-    notes = read("docs/releases/v1.9.0-rc.11.md")
-    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
-    deploy = read("DEPLOY_PRERELEASE_RC11.bat")
+    notes = read("docs/releases/v1.9.0-rc.12.md")
+    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
+    deploy = read("DEPLOY_PRERELEASE_RC12.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in ("windows-x64.exe", "linux-x86_64.tar.gz", "android.apk"):
         assert asset in workflow
     assert "macos-${{ matrix.architecture }}.dmg" in workflow
     assert "architecture: arm64" in workflow
     assert "architecture: x86_64" in workflow
-    assert "v1.9.0-rc.11" in deploy
-    assert "wait_for_github_release_rc11.ps1" in deploy
+    assert "v1.9.0-rc.12" in deploy
+    assert "wait_for_github_release_rc12.ps1" in deploy

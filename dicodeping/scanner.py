@@ -59,7 +59,7 @@ LOGGER = get_logger("scanner")
 # --- Adaptive scanner profile -------------------------------------------
 RESOURCE_PROFILE = current_resource_profile()
 SCAN_CRAWL_WORKERS = min(12, max(6, RESOURCE_PROFILE.crawl_workers))
-SCAN_CRAWL_TIMEOUT_S = 12.0
+SCAN_CRAWL_TIMEOUT_S = 6.5
 SCAN_PROBE_WORKERS = min(10, max(4, RESOURCE_PROFILE.probe_workers // 2))
 SCAN_PROBE_TIMEOUT_S = 3.4
 SCAN_PROBE_ATTEMPTS = 3
@@ -73,7 +73,7 @@ SCAN_PROBE_QUEUE_LIMIT = min(
 SCAN_MAX_SERVERS = 80
 SCAN_MAX_PROBE_CONFIGS = 160
 SCAN_CRAWL_TARGET_RAW = 180
-SCAN_CRAWL_MIN_CHANNELS = 80
+SCAN_CRAWL_MIN_CHANNELS = 36
 SCAN_BOOTSTRAP_CONNECT_TIMEOUT_S = 55.0
 SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S = 18.0
 SCANNER_SOURCE_ID = "scanner-sub"
@@ -255,7 +255,7 @@ def _crawl_only(
     limits = {item.name: (rank1_limit if item.rank == 1 else rank2_limit) for item in specs}
     rank1_count = sum(1 for item in specs if item.rank == 1)
     rank2_count = len(specs) - rank1_count
-    route = (f"SOCKS5 127.0.0.1:{socks_port} -> TUN/direct fallback" if socks_port else "TUN/direct")
+    route = (f"SOCKS5 127.0.0.1:{socks_port} -> t.me/TUN fallback" if socks_port else "t.me/TUN")
     _log(
         f"[TG][INFO] channels={len(channels)} rank1={rank1_count} rank2={rank2_count} "
         f"workers={SCAN_CRAWL_WORKERS} route={route}"
@@ -307,7 +307,7 @@ def _crawl_only(
         timeout=SCAN_CRAWL_TIMEOUT_S,
         socks_port=socks_port,
         stop_event=state.stop_requested,
-        attempts=min(5, max(1, rank1_count)),
+        attempts=min(3, max(1, rank1_count)),
     )
     if not preflight.ok:
         raise RuntimeError(
@@ -329,7 +329,7 @@ def _crawl_only(
         progress=lambda done, _total, _ch: crawl_progress and crawl_progress(done + 1, len(channels)),
         result_callback=lambda result, done, _total: _channel_result(result, done + 1, len(channels)),
         stop_event=state.stop_requested,
-        retry_limit=1,
+        retry_limit=0,
         socks_port=socks_port,
         max_unique_configs=max(1, SCAN_CRAWL_TARGET_RAW - len(preflight.configs)),
         minimum_channels_before_target=max(0, min(SCAN_CRAWL_MIN_CHANNELS, len(channels)) - 1),

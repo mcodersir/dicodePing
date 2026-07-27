@@ -27,9 +27,9 @@ object RuntimeTuning {
         val lowMemory = memoryMb <= 256
         val midMemory = memoryMb <= 512
         val crawl = when {
-            lowMemory -> 2
-            midMemory -> 3
-            else -> (cpu * 2).coerceIn(4, 8)
+            lowMemory -> 3
+            midMemory -> 5
+            else -> (cpu * 2).coerceIn(6, 8)
         }
         val probe = when {
             lowMemory -> 2

@@ -20,7 +20,7 @@ def test_android_warning_cleanup_and_node24_release_actions() -> None:
     gradle = read("dicodePing_android/app/build.gradle.kts")
     settings = read("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/SettingsFragment.kt")
     locale = read("dicodePing_android/app/src/main/java/ir/dicode/ping/util/LocaleHelper.kt")
-    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
     assert '"**/libgojni.so"' in gradle
     assert 'Locale.forLanguageTag("fa")' in settings
     assert "Locale.forLanguageTag(language)" in locale
@@ -56,6 +56,6 @@ def test_scanner_and_auto_connect_use_resilient_candidate_pool() -> None:
 
 def test_android_crawler_has_bounded_call_and_response_memory() -> None:
     crawler = read("dicodePing_android/app/src/main/java/ir/dicode/ping/net/TelegramChannelCrawler.kt")
-    assert "callTimeout(TIMEOUT_SECONDS + 5" in crawler
+    assert "callTimeout(TIMEOUT_SECONDS + 2" in crawler
     assert "MAX_PREVIEW_BYTES" in crawler
     assert "source.buffer.clone().readUtf8" in crawler

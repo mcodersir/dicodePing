@@ -1,11 +1,11 @@
 """DicodeConfigChecker-compatible Telegram preview crawler.
 
-RC10 keeps network work outside the GUI thread and follows the reference
-collector exactly at channel level: request ``t.me/s/<channel>`` once, fall
-back to ``telegram.me/s/<channel>`` once, extract supported Xray links, then
-deduplicate.  When dicodePing exposes a verified local SOCKS5 listener the
-SOCKS route is used first so DNS and TLS both travel through the bootstrap
-VPN; the ordinary TUN/direct route remains a fallback.
+RC12 keeps network work outside the GUI thread and uses the canonical
+``https://t.me/s/<channel>`` preview endpoint exclusively.  It extracts
+supported Xray links, deduplicates them, and uses a bounded worker pool.  When
+dicodePing exposes a verified local SOCKS5 listener that route is preferred so
+DNS and TLS both travel through the bootstrap VPN; the ordinary TUN route is a
+same-host fallback.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ import ssl
 import struct
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -35,8 +36,8 @@ CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
 CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
 CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I)]
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
-_SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(6)
-_TELEGRAM_PREVIEW_TEMPLATES = ("https://t.me/s/{channel}", "https://telegram.me/s/{channel}")
+_SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(10)
+_TELEGRAM_PREVIEW_TEMPLATE = "https://t.me/s/{channel}"
 
 
 @dataclass
@@ -161,11 +162,10 @@ def _decode_response(data: bytes, content_type: str) -> str:
 def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
     """Fetch one URL through the app-owned SOCKS5 listener.
 
-    RC10 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
-    The ordinary TUN/direct path is attempted only by ``fetch_channel`` after
-    both Telegram preview hosts fail through SOCKS. Limiting simultaneous TLS
-    handshakes prevents the local Xray listener and bootstrap server from being
-    flooded by hundreds of Telegram requests.
+    RC12 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
+    The ordinary TUN route is attempted only against the same canonical t.me
+    endpoint. Limiting simultaneous TLS handshakes prevents the local Xray
+    listener and bootstrap server from being flooded.
     """
     current = url
     with _SOCKS_FETCH_SEMAPHORE:
@@ -202,7 +202,10 @@ def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: in
                     response.close()
                     if not location:
                         raise OSError("redirect without Location header")
-                    current = urllib.parse.urljoin(current, location)
+                    redirected = urllib.parse.urljoin(current, location)
+                    if (urllib.parse.urlsplit(redirected).hostname or "").casefold() != "t.me":
+                        raise OSError("cross-host Telegram redirect blocked")
+                    current = redirected
                     continue
                 if response.status < 200 or response.status >= 400:
                     raise OSError(f"HTTP {response.status}")
@@ -216,6 +219,17 @@ def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: in
                 except OSError:
                     pass
     raise OSError("too many redirects")
+
+
+class _TMeOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Allow only redirects that remain on the canonical t.me host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        host = (urllib.parse.urlsplit(newurl).hostname or "").casefold()
+        if host != "t.me":
+            raise urllib.error.HTTPError(newurl, code, "cross-host Telegram redirect blocked", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
 
 def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -> tuple[str, int, str]:
     if socks_port:
@@ -233,7 +247,8 @@ def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -
     )
     # Match DicodeConfigChecker: let urllib use the active platform route.
     # The scanner still prefers its explicit SOCKS5 listener when available.
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    opener = urllib.request.build_opener(_TMeOnlyRedirectHandler())
+    with opener.open(request, timeout=timeout) as response:
         data = response.read(_MAX_RESPONSE_BYTES + 1)
         if len(data) > _MAX_RESPONSE_BYTES:
             raise OSError("Telegram preview response is unexpectedly large")
@@ -293,17 +308,11 @@ def fetch_channel(
     channel: str,
     *,
     per_channel_limit: int = 30,
-    timeout: float = 12.0,
+    timeout: float = 6.5,
     socks_port: int = 0,
     stop_event: threading.Event | None = None,
 ) -> ChannelResult:
-    """Fetch one channel with the DicodeConfigChecker host fallback order.
-
-    A verified local SOCKS5 listener is preferred because it guarantees remote
-    DNS resolution and avoids leaking the Telegram hostname to the un-tunnelled
-    network.  Each transport gets its own timeout budget; RC9 shared one budget
-    across direct retries, so the SOCKS fallback often never ran.
-    """
+    """Fetch one channel from the canonical t.me preview endpoint only."""
     started = time.monotonic()
     size = 0
     errors: list[str] = []
@@ -311,39 +320,37 @@ def fetch_channel(
     if socks_port:
         routes.append(("socks5", int(socks_port)))
     routes.append(("tun", 0))
+    url = _TELEGRAM_PREVIEW_TEMPLATE.format(channel=channel)
 
     for route_name, route_port in routes:
-        for template in _TELEGRAM_PREVIEW_TEMPLATES:
-            if stop_event is not None and stop_event.is_set():
-                return ChannelResult(
-                    channel=channel, ok=False, found=0, picked=0,
-                    elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
-                    configs=[], error="cancelled", bytes_received=size, transport=route_name,
-                )
-            url = template.format(channel=channel)
-            host = urllib.parse.urlsplit(url).hostname or "t.me"
-            try:
-                page, received, transport = _fetch_url_payload(
-                    url, timeout=max(3.0, float(timeout)), socks_port=route_port
-                )
-                size += received
-                if not _is_usable_preview(page):
-                    raise RuntimeError(f"{host} returned an unusable preview page")
-                configs = extract_configs(page)
-                picked = configs[: max(1, int(per_channel_limit))]
-                return ChannelResult(
-                    channel=channel,
-                    ok=True,
-                    found=len(configs),
-                    picked=len(picked),
-                    elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
-                    configs=picked,
-                    bytes_received=size,
-                    transport=transport if route_name == "socks5" else "tun",
-                )
-            except Exception as exc:
-                compact = str(exc).replace("\n", " ")[-220:]
-                errors.append(f"{route_name}:{host} {compact}")
+        if stop_event is not None and stop_event.is_set():
+            return ChannelResult(
+                channel=channel, ok=False, found=0, picked=0,
+                elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+                configs=[], error="cancelled", bytes_received=size, transport=route_name,
+            )
+        try:
+            page, received, transport = _fetch_url_payload(
+                url, timeout=max(3.0, float(timeout)), socks_port=route_port
+            )
+            size += received
+            if not _is_usable_preview(page):
+                raise RuntimeError("t.me returned an unusable preview page")
+            configs = extract_configs(page)
+            picked = configs[: max(1, int(per_channel_limit))]
+            return ChannelResult(
+                channel=channel,
+                ok=True,
+                found=len(configs),
+                picked=len(picked),
+                elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+                configs=picked,
+                bytes_received=size,
+                transport=transport if route_name == "socks5" else "tun",
+            )
+        except Exception as exc:
+            compact = str(exc).replace("\n", " ")[-220:]
+            errors.append(f"{route_name}:t.me {compact}")
 
     return ChannelResult(
         channel=channel,
@@ -352,7 +359,7 @@ def fetch_channel(
         picked=0,
         elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
         configs=[],
-        error="; ".join(errors[-4:]) or "Telegram preview unavailable",
+        error="; ".join(errors[-2:]) or "t.me preview unavailable",
         bytes_received=size,
         transport="adaptive",
     )
@@ -365,7 +372,7 @@ def verify_telegram_route(
     timeout: float = 10.0,
     socks_port: int = 0,
     stop_event: threading.Event | None = None,
-    attempts: int = 5,
+    attempts: int = 3,
 ) -> ChannelResult:
     """Return the first usable Telegram preview before launching 324 jobs."""
     last = ChannelResult("", False, 0, 0, 1, [], "no channels")
@@ -387,12 +394,12 @@ def crawl_telegram_channels(
     channels: list[str] | None = None,
     per_channel_limit: int = 30,
     per_channel_limits: dict[str, int] | None = None,
-    max_workers: int = 8,
+    max_workers: int = 12,
     timeout: float = 8.0,
     progress: Callable[[int, int, str], None] | None = None,
     result_callback: Callable[[ChannelResult, int, int], None] | None = None,
     stop_event: threading.Event | None = None,
-    retry_limit: int = 1,
+    retry_limit: int = 0,
     socks_port: int = 0,
     max_unique_configs: int | None = None,
     minimum_channels_before_target: int = 0,

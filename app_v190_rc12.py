@@ -7,7 +7,6 @@ from dicodeping.rc6_runtime import install_rc6_patches
 from dicodeping.rc7_runtime import install_rc7_patches
 from dicodeping.rc8_runtime import install_rc8_patches
 from dicodeping.rc10_runtime import install_rc10_patches
-from dicodeping.rc10_runtime import install_rc10_patches
 from dicodeping.rc12_runtime import install_rc12_patches
 
 for install in (
@@ -17,7 +16,6 @@ for install in (
     install_rc6_patches,
     install_rc7_patches,
     install_rc8_patches,
-    install_rc10_patches,
     install_rc10_patches,
     install_rc12_patches,
 ):

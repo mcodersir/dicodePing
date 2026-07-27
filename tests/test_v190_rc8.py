@@ -40,7 +40,7 @@ def test_telegram_crawler_prefers_tun_and_bounds_socks_fallback() -> None:
     assert 'routes: list[tuple[str, int]] = []' in crawler
     assert 'routes.append(("socks5", int(socks_port)))' in crawler
     assert 'routes.append(("tun", 0))' in crawler
-    assert "threading.BoundedSemaphore(6)" in crawler
+    assert "threading.BoundedSemaphore(10)" in crawler
     assert "max_unique_configs" in crawler
     assert "minimum_channels_before_target" in crawler
 
@@ -48,7 +48,7 @@ def test_telegram_crawler_prefers_tun_and_bounds_socks_fallback() -> None:
 def test_rc8_increases_bounded_collection_and_probe_capacity() -> None:
     scanner = read("dicodeping/scanner.py")
     assert "SCAN_CRAWL_TARGET_RAW = 180" in scanner
-    assert "SCAN_CRAWL_MIN_CHANNELS = 80" in scanner
+    assert "SCAN_CRAWL_MIN_CHANNELS = 36" in scanner
     assert "SCAN_MAX_PROBE_CONFIGS = 160" in scanner
     assert "SCAN_MAX_SERVERS = 80" in scanner
     assert "if len(state.alive) >= 5" not in scanner
@@ -70,16 +70,16 @@ def test_rc8_scanner_feedback_and_server_cards_are_explicit() -> None:
 
 
 def test_rc8_release_payload_is_bilingual_and_multiplatform() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.11-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.11.md")
-    deploy = read("DEPLOY_PRERELEASE_RC11.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.12.md")
+    deploy = read("DEPLOY_PRERELEASE_RC12.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in (
-        "dicodePing-v1.9.0-rc.11-windows-x64.exe",
-        "dicodePing-v1.9.0-rc.11-linux-x86_64.tar.gz",
-        "dicodePing-v1.9.0-rc.11-macos-${{ matrix.architecture }}.dmg",
-        "dicodePing-v1.9.0-rc.11-android.apk",
+        "dicodePing-v1.9.0-rc.12-windows-x64.exe",
+        "dicodePing-v1.9.0-rc.12-linux-x86_64.tar.gz",
+        "dicodePing-v1.9.0-rc.12-macos-${{ matrix.architecture }}.dmg",
+        "dicodePing-v1.9.0-rc.12-android.apk",
     ):
         assert asset in workflow
-    assert "v1.9.0-rc.11" in deploy
-    assert "wait_for_github_release_rc11.ps1" in deploy
+    assert "v1.9.0-rc.12" in deploy
+    assert "wait_for_github_release_rc12.ps1" in deploy

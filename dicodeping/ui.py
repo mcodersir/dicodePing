@@ -1781,7 +1781,7 @@ class MainWindow(QMainWindow):
             "[CONNECT][OK] dashboard connection verified; scan started",
             f"[TG][PLAN] rank1={rank1_limit} config/channel • rank2={rank2_limit} config/channel",
         ))
-        # RC11 never starts a VPN from the scanner.  The dashboard owns the
+        # RC12 never starts a VPN from the scanner.  The dashboard owns the
         # connection and this worker reuses the already verified server.
         bootstrap_server_id = self.connected_id
 

@@ -11,6 +11,7 @@ import ir.dicode.ping.vpn.VpnStatus
 import ir.dicode.ping.xray.CoreBridge
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -145,31 +146,41 @@ class ScannerCoordinator private constructor(private val context: Context) {
             done = 0,
             log = "[CONNECT][OK] Bootstrap VPN verified; crawling ${channels.size} Telegram channels",
         )
+        val crawlFound = AtomicInteger(0)
+        val plannedChannelBudget = minOf(channels.size, 72).coerceAtLeast(1)
+        val crawlTarget = 180
         val crawled = withTimeoutOrNull(CRAWL_TIMEOUT_MS) {
             try {
                 TelegramChannelCrawler.crawl(
                     channels = channels,
-                    maxWorkers = tuning.crawlWorkers.coerceIn(2, 4),
+                    maxWorkers = tuning.crawlWorkers.coerceIn(3, 8),
                     perChannelLimits = channelPlan,
                     progress = { done, total, channel ->
+                        val channelRatio = done.coerceAtLeast(0).toDouble() / plannedChannelBudget
+                        val configRatio = crawlFound.get().toDouble() / crawlTarget
+                        val phaseRatio = maxOf(channelRatio, configRatio).coerceIn(0.0, 1.0)
                         update(
                             stage = ScannerStage.CRAWLING,
-                            progress = 5 + if (total > 0) done * 40 / total else 0,
+                            progress = 5 + (phaseRatio * 40).toInt(),
                             done = done,
                             total = total,
                             log = if (channel.isBlank()) null else "[TG][STEP] ${mask(channel)}",
                         )
                     },
                     onResult = { result, done, total ->
+                        if (result.ok && result.picked > 0) crawlFound.addAndGet(result.picked)
+                        val channelRatio = done.coerceAtLeast(0).toDouble() / plannedChannelBudget
+                        val configRatio = crawlFound.get().toDouble() / crawlTarget
+                        val phaseRatio = maxOf(channelRatio, configRatio).coerceIn(0.0, 1.0)
                         val message = if (result.ok) {
                             "[TG][OK] $done/$total @${mask(result.channel)} " +
-                                "configs=${result.picked}/${result.found} host=${result.previewHost} ${result.elapsedMs}ms"
+                                "configs=${result.picked}/${result.found} host=t.me ${result.elapsedMs}ms"
                         } else {
                             "[TG][ERR] $done/$total @${mask(result.channel)} ${result.error.takeLast(220)}"
                         }
                         update(
                             stage = ScannerStage.CRAWLING,
-                            progress = 5 + if (total > 0) done.coerceAtLeast(0) * 40 / total else 0,
+                            progress = 5 + (phaseRatio * 40).toInt(),
                             done = done.coerceAtLeast(0),
                             total = total,
                             log = message,
@@ -178,6 +189,8 @@ class ScannerCoordinator private constructor(private val context: Context) {
                             } else null,
                         )
                     },
+                    maxUniqueConfigs = crawlTarget,
+                    minimumChannelsBeforeTarget = 36,
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -363,9 +376,15 @@ class ScannerCoordinator private constructor(private val context: Context) {
         log: String? = null,
         output: String? = null,
     ) {
-        _state.value = _state.value.copy(
+        val previous = _state.value
+        val safeProgress = if (stage == previous.stage && stage in setOf(ScannerStage.CRAWLING, ScannerStage.PROBING)) {
+            maxOf(previous.progress, progress.coerceIn(0, 100))
+        } else {
+            progress.coerceIn(0, 100)
+        }
+        _state.value = previous.copy(
             stage = stage,
-            progress = progress.coerceIn(0, 100),
+            progress = safeProgress,
             done = done,
             total = total,
             alive = alive,
@@ -380,7 +399,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
 
     companion object {
         private const val DISCONNECT_TIMEOUT_MS = 18_000L
-        private const val CRAWL_TIMEOUT_MS = 8 * 60_000L
+        private const val CRAWL_TIMEOUT_MS = 4 * 60_000L
         private const val PROBE_TIMEOUT_MS = 14 * 60_000L
         private const val STAGE1_CACHE_MAX_AGE_MS = 12 * 60 * 60_000L
         private const val MAX_CACHED_CANDIDATES = 180

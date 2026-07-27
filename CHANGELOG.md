@@ -1,4 +1,4 @@
-## 1.9.0-rc.11
+## 1.9.0-rc.12
 
 - Scanner no longer starts a VPN from inside the scanner page.
 - Added a one-time VPN requirement notice.
