@@ -24,8 +24,8 @@ import java.util.regex.Pattern
  */
 object TelegramChannelCrawler {
     private const val PER_CHANNEL_LIMIT = 30
-    private const val MAX_WORKERS = 8
-    private const val TIMEOUT_SECONDS = 12L
+    private const val MAX_WORKERS = 10
+    private const val TIMEOUT_SECONDS = 15L
 
     private val CONFIG_PATTERNS = listOf(
         Pattern.compile("\\b(?:vmess|vless|trojan|ss)://[^\\s<>\"'`\\\\]+", Pattern.CASE_INSENSITIVE),
@@ -61,6 +61,8 @@ object TelegramChannelCrawler {
         maxWorkers: Int = MAX_WORKERS,
         perChannelLimits: Map<String, Int> = emptyMap(),
         progress: ((Int, Int, String) -> Unit)? = null,
+        maxUniqueConfigs: Int = 180,
+        minimumChannelsBeforeTarget: Int = 80,
     ): List<String> = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext emptyList()
         val normalizedLimits = perChannelLimits.mapKeys { it.key.lowercase() }
@@ -94,8 +96,11 @@ object TelegramChannelCrawler {
                     }
                 }.awaitAll()
             }
+            if (done.get() >= minimumChannelsBeforeTarget && result.size >= maxUniqueConfigs) {
+                return@withContext result.take(maxUniqueConfigs)
+            }
         }
-        result
+        result.take(maxUniqueConfigs)
     }
 
     /** Fetch a single channel's preview page and extract configs. */

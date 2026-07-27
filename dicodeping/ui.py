@@ -1581,12 +1581,15 @@ class MainWindow(QMainWindow):
             return view
 
         self.scanner_log_view = make_log_view()
+        self.scanner_connection_log_view = make_log_view()
         self.scanner_tg_log_view = make_log_view()
         self.scanner_test_log_view = make_log_view()
         self._scanner_log_highlighter = ScannerLogHighlighter(self.scanner_log_view.document())
+        self._scanner_connection_log_highlighter = ScannerLogHighlighter(self.scanner_connection_log_view.document())
         self._scanner_tg_log_highlighter = ScannerLogHighlighter(self.scanner_tg_log_view.document())
         self._scanner_test_log_highlighter = ScannerLogHighlighter(self.scanner_test_log_view.document())
         self.scanner_log_tabs.addTab(self.scanner_log_view, "همه" if self.language != "en" else "All")
+        self.scanner_log_tabs.addTab(self.scanner_connection_log_view, "اتصال VPN" if self.language != "en" else "VPN connection")
         self.scanner_log_tabs.addTab(self.scanner_tg_log_view, "دریافت تلگرام" if self.language != "en" else "Telegram")
         self.scanner_log_tabs.addTab(self.scanner_test_log_view, "تست واقعی" if self.language != "en" else "Real tests")
         log_layout.addWidget(self.scanner_log_tabs)
@@ -1667,16 +1670,32 @@ class MainWindow(QMainWindow):
             return
         custom_name = "SUB"
         # Pull the per-channel limits from settings.
-        from .scanner import normalize_rank_limit
-        rank1_limit = normalize_rank_limit(self.settings.get("scanner_rank1_limit", 3))
-        rank2_limit = normalize_rank_limit(self.settings.get("scanner_rank2_limit", 3))
-        self.scanner_run_button.setText(self.t("scanner_stop"))
+        from .scanner import DEFAULT_RANK1_PER_CHANNEL, DEFAULT_RANK2_PER_CHANNEL, normalize_rank_limit
+        if int(self.settings.get("scanner_limits_version", 0) or 0) < 8:
+            self.settings["scanner_rank1_limit"] = DEFAULT_RANK1_PER_CHANNEL
+            self.settings["scanner_rank2_limit"] = DEFAULT_RANK2_PER_CHANNEL
+            self.settings["scanner_limits_version"] = 8
+            self.store.save_settings(self.settings)
+        rank1_limit = normalize_rank_limit(
+            self.settings.get("scanner_rank1_limit", DEFAULT_RANK1_PER_CHANNEL),
+            DEFAULT_RANK1_PER_CHANNEL,
+        )
+        rank2_limit = normalize_rank_limit(
+            self.settings.get("scanner_rank2_limit", DEFAULT_RANK2_PER_CHANNEL),
+            DEFAULT_RANK2_PER_CHANNEL,
+        )
+        self.scanner_run_button.setText(
+            "در حال روشن‌کردن VPN…" if self.language != "en" else "Starting VPN…"
+        )
         self.scanner_run_button.setProperty("kind", "danger")
         self.scanner_run_button.style().unpolish(self.scanner_run_button)
         self.scanner_run_button.style().polish(self.scanner_run_button)
-        self.scanner_progress.setRange(0, 100)
-        self.scanner_progress.setValue(0)
-        self.scanner_stage_label.setText(self.t("scanner_stage1"))
+        self.scanner_progress.setRange(0, 0)
+        self.scanner_stage_label.setText(
+            "در حال روشن‌کردن VPN داخلی dicodePing…"
+            if self.language != "en" else
+            "Starting the dicodePing bootstrap VPN…"
+        )
         self.scanner_result_label.setText("")
         self._scanner_crawl_metric = ""
         self._scanner_probe_metric = ""
@@ -1692,7 +1711,15 @@ class MainWindow(QMainWindow):
         self._scanner_alive_count = 0
         self._set_scanner_stage_dot(1)
 
-        # If we are already connected to a server, skip Stage 1.
+        self._scanner_log_batch((
+            "────────────────────────────────────────────────",
+            "[CONNECT][START] درخواست اسکن ثبت شد؛ روشن‌کردن VPN داخلی"
+            if self.language != "en" else
+            "[CONNECT][START] scan accepted; starting the internal VPN",
+            f"[TG][PLAN] rank1={rank1_limit} config/channel • rank2={rank2_limit} config/channel",
+        ))
+        # If we are already connected to a server, reuse it; otherwise Stage 1
+        # immediately starts the app-owned bootstrap connection.
         bootstrap_server_id = self.connected_id or None
 
         thread = ScannerThread(
@@ -1745,7 +1772,19 @@ class MainWindow(QMainWindow):
         try:
             if not self._scanner_bootstrap_server_id:
                 raise RuntimeError("Scanner selected an empty bootstrap server id.")
-            self.connect_by_id(self._scanner_bootstrap_server_id)
+            server = next(
+                (item for item in self.servers if item.id == self._scanner_bootstrap_server_id),
+                None,
+            )
+            if server is None:
+                raise RuntimeError("Scanner bootstrap server is no longer available.")
+            self._scanner_log_line(
+                f"[CONNECT][UI] starting {server.name} ({server.host}:{server.port})"
+            )
+            self.scanner_run_button.setText(
+                "در حال اتصال VPN…" if self.language != "en" else "Connecting VPN…"
+            )
+            self.connect_server(server, automatic=True)
             if not self.worker and not self.manager.connected:
                 raise RuntimeError("Bootstrap connection worker did not start.")
         except Exception as exc:
@@ -1772,6 +1811,9 @@ class MainWindow(QMainWindow):
 
     def _scanner_stage_changed(self, stage_number: int, _label: str) -> None:
         self._set_scanner_stage_dot(stage_number)
+        if stage_number >= 2 and self.scanner_progress.maximum() == 0:
+            self.scanner_progress.setRange(0, 100)
+            self.scanner_progress.setValue(0)
         if stage_number >= 2:
             self.scanner_alive_label.setVisible(True)
             self.scanner_alive_label.setText(
@@ -1864,7 +1906,11 @@ class MainWindow(QMainWindow):
                 bar.setValue(bar.maximum())
 
         append(self.scanner_log_view, lines)
-        append(self.scanner_tg_log_view, [line for line in lines if "[TG]" in line.upper()])
+        append(
+            self.scanner_connection_log_view,
+            [line for line in lines if any(tag in line.upper() for tag in ("[CONNECT]", "[DISCONNECT]", "[STAGE]"))],
+        )
+        append(self.scanner_tg_log_view, [line for line in lines if "[TG]" in line.upper() or "[STORE]" in line.upper()])
         append(
             self.scanner_test_log_view,
             [line for line in lines if any(tag in line.upper() for tag in ("[TEST]", "[DISCONNECT]"))],
@@ -1880,7 +1926,7 @@ class MainWindow(QMainWindow):
             self.scanner_thread = None
 
     def _clear_scanner_log(self) -> None:
-        for name in ("scanner_log_view", "scanner_tg_log_view", "scanner_test_log_view"):
+        for name in ("scanner_log_view", "scanner_connection_log_view", "scanner_tg_log_view", "scanner_test_log_view"):
             view = getattr(self, name, None)
             if view is not None:
                 view.clear()
@@ -3458,11 +3504,69 @@ class MainWindow(QMainWindow):
         self.server_card_list.clear()
         for server in rows:
             latency = f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable")
-            item = QListWidgetItem(f"{server.name}\n{self._server_location_text(server)}  •  {latency}")
+            item = QListWidgetItem()
             item.setData(Qt.UserRole, server.id)
             item.setToolTip(f"{server.host}:{server.port}")
-            item.setSizeHint(QSize(0, 72))
+            item.setSizeHint(QSize(0, 86))
             self.server_card_list.addItem(item)
+
+            card = QFrame()
+            card.setObjectName("compactServerCard")
+            card.setStyleSheet(
+                "QFrame#compactServerCard{background:#111823;border:1px solid #253244;"
+                "border-radius:12px;} QFrame#compactServerCard:hover{border-color:#506DA8;}"
+            )
+            card_layout = QBoxLayout(
+                QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight, card
+            )
+            card_layout.setContentsMargins(12, 9, 12, 9)
+            card_layout.setSpacing(10)
+            flag_label = QLabel()
+            flag_label.setFixedSize(38, 28)
+            flag_label.setAlignment(Qt.AlignCenter)
+            flag_label.setPixmap(country_flag_pixmap(server.country_code, 34, 24))
+            card_layout.addWidget(flag_label)
+
+            text_box = QWidget()
+            text_layout = QVBoxLayout(text_box)
+            text_layout.setContentsMargins(0, 0, 0, 0)
+            text_layout.setSpacing(3)
+            title = QLabel(server.name)
+            title.setObjectName("sectionTitle")
+            title.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            meta = QLabel(
+                f"{getattr(server, 'protocol', '')} • {self._server_location_text(server)}\n"
+                f"{server.host}:{server.port}"
+            )
+            meta.setObjectName("muted")
+            meta.setWordWrap(True)
+            text_layout.addWidget(title)
+            text_layout.addWidget(meta)
+            card_layout.addWidget(text_box, 1)
+
+            ping_badge = QLabel(latency)
+            ping_badge.setAlignment(Qt.AlignCenter)
+            ping_badge.setMinimumWidth(72)
+            ping_badge.setStyleSheet(
+                "background:#10271D;color:#4FD08A;border-radius:9px;padding:6px 8px;font-weight:700;"
+                if server.ping_ms is not None else
+                "background:#1B2430;color:#8F9CAD;border-radius:9px;padding:6px 8px;"
+            )
+            card_layout.addWidget(ping_badge)
+
+            connect_button = QPushButton(
+                self.t("connected") if server.id == self.connected_id else self.t("connect")
+            )
+            connect_button.setIcon(tinted_icon("power.svg"))
+            connect_button.setProperty("kind", "primary")
+            connect_button.setEnabled(
+                server.id != self.connected_id and not self.manager.connected and not self.worker
+            )
+            connect_button.clicked.connect(
+                lambda _=False, sid=server.id: self.connect_by_id(sid)
+            )
+            card_layout.addWidget(connect_button)
+            self.server_card_list.setItemWidget(item, card)
         self.table.setUpdatesEnabled(True)
         self.table.blockSignals(False)
         compact_cards = window_class(self.width()) is WindowClass.COMPACT
@@ -3500,7 +3604,12 @@ class MainWindow(QMainWindow):
         top = online_rows[:4]
         self.home_table.setRowCount(len(top))
         for row, server in enumerate(top):
-            self.home_table.setItem(row, 0, QTableWidgetItem(server.name))
+            name_item = QTableWidgetItem(
+                f"{server.name}\n{getattr(server, 'protocol', '')} • {server.source_name or self.t('unknown')}"
+            )
+            name_item.setIcon(icon("servers.svg"))
+            name_item.setToolTip(f"{server.host}:{server.port}")
+            self.home_table.setItem(row, 0, name_item)
             self.home_table.setCellWidget(row, 1, self._home_location_widget(server))
             icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
             ping = QTableWidgetItem(
@@ -3508,8 +3617,10 @@ class MainWindow(QMainWindow):
                 f"{self.t('xray_short')} {server.ping_ms} ms"
             )
             ping.setTextAlignment(Qt.AlignCenter)
+            if server.ping_ms is not None:
+                ping.setForeground(QBrush(QColor("#4FD08A" if server.ping_ms < 180 else "#F1B95A")))
             self.home_table.setItem(row, 2, ping)
-            self.home_table.setRowHeight(row, 46)
+            self.home_table.setRowHeight(row, 58)
         self.stat_total[1].setText(str(len(self.servers)))
         self.stat_online[1].setText(str(len(online_rows)))
         best = self.service.best_server(self.servers)

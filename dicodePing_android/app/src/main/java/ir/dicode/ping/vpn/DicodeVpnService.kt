@@ -18,7 +18,9 @@ import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.xray.CoreBridge
 import ir.dicode.ping.xray.XrayConfigBuilder
 import ir.dicode.ping.data.SettingsStore
+import ir.dicode.ping.core.AndroidExternalCoreProcess
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,7 @@ class DicodeVpnService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tun: ParcelFileDescriptor? = null
     private var core: CoreBridge? = null
+    private var externalCore: AndroidExternalCoreProcess? = null
     private var startJob: Job? = null
     private var metricsJob: Job? = null
     private var uploadTotal = 0L
@@ -46,6 +49,7 @@ class DicodeVpnService : VpnService() {
     private var currentUnderlyingNetwork: Network? = null
     private val startGeneration = AtomicLong(0L)
     private val runtimeMutex = Mutex()
+    private val stopping = AtomicBoolean(false)
     private val tetheringController = AndroidTetheringController()
 
     private val underlyingRequest = NetworkRequest.Builder()
@@ -92,6 +96,7 @@ class DicodeVpnService : VpnService() {
         }
 
         val raw = intent?.getStringExtra(EXTRA_CONFIG).orEmpty()
+        val coreId = intent?.getStringExtra(EXTRA_CORE_ID).orEmpty().ifBlank { "xray" }
         val serverId = intent?.getStringExtra(EXTRA_SERVER_ID).orEmpty()
         val name = intent?.getStringExtra(EXTRA_NAME).orEmpty()
         val bypassDomains = intent?.getStringExtra(EXTRA_BYPASS_DOMAINS).orEmpty()
@@ -100,12 +105,13 @@ class DicodeVpnService : VpnService() {
         val perAppPackages = intent?.getStringArrayListExtra(EXTRA_PER_APP_PACKAGES).orEmpty()
         val vpnSharingUsb = intent?.getBooleanExtra(EXTRA_VPN_SHARING_USB, false) ?: false
         val vpnSharingHotspot = intent?.getBooleanExtra(EXTRA_VPN_SHARING_HOTSPOT, false) ?: false
-        if (raw.isBlank()) {
+        if (raw.isBlank() && coreId == "xray") {
             stopSelf()
             return START_NOT_STICKY
         }
 
         currentName = name
+        stopping.set(false)
         val generation = startGeneration.incrementAndGet()
         val previousStart = startJob
         AppLog.i("VPN", "Start requested for $name; bypassApps=${bypassApps.size}; perAppMode=$perAppMode; perAppPackages=${perAppPackages.size}; sharingUsb=$vpnSharingUsb; sharingHotspot=$vpnSharingHotspot; generation=$generation")
@@ -114,7 +120,7 @@ class DicodeVpnService : VpnService() {
         startJob = scope.launch {
             previousStart?.cancelAndJoin()
             runtimeMutex.withLock {
-                startVpn(raw, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation)
+                startVpn(raw, coreId, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation)
             }
         }
         return START_REDELIVER_INTENT
@@ -122,6 +128,7 @@ class DicodeVpnService : VpnService() {
 
     private suspend fun startVpn(
         raw: String,
+        coreId: String,
         serverId: String,
         name: String,
         bypassDomains: String,
@@ -170,8 +177,9 @@ class DicodeVpnService : VpnService() {
                             runCatching { builder.addAllowedApplication(appPackage) }
                                 .onFailure { AppLog.w("VPN", "Cannot allow app $appPackage: ${it.message}") }
                         }
-                    // Also allow the app itself so the core can communicate.
-                    runCatching { builder.addAllowedApplication(packageName) }
+                    // Xray protects its sockets itself. External bundled cores must
+                    // stay outside the TUN to avoid a same-UID routing loop.
+                    if (coreId == "xray") runCatching { builder.addAllowedApplication(packageName) }
                     AppLog.i("VPN", "Per-app VPN: allowlist mode with ${perAppPackages.size} apps")
                 }
                 "denylist" -> {
@@ -217,16 +225,26 @@ class DicodeVpnService : VpnService() {
 
             val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext)
             val settings = SettingsStore(applicationContext)
-            core!!.start(
+            val xrayConfig = if (coreId == "xray") {
                 XrayConfigBuilder.build(
                     raw,
                     bypassDomains,
                     resources.bufferSizeKiB,
                     settings.cdnFormattingDomain.takeIf { settings.cdnFormattingEnabled }.orEmpty(),
                     settings.secureDnsDoh,
-                ),
-                tun!!.fd,
-            )
+                )
+            } else {
+                check(coreId == "aether" || coreId == "warp") { "Unsupported bundled core: $coreId" }
+                val helper = AndroidExternalCoreProcess(applicationContext, coreId)
+                helper.start(settings.warpTermsAccepted)
+                externalCore = helper
+                XrayConfigBuilder.buildSocksBridge(
+                    helper.socksPort,
+                    resources.bufferSizeKiB,
+                    settings.secureDnsDoh,
+                )
+            }
+            core!!.start(xrayConfig, tun!!.fd)
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             VpnStateStore.state.value = VpnState(
                 VpnStatus.CONNECTING,
@@ -325,7 +343,7 @@ class DicodeVpnService : VpnService() {
             var consecutiveProbeFailures = 0
             while (isActive && generation == startGeneration.get()) {
                 val activeCore = core
-                if (activeCore?.isRunning() != true) {
+                if (activeCore?.isRunning() != true || externalCore?.let { !it.isRunning() } == true) {
                     AppLog.e("VPN", "Core stopped unexpectedly for $name")
                     VpnStateStore.state.value = VpnState(
                         status = VpnStatus.ERROR,
@@ -421,6 +439,8 @@ class DicodeVpnService : VpnService() {
         metricsJob = null
         runCatching { core?.stop() }
         core = null
+        runCatching { externalCore?.stop() }
+        externalCore = null
         runCatching { tun?.close() }
         tun = null
         if (underlyingCallbackRegistered) {
@@ -432,6 +452,7 @@ class DicodeVpnService : VpnService() {
     }
 
     private fun stopVpn() {
+        if (!stopping.compareAndSet(false, true)) return
         AppLog.i("VPN", "Stop requested for $currentName")
         startGeneration.incrementAndGet()
         val previousStart = startJob
@@ -443,6 +464,7 @@ class DicodeVpnService : VpnService() {
             runtimeMutex.withLock { stopRuntime() }
             VpnStateStore.state.value = VpnState()
             currentName = ""
+            stopping.set(false)
             stopSelf()
         }
     }
@@ -483,9 +505,16 @@ class DicodeVpnService : VpnService() {
         startGeneration.incrementAndGet()
         startJob?.cancel()
         metricsJob?.cancel()
-        // CoreBridge serializes live JNI reads with stopLoop, preventing the
-        // libgojni shutdown race seen on older Xiaomi/Android builds.
-        stopRuntime()
+        // Never wait for native shutdown on Android's service main thread.
+        // Close the TUN immediately, detach the handles, and stop helpers on IO.
+        val detachedTun = tun.also { tun = null }
+        val detachedCore = core.also { core = null }
+        val detachedExternal = externalCore.also { externalCore = null }
+        runCatching { detachedTun?.close() }
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { detachedCore?.stop() }
+            runCatching { detachedExternal?.stop() }
+        }
         scope.cancel()
         super.onDestroy()
     }
@@ -493,6 +522,7 @@ class DicodeVpnService : VpnService() {
     companion object {
         const val ACTION_STOP = "ir.dicode.ping.STOP"
         const val EXTRA_CONFIG = "config"
+        const val EXTRA_CORE_ID = "core_id"
         const val EXTRA_SERVER_ID = "server_id"
         const val EXTRA_NAME = "name"
         const val EXTRA_BYPASS_DOMAINS = "bypass_domains"

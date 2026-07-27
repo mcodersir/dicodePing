@@ -235,4 +235,10 @@
     <string name="core_unsupported_build">در این بیلد پشتیبانی نمی‌شود</string>
     <string name="conn_method_warp">WARP / Usque</string>
     <string name="psiphon_authorized_config_missing">برای این Build تنظیمات توزیع مجاز Psiphon فراهم نشده است.</string>
+    <string name="core_activation_done">هسته اتصال فعال شد</string>
+    <string name="warp_terms_title">فعال‌سازی Cloudflare WARP</string>
+    <string name="warp_terms_message">Usque باید یک دستگاه WARP را در Cloudflare ثبت کند. با ادامه، تأیید می‌کنید که شرایط Cloudflare را برای این ثبت می‌پذیرید.</string>
+    <string name="accept_and_activate">پذیرش و فعال‌سازی</string>
+    <string name="conn_method_preparing">در حال آماده‌سازی هسته داخلی…</string>
+    <string name="warp_registration_failed">ثبت WARP ناموفق بود</string>
 </resources>

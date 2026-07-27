@@ -84,16 +84,16 @@ class V190Rc7Tests(unittest.TestCase):
         self.assertIn('prefs.getBoolean("secure_dns_doh", false)', android)
 
     def test_rc7_release_payload_is_complete(self) -> None:
-        workflow = (ROOT / ".github/workflows/v1.9.0-rc.7-release.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/v1.9.0-rc.9-release.yml").read_text(encoding="utf-8")
         for name in (
-            "dicodePing-v1.9.0-rc.7-windows-x64.exe",
-            "dicodePing-v1.9.0-rc.7-linux-x86_64.tar.gz",
-            "dicodePing-v1.9.0-rc.7-macos-${{ matrix.architecture }}.dmg",
-            "dicodePing-v1.9.0-rc.7-android.apk",
+            "dicodePing-v1.9.0-rc.9-windows-x64.exe",
+            "dicodePing-v1.9.0-rc.9-linux-x86_64.tar.gz",
+            "dicodePing-v1.9.0-rc.9-macos-${{ matrix.architecture }}.dmg",
+            "dicodePing-v1.9.0-rc.9-android.apk",
         ):
             self.assertIn(name, workflow)
-        self.assertTrue((ROOT / "docs/releases/v1.9.0-rc.7.md").is_file())
-        self.assertTrue((ROOT / "DEPLOY_PRERELEASE_RC7.bat").is_file())
+        self.assertTrue((ROOT / "docs/releases/v1.9.0-rc.9.md").is_file())
+        self.assertTrue((ROOT / "DEPLOY_PRERELEASE_RC9.bat").is_file())
 
 
 if __name__ == "__main__":

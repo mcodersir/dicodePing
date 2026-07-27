@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v190_rc2_versions_and_four_platform_release():
-    assert 'RELEASE_VERSION = "1.9.0-rc.7"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc7"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
-    workflow = (ROOT / ".github/workflows/v1.9.0-rc.7-release.yml").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.9"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc9"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    workflow = (ROOT / ".github/workflows/v1.9.0-rc.9-release.yml").read_text("utf-8")
     for platform in ("windows", "linux", "macos", "android"):
         assert platform in workflow
     assert "prerelease: true" in workflow
@@ -37,11 +37,14 @@ def test_desktop_core_distribution_matches_legacy_release_model():
     assert '"--onefile"' in windows
     assert '"--uac-admin"' in windows
     assert "xray.exe" in windows and "wintun.dll" in windows
-    assert "prepare_optional_cores" not in windows
+    assert "prepare_optional_cores" in windows
+    assert "aether.exe" in windows and "usque.exe" in windows
     assert '"--onefile"' in linux
-    assert "prepare_optional_cores" not in linux
+    assert "prepare_optional_cores" in linux
+    assert "core / 'aether'" in linux and "core / 'usque'" in linux
     assert '"--windowed"' in macos
-    assert "prepare_optional_cores" not in macos
+    assert "prepare_optional_cores" in macos
+    assert "core / 'aether'" in macos and "core / 'usque'" in macos
     assert "xray" in macos
 
 
@@ -69,8 +72,6 @@ def test_manifest_pins_macos_core_assets():
     for core_id in ("aether", "warp"):
         for platform in ("macos-arm64", "macos-x86_64"):
             item = manifest["cores"][core_id][platform]
-            assert item["bundled"] is False
-            assert item["publishedAsset"] is True
             assert len(item["sha256"]) == 64
 
 

@@ -221,59 +221,6 @@
                     </com.google.android.material.card.MaterialCardView>
 
                     <com.google.android.material.card.MaterialCardView
-                        style="@style/Widget.DicodePing.Card"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="16dp">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="@string/per_app_vpn_title"
-                                android:textColor="@color/text_primary"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                            <com.google.android.material.textfield.TextInputLayout
-                                style="@style/Widget.DicodePing.TextInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="12dp"
-                                android:hint="@string/per_app_vpn_mode"
-                                app:endIconMode="dropdown_menu">
-
-                                <AutoCompleteTextView
-                                    android:id="@+id/perAppMode"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="56dp"
-                                    android:inputType="none" />
-                            </com.google.android.material.textfield.TextInputLayout>
-
-                            <TextView
-                                android:id="@+id/perAppAppsCount"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="8dp"
-                                android:textColor="@color/brand"
-                                android:textSize="12sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/choosePerAppApps"
-                                style="@style/Widget.DicodePing.Button.Secondary"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp"
-                                android:layout_marginTop="8dp"
-                                android:text="@string/choose_per_app_apps" />
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-
-                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/sharingCard"
                         style="@style/Widget.DicodePing.Card"
                         android:layout_width="match_parent"
@@ -372,6 +319,59 @@
                     android:layout_marginTop="14dp"
                     android:orientation="vertical"
                     android:visibility="gone">
+
+                    <com.google.android.material.card.MaterialCardView
+                        style="@style/Widget.DicodePing.Card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/per_app_vpn_title"
+                                android:textColor="@color/text_primary"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.DicodePing.TextInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:hint="@string/per_app_vpn_mode"
+                                app:endIconMode="dropdown_menu">
+
+                                <AutoCompleteTextView
+                                    android:id="@+id/perAppMode"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="56dp"
+                                    android:inputType="none" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <TextView
+                                android:id="@+id/perAppAppsCount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:textColor="@color/brand"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/choosePerAppApps"
+                                style="@style/Widget.DicodePing.Button.Secondary"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:layout_marginTop="8dp"
+                                android:text="@string/choose_per_app_apps" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <com.google.android.material.card.MaterialCardView
                         style="@style/Widget.DicodePing.Card"

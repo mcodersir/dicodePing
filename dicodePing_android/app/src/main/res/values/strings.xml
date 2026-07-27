@@ -235,4 +235,10 @@
         <item quantity="one">%d server available</item>
         <item quantity="other">%d servers available</item>
     </plurals>
+    <string name="core_activation_done">Connection core activated</string>
+    <string name="warp_terms_title">Activate Cloudflare WARP</string>
+    <string name="warp_terms_message">Usque must register a WARP device with Cloudflare. By continuing, you confirm that you accept Cloudflare terms for this registration.</string>
+    <string name="accept_and_activate">Accept and activate</string>
+    <string name="conn_method_preparing">Preparing bundled core…</string>
+    <string name="warp_registration_failed">WARP registration failed</string>
 </resources>

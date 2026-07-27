@@ -42,7 +42,9 @@ import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.util.PublicServerLabel
 import ir.dicode.ping.vpn.DicodeVpnService
+import ir.dicode.ping.vpn.VpnState
 import ir.dicode.ping.vpn.VpnStateStore
+import ir.dicode.ping.vpn.VpnStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -56,18 +58,36 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     private var automaticAttemptId = ""
     private var automaticRetryScheduled = false
 
-    private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
+    private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val server = pendingServer ?: return@registerForActivityResult
         pendingServer = null
 
         lifecycleScope.launch {
+            if (result.resultCode != RESULT_OK) {
+                VpnStateStore.state.value = VpnState(
+                    status = VpnStatus.ERROR,
+                    serverId = server.id,
+                    serverName = server.name,
+                    message = getString(R.string.vpn_permission_failed_message),
+                )
+                showVpnPermissionError()
+                return@launch
+            }
             var granted = false
             for (attempt in 0 until 4) {
-                delay(300)
+                delay(250)
                 granted = runCatching { VpnService.prepare(this@MainActivity) == null }.getOrDefault(false)
                 if (granted) break
             }
-            if (granted) startVpn(server) else showVpnPermissionError()
+            if (granted) startVpn(server) else {
+                VpnStateStore.state.value = VpnState(
+                    status = VpnStatus.ERROR,
+                    serverId = server.id,
+                    serverName = server.name,
+                    message = getString(R.string.vpn_permission_failed_message),
+                )
+                showVpnPermissionError()
+            }
         }
     }
 
@@ -175,15 +195,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     private fun showPage(id: Int, animate: Boolean = true) {
-        if (SettingsStore(this).activeCore != "xray" &&
-            (id == R.id.nav_servers || id == R.id.nav_scanner)
-        ) {
-            MaterialAlertDialogBuilder(this)
-                .setMessage(R.string.alternative_core_notice)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-            return
-        }
         val tag = pageTag(id)
         val existing = supportFragmentManager.findFragmentByTag(tag)
         if (id == currentPageId && existing?.isVisible == true) return
@@ -233,13 +244,29 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun connect(server: ServerRecord?) {
-        val activeCore = vm.repo.settings.activeCore
-        if (activeCore != "xray") {
-            val manager = AndroidCoreManager(applicationContext)
-            MaterialAlertDialogBuilder(this)
-                .setMessage(manager.capability(activeCore).reason)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+        val selectedCore = vm.repo.settings.activeCore
+        if (selectedCore != "xray") {
+            val capability = AndroidCoreManager(applicationContext).capability(selectedCore)
+            if (!capability.canConnect) {
+                MaterialAlertDialogBuilder(this)
+                    .setMessage(capability.reason)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                return
+            }
+            val synthetic = server ?: ServerRecord(
+                id = "core:$selectedCore",
+                raw = "",
+                name = if (selectedCore == "warp") "WARP / Usque" else "Aether",
+                protocol = selectedCore.uppercase(),
+                host = "127.0.0.1",
+                port = if (selectedCore == "warp") 1820 else 1819,
+                sourceId = "bundled-core",
+                sourceName = "dicodePing",
+                healthy = true,
+            )
+            clearAutomaticQueue()
+            prepareAndStart(synthetic)
             return
         }
         if (vm.repo.progress.value.active) {
@@ -285,6 +312,12 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     private fun prepareAndStart(candidate: ServerRecord) {
         vm.repo.selectServer(candidate.id, userInitiated = false)
+        VpnStateStore.state.value = VpnState(
+            status = VpnStatus.CONNECTING,
+            serverId = candidate.id,
+            serverName = candidate.name,
+            message = getString(R.string.preparing_vpn),
+        )
         val prepareIntent = runCatching { VpnService.prepare(this) }.getOrNull()
         if (prepareIntent != null) {
             pendingServer = candidate
@@ -318,6 +351,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val settings = vm.repo.settings
         val intent = Intent(applicationContext, DicodeVpnService::class.java)
             .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
+            .putExtra(DicodeVpnService.EXTRA_CORE_ID, settings.activeCore)
             .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
             .putExtra(
                 DicodeVpnService.EXTRA_NAME,
@@ -361,13 +395,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     fun applyCoreMode() {
-        val primary = SettingsStore(this).activeCore == "xray"
+        // Scanner and server management stay available for every bundled core.
+        // The scanner itself always requests Xray as its bootstrap transport.
         listOf(binding.navServers, binding.navScanner).forEach { item ->
-            item?.isEnabled = primary
-            item?.alpha = if (primary) 1f else 0.38f
-        }
-        if (!primary && (currentPageId == R.id.nav_servers || currentPageId == R.id.nav_scanner)) {
-            showPage(R.id.nav_home)
+            item?.isEnabled = true
+            item?.alpha = 1f
         }
     }
 

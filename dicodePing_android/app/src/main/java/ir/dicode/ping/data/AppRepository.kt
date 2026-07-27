@@ -710,8 +710,8 @@ class AppRepository private constructor(context: Context) {
         private const val REAL_PROXY_PING = "PROXY_HTTP"
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
-        private const val MAX_SCANNER_SERVERS = 240
-        private const val SCANNER_HEALTHY_TARGET = 5
+        private const val MAX_SCANNER_SERVERS = 160
+        private const val SCANNER_HEALTHY_TARGET = 60
         private const val SCANNER_TEST_ATTEMPTS = 3
         private const val SCANNER_MIN_SUCCESS = 2
         private const val SCANNER_MAX_DELAY_MS = 60_000L

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import hashlib
+import json
 import re
 import threading
 import time
@@ -57,9 +58,9 @@ LOGGER = get_logger("scanner")
 
 # --- Adaptive scanner profile -------------------------------------------
 RESOURCE_PROFILE = current_resource_profile()
-SCAN_CRAWL_WORKERS = min(12, max(4, RESOURCE_PROFILE.crawl_workers))
-SCAN_CRAWL_TIMEOUT_S = 8.0
-SCAN_PROBE_WORKERS = min(8, max(4, RESOURCE_PROFILE.probe_workers // 2))
+SCAN_CRAWL_WORKERS = min(12, max(6, RESOURCE_PROFILE.crawl_workers))
+SCAN_CRAWL_TIMEOUT_S = 12.0
+SCAN_PROBE_WORKERS = min(10, max(4, RESOURCE_PROFILE.probe_workers // 2))
 SCAN_PROBE_TIMEOUT_S = 3.4
 SCAN_PROBE_ATTEMPTS = 3
 SCAN_PROBE_MIN_SUCCESS = 2
@@ -69,15 +70,17 @@ SCAN_PROBE_QUEUE_LIMIT = min(
     24,
     max(SCAN_PROBE_WORKERS, RESOURCE_PROFILE.internal_queue_limit),
 )
-SCAN_MAX_SERVERS = 240
-SCAN_TARGET_HEALTHY = 5
+SCAN_MAX_SERVERS = 80
+SCAN_MAX_PROBE_CONFIGS = 160
+SCAN_CRAWL_TARGET_RAW = 180
+SCAN_CRAWL_MIN_CHANNELS = 80
 SCAN_BOOTSTRAP_CONNECT_TIMEOUT_S = 55.0
 SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S = 18.0
 SCANNER_SOURCE_ID = "scanner-sub"
 SCANNER_SOURCE_NAME = "SUB"
 
-DEFAULT_RANK1_PER_CHANNEL = 3
-DEFAULT_RANK2_PER_CHANNEL = 3
+DEFAULT_RANK1_PER_CHANNEL = 8
+DEFAULT_RANK2_PER_CHANNEL = 9
 # RANK1_CHANNELS is now represented by rank=1 entries in channels.json.
 # -------------------------------------------------------------------------
 
@@ -107,14 +110,53 @@ class ScannerResult:
 
 SCANNER_HISTORY_FILE = DATA_DIR / "scanner_history.json"
 SCANNER_EXPORT_DIR = DATA_DIR / "scanner_subscriptions"
+SCANNER_STAGE1_RAW_FILE = SCANNER_EXPORT_DIR / "scanner-stage1-raw.txt"
+SCANNER_STAGE1_META_FILE = SCANNER_EXPORT_DIR / "scanner-stage1-meta.json"
 
 
-def normalize_rank_limit(value: object) -> int:
+def normalize_rank_limit(value: object, default: int = DEFAULT_RANK1_PER_CHANNEL) -> int:
     try:
         parsed = int(value)
     except (TypeError, ValueError):
-        return 3
-    return parsed if 1 <= parsed <= 20 else 3
+        return default
+    return parsed if 1 <= parsed <= 20 else default
+
+
+def _save_stage1_snapshot(
+    configs: list[str],
+    *,
+    channel_count: int,
+    rank1_limit: int,
+    rank2_limit: int,
+) -> None:
+    """Persist the collected candidates before the bootstrap VPN is stopped.
+
+    This makes the two-stage boundary explicit and recoverable: Telegram data is
+    first committed to disk, then the app disconnects its own VPN, and only then
+    are the saved candidates probed from the user's real network.
+    """
+    SCANNER_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    raw_payload = "\n".join(configs) + ("\n" if configs else "")
+    raw_tmp = SCANNER_STAGE1_RAW_FILE.with_suffix(".tmp")
+    meta_tmp = SCANNER_STAGE1_META_FILE.with_suffix(".tmp")
+    raw_tmp.write_text(raw_payload, encoding="utf-8")
+    meta_tmp.write_text(
+        json.dumps(
+            {
+                "generated_at": utc_now(),
+                "channel_count": channel_count,
+                "rank1_limit": rank1_limit,
+                "rank2_limit": rank2_limit,
+                "candidate_count": len(configs),
+                "raw_file": SCANNER_STAGE1_RAW_FILE.name,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    raw_tmp.replace(SCANNER_STAGE1_RAW_FILE)
+    meta_tmp.replace(SCANNER_STAGE1_META_FILE)
 
 
 def _load_history() -> list[dict]:
@@ -206,13 +248,14 @@ def _crawl_only(
             if language != "en"
             else "Telegram channel list is missing."
         )
-    rank1_limit = normalize_rank_limit(rank1_limit)
-    rank2_limit = normalize_rank_limit(rank2_limit)
+    rank1_limit = normalize_rank_limit(rank1_limit, DEFAULT_RANK1_PER_CHANNEL)
+    rank2_limit = normalize_rank_limit(rank2_limit, DEFAULT_RANK2_PER_CHANNEL)
+    specs = sorted(specs, key=lambda item: (item.rank, item.name.casefold()))
     channels = [item.name for item in specs]
     limits = {item.name: (rank1_limit if item.rank == 1 else rank2_limit) for item in specs}
     rank1_count = sum(1 for item in specs if item.rank == 1)
     rank2_count = len(specs) - rank1_count
-    route = f"SOCKS5 127.0.0.1:{socks_port}" if socks_port else "TUN/direct"
+    route = (f"TUN/direct -> SOCKS5 127.0.0.1:{socks_port} fallback" if socks_port else "TUN/direct")
     _log(
         f"[TG][INFO] channels={len(channels)} rank1={rank1_count} rank2={rank2_count} "
         f"workers={SCAN_CRAWL_WORKERS} route={route}"
@@ -265,6 +308,8 @@ def _crawl_only(
         stop_event=state.stop_requested,
         retry_limit=1,
         socks_port=socks_port,
+        max_unique_configs=SCAN_CRAWL_TARGET_RAW,
+        minimum_channels_before_target=min(SCAN_CRAWL_MIN_CHANNELS, len(channels)),
     )
     if crawl_progress:
         crawl_progress(len(channels), len(channels))
@@ -292,9 +337,16 @@ def _crawl_only(
             continue
         seen.add(key)
         unique.append(raw)
-        if len(unique) >= MAX_DISCOVERY_CONFIGS:
+        if len(unique) >= min(MAX_DISCOVERY_CONFIGS, SCAN_MAX_PROBE_CONFIGS):
             break
     _log(f"[TG][DEDUP] unique={len(unique)} dropped={max(0, len(raw_configs) - len(unique))}")
+    _save_stage1_snapshot(
+        unique,
+        channel_count=len(channels),
+        rank1_limit=rank1_limit,
+        rank2_limit=rank2_limit,
+    )
+    _log(f"[STORE][OK] stage1={SCANNER_STAGE1_RAW_FILE.name} candidates={len(unique)}")
     return unique
 
 
@@ -417,12 +469,6 @@ def _probe_only(
                         f"error={result.error or 'failed'} samples=[{sample_text}] | "
                         f"speed={tests_per_second:.1f}/s"
                     )
-            if len(state.alive) >= SCAN_TARGET_HEALTHY:
-                cancelled = True
-                for pending in future_to_raw:
-                    pending.cancel()
-                _log(f"[TEST][TARGET] healthy={SCAN_TARGET_HEALTHY}; stopping extra tests")
-                break
             _fill_queue()
     finally:
         pool.shutdown(wait=True, cancel_futures=cancelled)
@@ -431,11 +477,10 @@ def _probe_only(
     # healthy target. Retrying every failure was a major source of RC2 stalls.
     if (
         not state.stop_requested.is_set()
-        and len(state.alive) < SCAN_TARGET_HEALTHY
         and failed_raws
         and SCAN_PROBE_RETRY_LIMIT > 0
     ):
-        retry_rows = failed_raws[: min(8, len(failed_raws))]
+        retry_rows = failed_raws[: min(12, len(failed_raws))]
         _log(f"[TEST][RETRY] count={len(retry_rows)}")
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=min(SCAN_PROBE_RETRY_WORKERS, len(retry_rows)),
@@ -448,7 +493,7 @@ def _probe_only(
                 for raw in retry_rows
             }
             for future in concurrent.futures.as_completed(retry_map):
-                if state.stop_requested.is_set() or len(state.alive) >= SCAN_TARGET_HEALTHY:
+                if state.stop_requested.is_set():
                     for pending in retry_map:
                         pending.cancel()
                     break
@@ -465,7 +510,7 @@ def _probe_only(
 
     with state.lock:
         state.alive.sort(key=lambda item: item[1].ping_ms or 999999)
-        state.alive = state.alive[: min(SCAN_MAX_SERVERS, SCAN_TARGET_HEALTHY)]
+        state.alive = state.alive[:SCAN_MAX_SERVERS]
         elapsed = max(0.001, time.monotonic() - started)
         _log(
             f"[TEST][DONE] checked={state.completed}/{state.total} alive={len(state.alive)} "
@@ -504,8 +549,8 @@ def run_scan(
     # Reuse the caller's Event directly.  The old watcher thread waited
     # forever after every successful scan and leaked one thread per run.
     state = _ProbeState(stop_requested=stop_event or threading.Event())
-    rank1_limit = normalize_rank_limit(rank1_limit)
-    rank2_limit = normalize_rank_limit(rank2_limit)
+    rank1_limit = normalize_rank_limit(rank1_limit, DEFAULT_RANK1_PER_CHANNEL)
+    rank2_limit = normalize_rank_limit(rank2_limit, DEFAULT_RANK2_PER_CHANNEL)
 
     def _st(text: str) -> None:
         if stage:
@@ -554,6 +599,7 @@ def run_scan(
     if bootstrap_server_id is None:
         if stage_change:
             stage_change(1, tr(language, "scanner_stage1"))
+        _log("[CONNECT][START] starting dicodePing bootstrap VPN")
         _log(tr(language, "scanner_stage1"))
         try:
             sid, _port = _connect_best_server(language=language, stage=stage, log_callback=_log)
@@ -595,7 +641,12 @@ def run_scan(
             except Exception:
                 socks_port = 0
         if socks_port:
-            _log(f"[CONNECT][PROXY] scanner traffic uses SOCKS5 127.0.0.1:{socks_port}")
+            _log(
+                f"[CONNECT][ROUTE] Telegram uses verified TUN first; "
+                f"SOCKS5 127.0.0.1:{socks_port} is the bounded fallback"
+            )
+        else:
+            _log("[CONNECT][ROUTE] Telegram uses the verified dicodePing TUN")
 
         configs = _crawl_only(
             language=language,
@@ -619,7 +670,7 @@ def run_scan(
         # DicodeConfigChecker does.  Probing through the VPN would test
         # the bootstrap server, not the crawled configs.
         if disconnect_callback:
-            _log("Disconnecting VPN before testing configs...")
+            _log("[DISCONNECT][START] collected candidates are on disk; stopping dicodePing VPN before tests")
             disconnect_callback()
             _wait_disconnected(SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S)
             _log("[DISCONNECT][OK] VPN disconnected and bootstrap process stopped.")
@@ -665,11 +716,11 @@ def run_scan(
             if not endpoint:
                 continue
             server_id = record_id(raw)
-            clean_raw = set_display_name(raw, f"اسکنر {index:03d}")
+            clean_raw = set_display_name(raw, f"SUB {index:03d}")
             records.append(
                 ServerRecord(
                     id=server_id,
-                    name=f"اسکنر {index:03d}",
+                    name=f"SUB {index:03d}",
                     protocol=endpoint.protocol.upper(),
                     host=endpoint.host,
                     port=endpoint.port,
@@ -787,8 +838,9 @@ def run_scan(
         if disconnect_callback:
             try:
                 disconnect_callback()
-            except Exception:
-                pass
+                _wait_disconnected(SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S)
+            except Exception as cleanup_error:
+                _log(f"[DISCONNECT][ERR] cleanup failed: {cleanup_error}")
         raise
 
 
@@ -812,6 +864,8 @@ def delete_scanner_sub(sub_name: str = SCANNER_SOURCE_NAME) -> None:
     for path in (
         SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.txt",
         SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.base64.txt",
+        SCANNER_STAGE1_RAW_FILE,
+        SCANNER_STAGE1_META_FILE,
     ):
         path.unlink(missing_ok=True)
 

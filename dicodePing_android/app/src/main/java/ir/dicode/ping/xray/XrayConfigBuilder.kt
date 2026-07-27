@@ -10,7 +10,7 @@ object XrayConfigBuilder {
         bypassDomains: String = "",
         bufferSizeKiB: Int = 256,
         cdnDomain: String = "",
-        secureDnsDoh: Boolean = true,
+        secureDnsDoh: Boolean = false,
     ): String {
         val node = ConfigParser.parse(raw) ?: error("Unsupported or invalid configuration")
         val proxyOutbound = JSONObject(node.outbound.toString()).put("tag", "proxy")
@@ -132,6 +132,54 @@ object XrayConfigBuilder {
             )
         }.toString()
     }
+
+    fun buildSocksBridge(
+        port: Int,
+        bufferSizeKiB: Int = 256,
+        secureDnsDoh: Boolean = false,
+    ): String {
+        require(port in 1..65535) { "Invalid local SOCKS port" }
+        val proxyOutbound = JSONObject()
+            .put("tag", "proxy")
+            .put("protocol", "socks")
+            .put(
+                "settings",
+                JSONObject().put(
+                    "servers",
+                    JSONArray().put(
+                        JSONObject()
+                            .put("address", "127.0.0.1")
+                            .put("port", port)
+                    )
+                )
+            )
+        tuneProxySocket(proxyOutbound)
+        return baseConfig(proxyOutbound, JSONArray(), bufferSizeKiB, secureDnsDoh)
+    }
+
+    private fun baseConfig(
+        proxyOutbound: JSONObject,
+        routingRules: JSONArray,
+        bufferSizeKiB: Int,
+        secureDnsDoh: Boolean,
+    ): String = JSONObject().apply {
+        put("log", JSONObject().put("loglevel", "warning"))
+        put("stats", JSONObject())
+        put("policy", JSONObject().put("levels", JSONObject().put("8", JSONObject()
+            .put("handshake", 8).put("connIdle", 300).put("uplinkOnly", 2)
+            .put("downlinkOnly", 2).put("bufferSize", bufferSizeKiB.coerceIn(4, 512))))
+            .put("system", JSONObject().put("statsOutboundUplink", true).put("statsOutboundDownlink", true)))
+        put("inbounds", JSONArray().put(JSONObject().put("tag", "tun-in").put("protocol", "tun")
+            .put("settings", JSONObject().put("name", "dicodePing0").put("mtu", 1400).put("userLevel", 8))
+            .put("sniffing", JSONObject().put("enabled", true).put("destOverride", JSONArray(listOf("http", "tls", "quic"))))))
+        put("outbounds", JSONArray().put(proxyOutbound)
+            .put(JSONObject().put("tag", "direct").put("protocol", "freedom").put("settings", JSONObject()))
+            .put(JSONObject().put("tag", "block").put("protocol", "blackhole").put("settings", JSONObject())))
+        put("routing", JSONObject().put("domainStrategy", "IPIfNonMatch").put("rules", routingRules))
+        put("dns", JSONObject().put("servers", JSONArray(if (secureDnsDoh)
+            listOf("https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query")
+            else listOf("1.1.1.1", "8.8.8.8"))).put("queryStrategy", "UseIP"))
+    }.toString()
 
     private fun applyCdnFormatting(outbound: JSONObject, cdnDomain: String) {
         require(

@@ -73,6 +73,21 @@ val verifyCore by tasks.registering {
                 throw GradleException("Android core is missing required 64-bit ABI: $abi")
             }
         }
+        for (abi in listOf("arm64-v8a", "x86_64")) {
+            val helperDir = project.file("src/main/jniLibs/$abi")
+            for (helper in listOf("libaether.so", "libusque.so")) {
+                val file = File(helperDir, helper)
+                if (!file.isFile || file.length() < 500_000L) {
+                    throw GradleException("Bundled Android helper is missing or incomplete: ${file.absolutePath}")
+                }
+                file.inputStream().use { input ->
+                    val elf = ByteArray(4)
+                    if (input.read(elf) != 4 || !elf.contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))) {
+                        throw GradleException("Bundled Android helper is not an ELF binary: ${file.absolutePath}")
+                    }
+                }
+            }
+        }
 
         logger.lifecycle("Using Android core: ${coreAar.absolutePath}")
     }
@@ -86,11 +101,11 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 36
-        // RC3 used versionCode = 34; RC7 must be strictly greater.
-        versionCode = 42
+        // RC3 used versionCode = 34; RC9 must be strictly greater.
+        versionCode = 44
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.7"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.7\"")
+        versionName = "1.9.0-rc.9"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.9\"")
         multiDexEnabled = true
 
     }
@@ -156,7 +171,11 @@ android {
     }
 
     packaging {
-        jniLibs.useLegacyPackaging = false
+        // The bundled Aether/Usque executables are APK-owned native code. Legacy
+        // packaging makes PackageManager extract them into read-only
+        // nativeLibraryDir; Android 10+ forbids executing copies from filesDir.
+        jniLibs.useLegacyPackaging = true
+        jniLibs.keepDebugSymbols += setOf("**/libaether.so", "**/libusque.so")
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 }

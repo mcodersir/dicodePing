@@ -26,6 +26,9 @@ class SettingsStore(context: Context) {
     var activeCore: String
         get() = prefs.getString("active_core", "xray") ?: "xray"
         set(value) = prefs.edit().putString("active_core", value).apply()
+    var warpTermsAccepted: Boolean
+        get() = prefs.getBoolean("warp_terms_accepted", false)
+        set(value) = prefs.edit().putBoolean("warp_terms_accepted", value).apply()
     var selectedServerId: String
         get() = prefs.getString("selected_server", "") ?: ""
         set(value) = prefs.edit().putString("selected_server", value).apply()

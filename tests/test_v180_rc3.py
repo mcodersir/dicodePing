@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_rc3_versions_are_consistent():
-    assert 'RELEASE_VERSION = "1.9.0-rc.7"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc7"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.9"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc9"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'versionName = "1.9.0-rc.7"' in gradle
-    assert "versionCode = 42" in gradle
+    assert 'versionName = "1.9.0-rc.9"' in gradle
+    assert "versionCode = 44" in gradle
 
 
 def test_manifest_is_sha_only_fallback_and_never_claims_signature():
@@ -57,9 +57,9 @@ def test_manifest_pins_desktop_aether_and_warp_hashes():
 def test_rank_limits_default_on_invalid_values():
     assert normalize_rank_limit(1) == 1
     assert normalize_rank_limit(20) == 20
-    assert normalize_rank_limit(0) == 3
-    assert normalize_rank_limit(21) == 3
-    assert normalize_rank_limit("bad") == 3
+    assert normalize_rank_limit(0) == 8
+    assert normalize_rank_limit(21) == 8
+    assert normalize_rank_limit("bad") == 8
 
 
 def test_canonical_channel_assets_are_identical():
@@ -94,7 +94,7 @@ def test_scanner_uses_bounded_probe_queue_and_real_http_probe():
     scanner = (ROOT / "dicodeping/scanner.py").read_text("utf-8")
     checker = (ROOT / "dicodeping/config_checker.py").read_text("utf-8")
     xray = (ROOT / "dicodeping/xray.py").read_text("utf-8")
-    assert "SCAN_PROBE_WORKERS = min(8" in scanner
+    assert "SCAN_PROBE_WORKERS = min(10" in scanner
     assert "while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT" in scanner
     assert "probe_outbound_delay" in checker
     assert "_socks_http_probe" in xray
@@ -242,8 +242,8 @@ def test_scanner_keeps_five_verified_servers_and_profiles_are_conservative():
     android_repo = (
         ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt"
     ).read_text("utf-8")
-    assert "SCAN_TARGET_HEALTHY = 5" in scanner
-    assert "SCANNER_HEALTHY_TARGET = 5" in android_repo
+    assert "SCAN_MAX_SERVERS = 80" in scanner
+    assert "SCANNER_HEALTHY_TARGET = 60" in android_repo
     assert classify_config_profile("vless://id@demo.workers.dev:443") == "worker"
     assert classify_config_profile("vless://id@example.test:443#10GB") == "limited"
     assert classify_config_profile("vless://id@example.test:443#permanent") == "persistent"

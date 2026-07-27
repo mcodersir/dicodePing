@@ -10,7 +10,7 @@ import tarfile
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.7"
+RC_VERSION = "rc.9"
 APP_NAME = "dicodePing"
 
 
@@ -31,13 +31,16 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         run([python, "-m", "pip", "install", "-r", "requirements-build.txt"], root)
     if not skip_core:
         run([python, "-m", "tools.prepare_core"], root)
+        run([python, "-m", "tools.prepare_optional_cores"], root)
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v190_rc7.py"
+    entrypoint = root / "app_v190_rc9.py"
     required = [
         entrypoint,
         core / "xray",
+        core / "aether",
+        core / "usque",
         assets / "app.png",
         root / "packaging" / "linux" / "run-dicodePing.sh",
         root / "packaging" / "linux" / "README-LINUX.txt",
@@ -72,6 +75,10 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         f"{assets}{separator}assets",
         "--add-binary",
         f"{core / 'xray'}{separator}core",
+        "--add-binary",
+        f"{core / 'aether'}{separator}core",
+        "--add-binary",
+        f"{core / 'usque'}{separator}core",
     ]
     for data_name in ("geoip.dat", "geosite.dat"):
         path = core / data_name

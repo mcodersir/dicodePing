@@ -144,16 +144,43 @@ class SettingsFragment : Fragment() {
                 renderCoreStatus()
             }
         }
+        fun commitCoreActivation(core: String) {
+            store.activeCore = core
+            (activity as? MainActivity)?.applyCoreMode()
+            binding.coreStatus.text = getString(R.string.conn_method_active) + ": " +
+                coreLabels[coreIds.indexOf(core)]
+            Snackbar.make(binding.root, R.string.core_activation_done, Snackbar.LENGTH_SHORT).show()
+        }
         binding.activateCore.setOnClickListener {
             val core = selectedCore()
             if (!coreManager.isInstalled(core)) {
                 binding.coreStatus.setText(R.string.core_select_first)
                 return@setOnClickListener
             }
-            store.activeCore = core
-            (activity as? MainActivity)?.applyCoreMode()
-            binding.coreStatus.text = getString(R.string.conn_method_active) + ": " +
-                coreLabels[coreIds.indexOf(core)]
+            if (core == "warp" && !store.warpTermsAccepted) {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.warp_terms_title)
+                    .setMessage(R.string.warp_terms_message)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.accept_and_activate) { _, _ ->
+                        store.warpTermsAccepted = true
+                        binding.activateCore.isEnabled = false
+                        binding.coreStatus.setText(R.string.conn_method_preparing)
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val result = runCatching { coreManager.initializeWarp() }
+                            if (_binding == null) return@launch
+                            binding.activateCore.isEnabled = true
+                            result.onSuccess { commitCoreActivation(core) }
+                                .onFailure { error ->
+                                    store.warpTermsAccepted = false
+                                    binding.coreStatus.text = getString(R.string.warp_registration_failed) + ": " + error.message
+                                }
+                        }
+                    }
+                    .show()
+            } else {
+                commitCoreActivation(core)
+            }
         }
         renderCoreStatus()
 

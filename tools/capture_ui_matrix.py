@@ -69,7 +69,7 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.9.0-rc.7"
+    output = ROOT / "docs/screenshots/v1.9.0-rc.9"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     available = set(QFontDatabase.families())

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.7"
+RC_VERSION = "rc.9"
 APP_NAME = "dicodePing"
 
 
@@ -35,13 +35,14 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     if not skip_core:
         print("[2/4] Preparing and verifying the official Xray core...", flush=True)
         run([python, "-m", "tools.prepare_core"], root)
+        run([python, "-m", "tools.prepare_optional_cores"], root)
     else:
         print("[2/4] Xray preparation skipped.", flush=True)
 
     print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app_v190_rc7.py"
+    entrypoint = root / "app_v190_rc9.py"
     generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 
@@ -51,6 +52,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         root / "tools" / "windows_version_info.txt",
         core / "xray.exe",
         core / "wintun.dll",
+        core / "aether.exe",
+        core / "usque.exe",
     ]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
@@ -84,6 +87,10 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         f"{core / 'xray.exe'}{separator}core",
         "--add-binary",
         f"{core / 'wintun.dll'}{separator}core",
+        "--add-binary",
+        f"{core / 'aether.exe'}{separator}core",
+        "--add-binary",
+        f"{core / 'usque.exe'}{separator}core",
     ]
     for data_name in ("geoip.dat", "geosite.dat"):
         path = core / data_name

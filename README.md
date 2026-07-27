@@ -1,41 +1,40 @@
-# dicodePing 1.9.0 RC7
+# dicodePing 1.9.0 RC9
 
-RC7 fixes automatic best-server selection, tests a deterministic 30% sample from every subscription during splash startup, and stabilizes the sidebar and settings layout across Windows, Linux and macOS.
+RC9 provides a staged Telegram scanner and multi-platform pre-release workflow.
 
 ## One-click GitHub pre-release
 
-Run:
+On Windows, extract the source ZIP and run:
 
 ```bat
-DEPLOY_PRERELEASE_RC7.bat
+DEPLOY_PRERELEASE_RC9.bat
 ```
 
-The script uses Git for Windows and Git Credential Manager, pushes the RC7 source to `main`, creates or updates tag `v1.9.0-rc.7`, waits for the multi-platform GitHub Actions workflow, verifies all required assets, and opens the pre-release page.
+The script uses Git for Windows and Git Credential Manager, pushes the RC9 source to `main`, creates or updates tag `v1.9.0-rc.9`, waits for the multi-platform GitHub Actions workflow, validates all expected assets, and opens the pre-release page.
 
 Expected assets:
 
-- `dicodePing-v1.9.0-rc.7-windows-x64.exe`
-- `dicodePing-v1.9.0-rc.7-linux-x86_64.tar.gz`
-- `dicodePing-v1.9.0-rc.7-macos-arm64.dmg`
-- `dicodePing-v1.9.0-rc.7-macos-x86_64.dmg`
-- `dicodePing-v1.9.0-rc.7-android.apk`
+- `dicodePing-v1.9.0-rc.9-windows-x64.exe`
+- `dicodePing-v1.9.0-rc.9-linux-x86_64.tar.gz`
+- `dicodePing-v1.9.0-rc.9-macos-arm64.dmg`
+- `dicodePing-v1.9.0-rc.9-macos-x86_64.dmg`
+- `dicodePing-v1.9.0-rc.9-android.apk`
 
-Run from source on Windows:
+## Bundled connection cores
 
-```bat
-RUN_SOURCE_RC7.bat
-```
+Each platform artifact includes Xray, Aether, and WARP/Usque. They are no longer published as separate release downloads. On Android, Aether and Usque are packaged as APK-owned native executables and run from the system-managed `nativeLibraryDir`.
 
-Build only the Windows EXE:
+The Android scanner requests VPN consent on its own screen and then starts the bootstrap VPN automatically. Per-app VPN controls are under Settings → Routing.
 
-```bat
-BUILD_RELEASE_RC7.bat
-```
+## Scanner pipeline
 
-Build only the signed Android APK:
+1. Start and validate the dicodePing bootstrap VPN.
+2. Crawl the bundled DicodeConfigChecker public Telegram channel set.
+3. Persist raw candidates before changing the network state.
+4. Fully disconnect the bootstrap VPN.
+5. Run isolated Xray/HTTP quality probes.
+6. Replace the single persistent `SUB` source and refresh the server list.
 
-```bat
-BUILD_SIGNED_APK_RC7.bat
-```
+Default per-channel extraction limits are 8 for rank 1 and 9 for rank 2. The desktop scanner probes a bounded candidate set and saves the fastest verified results.
 
-Bilingual release notes: `docs/releases/v1.9.0-rc.7.md`.
+Bilingual release notes: `docs/releases/v1.9.0-rc.9.md`.

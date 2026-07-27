@@ -62,5 +62,8 @@ def test_optional_core_downloads_are_sha_verified_and_atomic():
     ).read_text()
     assert "integrity check failed" in desktop
     assert "unsafe archive member" in desktop
-    assert "SHA-256 mismatch" in android
-    assert "renameTo(target)" in android
+    assert "AndroidExternalCoreProcess" in android
+    assert "initializeWarp" in android
+    prepare = (ROOT / "dicodePing_android/tools/prepare_bundled_cores.py").read_text()
+    assert "verify_upstream_sha" in prepare
+    assert 'USQUE_VERSION = "4.2.1"' in prepare

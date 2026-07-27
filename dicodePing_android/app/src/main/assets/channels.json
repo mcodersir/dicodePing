@@ -1,25 +1,1302 @@
 {
-  "schema": 1,
+  "schema": 2,
+  "source": "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt",
   "channels": [
-    {"name": "v2rayngvpn", "rank": 1},
-    {"name": "ConfigX2ray", "rank": 1},
-    {"name": "V2WRAY", "rank": 1},
-    {"name": "V2ray_official", "rank": 1},
-    {"name": "v2raysvmess", "rank": 1},
-    {"name": "vless_vmess", "rank": 1},
-    {"name": "v2rayshare", "rank": 1},
-    {"name": "ConfigV2rayNG", "rank": 1},
-    {"name": "Daily_Configs", "rank": 1},
-    {"name": "V2rayEnglish", "rank": 2},
-    {"name": "ConfigsHUB", "rank": 2},
-    {"name": "v2ray_fspeed", "rank": 2},
-    {"name": "V2rayConfigList", "rank": 2},
-    {"name": "V2rayng_Fast", "rank": 2},
-    {"name": "V2RFA", "rank": 2},
-    {"name": "VmessProtocol", "rank": 2},
-    {"name": "v2ray_configs_pool", "rank": 2},
-    {"name": "v2rayNGconfig", "rank": 2},
-    {"name": "V2rayNG3", "rank": 2},
-    {"name": "shadowsockskeys", "rank": 2}
+    {
+      "name": "Spotify_Porteghali",
+      "rank": 2
+    },
+    {
+      "name": "lightning6",
+      "rank": 2
+    },
+    {
+      "name": "shaxhabb",
+      "rank": 2
+    },
+    {
+      "name": "meliproxyy",
+      "rank": 2
+    },
+    {
+      "name": "ProxyMTProto",
+      "rank": 2
+    },
+    {
+      "name": "LonUp_M",
+      "rank": 2
+    },
+    {
+      "name": "sorenab2",
+      "rank": 2
+    },
+    {
+      "name": "ProxyDaemi",
+      "rank": 2
+    },
+    {
+      "name": "iMTProto",
+      "rank": 2
+    },
+    {
+      "name": "v2rayngvpn",
+      "rank": 1
+    },
+    {
+      "name": "ConfigX2ray",
+      "rank": 1
+    },
+    {
+      "name": "IraneAzad_Net",
+      "rank": 2
+    },
+    {
+      "name": "prrofile_purple",
+      "rank": 2
+    },
+    {
+      "name": "V2WRAY",
+      "rank": 1
+    },
+    {
+      "name": "TelMTProto",
+      "rank": 2
+    },
+    {
+      "name": "v2ryNG01",
+      "rank": 2
+    },
+    {
+      "name": "V2ray_official",
+      "rank": 1
+    },
+    {
+      "name": "TheAnilad",
+      "rank": 2
+    },
+    {
+      "name": "ProxyDotNet",
+      "rank": 2
+    },
+    {
+      "name": "NPROXY",
+      "rank": 2
+    },
+    {
+      "name": "mrsoulb",
+      "rank": 2
+    },
+    {
+      "name": "ConfigsHUB",
+      "rank": 2
+    },
+    {
+      "name": "orange_vpns",
+      "rank": 2
+    },
+    {
+      "name": "BugFreeNet",
+      "rank": 2
+    },
+    {
+      "name": "TeleProxyTele",
+      "rank": 2
+    },
+    {
+      "name": "iproxy_Meli",
+      "rank": 2
+    },
+    {
+      "name": "SimChin_ir",
+      "rank": 2
+    },
+    {
+      "name": "V2rayEnglish",
+      "rank": 2
+    },
+    {
+      "name": "v2nova8",
+      "rank": 2
+    },
+    {
+      "name": "NetAccount",
+      "rank": 2
+    },
+    {
+      "name": "qpshow",
+      "rank": 2
+    },
+    {
+      "name": "DarkHub_VPN",
+      "rank": 2
+    },
+    {
+      "name": "configmax",
+      "rank": 2
+    },
+    {
+      "name": "nufilter",
+      "rank": 2
+    },
+    {
+      "name": "V2RAY_SPATIAL",
+      "rank": 2
+    },
+    {
+      "name": "shankamil",
+      "rank": 2
+    },
+    {
+      "name": "PulseStore_ir",
+      "rank": 2
+    },
+    {
+      "name": "NETMelliAnti",
+      "rank": 2
+    },
+    {
+      "name": "Blue_star_Vip",
+      "rank": 2
+    },
+    {
+      "name": "Maznet",
+      "rank": 2
+    },
+    {
+      "name": "cpy_teeL",
+      "rank": 2
+    },
+    {
+      "name": "beshcan",
+      "rank": 2
+    },
+    {
+      "name": "Parsashonam",
+      "rank": 2
+    },
+    {
+      "name": "ProxySnipe",
+      "rank": 2
+    },
+    {
+      "name": "Merlin_ViP",
+      "rank": 2
+    },
+    {
+      "name": "ghalagyann",
+      "rank": 2
+    },
+    {
+      "name": "Free_Nettm",
+      "rank": 2
+    },
+    {
+      "name": "EzAccess1",
+      "rank": 2
+    },
+    {
+      "name": "ChinaPortGFW",
+      "rank": 2
+    },
+    {
+      "name": "filshekan_vip",
+      "rank": 2
+    },
+    {
+      "name": "ProxyPJ",
+      "rank": 2
+    },
+    {
+      "name": "AzadNet",
+      "rank": 2
+    },
+    {
+      "name": "ShabrangVPN",
+      "rank": 2
+    },
+    {
+      "name": "V2Ray_Tz",
+      "rank": 2
+    },
+    {
+      "name": "acccrd",
+      "rank": 2
+    },
+    {
+      "name": "DSR_TM",
+      "rank": 2
+    },
+    {
+      "name": "BestProxyTel1",
+      "rank": 2
+    },
+    {
+      "name": "configraygan",
+      "rank": 2
+    },
+    {
+      "name": "configshere",
+      "rank": 2
+    },
+    {
+      "name": "VpnQavi",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_dalghak",
+      "rank": 2
+    },
+    {
+      "name": "v2rayng_fars",
+      "rank": 2
+    },
+    {
+      "name": "saka_net",
+      "rank": 2
+    },
+    {
+      "name": "config_npv",
+      "rank": 2
+    },
+    {
+      "name": "Outline_vpn",
+      "rank": 2
+    },
+    {
+      "name": "freakconfig",
+      "rank": 2
+    },
+    {
+      "name": "flyv2ray",
+      "rank": 2
+    },
+    {
+      "name": "PROXIS_FREE",
+      "rank": 2
+    },
+    {
+      "name": "chatnakonn",
+      "rank": 2
+    },
+    {
+      "name": "proxyxix",
+      "rank": 2
+    },
+    {
+      "name": "letsproxys",
+      "rank": 2
+    },
+    {
+      "name": "proxyy_1404",
+      "rank": 2
+    },
+    {
+      "name": "duckvp_n",
+      "rank": 2
+    },
+    {
+      "name": "proxy_kafee",
+      "rank": 2
+    },
+    {
+      "name": "WizProxy",
+      "rank": 2
+    },
+    {
+      "name": "ShadowProxy66",
+      "rank": 2
+    },
+    {
+      "name": "vasl_bashim",
+      "rank": 2
+    },
+    {
+      "name": "makvaslim",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_free_conf",
+      "rank": 2
+    },
+    {
+      "name": "V2rayConfigList",
+      "rank": 2
+    },
+    {
+      "name": "vpnfail_v2ray",
+      "rank": 2
+    },
+    {
+      "name": "vlesskeys",
+      "rank": 2
+    },
+    {
+      "name": "oneclickvpnkeys",
+      "rank": 2
+    },
+    {
+      "name": "ConfingV2RaayNG",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_fspeed",
+      "rank": 2
+    },
+    {
+      "name": "Daily_Configs",
+      "rank": 1
+    },
+    {
+      "name": "filembad",
+      "rank": 2
+    },
+    {
+      "name": "bored_vpn",
+      "rank": 2
+    },
+    {
+      "name": "Surfboardv2ray",
+      "rank": 2
+    },
+    {
+      "name": "outlineOpenKey",
+      "rank": 2
+    },
+    {
+      "name": "GH_v2rayng",
+      "rank": 2
+    },
+    {
+      "name": "mtproxy_lists",
+      "rank": 2
+    },
+    {
+      "name": "v2raysvmess",
+      "rank": 1
+    },
+    {
+      "name": "freewireguard",
+      "rank": 2
+    },
+    {
+      "name": "warpscanner",
+      "rank": 2
+    },
+    {
+      "name": "ConfigWireguard",
+      "rank": 2
+    },
+    {
+      "name": "v2nodes",
+      "rank": 2
+    },
+    {
+      "name": "GrizzlyVPN",
+      "rank": 2
+    },
+    {
+      "name": "mobilesignal",
+      "rank": 2
+    },
+    {
+      "name": "persianelon",
+      "rank": 2
+    },
+    {
+      "name": "Rayan_Config",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_Extractor",
+      "rank": 2
+    },
+    {
+      "name": "vpnowl",
+      "rank": 2
+    },
+    {
+      "name": "kiava",
+      "rank": 2
+    },
+    {
+      "name": "azadi_az_inja_migzare",
+      "rank": 2
+    },
+    {
+      "name": "ELiV2RAY",
+      "rank": 2
+    },
+    {
+      "name": "PrivateVPNs",
+      "rank": 2
+    },
+    {
+      "name": "DirectVPN",
+      "rank": 2
+    },
+    {
+      "name": "Everyday_VPN",
+      "rank": 2
+    },
+    {
+      "name": "vpnstorefast",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_configs_pool",
+      "rank": 2
+    },
+    {
+      "name": "V2Ray_Market11",
+      "rank": 2
+    },
+    {
+      "name": "v2Line",
+      "rank": 2
+    },
+    {
+      "name": "XV2ray",
+      "rank": 2
+    },
+    {
+      "name": "v2rayvpn_official",
+      "rank": 2
+    },
+    {
+      "name": "zedmodeonVPN",
+      "rank": 2
+    },
+    {
+      "name": "ArV2ray",
+      "rank": 2
+    },
+    {
+      "name": "redfree8",
+      "rank": 2
+    },
+    {
+      "name": "safeNet4All",
+      "rank": 2
+    },
+    {
+      "name": "freedom_guard_net",
+      "rank": 2
+    },
+    {
+      "name": "Begoo_VPN",
+      "rank": 2
+    },
+    {
+      "name": "FlexEtesal",
+      "rank": 2
+    },
+    {
+      "name": "capoit",
+      "rank": 2
+    },
+    {
+      "name": "foced",
+      "rank": 2
+    },
+    {
+      "name": "Proxi_ConFiGS",
+      "rank": 2
+    },
+    {
+      "name": "letsproxys1",
+      "rank": 2
+    },
+    {
+      "name": "blackRay",
+      "rank": 2
+    },
+    {
+      "name": "V2rayTun0",
+      "rank": 2
+    },
+    {
+      "name": "AzadInternet_TV",
+      "rank": 2
+    },
+    {
+      "name": "NetMeli9",
+      "rank": 2
+    },
+    {
+      "name": "i10VPN",
+      "rank": 2
+    },
+    {
+      "name": "Zed_NetMeli",
+      "rank": 2
+    },
+    {
+      "name": "Pruuxi",
+      "rank": 2
+    },
+    {
+      "name": "confignetmeliina",
+      "rank": 2
+    },
+    {
+      "name": "npvon",
+      "rank": 2
+    },
+    {
+      "name": "iicenet",
+      "rank": 2
+    },
+    {
+      "name": "PathToArrive",
+      "rank": 2
+    },
+    {
+      "name": "madzteam",
+      "rank": 2
+    },
+    {
+      "name": "YamYamProxy",
+      "rank": 2
+    },
+    {
+      "name": "Skyportall",
+      "rank": 2
+    },
+    {
+      "name": "eshgheabadii_facts",
+      "rank": 2
+    },
+    {
+      "name": "Masyakata",
+      "rank": 2
+    },
+    {
+      "name": "marambashi2",
+      "rank": 2
+    },
+    {
+      "name": "XIXVPN",
+      "rank": 2
+    },
+    {
+      "name": "xsfilternet",
+      "rank": 2
+    },
+    {
+      "name": "Vpn_Shield",
+      "rank": 2
+    },
+    {
+      "name": "payam_nsi",
+      "rank": 2
+    },
+    {
+      "name": "xixv2ray",
+      "rank": 2
+    },
+    {
+      "name": "confing_alski",
+      "rank": 2
+    },
+    {
+      "name": "SOSkeyNET",
+      "rank": 2
+    },
+    {
+      "name": "crayingroom",
+      "rank": 2
+    },
+    {
+      "name": "Fast1one",
+      "rank": 2
+    },
+    {
+      "name": "saministamm",
+      "rank": 2
+    },
+    {
+      "name": "netazadi",
+      "rank": 2
+    },
+    {
+      "name": "iranconnecting",
+      "rank": 2
+    },
+    {
+      "name": "proxymtprotoir",
+      "rank": 2
+    },
+    {
+      "name": "ParsiNetFree",
+      "rank": 2
+    },
+    {
+      "name": "SwagMeli",
+      "rank": 2
+    },
+    {
+      "name": "mitivpn",
+      "rank": 2
+    },
+    {
+      "name": "Npv_Tnnel",
+      "rank": 2
+    },
+    {
+      "name": "poroxybaz",
+      "rank": 2
+    },
+    {
+      "name": "v2rayNG_Matsuri",
+      "rank": 2
+    },
+    {
+      "name": "vmess_ir",
+      "rank": 2
+    },
+    {
+      "name": "An0nymousTeam",
+      "rank": 2
+    },
+    {
+      "name": "v2ray_cartel",
+      "rank": 2
+    },
+    {
+      "name": "proxy_Shadowsocks",
+      "rank": 2
+    },
+    {
+      "name": "V2rayng_Fast",
+      "rank": 2
+    },
+    {
+      "name": "V2RFA",
+      "rank": 2
+    },
+    {
+      "name": "Config_HATunnel",
+      "rank": 2
+    },
+    {
+      "name": "vpn_naji",
+      "rank": 2
+    },
+    {
+      "name": "V2ray_Alpha",
+      "rank": 2
+    },
+    {
+      "name": "confing_Costume",
+      "rank": 2
+    },
+    {
+      "name": "MARAMBASHI",
+      "rank": 2
+    },
+    {
+      "name": "VPNConnectd",
+      "rank": 2
+    },
+    {
+      "name": "iP_CF",
+      "rank": 2
+    },
+    {
+      "name": "DailyV2RY",
+      "rank": 2
+    },
+    {
+      "name": "ZibaNabz",
+      "rank": 2
+    },
+    {
+      "name": "vpn_ioss",
+      "rank": 2
+    },
+    {
+      "name": "ConfigV2rayNG",
+      "rank": 1
+    },
+    {
+      "name": "hi_proxi",
+      "rank": 2
+    },
+    {
+      "name": "Myporoxy",
+      "rank": 2
+    },
+    {
+      "name": "MTProxyStar",
+      "rank": 2
+    },
+    {
+      "name": "Gp_Config",
+      "rank": 2
+    },
+    {
+      "name": "abc_configs",
+      "rank": 2
+    },
+    {
+      "name": "ServerNett",
+      "rank": 2
+    },
+    {
+      "name": "v2rayvpnchannel",
+      "rank": 2
+    },
+    {
+      "name": "ProxyTyper",
+      "rank": 2
+    },
+    {
+      "name": "mtp4tg",
+      "rank": 2
+    },
+    {
+      "name": "openkeysfree",
+      "rank": 2
+    },
+    {
+      "name": "v2rayshare",
+      "rank": 1
+    },
+    {
+      "name": "cloudnet6000",
+      "rank": 2
+    },
+    {
+      "name": "shadowsockskeys",
+      "rank": 2
+    },
+    {
+      "name": "vless_vmess",
+      "rank": 1
+    },
+    {
+      "name": "armodchannel",
+      "rank": 2
+    },
+    {
+      "name": "keysOutline",
+      "rank": 2
+    },
+    {
+      "name": "warpplus",
+      "rank": 2
+    },
+    {
+      "name": "iSeqaro",
+      "rank": 2
+    },
+    {
+      "name": "v2rayNGconfig",
+      "rank": 2
+    },
+    {
+      "name": "IP_CF_Configs",
+      "rank": 2
+    },
+    {
+      "name": "V2rayNG3",
+      "rank": 2
+    },
+    {
+      "name": "VmessProtocol",
+      "rank": 2
+    },
+    {
+      "name": "RED2RAY",
+      "rank": 2
+    },
+    {
+      "name": "MIGAVPNPRO",
+      "rank": 2
+    },
+    {
+      "name": "Configg_V2RayNG_Free",
+      "rank": 2
+    },
+    {
+      "name": "teleking_vip",
+      "rank": 2
+    },
+    {
+      "name": "VMESS_RAY",
+      "rank": 2
+    },
+    {
+      "name": "tesllaproxy",
+      "rank": 2
+    },
+    {
+      "name": "MR_PROXY_V2",
+      "rank": 2
+    },
+    {
+      "name": "v2rayngvpn_1",
+      "rank": 2
+    },
+    {
+      "name": "vpniiranam",
+      "rank": 2
+    },
+    {
+      "name": "ariuna_config",
+      "rank": 2
+    },
+    {
+      "name": "v2proxys",
+      "rank": 2
+    },
+    {
+      "name": "VeloraConfig",
+      "rank": 2
+    },
+    {
+      "name": "V2All",
+      "rank": 2
+    },
+    {
+      "name": "v2cnf",
+      "rank": 2
+    },
+    {
+      "name": "vpnine1",
+      "rank": 2
+    },
+    {
+      "name": "fxamazonconfig",
+      "rank": 2
+    },
+    {
+      "name": "Netizo",
+      "rank": 2
+    },
+    {
+      "name": "PrivateMaster2",
+      "rank": 2
+    },
+    {
+      "name": "OpenVpnUser",
+      "rank": 2
+    },
+    {
+      "name": "vlessh",
+      "rank": 2
+    },
+    {
+      "name": "v2Rinjector",
+      "rank": 2
+    },
+    {
+      "name": "v2rayeagle",
+      "rank": 2
+    },
+    {
+      "name": "Shh_Proxy",
+      "rank": 2
+    },
+    {
+      "name": "hi_proxy_iran",
+      "rank": 2
+    },
+    {
+      "name": "Raydikalx",
+      "rank": 2
+    },
+    {
+      "name": "vpnv2r4y",
+      "rank": 2
+    },
+    {
+      "name": "MahsaNG_Config",
+      "rank": 2
+    },
+    {
+      "name": "shadowsocks_phs",
+      "rank": 2
+    },
+    {
+      "name": "proxy_online_net",
+      "rank": 2
+    },
+    {
+      "name": "singbox1",
+      "rank": 2
+    },
+    {
+      "name": "Farsiproxi",
+      "rank": 2
+    },
+    {
+      "name": "P_V_Group",
+      "rank": 2
+    },
+    {
+      "name": "hamed_vpns",
+      "rank": 2
+    },
+    {
+      "name": "VPNCUSTOMIZE",
+      "rank": 2
+    },
+    {
+      "name": "BlacxNews",
+      "rank": 2
+    },
+    {
+      "name": "freelearn_python",
+      "rank": 2
+    },
+    {
+      "name": "iran_news911",
+      "rank": 2
+    },
+    {
+      "name": "ittechnoland",
+      "rank": 2
+    },
+    {
+      "name": "Computerwormss",
+      "rank": 2
+    },
+    {
+      "name": "Siassatmadar",
+      "rank": 2
+    },
+    {
+      "name": "as12rgh",
+      "rank": 2
+    },
+    {
+      "name": "NEW_MTProxi2",
+      "rank": 2
+    },
+    {
+      "name": "FreeVlessVpn",
+      "rank": 2
+    },
+    {
+      "name": "vmessiran",
+      "rank": 2
+    },
+    {
+      "name": "ShadowSocks_s",
+      "rank": 2
+    },
+    {
+      "name": "V2RAY_VMESS_free",
+      "rank": 2
+    },
+    {
+      "name": "configV2rayForFree",
+      "rank": 2
+    },
+    {
+      "name": "vmess_iran",
+      "rank": 2
+    },
+    {
+      "name": "vpn_proxy_custom",
+      "rank": 2
+    },
+    {
+      "name": "FOX_VPN66",
+      "rank": 2
+    },
+    {
+      "name": "Network_442",
+      "rank": 2
+    },
+    {
+      "name": "ultrasurf_12",
+      "rank": 2
+    },
+    {
+      "name": "frev2ray",
+      "rank": 2
+    },
+    {
+      "name": "Awlix_ir",
+      "rank": 2
+    },
+    {
+      "name": "Free_HTTPCustom",
+      "rank": 2
+    },
+    {
+      "name": "customv2ray",
+      "rank": 2
+    },
+    {
+      "name": "melov2ray",
+      "rank": 2
+    },
+    {
+      "name": "V2pedia",
+      "rank": 2
+    },
+    {
+      "name": "FalconPolV2rayNG",
+      "rank": 2
+    },
+    {
+      "name": "MsV2ray",
+      "rank": 2
+    },
+    {
+      "name": "VlessConfig",
+      "rank": 2
+    },
+    {
+      "name": "kingofilter",
+      "rank": 2
+    },
+    {
+      "name": "IRN_VPN",
+      "rank": 2
+    },
+    {
+      "name": "V2raysFree",
+      "rank": 2
+    },
+    {
+      "name": "free1_vpn",
+      "rank": 2
+    },
+    {
+      "name": "vpn_xw",
+      "rank": 2
+    },
+    {
+      "name": "V2RayTz",
+      "rank": 2
+    },
+    {
+      "name": "ipV2Ray",
+      "rank": 2
+    },
+    {
+      "name": "OutlineVpnOfficial",
+      "rank": 2
+    },
+    {
+      "name": "https_config_injector",
+      "rank": 2
+    },
+    {
+      "name": "Hope_Net",
+      "rank": 2
+    },
+    {
+      "name": "forwardv2ray",
+      "rank": 2
+    },
+    {
+      "name": "Lockey_vpn",
+      "rank": 2
+    },
+    {
+      "name": "shadow_socks1",
+      "rank": 2
+    },
+    {
+      "name": "v2ray1_ng",
+      "rank": 2
+    },
+    {
+      "name": "Romax_VPN",
+      "rank": 2
+    },
+    {
+      "name": "DeamNet_proxy",
+      "rank": 2
+    },
+    {
+      "name": "socks5tobefree",
+      "rank": 2
+    },
+    {
+      "name": "V_2rey",
+      "rank": 2
+    },
+    {
+      "name": "spdnet",
+      "rank": 2
+    },
+    {
+      "name": "TunelProV2",
+      "rank": 2
+    },
+    {
+      "name": "iran_v2ray1",
+      "rank": 2
+    },
+    {
+      "name": "v2rayvpn2",
+      "rank": 2
+    },
+    {
+      "name": "v2rayNgg_iran",
+      "rank": 2
+    },
+    {
+      "name": "V2rayNG_account_free",
+      "rank": 2
+    },
+    {
+      "name": "V2rayi_net",
+      "rank": 2
+    },
+    {
+      "name": "IRANVPNNET",
+      "rank": 2
+    },
+    {
+      "name": "VPNwedbaz",
+      "rank": 2
+    },
+    {
+      "name": "proxyymeliii",
+      "rank": 2
+    },
+    {
+      "name": "icv2ray",
+      "rank": 2
+    },
+    {
+      "name": "iTV2RAY",
+      "rank": 2
+    },
+    {
+      "name": "meli_proxyy",
+      "rank": 2
+    },
+    {
+      "name": "SafeNetIR",
+      "rank": 2
+    },
+    {
+      "name": "SafeNet_Server",
+      "rank": 2
+    },
+    {
+      "name": "V2RAYROZ",
+      "rank": 2
+    },
+    {
+      "name": "V2Graphy",
+      "rank": 2
+    },
+    {
+      "name": "ViraV2ray",
+      "rank": 2
+    },
+    {
+      "name": "fnet00",
+      "rank": 2
+    },
+    {
+      "name": "vmess_vless_v2rayng",
+      "rank": 2
+    },
+    {
+      "name": "moh3enivx",
+      "rank": 2
+    },
+    {
+      "name": "nofiltering2",
+      "rank": 2
+    },
+    {
+      "name": "V2rayNGX",
+      "rank": 2
+    },
+    {
+      "name": "VPN_SOLVE",
+      "rank": 2
+    },
+    {
+      "name": "Fr33C0nfig",
+      "rank": 2
+    },
+    {
+      "name": "Freedomnetir",
+      "rank": 2
+    },
+    {
+      "name": "IP_CF_Config",
+      "rank": 2
+    },
+    {
+      "name": "hddify",
+      "rank": 2
+    },
+    {
+      "name": "v2raytechadoo",
+      "rank": 2
+    },
+    {
+      "name": "V2rayNg_madam",
+      "rank": 2
+    },
+    {
+      "name": "persianvpnhub",
+      "rank": 2
+    },
+    {
+      "name": "configmahsa",
+      "rank": 2
+    },
+    {
+      "name": "V2SayFree",
+      "rank": 2
+    },
+    {
+      "name": "CucumberNet",
+      "rank": 2
+    },
+    {
+      "name": "vless_freee",
+      "rank": 2
+    },
+    {
+      "name": "panel_free_0",
+      "rank": 2
+    },
+    {
+      "name": "Raiv2mmr",
+      "rank": 2
+    },
+    {
+      "name": "configpluse",
+      "rank": 2
+    },
+    {
+      "name": "V2RayRootFree",
+      "rank": 2
+    },
+    {
+      "name": "Alpha_V2ray_Iran",
+      "rank": 2
+    },
+    {
+      "name": "Farah_VPN",
+      "rank": 2
+    },
+    {
+      "name": "vaddress",
+      "rank": 2
+    },
+    {
+      "name": "Letiranbreath",
+      "rank": 2
+    },
+    {
+      "name": "xgvpn",
+      "rank": 2
+    }
   ]
 }

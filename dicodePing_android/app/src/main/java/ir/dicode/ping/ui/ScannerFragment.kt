@@ -5,12 +5,15 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.app.Activity
+import android.net.VpnService
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -32,6 +35,21 @@ class ScannerFragment : Fragment() {
     private var _binding: FragmentScannerBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
+    private var scannerStartPending = false
+    private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val shouldStart = scannerStartPending
+        scannerStartPending = false
+        val activeBinding = _binding
+        activeBinding?.scannerRunButton?.isEnabled = true
+        if (!shouldStart || !isAdded) return@registerForActivityResult
+        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(requireContext()) == null) {
+            startScannerService()
+        } else {
+            activeBinding?.root?.let { root ->
+                Snackbar.make(root, R.string.vpn_permission_failed_message, Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,11 +65,7 @@ class ScannerFragment : Fragment() {
                     Intent(requireContext(), ScannerService::class.java).setAction(ScannerService.ACTION_STOP)
                 )
             } else {
-                ContextCompat.startForegroundService(
-                    requireContext(),
-                    Intent(requireContext(), ScannerService::class.java)
-                        .putExtra(ScannerService.EXTRA_NAME, "SUB"),
-                )
+                beginScannerWithVpnPermission()
             }
         }
         binding.copyAllButton.setOnClickListener {
@@ -98,6 +112,38 @@ class ScannerFragment : Fragment() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun beginScannerWithVpnPermission() {
+        val permissionIntent = runCatching { VpnService.prepare(requireContext()) }.getOrNull()
+        if (permissionIntent == null) {
+            startScannerService()
+        } else {
+            scannerStartPending = true
+            binding.scannerRunButton.isEnabled = false
+            binding.scannerRunButton.text = getString(R.string.preparing_vpn)
+            vpnPermission.launch(permissionIntent)
+        }
+    }
+
+    private fun startScannerService() {
+        if (!isAdded) return
+        _binding?.scannerRunButton?.apply {
+            isEnabled = true
+            text = getString(R.string.preparing_vpn)
+        }
+        runCatching {
+            ContextCompat.startForegroundService(
+                requireContext(),
+                Intent(requireContext(), ScannerService::class.java)
+                    .putExtra(ScannerService.EXTRA_NAME, "SUB"),
+            )
+        }.onFailure { error ->
+            _binding?.scannerRunButton?.text = getString(R.string.scanner_run)
+            _binding?.root?.let { root ->
+                Snackbar.make(root, error.message ?: getString(R.string.connection_failed_retry), Snackbar.LENGTH_LONG).show()
             }
         }
     }

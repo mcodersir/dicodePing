@@ -26,6 +26,7 @@ captures/
 *.apk
 *.aab
 *.aar
+dicodePing_android/app/src/main/jniLibs/
 /docs/screenshots/v1.8.0-rc.3/
 
 # Native runtime files are fetched from pinned upstream releases during build.

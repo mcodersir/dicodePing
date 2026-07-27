@@ -10,6 +10,7 @@ import concurrent.futures
 import html
 import http.client
 import json
+import random
 import re
 import socket
 import ssl
@@ -31,6 +32,8 @@ CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
 CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
 CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I)]
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+_SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(4)
+_TELEGRAM_PREVIEW_TEMPLATES = ("https://t.me/s/{channel}", "https://telegram.me/s/{channel}")
 
 
 @dataclass
@@ -153,52 +156,62 @@ def _decode_response(data: bytes, content_type: str) -> str:
 
 
 def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
-    current = url
-    for _ in range(max(1, redirects + 1)):
-        parsed = urllib.parse.urlsplit(current)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise ValueError("unsupported Telegram preview URL")
-        host = parsed.hostname
-        port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        path = urllib.parse.urlunsplit(("", "", parsed.path or "/", parsed.query, ""))
-        raw_sock = _open_socks5_tunnel(socks_port, host, port, timeout)
-        conn_sock: socket.socket = raw_sock
-        try:
-            if parsed.scheme == "https":
-                conn_sock = ssl.create_default_context().wrap_socket(raw_sock, server_hostname=host)
-                conn_sock.settimeout(timeout)
-            request = (
-                f"GET {path} HTTP/1.1\r\n"
-                f"Host: {host}\r\n"
-                "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9\r\n"
-                "Accept: text/html,application/xhtml+xml,text/plain,*/*\r\n"
-                "Accept-Language: en-US,en;q=0.8,fa;q=0.7\r\n"
-                "Accept-Encoding: identity\r\n"
-                "Connection: close\r\n\r\n"
-            ).encode("ascii", errors="ignore")
-            conn_sock.sendall(request)
-            response = http.client.HTTPResponse(conn_sock)
-            response.begin()
-            if response.status in {301, 302, 303, 307, 308}:
-                location = response.getheader("Location")
-                response.close()
-                if not location:
-                    raise OSError("redirect without Location header")
-                current = urllib.parse.urljoin(current, location)
-                continue
-            if response.status < 200 or response.status >= 400:
-                raise OSError(f"HTTP {response.status}")
-            data = response.read(_MAX_RESPONSE_BYTES + 1)
-            if len(data) > _MAX_RESPONSE_BYTES:
-                raise OSError("Telegram preview response is unexpectedly large")
-            return _decode_response(data, response.getheader("Content-Type", "")), len(data)
-        finally:
-            try:
-                conn_sock.close()
-            except OSError:
-                pass
-    raise OSError("too many redirects")
+    """Fetch one URL through the app-owned SOCKS5 listener.
 
+    The bootstrap connection normally exposes a TUN, so RC8 prefers ordinary
+    direct sockets first.  SOCKS5 remains a bounded fallback.  Limiting the
+    number of simultaneous TLS handshakes prevents the local Xray listener and
+    the remote bootstrap from being flooded by hundreds of Telegram requests.
+    """
+    current = url
+    with _SOCKS_FETCH_SEMAPHORE:
+        for _ in range(max(1, redirects + 1)):
+            parsed = urllib.parse.urlsplit(current)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                raise ValueError("unsupported Telegram preview URL")
+            host = parsed.hostname
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            path = urllib.parse.urlunsplit(("", "", parsed.path or "/", parsed.query, ""))
+            raw_sock = _open_socks5_tunnel(socks_port, host, port, timeout)
+            conn_sock: socket.socket = raw_sock
+            try:
+                if parsed.scheme == "https":
+                    context = ssl.create_default_context()
+                    if hasattr(ssl, "TLSVersion"):
+                        context.minimum_version = ssl.TLSVersion.TLSv1_2
+                    conn_sock = context.wrap_socket(raw_sock, server_hostname=host)
+                    conn_sock.settimeout(timeout)
+                request = (
+                    f"GET {path} HTTP/1.1\r\n"
+                    f"Host: {host}\r\n"
+                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9\r\n"
+                    "Accept: text/html,application/xhtml+xml,text/plain,*/*\r\n"
+                    "Accept-Language: en-US,en;q=0.8,fa;q=0.7\r\n"
+                    "Accept-Encoding: identity\r\n"
+                    "Connection: close\r\n\r\n"
+                ).encode("ascii", errors="ignore")
+                conn_sock.sendall(request)
+                response = http.client.HTTPResponse(conn_sock)
+                response.begin()
+                if response.status in {301, 302, 303, 307, 308}:
+                    location = response.getheader("Location")
+                    response.close()
+                    if not location:
+                        raise OSError("redirect without Location header")
+                    current = urllib.parse.urljoin(current, location)
+                    continue
+                if response.status < 200 or response.status >= 400:
+                    raise OSError(f"HTTP {response.status}")
+                data = response.read(_MAX_RESPONSE_BYTES + 1)
+                if len(data) > _MAX_RESPONSE_BYTES:
+                    raise OSError("Telegram preview response is unexpectedly large")
+                return _decode_response(data, response.getheader("Content-Type", "")), len(data)
+            finally:
+                try:
+                    conn_sock.close()
+                except OSError:
+                    pass
+    raise OSError("too many redirects")
 
 def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -> tuple[str, int, str]:
     if socks_port:
@@ -277,54 +290,66 @@ def fetch_channel(
     channel: str,
     *,
     per_channel_limit: int = 30,
-    timeout: float = 8.0,
+    timeout: float = 12.0,
     socks_port: int = 0,
     stop_event: threading.Event | None = None,
 ) -> ChannelResult:
-    started = time.monotonic()
-    deadline = started + max(1.0, float(timeout))
-    size = 0
-    transport = "socks5" if socks_port else "direct"
+    """Fetch one public Telegram preview with TUN-first adaptive fallback.
 
-    def remaining_timeout() -> float:
-        return max(0.35, deadline - time.monotonic())
+    When dicodePing's bootstrap VPN is connected, normal sockets should travel
+    through its TUN.  RC7 forced every request through the auxiliary SOCKS
+    listener, which caused bursts of TLS EOF/timeout failures.  RC8 therefore
+    tries the verified TUN route first, then the local SOCKS5 listener, and
+    retries both Telegram preview hosts within one bounded budget.
+    """
+    started = time.monotonic()
+    deadline = started + max(8.0, float(timeout) * 2.2)
+    size = 0
+    errors: list[str] = []
+    routes: list[tuple[str, int]] = [("tun", 0)]
+    if socks_port:
+        routes.append(("socks5", int(socks_port)))
+    templates = _TELEGRAM_PREVIEW_TEMPLATES
 
     try:
-        if stop_event is not None and stop_event.is_set():
-            raise RuntimeError("cancelled")
-        try:
-            page, size, transport = _fetch_url_payload(
-                f"https://t.me/s/{channel}", timeout=remaining_timeout(), socks_port=socks_port
-            )
-            if not _is_usable_preview(page):
-                raise RuntimeError("t.me returned an unusable preview page")
-        except Exception as primary_error:
-            if stop_event is not None and stop_event.is_set():
-                raise RuntimeError("cancelled") from primary_error
-            if time.monotonic() >= deadline:
-                raise RuntimeError(f"t.me unavailable ({primary_error}); timeout budget exhausted") from primary_error
-            try:
-                page, size, transport = _fetch_url_payload(
-                    f"https://telegram.me/s/{channel}", timeout=remaining_timeout(), socks_port=socks_port
-                )
-                if not _is_usable_preview(page):
-                    raise RuntimeError("telegram.me returned an unusable preview page")
-            except Exception as fallback_error:
-                raise RuntimeError(
-                    f"t.me unavailable ({primary_error}); telegram.me also failed ({fallback_error})"
-                ) from fallback_error
-        configs = extract_configs(page)
-        picked = configs[: max(1, int(per_channel_limit))]
-        return ChannelResult(
-            channel=channel,
-            ok=True,
-            found=len(configs),
-            picked=len(picked),
-            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
-            configs=picked,
-            bytes_received=size,
-            transport=transport,
-        )
+        for route_name, route_port in routes:
+            for template in templates:
+                host = urllib.parse.urlsplit(template).hostname or "t.me"
+                for attempt in range(2):
+                    if stop_event is not None and stop_event.is_set():
+                        raise RuntimeError("cancelled")
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0.35:
+                        break
+                    request_timeout = min(max(3.5, float(timeout)), remaining)
+                    url = template.format(channel=channel)
+                    try:
+                        page, received, transport = _fetch_url_payload(
+                            url,
+                            timeout=request_timeout,
+                            socks_port=route_port,
+                        )
+                        size += received
+                        if not _is_usable_preview(page):
+                            raise RuntimeError(f"{host} returned an unusable preview page")
+                        configs = extract_configs(page)
+                        picked = configs[: max(1, int(per_channel_limit))]
+                        return ChannelResult(
+                            channel=channel,
+                            ok=True,
+                            found=len(configs),
+                            picked=len(picked),
+                            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+                            configs=picked,
+                            bytes_received=size,
+                            transport=transport if route_name == "socks5" else "tun",
+                        )
+                    except Exception as exc:
+                        compact = str(exc).replace("\n", " ")[-180:]
+                        errors.append(f"{route_name}:{host}#{attempt + 1} {compact}")
+                        if attempt == 0 and deadline - time.monotonic() > 0.6:
+                            time.sleep(0.12 + random.uniform(0.0, 0.18))
+        raise RuntimeError("; ".join(errors[-6:]) or "Telegram preview unavailable")
     except Exception as exc:
         return ChannelResult(
             channel=channel,
@@ -335,9 +360,8 @@ def fetch_channel(
             configs=[],
             error=str(exc),
             bytes_received=size,
-            transport=transport,
+            transport="adaptive",
         )
-
 
 def crawl_telegram_channels(
     *,
@@ -351,6 +375,8 @@ def crawl_telegram_channels(
     stop_event: threading.Event | None = None,
     retry_limit: int = 1,
     socks_port: int = 0,
+    max_unique_configs: int | None = None,
+    minimum_channels_before_target: int = 0,
 ) -> list[str]:
     channels = channels if channels is not None else load_channels()
     if not channels:
@@ -436,6 +462,15 @@ def crawl_telegram_channels(
                         continue
                     seen.add(key)
                     raw_configs.append(raw)
+                target = max(0, int(max_unique_configs or 0))
+                if target and completed >= max(0, int(minimum_channels_before_target)) and len(raw_configs) >= target:
+                    cancelled = True
+                    for pending in futures:
+                        pending.cancel()
+                    futures.clear()
+                    break
+            if cancelled:
+                break
             fill()
     finally:
         pool.shutdown(wait=True, cancel_futures=cancelled)

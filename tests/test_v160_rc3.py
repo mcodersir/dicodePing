@@ -13,10 +13,10 @@ class V160Rc3Tests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         # The RC3+ line.  The exact RC suffix changes per release.
-        self.assertIn('RELEASE_VERSION = "1.9.0-rc.7"', constants)
+        self.assertIn('RELEASE_VERSION = "1.9.0-rc.9"', constants)
         self.assertIn('versionCode = 3', gradle)  # 26 (rc.3) or 27 (rc.4)
-        self.assertIn('versionName = "1.9.0-rc.7"', gradle)
-        self.assertIn('RC_VERSION = "rc.7"', linux_builder)
+        self.assertIn('versionName = "1.9.0-rc.9"', gradle)
+        self.assertIn('RC_VERSION = "rc.9"', linux_builder)
 
     def test_eta_helper_module_is_present(self) -> None:
         eta = (ROOT / "dicodeping/eta.py").read_text(encoding="utf-8")
@@ -39,8 +39,8 @@ class V160Rc3Tests(unittest.TestCase):
         self.assertIn("AliveCountCallback", scanner)
         self.assertIn("alive_count_callback", scanner)
         # Configurable per-channel limits with rank-1 / rank-2 split.
-        self.assertIn("DEFAULT_RANK1_PER_CHANNEL = 3", scanner)
-        self.assertIn("DEFAULT_RANK2_PER_CHANNEL = 3", scanner)
+        self.assertIn("DEFAULT_RANK1_PER_CHANNEL = 8", scanner)
+        self.assertIn("DEFAULT_RANK2_PER_CHANNEL = 9", scanner)
         self.assertIn("RANK1_CHANNELS", scanner)
         # ETA callback.
         self.assertIn("eta_callback", scanner)

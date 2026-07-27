@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.9.0-rc.9
+
+- Reworked the scanner into connect, collect, persist, disconnect, probe, and save stages.
+- Bundled the complete DicodeConfigChecker public channel list with rank-aware limits of 8 and 9.
+- Added atomic stage-one snapshots before the bootstrap VPN is stopped.
+- Added TUN-first Telegram fetching with a bounded SOCKS5 fallback and higher collection capacity.
+- Increased real Xray probe capacity and removed the old five-server early exit.
+- Added immediate scanner feedback, separate live log streams, and richer server cards.
+- Mirrored the staged scanner pipeline on Android.
+
 ## 1.9.0 RC7
 
 - Fixed scanner bootstrap ranking so `ConfigQualityResult` objects are never compared directly.
@@ -17,7 +27,7 @@
 - Split scanner logs into All, Telegram and Real tests views with independent live metrics.
 - Corrected Persian right-edge and English left-edge sidebar alignment.
 - Added Android repeated native-core scanner verification and the single atomic `SUB` lifecycle.
-- Added bilingual Persian/English release notes and RC7 multi-platform pre-release automation.
+- Added bilingual Persian/English release notes and RC9 multi-platform pre-release automation.
 
 ## 1.9.0 RC5 Android build hotfix
 

@@ -2,6 +2,7 @@ package ir.dicode.ping.scanner
 
 import android.content.Context
 import android.content.Intent
+import android.net.VpnService
 import androidx.core.content.ContextCompat
 import ir.dicode.ping.data.AppRepository
 import ir.dicode.ping.net.TelegramChannelCrawler
@@ -59,7 +60,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private var job: Job? = null
 
     @Synchronized
-    fun start(name: String = "SUB", rank1: Int = 3, rank2: Int = 3) {
+    fun start(name: String = "SUB", rank1: Int = 8, rank2: Int = 9) {
         if (job?.isActive == true) return
         stop.set(false)
         job = scope.launch {
@@ -109,8 +110,24 @@ class ScannerCoordinator private constructor(private val context: Context) {
         }
         ensureRunning()
         check(configs.isNotEmpty()) { "No valid Xray configs were collected." }
+        val stageOneFile = context.filesDir.resolve("scanner-stage1-raw.txt")
+        stageOneFile.writeText(configs.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
+        context.filesDir.resolve("scanner-stage1-meta.json").writeText(
+            JSONObject()
+                .put("candidateCount", configs.size)
+                .put("rank1Limit", rank1)
+                .put("rank2Limit", rank2)
+                .put("channelCount", channels.size)
+                .toString(2),
+            Charsets.UTF_8,
+        )
+        update(
+            ScannerStage.CRAWLING,
+            progress = 47,
+            log = "Saved ${configs.size} stage-1 candidates before disconnect",
+        )
 
-        update(ScannerStage.DISCONNECTING, progress = 48, log = "Stopping bootstrap before probes")
+        update(ScannerStage.DISCONNECTING, progress = 48, log = "Stopping dicodePing bootstrap VPN before probes")
         disconnectStrict(ignoreFailure = false)
         ensureRunning()
 
@@ -161,6 +178,9 @@ class ScannerCoordinator private constructor(private val context: Context) {
     }
 
     private suspend fun connectBootstrap(validationChannel: String) {
+        check(VpnService.prepare(context) == null) {
+            "مجوز VPN صادر نشده است؛ اسکن را دوباره بزنید و مجوز سیستم را تایید کنید."
+        }
         val candidates = repo.primaryAutomaticCandidates(5)
         check(candidates.isNotEmpty()) { "No healthy primary-source bootstrap server is available." }
         var lastError = "No bootstrap candidate passed validation."
@@ -170,6 +190,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
             val settings = repo.settings
             val intent = Intent(context, DicodeVpnService::class.java)
                 .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
+                .putExtra(DicodeVpnService.EXTRA_CORE_ID, "xray")
                 .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
                 .putExtra(DicodeVpnService.EXTRA_NAME, server.name)
                 .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, settings.bypassDomains)
@@ -265,6 +286,6 @@ class ScannerCoordinator private constructor(private val context: Context) {
         fun get(context: Context): ScannerCoordinator = instance ?: synchronized(this) {
             instance ?: ScannerCoordinator(context.applicationContext).also { instance = it }
         }
-        fun normalizeLimit(value: Int): Int = if (value in 1..20) value else 3
+        fun normalizeLimit(value: Int): Int = if (value in 1..20) value else 8
     }
 }
