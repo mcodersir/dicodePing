@@ -1,4 +1,4 @@
-# dicodePing 1.9.0 RC4 — Git Deploy Hotfix 5
+# dicodePing 1.9.0 RC4 — Existing Release Recovery Hotfix 7
 
 این نسخه خروجی‌ها را مثل Release نسخه `v1.8.0-rc.4` می‌سازد و macOS را نیز اضافه می‌کند.
 
@@ -56,10 +56,10 @@ DEPLOY_PRERELEASE_RC4.bat
 
 این نسخه از **Git for Windows و Git Credential Manager** استفاده می‌کند و به GitHub CLI یا بررسی API Token وابسته نیست. اگر ورود Git روی سیستم ذخیره نشده باشد، مرورگر برای ورود به GitHub باز می‌شود.
 
-اسکریپت به‌ترتیب شاخه `main` را Clone می‌کند، سورس RC4 را جایگزین می‌کند، Commit را Push می‌کند و Tag زیر را می‌فرستد:
+اسکریپت شاخه `main` را Clone می‌کند، سورس RC4 را جایگزین و اعتبارسنجی می‌کند، یک فایل Trigger یکتا می‌سازد و Commit را Push می‌کند. سپس Tag زیر را به Commit اصلاح‌شده منتقل می‌کند:
 
 ```text
 v1.9.0-rc.4
 ```
 
-Push شدن Tag، Workflow چندپلتفرمی را خودکار اجرا می‌کند. در پایان، Pre-Release شامل EXE، APK، Linux و دو خروجی macOS ساخته می‌شود. Secrets امضای Android باید از قبل در Repository تنظیم شده باشند.
+اگر Pre-Release قبلاً ساخته شده ولی ناقص باشد، اسکریپت دیگر متوقف نمی‌شود. Workflow همان Release را به‌روزرسانی می‌کند و فایل‌های هم‌نام را جایگزین می‌کند. پایان کار فقط زمانی موفق اعلام می‌شود که اجرای دقیق همان Commit موفق باشد و EXE، APK، Linux و هر دو DMG مک داخل Release موجود باشند. Secrets امضای Android باید از قبل در Repository تنظیم شده باشند.

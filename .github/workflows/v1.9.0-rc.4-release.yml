@@ -1,11 +1,13 @@
 name: Release v1.9.0-rc.4 legacy-style packages
 
 on:
-  # DEPLOY_PRERELEASE_RC4.bat pushes this tag with plain Git.
-  # The tag push starts exactly one multi-platform release run.
+  # The recovery BAT changes only this marker after source validation.
+  # This avoids duplicate tag-triggered runs and also supports an existing release.
   push:
-    tags:
-      - "v1.9.0-rc.4"
+    branches:
+      - main
+    paths:
+      - ".github/release-triggers/v1.9.0-rc.4.txt"
   workflow_dispatch:
 
 permissions:
@@ -146,7 +148,22 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - run: |
+          set -euo pipefail
+          stale_controller="app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+          if [ -e "$stale_controller" ]; then
+            echo "Removing stale common-source AndroidTetheringController that conflicts with product flavors"
+            rm -f "$stale_controller"
+          fi
+          test -f app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
+          test -f app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
+          python tools/validate_project.py
+
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is missing" >&2
+            exit 1
+          fi
           printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
           target="local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar"
           mkdir -p "$(dirname "$target")"
           curl --fail --location --retry 4 --output "$target" "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar"
@@ -234,9 +251,10 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.9.0-rc.4
-          target_commitish: main
+          target_commitish: ${{ github.sha }}
           name: dicodePing v1.9.0-rc.4
           body_path: docs/releases/v1.9.0-rc.4.md
           prerelease: true
+          overwrite_files: true
           fail_on_unmatched_files: true
           files: release-assets/*

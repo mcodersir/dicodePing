@@ -1,31 +1,29 @@
-dicodePing v1.9.0 RC4 - استقرار خودکار Pre-Release با توکن کلاسیک
+dicodePing v1.9.0 RC4 - بازیابی و تکمیل خودکار Pre-Release
 
 فقط فایل زیر را اجرا کنید:
 
 DEPLOY_PRERELEASE_RC4.bat
 
-در شروع، توکن کلاسیک جدید GitHub را در ورودی مخفی Paste کنید.
-توکن فقط در حافظه همان اجرای BAT قرار می‌گیرد و داخل فایل، Git یا GitHub CLI ذخیره نمی‌شود.
+این فایل از Git for Windows و Git Credential Manager استفاده می‌کند و توکن را داخل BAT یا مخزن ذخیره نمی‌کند. اگر ورود GitHub ذخیره نشده باشد، پنجره ورود مرورگر باز می‌شود.
 
-دسترسی‌های لازم برای توکن کلاسیک:
-- repo
-- workflow
-
-این فایل به صورت خودکار:
-- اعتبار توکن و دسترسی مخزن را بررسی می‌کند.
-- در صورت نبودن Secrets امضای APK، مسیر Keystore و رمزها را امن دریافت می‌کند.
-- شاخه main را در یک پوشه موقت Clone می‌کند.
-- سورس فعلی را جایگزین، Commit و Push می‌کند.
-- Workflow انتشار RC4 را دقیقاً یک بار اجرا می‌کند.
-- تا پایان ساخت EXE، APK، Linux و دو نسخه macOS منتظر می‌ماند.
-- در صورت خطا لاگ Jobهای ناموفق را نشان می‌دهد.
-- در صورت موفقیت صفحه GitHub Pre-Release را باز می‌کند.
+عملیات خودکار:
+- آخرین شاخه main را در پوشه موقت Clone می‌کند.
+- سورس اصلاح‌شده و جداسازی صحیح Android product flavorها را بررسی می‌کند.
+- در هر اجرا یک Release Trigger یکتا می‌سازد و روی main پوش می‌کند.
+- اگر Tag یا Pre-Release قبلی وجود داشته باشد، متوقف نمی‌شود.
+- Tag v1.9.0-rc.4 را به Commit اصلاح‌شده منتقل می‌کند.
+- Workflow چندپلتفرمی را اجرا می‌کند.
+- Release موجود را درجا به‌روزرسانی و فایل‌های هم‌نام را جایگزین می‌کند.
+- فقط بعد از موفقیت همان Commit و وجود EXE، APK، Linux و دو DMG مک موفق اعلام می‌کند.
 
 پیش‌نیازهای ویندوز:
-- Git for Windows
-- GitHub CLI (gh)
-- توکن کلاسیک جدید با دسترسی repo و workflow
-- فایل Keystore اندروید، فقط اگر Secrets قبلاً در GitHub تنظیم نشده باشند
+- Git for Windows همراه Git Credential Manager
+- Python برای اعتبارسنجی محلی Android
+- Secrets امضای APK که از قبل در Repository تنظیم شده‌اند
 
-هشدار امنیتی:
-توکن را داخل BAT، فایل متنی، ZIP یا مخزن Git قرار ندهید. توکنی که در چت یا جای عمومی ارسال شده باید فوراً Revoke و با توکن جدید جایگزین شود.
+خروجی مورد انتظار:
+- dicodePing-v1.9.0-rc.4-windows-x64.exe
+- dicodePing-v1.9.0-rc.4-linux-x86_64.tar.gz
+- dicodePing-v1.9.0-rc.4-macos-arm64.dmg
+- dicodePing-v1.9.0-rc.4-macos-x86_64.dmg
+- dicodePing-v1.9.0-rc.4-android.apk

@@ -1,3 +1,21 @@
+# Changelog
+
+## 1.9.0 RC4 Existing Release Recovery Hotfix 7
+
+- Existing or partial `v1.9.0-rc.4` releases no longer abort the one-click deploy.
+- Added a dedicated main-branch release trigger so recovery does not depend on a second tag-created event.
+- The workflow now updates an existing release and overwrites same-name assets after all platform jobs succeed.
+- The deploy script force-moves the RC4 tag to the fixed commit when allowed and falls back cleanly when tag protection blocks it.
+- Release waiting is bound to the exact pushed commit instead of returning success merely because an old release page exists.
+- Final verification requires Windows EXE, Android APK, Linux archive, and both macOS DMGs.
+
+## 1.9.0 RC4 Android release recovery hotfix
+
+- Removed the stale `app/src/main/.../AndroidTetheringController.kt` implementation that collided with the `standard` product-flavor implementation.
+- Added Android project validation and CI guards so the Kotlin redeclaration cannot return silently.
+- Updated the one-click deploy script to recover a failed RC4 tag run when no GitHub Release was created.
+- Removed the obsolete `android:extractNativeLibs` manifest attribute; native packaging remains configured by Gradle.
+
 ## 1.9.0 RC4 Git Deploy Hotfix 5
 
 - Replaced GitHub CLI token validation with native Git HTTPS authentication.

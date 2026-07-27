@@ -58,8 +58,14 @@ if '0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352' not in bui
 if 'implementation(files(' in build_file:
     errors.append("Direct local AAR file dependencies are forbidden because AGP may report a null extracted folder")
 
+main_controller = (ROOT / "app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt")
 standard_controller = (ROOT / "app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt")
 rooted_controller = (ROOT / "app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt")
+if main_controller.exists():
+    errors.append(
+        "AndroidTetheringController must exist only in the standard/rooted flavor source sets; "
+        "the main source-set copy causes a Kotlin redeclaration"
+    )
 if not standard_controller.is_file() or not rooted_controller.is_file():
     errors.append("Android tethering controller flavors are incomplete")
 else:

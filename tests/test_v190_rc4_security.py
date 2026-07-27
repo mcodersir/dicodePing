@@ -44,9 +44,11 @@ def test_xray_uses_locally_pinned_archive_digest() -> None:
 
 def test_android_standard_release_excludes_root_shell_code() -> None:
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
+    main_controller = ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
     standard = (ROOT / "dicodePing_android/app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt").read_text("utf-8")
     rooted = (ROOT / "dicodePing_android/app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt").read_text("utf-8")
     manifest = (ROOT / "dicodePing_android/app/src/main/AndroidManifest.xml").read_text("utf-8")
+    assert not main_controller.exists(), "common source-set controller causes flavor redeclaration"
     assert 'create("standard")' in gradle
     assert 'ENABLE_ROOT_TETHERING", "false"' in gradle
     assert "ProcessBuilder" not in standard
