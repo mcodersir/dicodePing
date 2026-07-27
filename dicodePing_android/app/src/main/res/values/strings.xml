@@ -241,4 +241,12 @@
     <string name="accept_and_activate">Accept and activate</string>
     <string name="conn_method_preparing">Preparing bundled core…</string>
     <string name="warp_registration_failed">WARP registration failed</string>
+    <string name="splash_testing_sample">Testing a 30% sample of servers…</string>
+    <string name="splash_checking_updates">Checking for updates…</string>
+    <string name="splash_checking_cores">Verifying bundled connection cores…</string>
+    <string name="scanner_tab_review">Review</string>
+    <string name="scanner_tab_output">Output</string>
+    <string name="scanner_log_empty">Scanner log will appear here.</string>
+    <string name="scanner_disconnecting">Stopping bootstrap VPN…</string>
+    <string name="scanner_saving">Saving verified SUB…</string>
 </resources>

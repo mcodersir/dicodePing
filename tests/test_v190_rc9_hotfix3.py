@@ -20,7 +20,7 @@ def test_android_warning_cleanup_and_node24_release_actions() -> None:
     gradle = read("dicodePing_android/app/build.gradle.kts")
     settings = read("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/SettingsFragment.kt")
     locale = read("dicodePing_android/app/src/main/java/ir/dicode/ping/util/LocaleHelper.kt")
-    workflow = read(".github/workflows/v1.9.0-rc.9-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
     assert '"**/libgojni.so"' in gradle
     assert 'Locale.forLanguageTag("fa")' in settings
     assert "Locale.forLanguageTag(language)" in locale

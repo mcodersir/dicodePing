@@ -1,4 +1,2 @@
 tag=v1.9.0-rc.9
-mode=replace-existing-release
-requested_at_utc=2026-07-27T18:57:34.5898630Z
-nonce=cc1eb1e4bacc4940b33cd128c6c5127d
+workflow=v1.9.0-rc.9-release.yml

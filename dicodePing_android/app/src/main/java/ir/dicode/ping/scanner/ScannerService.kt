@@ -20,10 +20,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 
 class ScannerService : Service() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var observeJob: Job? = null
     private var foregroundStarted = false
 
@@ -63,7 +64,9 @@ class ScannerService : Service() {
 
         observeJob?.cancel()
         observeJob = scope.launch {
-            coordinator.state.collectLatest { state ->
+            coordinator.state.distinctUntilChangedBy { state ->
+                listOf(state.stage, state.progress, state.alive, state.stopRequested)
+            }.collectLatest { state ->
                 runCatching {
                     getSystemService(NotificationManager::class.java)
                         .notify(NOTIFICATION_ID, notification(state))
@@ -124,6 +127,8 @@ class ScannerService : Service() {
 
     override fun onDestroy() {
         observeJob?.cancel()
+        val coordinator = ScannerCoordinator.get(applicationContext)
+        if (coordinator.state.value.running) coordinator.requestStop()
         scope.cancel()
         foregroundStarted = false
         super.onDestroy()

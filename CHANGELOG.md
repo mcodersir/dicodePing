@@ -1,4 +1,32 @@
+## 1.9.0-rc.10 Xray/Scanner Assurance Hotfix 2
+
+- Waits for asynchronous Android Xray startup instead of rejecting the core immediately.
+- Verifies that Xray is still running after the real HTTP tunnel probe.
+- Prevents Android from redelivering stale VPN intents after process recreation.
+- Resets stale CONNECTING state if the VPN service is destroyed.
+- Adds scanner Xray runtime preflight, bounded crawl/probe deadlines, atomic stage-one persistence and a recent-cache fallback.
+- Keeps Telegram extraction limited to protocols that ConfigParser and the embedded Xray path can actually execute.
+
+
+## 1.9.0-rc.10 Android startup/scanner hotfix
+
+- Replaced unbounded Android splash work with source refresh, deterministic 30% per-source quick probes, update check, and a hard fail-open deadline.
+- Added Review/Output scanner log tabs with live highlighting and persistent coordinator-backed logs.
+- Made Telegram HTTP calls cancellation-aware and reset pooled connections for each VPN-backed scan.
+- Serialized every Android Xray JNI lifecycle/probe operation behind one process lock.
+- Added APK core inventory checks for Xray, Aether, and Usque on arm64-v8a and x86_64.
+- Added mobile press feedback and desktop keyboard/pressed-state feedback.
 # Changelog
+
+## 1.9.0-rc.10
+
+- Rebuilt the Telegram collector around the DicodeConfigChecker primary/mirror algorithm.
+- Prefer the verified app-owned SOCKS5 route with remote DNS on desktop and keep TUN/direct as fallback.
+- Added Telegram route preflight before the full 324-channel crawl.
+- Fixed the scanner action remaining on the connecting label after VPN verification.
+- Added independent transport timeout budgets and detailed transport-aware live logs.
+- Bounded Android crawler concurrency and response memory and added lifecycle-safe per-channel reporting.
+- Advanced Android versionCode to 45 and added the RC10 multi-platform pre-release workflow.
 
 ## 1.9.0-rc.9 Hotfix 4
 

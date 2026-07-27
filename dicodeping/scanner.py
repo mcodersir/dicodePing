@@ -39,7 +39,7 @@ from typing import Callable
 
 from .constants import DATA_DIR, MAX_DISCOVERY_CONFIGS
 from .config_checker import ConfigQualityResult, test_config
-from .crawler import crawl_telegram_channels, load_channels, load_channel_specs
+from .crawler import crawl_telegram_channels, load_channels, load_channel_specs, verify_telegram_route
 from .diagnostics import get_logger
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition, utc_now
@@ -255,7 +255,7 @@ def _crawl_only(
     limits = {item.name: (rank1_limit if item.rank == 1 else rank2_limit) for item in specs}
     rank1_count = sum(1 for item in specs if item.rank == 1)
     rank2_count = len(specs) - rank1_count
-    route = (f"TUN/direct -> SOCKS5 127.0.0.1:{socks_port} fallback" if socks_port else "TUN/direct")
+    route = (f"SOCKS5 127.0.0.1:{socks_port} -> TUN/direct fallback" if socks_port else "TUN/direct")
     _log(
         f"[TG][INFO] channels={len(channels)} rank1={rank1_count} rank2={rank2_count} "
         f"workers={SCAN_CRAWL_WORKERS} route={route}"
@@ -298,19 +298,43 @@ def _crawl_only(
                 }
             )
 
-    raw_configs = crawl_telegram_channels(
-        channels=channels,
+    # Validate the same route the workers will use before creating hundreds of
+    # requests.  The successful preflight result is reused instead of fetched
+    # twice.  Rank-1 channels are first because they are the curated source set.
+    preflight = verify_telegram_route(
+        channels,
+        per_channel_limits=limits,
+        timeout=SCAN_CRAWL_TIMEOUT_S,
+        socks_port=socks_port,
+        stop_event=state.stop_requested,
+        attempts=min(5, max(1, rank1_count)),
+    )
+    if not preflight.ok:
+        raise RuntimeError(
+            "Telegram preview is not reachable through the verified bootstrap VPN: "
+            + str(preflight.error or "route validation failed")
+        )
+    _log(
+        f"[TG][PREFLIGHT][OK] @{preflight.channel} via {preflight.transport} | "
+        f"configs={preflight.picked}/{preflight.found} | {preflight.elapsed_ms} ms"
+    )
+    _channel_result(preflight, 1, len(channels))
+    remaining_channels = [item for item in channels if item != preflight.channel]
+
+    crawled = crawl_telegram_channels(
+        channels=remaining_channels,
         per_channel_limits=limits,
         max_workers=SCAN_CRAWL_WORKERS,
         timeout=SCAN_CRAWL_TIMEOUT_S,
-        progress=lambda done, total, _ch: crawl_progress and crawl_progress(done, total),
-        result_callback=_channel_result,
+        progress=lambda done, _total, _ch: crawl_progress and crawl_progress(done + 1, len(channels)),
+        result_callback=lambda result, done, _total: _channel_result(result, done + 1, len(channels)),
         stop_event=state.stop_requested,
         retry_limit=1,
         socks_port=socks_port,
-        max_unique_configs=SCAN_CRAWL_TARGET_RAW,
-        minimum_channels_before_target=min(SCAN_CRAWL_MIN_CHANNELS, len(channels)),
+        max_unique_configs=max(1, SCAN_CRAWL_TARGET_RAW - len(preflight.configs)),
+        minimum_channels_before_target=max(0, min(SCAN_CRAWL_MIN_CHANNELS, len(channels)) - 1),
     )
+    raw_configs = list(preflight.configs) + crawled
     if crawl_progress:
         crawl_progress(len(channels), len(channels))
     elapsed = max(0.001, time.monotonic() - started)
@@ -642,8 +666,8 @@ def run_scan(
                 socks_port = 0
         if socks_port:
             _log(
-                f"[CONNECT][ROUTE] Telegram uses verified TUN first; "
-                f"SOCKS5 127.0.0.1:{socks_port} is the bounded fallback"
+                f"[CONNECT][ROUTE] Telegram uses SOCKS5 127.0.0.1:{socks_port} first; "
+                "verified TUN/direct is the fallback"
             )
         else:
             _log("[CONNECT][ROUTE] Telegram uses the verified dicodePing TUN")

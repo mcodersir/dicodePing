@@ -37,9 +37,10 @@ def test_scanner_persists_candidates_before_strict_disconnect_and_probe() -> Non
 
 def test_telegram_crawler_prefers_tun_and_bounds_socks_fallback() -> None:
     crawler = read("dicodeping/crawler.py")
-    assert 'routes: list[tuple[str, int]] = [("tun", 0)]' in crawler
+    assert 'routes: list[tuple[str, int]] = []' in crawler
     assert 'routes.append(("socks5", int(socks_port)))' in crawler
-    assert "threading.BoundedSemaphore(4)" in crawler
+    assert 'routes.append(("tun", 0))' in crawler
+    assert "threading.BoundedSemaphore(6)" in crawler
     assert "max_unique_configs" in crawler
     assert "minimum_channels_before_target" in crawler
 
@@ -67,16 +68,16 @@ def test_rc8_scanner_feedback_and_server_cards_are_explicit() -> None:
 
 
 def test_rc8_release_payload_is_bilingual_and_multiplatform() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.9-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.9.md")
-    deploy = read("DEPLOY_PRERELEASE_RC9.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.10-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.10.md")
+    deploy = read("DEPLOY_PRERELEASE_RC10.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in (
-        "dicodePing-v1.9.0-rc.9-windows-x64.exe",
-        "dicodePing-v1.9.0-rc.9-linux-x86_64.tar.gz",
-        "dicodePing-v1.9.0-rc.9-macos-${{ matrix.architecture }}.dmg",
-        "dicodePing-v1.9.0-rc.9-android.apk",
+        "dicodePing-v1.9.0-rc.10-windows-x64.exe",
+        "dicodePing-v1.9.0-rc.10-linux-x86_64.tar.gz",
+        "dicodePing-v1.9.0-rc.10-macos-${{ matrix.architecture }}.dmg",
+        "dicodePing-v1.9.0-rc.10-android.apk",
     ):
         assert asset in workflow
-    assert "v1.9.0-rc.9" in deploy
-    assert "wait_for_github_release_rc9.ps1" in deploy
+    assert "v1.9.0-rc.10" in deploy
+    assert "wait_for_github_release_rc10.ps1" in deploy

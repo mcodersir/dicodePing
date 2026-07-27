@@ -18,14 +18,14 @@ def _vless(host: str, port: int = 443) -> str:
 
 
 def test_rc3_release_entrypoints_and_metadata() -> None:
-    assert (ROOT / "BUILD_RELEASE_RC9.bat").is_file()
-    assert (ROOT / "RUN_SOURCE_RC9.bat").is_file()
-    assert (ROOT / "app_v190_rc9.py").is_file()
-    build = (ROOT / "BUILD_RELEASE_RC9.bat").read_text("utf-8")
-    assert "--tag v1.9.0-rc.9" in build
+    assert (ROOT / "BUILD_RELEASE_RC10.bat").is_file()
+    assert (ROOT / "RUN_SOURCE_RC10.bat").is_file()
+    assert (ROOT / "app_v190_rc10.py").is_file()
+    build = (ROOT / "BUILD_RELEASE_RC10.bat").read_text("utf-8")
+    assert "--tag v1.9.0-rc.10" in build
     assert "tools\\build_windows.py --skip-install" in build
     assert "legacy-style portable Windows EXE" in build
-    assert "BUILD_SIGNED_APK_RC9.bat" in build
+    assert "BUILD_SIGNED_APK_RC10.bat" in build
 
 
 def test_scanner_ui_uses_queued_slots_batched_logs_and_highlighting() -> None:
@@ -93,6 +93,13 @@ def test_crawl_stage_emits_speed_metrics_and_rank_limits(monkeypatch) -> None:
         return [_vless("one.example"), _vless("two.example")]
 
     monkeypatch.setattr(scanner, "crawl_telegram_channels", fake_crawl)
+    monkeypatch.setattr(
+        scanner,
+        "verify_telegram_route",
+        lambda *_args, **_kwargs: ChannelResult(
+            "one", True, 3, 2, 20, [_vless("preflight.example")], bytes_received=1024, transport="socks5"
+        ),
+    )
     state = scanner._ProbeState(stop_requested=threading.Event())
     raw = scanner._crawl_only(
         rank1_limit=2,
@@ -105,9 +112,9 @@ def test_crawl_stage_emits_speed_metrics_and_rank_limits(monkeypatch) -> None:
 
     assert captured["per_channel_limits"] == {"one": 2, "two": 4}
     assert captured["socks_port"] == 1819
-    assert len(raw) == 2
-    assert metrics[-1]["bytes"] == 8192
-    assert metrics[-1]["configs"] == 6
+    assert len(raw) == 3
+    assert metrics[-1]["bytes"] == 9216
+    assert metrics[-1]["configs"] == 8
     assert any("[TG][OK]" in line and "KiB/s" in line for line in logs)
     assert any("[TG][DONE]" in line and "avg=" in line for line in logs)
 

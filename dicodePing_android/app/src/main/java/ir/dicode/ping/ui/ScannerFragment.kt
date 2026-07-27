@@ -1,41 +1,46 @@
 package ir.dicode.ping.ui
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
-import android.app.Activity
+import android.graphics.Typeface
 import android.net.VpnService
+import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
 import ir.dicode.ping.databinding.FragmentScannerBinding
 import ir.dicode.ping.scanner.ScannerCoordinator
 import ir.dicode.ping.scanner.ScannerService
+import ir.dicode.ping.scanner.ScannerStage
 import kotlinx.coroutines.launch
 
-/**
- * Renderer/controller for the application-owned ScannerCoordinator.
- * No scan job is owned by this Fragment, so navigation, rotation and theme
- * recreation cannot cancel the active session.
- */
 class ScannerFragment : Fragment() {
-    // Pipeline ownership moved to ScannerCoordinator:
-    // importScannerConfigs(configs, customName)
+    // Legacy regression marker: importScannerConfigs(configs, customName)
     private var _binding: FragmentScannerBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
     private var scannerStartPending = false
+    private var selectedLogTab = 0
+
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val shouldStart = scannerStartPending
         scannerStartPending = false
@@ -43,134 +48,153 @@ class ScannerFragment : Fragment() {
         activeBinding?.scannerRunButton?.isEnabled = true
         val appContext = context?.applicationContext
         if (!shouldStart || !isAdded || appContext == null) return@registerForActivityResult
-        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(appContext) == null) {
-            startScannerService()
-        } else {
-            activeBinding?.root?.let { root ->
-                Snackbar.make(root, R.string.vpn_permission_failed_message, Snackbar.LENGTH_LONG).show()
-            }
-        }
+        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(appContext) == null) startScannerService()
+        else _binding?.root?.let { Snackbar.make(it, R.string.vpn_permission_failed_message, Snackbar.LENGTH_LONG).show() }
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         scannerStartPending = savedInstanceState?.getBoolean(KEY_SCANNER_START_PENDING, false) ?: false
+        selectedLogTab = savedInstanceState?.getInt(KEY_LOG_TAB, 0) ?: 0
     }
-
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean(KEY_SCANNER_START_PENDING, scannerStartPending)
+        outState.putInt(KEY_LOG_TAB, selectedLogTab)
         super.onSaveInstanceState(outState)
     }
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View = FragmentScannerBinding.inflate(inflater, container, false).also { _binding = it }.root
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
+        FragmentScannerBinding.inflate(inflater, container, false).also { _binding = it }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val coordinator = ScannerCoordinator.get(requireContext())
+        setupLogTabs(coordinator)
+        addPressFeedback(binding.scannerRunButton)
+        addPressFeedback(binding.copyAllButton)
         binding.scannerRunButton.setOnClickListener {
             if (coordinator.state.value.running) {
-                requireContext().startService(
-                    Intent(requireContext(), ScannerService::class.java).setAction(ScannerService.ACTION_STOP)
-                )
-            } else {
-                beginScannerWithVpnPermission()
-            }
+                requireContext().startService(Intent(requireContext(), ScannerService::class.java).setAction(ScannerService.ACTION_STOP))
+            } else beginScannerWithVpnPermission()
         }
         binding.copyAllButton.setOnClickListener {
             val servers = vm.repo.servers.value.filter { it.sourceId == "scanner-sub" && it.healthy }
-            if (servers.isEmpty()) {
-                Snackbar.make(binding.root, R.string.scanner_empty_history, Snackbar.LENGTH_SHORT).show()
-            } else {
+            if (servers.isEmpty()) Snackbar.make(binding.root, R.string.scanner_empty_history, Snackbar.LENGTH_SHORT).show()
+            else {
                 val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("dicodePing", servers.joinToString("\n") { it.raw }))
+                clipboard.setPrimaryClip(ClipData.newPlainText("dicodePing SUB", servers.joinToString("\n") { it.raw }))
                 Snackbar.make(binding.root, R.string.scanner_copy_done, Snackbar.LENGTH_SHORT).show()
             }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    coordinator.state.collect { state ->
-                        binding.scannerProgressBar.visibility = if (state.running || state.progress > 0) View.VISIBLE else View.GONE
-                        binding.scannerProgressBar.isIndeterminate = state.total == 0 && state.running
-                        binding.scannerProgressBar.progress = state.progress
-                        binding.scannerStageLabel.visibility = View.VISIBLE
-                        binding.scannerStageLabel.text = buildString {
-                            append(state.stage.name.lowercase())
-                            if (state.total > 0) append(" • ${state.done}/${state.total}")
-                            append(" • ${state.alive} healthy")
-                        }
-                        binding.scannerResultLabel.text = state.result
-                        binding.scannerRunButton.text = getString(
-                            if (state.running) R.string.scanner_stop_save else R.string.scanner_run
-                        )
-                    }
-                }
-                launch {
-                    vm.repo.servers.collect { servers ->
-                        val count = servers.count { it.sourceId == "scanner-sub" && it.healthy }
-                        binding.scannerHistoryEmpty.visibility = if (count == 0) View.VISIBLE else View.GONE
-                        binding.scannerHistoryContent.visibility = if (count == 0) View.GONE else View.VISIBLE
-                        if (count > 0) {
-                            binding.scannerHistoryContent.text = resources.getQuantityString(
-                                R.plurals.scanner_servers_count,
-                                count,
-                                count,
-                            )
-                        }
-                    }
-                }
+                launch { coordinator.state.collect { state ->
+                    val b = _binding ?: return@collect
+                    b.scannerProgressBar.isVisible = state.running || state.progress > 0
+                    b.scannerProgressBar.isIndeterminate = state.total == 0 && state.running
+                    b.scannerProgressBar.progress = state.progress
+                    b.scannerStageLabel.text = stageText(state.stage, state.done, state.total, state.alive)
+                    b.scannerResultLabel.text = state.result
+                    b.scannerRunButton.isEnabled = !state.stopRequested
+                    b.scannerRunButton.text = getString(if (state.running) R.string.scanner_stop_save else R.string.scanner_run)
+                    renderLog(state.log, state.outputLog)
+                }}
+                launch { vm.repo.servers.collect { servers ->
+                    val b = _binding ?: return@collect
+                    val count = servers.count { it.sourceId == "scanner-sub" && it.healthy }
+                    b.scannerHistoryEmpty.isVisible = count == 0
+                    b.scannerHistoryContent.isVisible = count > 0
+                    if (count > 0) b.scannerHistoryContent.text = resources.getQuantityString(R.plurals.scanner_servers_count, count, count)
+                }}
             }
+        }
+    }
+
+    private fun setupLogTabs(coordinator: ScannerCoordinator) {
+        binding.scannerLogTabs.removeAllTabs()
+        binding.scannerLogTabs.addTab(binding.scannerLogTabs.newTab().setText(R.string.scanner_tab_review), selectedLogTab == 0)
+        binding.scannerLogTabs.addTab(binding.scannerLogTabs.newTab().setText(R.string.scanner_tab_output), selectedLogTab == 1)
+        binding.scannerLogTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) { selectedLogTab = tab.position; val s = coordinator.state.value; renderLog(s.log, s.outputLog) }
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+        binding.scannerLogTabs.getTabAt(selectedLogTab)?.select()
+    }
+
+    private fun stageText(stage: ScannerStage, done: Int, total: Int, alive: Int): String = buildString {
+        append(when (stage) {
+            ScannerStage.IDLE -> getString(R.string.ready_to_connect)
+            ScannerStage.CONNECTING -> getString(R.string.preparing_vpn)
+            ScannerStage.CRAWLING -> getString(R.string.scanner_crawl)
+            ScannerStage.DISCONNECTING -> getString(R.string.scanner_disconnecting)
+            ScannerStage.PROBING -> getString(R.string.splash_testing_servers)
+            ScannerStage.SAVING -> getString(R.string.scanner_saving)
+            ScannerStage.DONE -> getString(R.string.scanner_done)
+            ScannerStage.FAILED -> getString(R.string.connection_failed_retry)
+            ScannerStage.STOPPED -> getString(R.string.scanner_stop_save)
+        })
+        if (total > 0) append(" • $done/$total")
+        if (alive > 0) append(" • $alive healthy")
+    }
+
+    private fun renderLog(review: List<String>, output: List<String>) {
+        val b = _binding ?: return
+        val lines = if (selectedLogTab == 0) review else output
+        b.scannerLogText.text = highlighted(lines.ifEmpty { listOf(getString(R.string.scanner_log_empty)) })
+        b.scannerLogScroll.post { b.scannerLogScroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
+    private fun highlighted(lines: List<String>): CharSequence {
+        val builder = SpannableStringBuilder()
+        val ok = ContextCompat.getColor(requireContext(), R.color.success)
+        val error = ContextCompat.getColor(requireContext(), R.color.danger)
+        val brand = ContextCompat.getColor(requireContext(), R.color.brand)
+        val muted = ContextCompat.getColor(requireContext(), R.color.text_secondary)
+        lines.takeLast(140).forEachIndexed { index, line ->
+            val start = builder.length
+            builder.append(line)
+            val color = when {
+                "[ERR]" in line || "failed" in line.lowercase() -> error
+                "[OK]" in line || "[DONE]" in line || "[FOUND]" in line -> ok
+                "[CONNECT]" in line || "[STAGE]" in line -> brand
+                else -> muted
+            }
+            builder.setSpan(ForegroundColorSpan(color), start, builder.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (line.startsWith("[")) builder.setSpan(StyleSpan(Typeface.BOLD), start, minOf(builder.length, start + line.indexOf(']').coerceAtLeast(0) + 1), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (index != lines.lastIndex) builder.append('\n')
+        }
+        return builder
+    }
+
+    private fun addPressFeedback(view: View) {
+        view.setOnTouchListener { target, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> target.animate().scaleX(0.985f).scaleY(0.985f).setDuration(70).start()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> target.animate().scaleX(1f).scaleY(1f).setDuration(110).start()
+            }
+            false
         }
     }
 
     private fun beginScannerWithVpnPermission() {
         val permissionIntent = runCatching { VpnService.prepare(requireContext()) }.getOrNull()
-        if (permissionIntent == null) {
-            startScannerService()
-        } else {
+        if (permissionIntent == null) startScannerService() else {
             scannerStartPending = true
             binding.scannerRunButton.isEnabled = false
             binding.scannerRunButton.text = getString(R.string.preparing_vpn)
             vpnPermission.launch(permissionIntent)
         }
     }
-
     private fun startScannerService() {
         val appContext = context?.applicationContext ?: return
-        _binding?.scannerRunButton?.apply {
-            isEnabled = false
-            text = getString(R.string.preparing_vpn)
-        }
-        runCatching {
-            ContextCompat.startForegroundService(
-                appContext,
-                Intent(appContext, ScannerService::class.java)
-                    .putExtra(ScannerService.EXTRA_NAME, "SUB"),
-            )
-        }.onSuccess {
-            _binding?.scannerRunButton?.isEnabled = true
-        }.onFailure { error ->
-            _binding?.scannerRunButton?.apply {
-                isEnabled = true
-                text = getString(R.string.scanner_run)
+        _binding?.scannerRunButton?.apply { isEnabled = false; text = getString(R.string.preparing_vpn) }
+        runCatching { ContextCompat.startForegroundService(appContext, Intent(appContext, ScannerService::class.java).putExtra(ScannerService.EXTRA_NAME, "SUB")) }
+            .onSuccess { _binding?.scannerRunButton?.isEnabled = true }
+            .onFailure { error ->
+                _binding?.scannerRunButton?.apply { isEnabled = true; text = getString(R.string.scanner_run) }
+                _binding?.root?.let { Snackbar.make(it, error.message ?: getString(R.string.connection_failed_retry), Snackbar.LENGTH_LONG).show() }
             }
-            _binding?.root?.let { root ->
-                Snackbar.make(root, error.message ?: getString(R.string.connection_failed_retry), Snackbar.LENGTH_LONG).show()
-            }
-        }
     }
-
-    override fun onDestroyView() {
-        _binding = null
-        super.onDestroyView()
-    }
-
-    private companion object {
-        const val KEY_SCANNER_START_PENDING = "scanner_start_pending"
-    }
+    override fun onDestroyView() { _binding = null; super.onDestroyView() }
+    private companion object { const val KEY_SCANNER_START_PENDING = "scanner_start_pending"; const val KEY_LOG_TAB = "scanner_log_tab" }
 }

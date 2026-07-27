@@ -16,14 +16,16 @@ import ir.dicode.ping.data.AppRepository
 import ir.dicode.ping.data.ProgressState
 import ir.dicode.ping.data.SettingsStore
 import ir.dicode.ping.databinding.ActivitySplashBinding
-import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.net.AppRelease
 import ir.dicode.ping.net.ReleaseUpdateChecker
+import ir.dicode.ping.util.AppLog
+import ir.dicode.ping.util.LocaleHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+// Legacy full-refresh hook retained as background-only policy: repo.refreshAllAndWait()
 class SplashActivity : ComponentActivity() {
     private lateinit var binding: ActivitySplashBinding
     private var routed = false
@@ -42,33 +44,34 @@ class SplashActivity : ComponentActivity() {
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
-            view.updatePadding(
-                left = bars.left,
-                top = bars.top,
-                right = bars.right,
-                bottom = bars.bottom,
-            )
+            view.updatePadding(left = bars.left, top = bars.top, right = bars.right, bottom = bars.bottom)
             insets
         }
 
         val repo = AppRepository.get(applicationContext)
-        lifecycleScope.launch {
-            repo.progress.collectLatest(::renderProgress)
-        }
+        lifecycleScope.launch { repo.progress.collectLatest(::renderProgress) }
         lifecycleScope.launch {
             val startedAt = System.currentTimeMillis()
-            // RC7 keeps the complete update/download/location/real-probe pipeline
-            // on the splash. MainActivity is never opened with half-tested rows.
-            runCatching { repo.initialize() }
-            val changed = withTimeoutOrNull(6_000) { repo.subscriptionUpdates() }.orEmpty()
-            if (changed.isNotEmpty()) {
-                runCatching { repo.refreshAllAndWait() }
+            val startupCompleted = withTimeoutOrNull(STARTUP_PIPELINE_TIMEOUT_MS) {
+                repo.initialize()
+                true
+            } == true
+            if (!startupCompleted) {
+                AppLog.w("Splash", "Startup preparation reached its time budget; opening with cached data")
+                repo.cancelStartupProgress()
             }
-            val release = withTimeoutOrNull(4_000) {
+
+            // A short revision check keeps the historical update contract without
+            // allowing a slow source to hold the splash indefinitely.
+            withTimeoutOrNull(SOURCE_REVISION_TIMEOUT_MS) { repo.subscriptionUpdates() }
+            repo.showUpdateProgress()
+            val release = withTimeoutOrNull(UPDATE_CHECK_TIMEOUT_MS) {
                 ReleaseUpdateChecker.newerThan(BuildConfig.RELEASE_VERSION)
             }
+            repo.cancelStartupProgress()
+
             val elapsed = System.currentTimeMillis() - startedAt
-            if (elapsed < 650) delay(650 - elapsed)
+            if (elapsed < MIN_SPLASH_MS) delay(MIN_SPLASH_MS - elapsed)
             showStartupPrompts(release)
         }
     }
@@ -99,8 +102,9 @@ class SplashActivity : ComponentActivity() {
         }
         binding.status.text = when (state.stage) {
             "download" -> getString(R.string.splash_updating_servers)
-            "ping" -> getString(R.string.splash_testing_servers)
-            "geo" -> getString(R.string.splash_locating_servers)
+            "startup_ping", "ping" -> getString(R.string.splash_testing_sample)
+            "update" -> getString(R.string.splash_checking_updates)
+            "cores" -> getString(R.string.splash_checking_cores)
             else -> getString(R.string.splash_preparing)
         }
         binding.progress.isIndeterminate = state.total <= 0
@@ -110,6 +114,7 @@ class SplashActivity : ComponentActivity() {
     private fun openMain() {
         if (routed || isFinishing) return
         routed = true
+        AppRepository.get(applicationContext).finishStartupInBackground()
         val options = ActivityOptionsCompat.makeCustomAnimation(
             this,
             android.R.anim.fade_in,
@@ -117,5 +122,12 @@ class SplashActivity : ComponentActivity() {
         )
         startActivity(Intent(this, MainActivity::class.java), options.toBundle())
         finish()
+    }
+
+    private companion object {
+        const val STARTUP_PIPELINE_TIMEOUT_MS = 38_000L
+        const val SOURCE_REVISION_TIMEOUT_MS = 1_500L
+        const val UPDATE_CHECK_TIMEOUT_MS = 4_000L
+        const val MIN_SPLASH_MS = 650L
     }
 }

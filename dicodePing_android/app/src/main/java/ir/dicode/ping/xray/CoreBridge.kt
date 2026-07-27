@@ -19,8 +19,8 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
     }.getOrDefault("Core unavailable")
 
     @Synchronized
-    fun start(config: String, tunFd: Int) {
-        stop()
+    fun start(config: String, tunFd: Int) = synchronized(PROCESS_CORE_LOCK) {
+        stopLocked()
         val lib = prepareEnvironment()
         val callbackClass = Class.forName("libv2ray.CoreCallbackHandler")
         val callback = Proxy.newProxyInstance(callbackClass.classLoader, arrayOf(callbackClass)) { _, method, args ->
@@ -48,7 +48,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         }
         try {
             start.invoke(activeController, config, tunFd)
-            if (!isRunning()) error("Xray core did not enter the running state")
+            if (!awaitRunning()) error("Xray core did not enter the running state within the startup deadline")
         } catch (error: Throwable) {
             stop()
             throw error
@@ -95,8 +95,22 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         Base64.decode(value, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING).size == 32
     }.getOrDefault(false)
 
+    private fun awaitRunning(timeoutMs: Long = CORE_START_TIMEOUT_MS): Boolean {
+        val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs
+        do {
+            if (isRunning()) return true
+            if (android.os.SystemClock.elapsedRealtime() >= deadline) return false
+            try {
+                Thread.sleep(CORE_START_POLL_MS)
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return false
+            }
+        } while (true)
+    }
+
     @Synchronized
-    fun isRunning(): Boolean {
+    fun isRunning(): Boolean = synchronized(PROCESS_CORE_LOCK) {
         val c = controller ?: return false
         return runCatching {
             val getter = c.javaClass.methods.firstOrNull {
@@ -112,7 +126,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
     }
 
     @Synchronized
-    fun queryTrafficDelta(): Pair<Long, Long> {
+    fun queryTrafficDelta(): Pair<Long, Long> = synchronized(PROCESS_CORE_LOCK) {
         val c = controller ?: return 0L to 0L
         return runCatching {
             val all = c.javaClass.methods.firstOrNull {
@@ -144,7 +158,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
 
     /** Measures an HTTP round trip through the running Xray outbound. */
     @Synchronized
-    fun measureDelay(urls: List<String> = PROBE_URLS): Long? {
+    fun measureDelay(urls: List<String> = PROBE_URLS): Long? = synchronized(PROCESS_CORE_LOCK) {
         val c = controller ?: return null
         val method = c.javaClass.methods.firstOrNull {
             it.name.equals("measureDelay", true) && it.parameterCount == 1
@@ -160,12 +174,14 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
     }
 
     @Synchronized
-    fun stop() {
+    fun stop() = synchronized(PROCESS_CORE_LOCK) { stopLocked() }
+
+    private fun stopLocked() {
         val c = controller ?: return
+        controller = null
         runCatching {
             c.javaClass.methods.first { it.name.equals("stopLoop", true) }.invoke(c)
         }
-        controller = null
     }
 
     /**
@@ -190,6 +206,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
     private companion object {
         val ENV_LOCK = Any()
         val OUTBOUND_PROBE_LOCK = Any()
+        val PROCESS_CORE_LOCK = OUTBOUND_PROBE_LOCK
         @Volatile var environmentReady = false
         val PROBE_URLS = listOf(
             "https://www.gstatic.com/generate_204",
@@ -198,5 +215,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         const val BATCH_PROBE_URL = "https://www.gstatic.com/generate_204"
         const val CORE_PREFS = "dicodeping_core"
         const val KEY_XUDP_BASE_KEY = "xudp_base_key_v1"
+        const val CORE_START_TIMEOUT_MS = 4_000L
+        const val CORE_START_POLL_MS = 50L
     }
 }

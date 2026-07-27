@@ -1,8 +1,11 @@
-"""Fast, bounded Telegram preview crawler used by the desktop scanner.
+"""DicodeConfigChecker-compatible Telegram preview crawler.
 
-RC3 keeps all network work outside the GUI thread, supports the local SOCKS5
-proxy exposed by Aether/WARP, reports per-channel transfer statistics, and
-uses a bounded worker pool so cancellation and shutdown stay predictable.
+RC10 keeps network work outside the GUI thread and follows the reference
+collector exactly at channel level: request ``t.me/s/<channel>`` once, fall
+back to ``telegram.me/s/<channel>`` once, extract supported Xray links, then
+deduplicate.  When dicodePing exposes a verified local SOCKS5 listener the
+SOCKS route is used first so DNS and TLS both travel through the bootstrap
+VPN; the ordinary TUN/direct route remains a fallback.
 """
 from __future__ import annotations
 
@@ -32,7 +35,7 @@ CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
 CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
 CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I)]
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
-_SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(4)
+_SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(6)
 _TELEGRAM_PREVIEW_TEMPLATES = ("https://t.me/s/{channel}", "https://telegram.me/s/{channel}")
 
 
@@ -158,10 +161,11 @@ def _decode_response(data: bytes, content_type: str) -> str:
 def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
     """Fetch one URL through the app-owned SOCKS5 listener.
 
-    The bootstrap connection normally exposes a TUN, so RC8 prefers ordinary
-    direct sockets first.  SOCKS5 remains a bounded fallback.  Limiting the
-    number of simultaneous TLS handshakes prevents the local Xray listener and
-    the remote bootstrap from being flooded by hundreds of Telegram requests.
+    RC10 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
+    The ordinary TUN/direct path is attempted only by ``fetch_channel`` after
+    both Telegram preview hosts fail through SOCKS. Limiting simultaneous TLS
+    handshakes prevents the local Xray listener and bootstrap server from being
+    flooded by hundreds of Telegram requests.
     """
     current = url
     with _SOCKS_FETCH_SEMAPHORE:
@@ -227,10 +231,9 @@ def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -
             "Connection": "close",
         },
     )
-    # Explicitly avoid stale OS proxy settings. Aether/WARP are handled through
-    # the SOCKS5 path above; Xray's TUN route works as a normal direct socket.
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    with opener.open(request, timeout=timeout) as response:
+    # Match DicodeConfigChecker: let urllib use the active platform route.
+    # The scanner still prefers its explicit SOCKS5 listener when available.
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         data = response.read(_MAX_RESPONSE_BYTES + 1)
         if len(data) > _MAX_RESPONSE_BYTES:
             raise OSError("Telegram preview response is unexpectedly large")
@@ -294,74 +297,90 @@ def fetch_channel(
     socks_port: int = 0,
     stop_event: threading.Event | None = None,
 ) -> ChannelResult:
-    """Fetch one public Telegram preview with TUN-first adaptive fallback.
+    """Fetch one channel with the DicodeConfigChecker host fallback order.
 
-    When dicodePing's bootstrap VPN is connected, normal sockets should travel
-    through its TUN.  RC7 forced every request through the auxiliary SOCKS
-    listener, which caused bursts of TLS EOF/timeout failures.  RC8 therefore
-    tries the verified TUN route first, then the local SOCKS5 listener, and
-    retries both Telegram preview hosts within one bounded budget.
+    A verified local SOCKS5 listener is preferred because it guarantees remote
+    DNS resolution and avoids leaking the Telegram hostname to the un-tunnelled
+    network.  Each transport gets its own timeout budget; RC9 shared one budget
+    across direct retries, so the SOCKS fallback often never ran.
     """
     started = time.monotonic()
-    deadline = started + max(8.0, float(timeout) * 2.2)
     size = 0
     errors: list[str] = []
-    routes: list[tuple[str, int]] = [("tun", 0)]
+    routes: list[tuple[str, int]] = []
     if socks_port:
         routes.append(("socks5", int(socks_port)))
-    templates = _TELEGRAM_PREVIEW_TEMPLATES
+    routes.append(("tun", 0))
 
-    try:
-        for route_name, route_port in routes:
-            for template in templates:
-                host = urllib.parse.urlsplit(template).hostname or "t.me"
-                for attempt in range(2):
-                    if stop_event is not None and stop_event.is_set():
-                        raise RuntimeError("cancelled")
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0.35:
-                        break
-                    request_timeout = min(max(3.5, float(timeout)), remaining)
-                    url = template.format(channel=channel)
-                    try:
-                        page, received, transport = _fetch_url_payload(
-                            url,
-                            timeout=request_timeout,
-                            socks_port=route_port,
-                        )
-                        size += received
-                        if not _is_usable_preview(page):
-                            raise RuntimeError(f"{host} returned an unusable preview page")
-                        configs = extract_configs(page)
-                        picked = configs[: max(1, int(per_channel_limit))]
-                        return ChannelResult(
-                            channel=channel,
-                            ok=True,
-                            found=len(configs),
-                            picked=len(picked),
-                            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
-                            configs=picked,
-                            bytes_received=size,
-                            transport=transport if route_name == "socks5" else "tun",
-                        )
-                    except Exception as exc:
-                        compact = str(exc).replace("\n", " ")[-180:]
-                        errors.append(f"{route_name}:{host}#{attempt + 1} {compact}")
-                        if attempt == 0 and deadline - time.monotonic() > 0.6:
-                            time.sleep(0.12 + random.uniform(0.0, 0.18))
-        raise RuntimeError("; ".join(errors[-6:]) or "Telegram preview unavailable")
-    except Exception as exc:
-        return ChannelResult(
-            channel=channel,
-            ok=False,
-            found=0,
-            picked=0,
-            elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
-            configs=[],
-            error=str(exc),
-            bytes_received=size,
-            transport="adaptive",
+    for route_name, route_port in routes:
+        for template in _TELEGRAM_PREVIEW_TEMPLATES:
+            if stop_event is not None and stop_event.is_set():
+                return ChannelResult(
+                    channel=channel, ok=False, found=0, picked=0,
+                    elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+                    configs=[], error="cancelled", bytes_received=size, transport=route_name,
+                )
+            url = template.format(channel=channel)
+            host = urllib.parse.urlsplit(url).hostname or "t.me"
+            try:
+                page, received, transport = _fetch_url_payload(
+                    url, timeout=max(3.0, float(timeout)), socks_port=route_port
+                )
+                size += received
+                if not _is_usable_preview(page):
+                    raise RuntimeError(f"{host} returned an unusable preview page")
+                configs = extract_configs(page)
+                picked = configs[: max(1, int(per_channel_limit))]
+                return ChannelResult(
+                    channel=channel,
+                    ok=True,
+                    found=len(configs),
+                    picked=len(picked),
+                    elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+                    configs=picked,
+                    bytes_received=size,
+                    transport=transport if route_name == "socks5" else "tun",
+                )
+            except Exception as exc:
+                compact = str(exc).replace("\n", " ")[-220:]
+                errors.append(f"{route_name}:{host} {compact}")
+
+    return ChannelResult(
+        channel=channel,
+        ok=False,
+        found=0,
+        picked=0,
+        elapsed_ms=max(1, int((time.monotonic() - started) * 1000)),
+        configs=[],
+        error="; ".join(errors[-4:]) or "Telegram preview unavailable",
+        bytes_received=size,
+        transport="adaptive",
+    )
+
+
+def verify_telegram_route(
+    channels: list[str],
+    *,
+    per_channel_limits: dict[str, int] | None = None,
+    timeout: float = 10.0,
+    socks_port: int = 0,
+    stop_event: threading.Event | None = None,
+    attempts: int = 5,
+) -> ChannelResult:
+    """Return the first usable Telegram preview before launching 324 jobs."""
+    last = ChannelResult("", False, 0, 0, 1, [], "no channels")
+    for channel in channels[: max(1, attempts)]:
+        limit = (per_channel_limits or {}).get(channel, 3)
+        last = fetch_channel(
+            channel,
+            per_channel_limit=max(1, int(limit)),
+            timeout=timeout,
+            socks_port=socks_port,
+            stop_event=stop_event,
         )
+        if last.ok:
+            return last
+    return last
 
 def crawl_telegram_channels(
     *,

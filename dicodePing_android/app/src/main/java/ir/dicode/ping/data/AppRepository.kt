@@ -29,6 +29,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.ceil
 import org.json.JSONObject
 
 class AppRepository private constructor(context: Context) {
@@ -64,20 +65,98 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
-    /** The complete startup pipeline stays on the splash until every row is ready. */
+    /**
+     * Bounded Android startup pipeline: refresh sources when needed, then test a
+     * deterministic 30 percent sample from every source with a fast TCP probe.
+     * Full native Xray probing is deliberately left to user actions because the
+     * JNI implementation is process-serialized and can keep a splash visible for
+     * several minutes on large subscriptions.
+     */
     suspend fun initialize() = withContext(Dispatchers.IO) {
         refreshMutex.withLock {
+            progress.value = ProgressState(true, "cores", 0, 1, "Checking bundled cores")
+            delay(40)
             if (servers.value.isEmpty() || settings.isServerRefreshDue()) {
                 AppLog.i("Repository", "Splash: refreshing server sources")
                 refreshServersInternal()
             }
             val snapshot = servers.value
             if (snapshot.isNotEmpty()) {
-                locateServers(snapshot, mergeWithExisting = true)
-                pingServers(servers.value)
+                val sample = startupSample(snapshot)
+                AppLog.i("Repository", "Splash: quick-testing ${sample.size}/${snapshot.size} servers (30% per source)")
+                quickStartupProbe(sample)
             }
         }
     }
+
+    fun showUpdateProgress() {
+        progress.value = ProgressState(true, "update", 0, 1, "Checking updates")
+    }
+
+    fun cancelStartupProgress() {
+        progress.value = ProgressState()
+    }
+
+    fun finishStartupInBackground() {
+        scope.launch {
+            refreshMutex.withLock {
+                val missingLocation = servers.value.filter { it.ip.isBlank() || it.countryCode.isBlank() }
+                if (missingLocation.isNotEmpty()) {
+                    runCatching { locateServers(missingLocation.take(BACKGROUND_GEO_LIMIT), mergeWithExisting = true) }
+                }
+            }
+        }
+    }
+
+    internal fun startupSample(input: List<ServerRecord>, fraction: Double = STARTUP_SAMPLE_FRACTION): List<ServerRecord> {
+        if (input.isEmpty()) return emptyList()
+        return input.groupBy { it.sourceId }.values.flatMap { rows ->
+            val count = ceil(rows.size * fraction.coerceIn(0.01, 1.0)).toInt().coerceIn(1, rows.size)
+            if (count >= rows.size) rows else List(count) { index -> rows[(index * rows.size) / count] }
+        }.distinctBy { it.id }
+    }
+
+    private suspend fun quickStartupProbe(input: List<ServerRecord>) = coroutineScope {
+        if (input.isEmpty()) return@coroutineScope
+        progress.value = ProgressState(true, "startup_ping", 0, input.size, "Testing startup sample")
+        val done = AtomicInteger(0)
+        val sem = Semaphore(tuning.dnsWorkers.coerceIn(4, 12))
+        val updates = input.map { server ->
+            async(Dispatchers.IO) {
+                sem.withPermit {
+                    val updated = if (server.pingKind == REAL_PROXY_PING && server.healthy && (server.pingMs ?: 0) > 0) {
+                        server
+                    } else {
+                        val ping = quickTcpDelay(server)
+                        server.copy(
+                            pingMs = ping,
+                            pingKind = if (ping != null) STARTUP_TCP_PING else server.pingKind,
+                            healthy = if (ping != null) true else server.healthy,
+                            testState = if (ping != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                        )
+                    }
+                    progress.value = ProgressState(
+                        true,
+                        "startup_ping",
+                        done.incrementAndGet(),
+                        input.size,
+                        server.name,
+                    )
+                    updated
+                }
+            }
+        }.awaitAll()
+        applyServerUpdates(updates, mergeWithExisting = true, sort = true, persist = true)
+        progress.value = ProgressState()
+    }
+
+    private fun quickTcpDelay(server: ServerRecord): Int? = runCatching {
+        val started = System.nanoTime()
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(server.host, server.port), STARTUP_TCP_TIMEOUT_MS)
+        }
+        ((System.nanoTime() - started) / 1_000_000L).coerceIn(1L, 60_000L).toInt()
+    }.getOrNull()
 
     fun refreshAll() {
         if (progress.value.active) return
@@ -743,7 +822,11 @@ class AppRepository private constructor(context: Context) {
     companion object {
         const val SCANNER_SOURCE_ID = "scanner-sub"
         const val SCANNER_SOURCE_NAME = "SUB"
+        const val STARTUP_TCP_PING = "STARTUP_TCP"
         private const val REAL_PROXY_PING = "PROXY_HTTP"
+        private const val STARTUP_SAMPLE_FRACTION = 0.30
+        private const val STARTUP_TCP_TIMEOUT_MS = 1_600
+        private const val BACKGROUND_GEO_LIMIT = 48
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 160

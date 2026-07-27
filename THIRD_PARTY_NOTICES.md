@@ -53,5 +53,5 @@ No private signing keys, credentials, or proprietary source are included in the
 repository or Release assets.
 ## DicodeConfigChecker verification model
 
-The RC9 scanner verification flow is adapted from the public `mcodersir/DicodeConfigChecker` project: supported configurations are tested by starting an Xray outbound and performing real HTTP traffic through it, while unsupported formats use a bounded TCP fallback. The RC9 implementation was rewritten for dicodePing's worker, cancellation, persistence and UI contracts.
+The RC10 scanner verification flow is adapted from the public `mcodersir/DicodeConfigChecker` project: supported configurations are tested by starting an Xray outbound and performing real HTTP traffic through it, while unsupported formats use a bounded TCP fallback. The RC10 implementation was rewritten for dicodePing's worker, cancellation, persistence and UI contracts.
 

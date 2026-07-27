@@ -11,6 +11,8 @@ import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.vpn.DicodeVpnService
 import ir.dicode.ping.vpn.VpnStateStore
 import ir.dicode.ping.vpn.VpnStatus
+import ir.dicode.ping.xray.CoreBridge
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 enum class ScannerStage { IDLE, CONNECTING, CRAWLING, DISCONNECTING, PROBING, SAVING, DONE, FAILED, STOPPED }
@@ -36,6 +39,7 @@ data class ScannerState(
     val alive: Int = 0,
     val etaSeconds: Long? = null,
     val log: List<String> = emptyList(),
+    val outputLog: List<String> = emptyList(),
     val result: String = "",
     val stopRequested: Boolean = false,
 ) {
@@ -120,6 +124,14 @@ class ScannerCoordinator private constructor(private val context: Context) {
     }
 
     private suspend fun run(name: String, rank1: Int, rank2: Int) {
+        val core = CoreBridge(context)
+        check(core.available()) { "Embedded Xray core is unavailable on this device/ABI." }
+        val coreVersion = core.version().trim()
+        check(coreVersion.isNotBlank() && !coreVersion.contains("unavailable", ignoreCase = true)) {
+            "Embedded Xray core failed its runtime preflight."
+        }
+        update(ScannerStage.CONNECTING, progress = 1, log = "[XRAY][OK] Embedded core ready: ${mask(coreVersion)}")
+
         val channelPlan = readChannels(rank1, rank2)
         val channels = channelPlan.keys.toList()
         check(channels.isNotEmpty()) { "The canonical Telegram channel list is empty." }
@@ -134,35 +146,74 @@ class ScannerCoordinator private constructor(private val context: Context) {
             progress = 5,
             total = channels.size,
             done = 0,
-            log = "Bootstrap VPN verified; crawling ${channels.size} Telegram channels",
+            log = "[CONNECT][OK] Bootstrap VPN verified; crawling ${channels.size} Telegram channels",
         )
-        val configs = TelegramChannelCrawler.crawl(
-            channels = channels,
-            maxWorkers = tuning.crawlWorkers.coerceIn(2, 8),
-            perChannelLimits = channelPlan,
-            progress = { done, total, channel ->
-                update(
-                    stage = ScannerStage.CRAWLING,
-                    progress = 5 + if (total > 0) done * 40 / total else 0,
-                    done = done,
-                    total = total,
-                    log = "Fetched ${mask(channel)}",
+        val crawled = withTimeoutOrNull(CRAWL_TIMEOUT_MS) {
+            try {
+                TelegramChannelCrawler.crawl(
+                    channels = channels,
+                    maxWorkers = tuning.crawlWorkers.coerceIn(2, 4),
+                    perChannelLimits = channelPlan,
+                    progress = { done, total, channel ->
+                        update(
+                            stage = ScannerStage.CRAWLING,
+                            progress = 5 + if (total > 0) done * 40 / total else 0,
+                            done = done,
+                            total = total,
+                            log = if (channel.isBlank()) null else "[TG][STEP] ${mask(channel)}",
+                        )
+                    },
+                    onResult = { result, done, total ->
+                        val message = if (result.ok) {
+                            "[TG][OK] $done/$total @${mask(result.channel)} " +
+                                "configs=${result.picked}/${result.found} host=${result.previewHost} ${result.elapsedMs}ms"
+                        } else {
+                            "[TG][ERR] $done/$total @${mask(result.channel)} ${result.error.takeLast(220)}"
+                        }
+                        update(
+                            stage = ScannerStage.CRAWLING,
+                            progress = 5 + if (total > 0) done.coerceAtLeast(0) * 40 / total else 0,
+                            done = done.coerceAtLeast(0),
+                            total = total,
+                            log = message,
+                            output = if (result.ok && result.picked > 0) {
+                                "[FOUND] @${mask(result.channel)} • ${result.picked}/${result.found} configs"
+                            } else null,
+                        )
+                    },
                 )
-            },
-        )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                update(
+                    ScannerStage.CRAWLING,
+                    progress = 44,
+                    log = "[TG][WARN] Live crawl failed: ${mask(error.message ?: error.javaClass.simpleName)}",
+                )
+                emptyList()
+            }
+        }.orEmpty()
         ensureRunning()
-        check(configs.isNotEmpty()) { "No valid Xray configs were collected from Telegram." }
+        val configs = crawled.ifEmpty {
+            loadFreshStage1Cache()?.also {
+                update(ScannerStage.CRAWLING, progress = 45, log = "[TG][CACHE] Telegram was unavailable; using ${it.size} recent raw candidates")
+            }.orEmpty()
+        }
+        check(configs.isNotEmpty()) { "No valid Xray configs were collected from Telegram and no fresh scanner cache is available." }
 
-        context.filesDir.resolve("scanner-stage1-raw.txt")
-            .writeText(configs.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
-        context.filesDir.resolve("scanner-stage1-meta.json").writeText(
+        atomicWrite(
+            context.filesDir.resolve("scanner-stage1-raw.txt"),
+            configs.joinToString("\n", postfix = "\n"),
+        )
+        atomicWrite(
+            context.filesDir.resolve("scanner-stage1-meta.json"),
             JSONObject()
                 .put("candidateCount", configs.size)
                 .put("rank1Limit", rank1)
                 .put("rank2Limit", rank2)
                 .put("channelCount", channels.size)
+                .put("savedAtEpochMs", System.currentTimeMillis())
                 .toString(2),
-            Charsets.UTF_8,
         )
         update(
             ScannerStage.CRAWLING,
@@ -175,7 +226,8 @@ class ScannerCoordinator private constructor(private val context: Context) {
         ensureRunning()
 
         update(ScannerStage.PROBING, progress = 50, done = 0, total = configs.size, log = "Running serialized real Xray HTTP probes")
-        val imported = repo.importScannerConfigs(
+        val imported = withTimeout(PROBE_TIMEOUT_MS) {
+            repo.importScannerConfigs(
             configs = configs,
             requestedName = name,
             stopRequested = { stop.get() },
@@ -191,7 +243,8 @@ class ScannerCoordinator private constructor(private val context: Context) {
                     alive = alive,
                 )
             },
-        )
+            )
+        }
         val healthy = imported.filter { it.healthy }
         if (stop.get()) {
             update(
@@ -207,6 +260,13 @@ class ScannerCoordinator private constructor(private val context: Context) {
             return
         }
         check(healthy.isNotEmpty()) { "No config passed the real Xray HTTP probe." }
+        healthy.take(40).forEach { server ->
+            update(
+                ScannerStage.SAVING,
+                alive = healthy.size,
+                output = "[OK] ${server.pingMs ?: 0} ms • ${mask(server.name)} • ${server.protocol}",
+            )
+        }
         update(
             ScannerStage.DONE,
             progress = 100,
@@ -215,6 +275,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
             alive = healthy.size,
             result = "${healthy.size} healthy servers were saved in SUB.",
             log = "Scanner transaction completed",
+            output = "[DONE] SUB updated with ${healthy.size} healthy servers",
         )
     }
 
@@ -270,7 +331,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
                 ensureRunning()
             }
             if (outcome.isSuccess) {
-                update(ScannerStage.CONNECTING, progress = 22, log = "Bootstrap VPN connected and HTTP-verified")
+                update(ScannerStage.CONNECTING, progress = 22, log = "[CONNECT][OK] Bootstrap VPN connected and HTTP-verified")
                 return
             }
             lastError = outcome.exceptionOrNull()?.message ?: lastError
@@ -306,6 +367,29 @@ class ScannerCoordinator private constructor(private val context: Context) {
         return result
     }
 
+    private fun loadFreshStage1Cache(): List<String>? {
+        val file = context.filesDir.resolve("scanner-stage1-raw.txt")
+        if (!file.isFile || System.currentTimeMillis() - file.lastModified() > STAGE1_CACHE_MAX_AGE_MS) return null
+        return file.readLines(Charsets.UTF_8)
+            .asSequence()
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .distinct()
+            .take(MAX_CACHED_CANDIDATES)
+            .toList()
+            .takeIf { it.isNotEmpty() }
+    }
+
+    private fun atomicWrite(target: File, content: String) {
+        target.parentFile?.mkdirs()
+        val temporary = File(target.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
+        temporary.writeText(content, Charsets.UTF_8)
+        if (!temporary.renameTo(target)) {
+            target.writeText(content, Charsets.UTF_8)
+            temporary.delete()
+        }
+    }
+
     private fun ensureRunning() {
         if (stop.get()) throw CancellationException("scanner stopped")
     }
@@ -319,6 +403,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         alive: Int = _state.value.alive,
         result: String = _state.value.result,
         log: String? = null,
+        output: String? = null,
     ) {
         _state.value = _state.value.copy(
             stage = stage,
@@ -329,6 +414,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
             result = result,
             stopRequested = stop.get(),
             log = if (log == null) _state.value.log else (_state.value.log + log).takeLast(MAX_LOG_LINES),
+            outputLog = if (output == null) _state.value.outputLog else (_state.value.outputLog + output).takeLast(MAX_OUTPUT_LINES),
         )
     }
 
@@ -337,7 +423,12 @@ class ScannerCoordinator private constructor(private val context: Context) {
     companion object {
         private const val CONNECTION_TIMEOUT_MS = 35_000L
         private const val DISCONNECT_TIMEOUT_MS = 18_000L
-        private const val MAX_LOG_LINES = 160
+        private const val CRAWL_TIMEOUT_MS = 8 * 60_000L
+        private const val PROBE_TIMEOUT_MS = 14 * 60_000L
+        private const val STAGE1_CACHE_MAX_AGE_MS = 12 * 60 * 60_000L
+        private const val MAX_CACHED_CANDIDATES = 180
+        private const val MAX_LOG_LINES = 220
+        private const val MAX_OUTPUT_LINES = 140
         @Volatile private var instance: ScannerCoordinator? = null
 
         fun get(context: Context): ScannerCoordinator = instance ?: synchronized(this) {

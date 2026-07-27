@@ -202,6 +202,8 @@ def build_stylesheet(theme: str) -> str:
     }}
     QPushButton:hover {{ background: {c['surface3']}; border-color: {c['muted2']}; }}
     QPushButton:pressed {{ padding-top: 1px; background: {c['selection']}; }}
+    QPushButton:focus {{ border-color: {c['accent']}; }}
+    QToolButton:pressed {{ padding-top: 1px; background: {c['selection']}; }}
     QPushButton:disabled {{ color: {c['muted2']}; background: {c['surface']}; border-color: {c['border']}; }}
     QPushButton[kind="primary"] {{ background: {c['accent']}; color: #FFFFFF; border-color: {c['accent']}; font-weight: 850; }}
     QPushButton[kind="primary"]:hover {{ background: {c['accentHover']}; border-color: {c['accentHover']}; }}
@@ -1811,6 +1813,15 @@ class MainWindow(QMainWindow):
 
     def _scanner_stage_changed(self, stage_number: int, _label: str) -> None:
         self._set_scanner_stage_dot(stage_number)
+        if self.scanner_thread is not None and self.scanner_thread.isRunning():
+            labels = {
+                1: ("توقف اسکن — اتصال VPN…", "Stop scan — connecting VPN…"),
+                2: ("توقف اسکن — دریافت تلگرام…", "Stop scan — fetching Telegram…"),
+                3: ("توقف اسکن — ذخیره SUB…", "Stop scan — saving SUB…"),
+            }
+            fa, en = labels.get(stage_number, labels[2])
+            self.scanner_run_button.setText(en if self.language == "en" else fa)
+            self.scanner_run_button.setEnabled(True)
         if stage_number >= 2 and self.scanner_progress.maximum() == 0:
             self.scanner_progress.setRange(0, 100)
             self.scanner_progress.setValue(0)
@@ -3872,6 +3883,14 @@ class MainWindow(QMainWindow):
         expected = getattr(self, "_scanner_bootstrap_server_id", "")
         if scanner is not None and scanner.isRunning() and (not expected or expected == item.id):
             scanner.notify_connection_result(True)
+            self.scanner_run_button.setText(
+                "توقف اسکن — دریافت تلگرام…" if self.language != "en"
+                else "Stop scan — fetching Telegram…"
+            )
+            self.scanner_stage_label.setText(
+                "VPN متصل شد؛ دریافت کانفیگ از تلگرام شروع شد…" if self.language != "en"
+                else "VPN connected; Telegram collection has started…"
+            )
         self._auto_connect_queue.clear()
         self._automatic_connect_attempt = False
         self._connecting_server_id = ""

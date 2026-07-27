@@ -241,4 +241,12 @@
     <string name="accept_and_activate">پذیرش و فعال‌سازی</string>
     <string name="conn_method_preparing">در حال آماده‌سازی هسته داخلی…</string>
     <string name="warp_registration_failed">ثبت WARP ناموفق بود</string>
+    <string name="splash_testing_sample">در حال بررسی نمونه ۳۰ درصدی سرورها…</string>
+    <string name="splash_checking_updates">در حال بررسی به‌روزرسانی‌ها…</string>
+    <string name="splash_checking_cores">در حال بررسی هسته‌های داخلی اتصال…</string>
+    <string name="scanner_tab_review">بررسی</string>
+    <string name="scanner_tab_output">خروجی</string>
+    <string name="scanner_log_empty">لاگ اسکنر اینجا نمایش داده می‌شود.</string>
+    <string name="scanner_disconnecting">در حال قطع VPN اولیه…</string>
+    <string name="scanner_saving">در حال ذخیره SUB تاییدشده…</string>
 </resources>

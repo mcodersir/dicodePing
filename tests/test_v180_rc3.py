@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_rc3_versions_are_consistent():
-    assert 'RELEASE_VERSION = "1.9.0-rc.9"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc9"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.10"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc10"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'versionName = "1.9.0-rc.9"' in gradle
-    assert "versionCode = 44" in gradle
+    assert 'versionName = "1.9.0-rc.10"' in gradle
+    assert "versionCode = 45" in gradle
 
 
 def test_manifest_is_sha_only_fallback_and_never_claims_signature():

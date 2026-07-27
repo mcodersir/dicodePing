@@ -141,7 +141,9 @@ class DicodeVpnService : VpnService() {
                 startVpn(raw, coreId, serverId, name, bypassDomains, bypassApps, perAppMode, perAppPackages, vpnSharingUsb, vpnSharingHotspot, generation)
             }
         }
-        return START_REDELIVER_INTENT
+        // Never replay an old server/config after Android recreates the service.
+        // The UI or scanner state machine must issue an explicit fresh request.
+        return START_NOT_STICKY
     }
 
     private suspend fun startVpn(
@@ -273,6 +275,7 @@ class DicodeVpnService : VpnService() {
 
             // A running core only proves that the config parsed. Confirm real traffic through it.
             val verifiedPing = verifyProxyConnection() ?: error(PROXY_VALIDATION_ERROR)
+            if (core?.isRunning() != true) error("Xray stopped immediately after connection verification")
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             AppLog.i("VPN", "Connection verified for $name in ${verifiedPing}ms")
             currentSharingError = if (vpnSharingUsb || vpnSharingHotspot) {
@@ -537,6 +540,10 @@ class DicodeVpnService : VpnService() {
             runCatching { detachedExternal?.stop() }
         }
         scope.cancel()
+        // A destroyed service must never leave the UI or scanner waiting forever in CONNECTING.
+        if (VpnStateStore.state.value.status != VpnStatus.DISCONNECTED) {
+            VpnStateStore.state.value = VpnState()
+        }
         super.onDestroy()
     }
 
