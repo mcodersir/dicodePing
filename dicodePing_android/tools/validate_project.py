@@ -28,6 +28,25 @@ fa = {
 if base != fa:
     errors.append(f"String resource mismatch: base-only={sorted(base-fa)}, fa-only={sorted(fa-base)}")
 
+# Literal ASCII percent signs in non-format resources must opt out of Java Formatter parsing.
+# Android Lint otherwise treats text such as "30% sample" as an invalid format string.
+base_strings_root = ET.parse(ROOT / "app/src/main/res/values/strings.xml").getroot()
+for node in base_strings_root:
+    if node.tag != "string":
+        continue
+    value = "".join(node.itertext())
+    if "%" not in value:
+        continue
+    valid_format = re.compile(
+        r"%(?:%|n|(?:\d+\$)?(?:[-#+0,(<]*\d*(?:\.\d+)?[bBhHsScC]"
+        r"|[-#+ 0,(<]*\d*(?:\.\d+)?[doxXeEfgGaA]|[tT][a-zA-Z]))"
+    )
+    remaining = valid_format.sub("", value)
+    if "%" in remaining and node.attrib.get("formatted", "true").lower() != "false":
+        errors.append(
+            f"String resource {node.attrib.get('name')} contains a literal % and must declare formatted=\"false\""
+        )
+
 # Catch missing string resources before AAPT2 reaches processDebugResources.
 resource_refs: set[str] = set()
 for path in (ROOT / "app/src/main/res").rglob("*.xml"):

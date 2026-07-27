@@ -1,3 +1,10 @@
+## 1.9.0-rc.10 Android Lint Hotfix 3
+
+- Marked the English 30% splash status as a non-format Android string resource.
+- Prevented `StringFormatInvalid` from blocking the signed Android release after APK assembly.
+- Added validator and regression-test coverage for future literal-percent resource strings.
+
+
 ## 1.9.0-rc.10 Xray/Scanner Assurance Hotfix 2
 
 - Waits for asynchronous Android Xray startup instead of rejecting the core immediately.
