@@ -272,7 +272,7 @@ class AppRepository private constructor(context: Context) {
                 val aliveDone = AtomicInteger(0)
                 progress.value = ProgressState(true, "ping", 0, parsed.size, "Testing scanner candidates")
                 val healthy = mutableListOf<ServerRecord>()
-                val concurrency = tuning.probeWorkers.coerceIn(2, 6)
+                val concurrency = 1 // libgojni one-shot probes are process-global; keep scanner probes crash-safe
                 for (batch in parsed.chunked(concurrency * 2)) {
                     if (stopRequested()) break
                     val completed = coroutineScope {
@@ -463,6 +463,12 @@ class AppRepository private constructor(context: Context) {
 
         try {
             val done = AtomicInteger(0)
+            val requestedProbeWorkers = tuning.probeWorkers
+            val requestedRetryWorkers = tuning.retryWorkers
+            AppLog.i(
+                "Repository",
+                "Native Xray probes requested workers=$requestedProbeWorkers/$requestedRetryWorkers; serialized for libgojni safety",
+            )
             progress.value = ProgressState(true, "ping", 0, input.size, "Testing servers")
 
             suspend fun runBatch(
@@ -508,7 +514,7 @@ class AppRepository private constructor(context: Context) {
                 }.awaitAll()
             }
 
-            val firstPass = runBatch(input, tuning.probeWorkers, countProgress = true)
+            val firstPass = runBatch(input, 1, countProgress = true)
             val failed = firstPass.filterNot { it.healthy }
             if (failed.isNotEmpty() && RETRY_FAILED_LIMIT > 0) {
                 val retryRows = failed.take(RETRY_FAILED_LIMIT)
@@ -518,7 +524,7 @@ class AppRepository private constructor(context: Context) {
                         if (current.id in failedIds) current.copy(testState = ServerRecord.TEST_RUNNING) else current
                     }
                 }
-                runBatch(retryRows, tuning.retryWorkers, countProgress = false)
+                runBatch(retryRows, 1, countProgress = false)
             }
             liveUpdateMutex.withLock {
                 servers.value = sortServers(servers.value)

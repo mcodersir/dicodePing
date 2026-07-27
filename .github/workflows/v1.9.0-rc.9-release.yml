@@ -149,12 +149,14 @@ jobs:
           java-version: "17"
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.25.5"
+          go-version: "1.26.3"
           cache: false
       - uses: android-actions/setup-android@v3
       - shell: bash
         run: |
-          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
       - uses: gradle/actions/setup-gradle@v4
       - run: |
           set -euo pipefail

@@ -41,14 +41,26 @@ class ScannerFragment : Fragment() {
         scannerStartPending = false
         val activeBinding = _binding
         activeBinding?.scannerRunButton?.isEnabled = true
-        if (!shouldStart || !isAdded) return@registerForActivityResult
-        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(requireContext()) == null) {
+        val appContext = context?.applicationContext
+        if (!shouldStart || !isAdded || appContext == null) return@registerForActivityResult
+        if (result.resultCode == Activity.RESULT_OK && VpnService.prepare(appContext) == null) {
             startScannerService()
         } else {
             activeBinding?.root?.let { root ->
                 Snackbar.make(root, R.string.vpn_permission_failed_message, Snackbar.LENGTH_LONG).show()
             }
         }
+    }
+
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        scannerStartPending = savedInstanceState?.getBoolean(KEY_SCANNER_START_PENDING, false) ?: false
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(KEY_SCANNER_START_PENDING, scannerStartPending)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onCreateView(
@@ -129,19 +141,24 @@ class ScannerFragment : Fragment() {
     }
 
     private fun startScannerService() {
-        if (!isAdded) return
+        val appContext = context?.applicationContext ?: return
         _binding?.scannerRunButton?.apply {
-            isEnabled = true
+            isEnabled = false
             text = getString(R.string.preparing_vpn)
         }
         runCatching {
             ContextCompat.startForegroundService(
-                requireContext(),
-                Intent(requireContext(), ScannerService::class.java)
+                appContext,
+                Intent(appContext, ScannerService::class.java)
                     .putExtra(ScannerService.EXTRA_NAME, "SUB"),
             )
+        }.onSuccess {
+            _binding?.scannerRunButton?.isEnabled = true
         }.onFailure { error ->
-            _binding?.scannerRunButton?.text = getString(R.string.scanner_run)
+            _binding?.scannerRunButton?.apply {
+                isEnabled = true
+                text = getString(R.string.scanner_run)
+            }
             _binding?.root?.let { root ->
                 Snackbar.make(root, error.message ?: getString(R.string.connection_failed_retry), Snackbar.LENGTH_LONG).show()
             }
@@ -151,5 +168,9 @@ class ScannerFragment : Fragment() {
     override fun onDestroyView() {
         _binding = null
         super.onDestroyView()
+    }
+
+    private companion object {
+        const val KEY_SCANNER_START_PENDING = "scanner_start_pending"
     }
 }

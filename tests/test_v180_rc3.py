@@ -221,7 +221,7 @@ def test_android_scanner_routes_crawl_through_bootstrap_and_saves_transactionall
         / "dicodePing_android/app/src/main/java/ir/dicode/ping/net/TelegramChannelCrawler.kt"
     ).read_text("utf-8")
     assert 'EXTRA_PER_APP_MODE, "allowlist"' in coordinator
-    assert "primaryAutomaticCandidates(5)" in coordinator
+    assert "primaryAutomaticCandidates(8)" in coordinator
     assert "onSaving" in coordinator
     assert "saveScannerTransaction" in repository
     assert '"rawSubscription"' in repository

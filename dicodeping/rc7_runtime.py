@@ -338,8 +338,9 @@ def _install_service_patch() -> None:
 
     def auto_candidates(self, records=None):
         values = records if records is not None else self.store.load_servers()
-        # Keep the service policy as the single source of truth: it rejects
-        # sub-70 ms samples, missing locations and restricted locations.
+        # Automatic mode accepts every positive real HTTP-probe result,
+        # rejects restricted locations, applies bounded failure penalties and
+        # diversifies candidates by endpoint before sequential verification.
         eligible = [
             row for row in values
             if (

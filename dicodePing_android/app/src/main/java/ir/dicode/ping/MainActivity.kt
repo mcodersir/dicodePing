@@ -318,13 +318,32 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             serverName = candidate.name,
             message = getString(R.string.preparing_vpn),
         )
-        val prepareIntent = runCatching { VpnService.prepare(this) }.getOrNull()
-        if (prepareIntent != null) {
-            pendingServer = candidate
-            vpnPermission.launch(prepareIntent)
-        } else {
-            startVpn(candidate)
+        val prepared = runCatching { VpnService.prepare(this) }
+        prepared.onFailure { error ->
+            AppLog.e("Main", "VPN preparation failed", error)
+            VpnStateStore.state.value = VpnState(
+                status = VpnStatus.ERROR,
+                serverId = candidate.id,
+                serverName = candidate.name,
+                message = getString(R.string.connection_failed_retry),
+            )
         }
+        val prepareIntent = prepared.getOrNull() ?: run {
+            if (prepared.isSuccess) startVpn(candidate)
+            return
+        }
+        pendingServer = candidate
+        runCatching { vpnPermission.launch(prepareIntent) }
+            .onFailure { error ->
+                pendingServer = null
+                AppLog.e("Main", "Cannot open VPN permission activity", error)
+                VpnStateStore.state.value = VpnState(
+                    status = VpnStatus.ERROR,
+                    serverId = candidate.id,
+                    serverName = candidate.name,
+                    message = getString(R.string.vpn_permission_failed_message),
+                )
+            }
     }
 
     private suspend fun retryAutomaticConnection() {
@@ -373,7 +392,16 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             )
             .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_USB, settings.vpnSharingUsb)
             .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_HOTSPOT, settings.vpnSharingHotspot)
-        ContextCompat.startForegroundService(applicationContext, intent)
+        runCatching { ContextCompat.startForegroundService(applicationContext, intent) }
+            .onFailure { error ->
+                AppLog.e("Main", "VPN foreground service start failed", error)
+                VpnStateStore.state.value = VpnState(
+                    status = VpnStatus.ERROR,
+                    serverId = server.id,
+                    serverName = server.name,
+                    message = getString(R.string.connection_failed_retry),
+                )
+            }
     }
 
     private fun showVpnPermissionError() {
@@ -388,10 +416,15 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     override fun disconnect() {
         AppLog.i("Main", "Disconnect requested")
         clearAutomaticQueue()
-        startService(
-            Intent(applicationContext, DicodeVpnService::class.java)
-                .setAction(DicodeVpnService.ACTION_STOP)
-        )
+        runCatching {
+            startService(
+                Intent(applicationContext, DicodeVpnService::class.java)
+                    .setAction(DicodeVpnService.ACTION_STOP)
+            )
+        }.onFailure { error ->
+            AppLog.e("Main", "VPN stop request failed", error)
+            VpnStateStore.state.value = VpnState()
+        }
     }
 
     fun applyCoreMode() {
@@ -405,7 +438,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
     companion object {
         private const val KEY_CURRENT_PAGE = "current_page"
-        private const val AUTO_RETRY_LIMIT = 5
+        private const val AUTO_RETRY_LIMIT = 8
         private const val AUTO_RETRY_DELAY_MS = 450L
     }
 }

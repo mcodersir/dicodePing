@@ -5,18 +5,19 @@ import android.content.Intent
 import android.net.VpnService
 import androidx.core.content.ContextCompat
 import ir.dicode.ping.data.AppRepository
+import ir.dicode.ping.data.ServerRecord
 import ir.dicode.ping.net.TelegramChannelCrawler
 import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.vpn.DicodeVpnService
 import ir.dicode.ping.vpn.VpnStateStore
 import ir.dicode.ping.vpn.VpnStatus
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.max
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,8 +49,14 @@ data class ScannerState(
 }
 
 /**
- * Application-owned scanner session. It is independent of Fragment and
- * Activity recreation; ScannerService keeps the process foreground-visible.
+ * Application-owned scanner pipeline.
+ *
+ * The scanner follows a strict transaction:
+ * 1) connect dicodePing's verified Xray VPN,
+ * 2) collect and persist Telegram candidates,
+ * 3) fully stop the bootstrap VPN,
+ * 4) run serialized native Xray HTTP probes,
+ * 5) atomically replace the single SUB source.
  */
 class ScannerCoordinator private constructor(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -63,23 +70,46 @@ class ScannerCoordinator private constructor(private val context: Context) {
     fun start(name: String = "SUB", rank1: Int = 8, rank2: Int = 9) {
         if (job?.isActive == true) return
         stop.set(false)
+        _state.value = ScannerState(
+            stage = ScannerStage.CONNECTING,
+            progress = 1,
+            log = listOf("Preparing dicodePing bootstrap VPN"),
+        )
         job = scope.launch {
-            runCatching { run("SUB", normalizeLimit(rank1), normalizeLimit(rank2)) }
-                .onFailure { error ->
-                    if (error is CancellationException || stop.get()) {
-                        update(ScannerStage.STOPPED, result = "اسکن متوقف شد؛ هنوز سرور سالمی پیدا نشده بود.")
+            try {
+                run("SUB", normalizeLimit(rank1, 8), normalizeLimit(rank2, 9))
+            } catch (cancelled: CancellationException) {
+                update(
+                    ScannerStage.STOPPED,
+                    result = if (_state.value.alive > 0) {
+                        "اسکن متوقف شد و ${_state.value.alive} سرور سالم ذخیره شد."
                     } else {
-                        update(ScannerStage.FAILED, result = error.message ?: "Scanner failed")
-                    }
+                        "اسکن متوقف شد؛ هنوز سرور سالمی ذخیره نشده بود."
+                    },
+                    log = "Scanner cancelled safely",
+                )
+            } catch (error: Throwable) {
+                update(
+                    ScannerStage.FAILED,
+                    result = error.message ?: "Scanner failed",
+                    log = "Scanner failed: ${error.javaClass.simpleName}",
+                )
+            } finally {
+                try {
                     disconnectStrict(ignoreFailure = true)
+                } catch (_: Throwable) {
+                    // The terminal scanner state must still be published even when
+                    // Android is already tearing down the VPN service.
                 }
+                synchronized(this@ScannerCoordinator) { job = null }
+            }
         }
     }
 
     fun requestStop() {
         stop.set(true)
         _state.value = _state.value.copy(stopRequested = true)
-        if (_state.value.stage != ScannerStage.PROBING) {
+        if (_state.value.stage !in setOf(ScannerStage.PROBING, ScannerStage.SAVING)) {
             job?.cancel(CancellationException("user requested stop"))
         }
     }
@@ -89,29 +119,41 @@ class ScannerCoordinator private constructor(private val context: Context) {
     }
 
     private suspend fun run(name: String, rank1: Int, rank2: Int) {
-        update(ScannerStage.CONNECTING, log = "Selecting the best primary-source server")
         val channelPlan = readChannels(rank1, rank2)
         val channels = channelPlan.keys.toList()
         check(channels.isNotEmpty()) { "The canonical Telegram channel list is empty." }
-        connectBootstrap(channels.first())
+
+        update(ScannerStage.CONNECTING, progress = 2, log = "Selecting a verified automatic bootstrap server")
+        connectBootstrap()
         ensureRunning()
 
         val tuning = RuntimeTuning.detect(context)
-        val started = System.nanoTime()
-        update(ScannerStage.CRAWLING, total = channels.size, log = "Crawling canonical Xray channels")
-        val configs = TelegramChannelCrawler.crawl(channels, tuning.crawlWorkers, channelPlan) { done, total, channel ->
-            _state.value = _state.value.copy(
-                progress = if (total > 0) done * 45 / total else 0,
-                done = done,
-                total = total,
-                etaSeconds = null,
-                log = (_state.value.log + "Fetched ${mask(channel)}").takeLast(MAX_LOG_LINES),
-            )
-        }
+        update(
+            ScannerStage.CRAWLING,
+            progress = 5,
+            total = channels.size,
+            done = 0,
+            log = "Bootstrap VPN verified; crawling ${channels.size} Telegram channels",
+        )
+        val configs = TelegramChannelCrawler.crawl(
+            channels = channels,
+            maxWorkers = tuning.crawlWorkers.coerceIn(2, 8),
+            perChannelLimits = channelPlan,
+            progress = { done, total, channel ->
+                _state.value = _state.value.copy(
+                    progress = 5 + if (total > 0) done * 40 / total else 0,
+                    done = done,
+                    total = total,
+                    etaSeconds = null,
+                    log = (_state.value.log + "Fetched ${mask(channel)}").takeLast(MAX_LOG_LINES),
+                )
+            },
+        )
         ensureRunning()
-        check(configs.isNotEmpty()) { "No valid Xray configs were collected." }
-        val stageOneFile = context.filesDir.resolve("scanner-stage1-raw.txt")
-        stageOneFile.writeText(configs.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
+        check(configs.isNotEmpty()) { "No valid Xray configs were collected from Telegram." }
+
+        context.filesDir.resolve("scanner-stage1-raw.txt")
+            .writeText(configs.joinToString("\n", postfix = "\n"), Charsets.UTF_8)
         context.filesDir.resolve("scanner-stage1-meta.json").writeText(
             JSONObject()
                 .put("candidateCount", configs.size)
@@ -123,22 +165,21 @@ class ScannerCoordinator private constructor(private val context: Context) {
         )
         update(
             ScannerStage.CRAWLING,
-            progress = 47,
-            log = "Saved ${configs.size} stage-1 candidates before disconnect",
+            progress = 46,
+            log = "Saved ${configs.size} raw candidates before VPN shutdown",
         )
 
-        update(ScannerStage.DISCONNECTING, progress = 48, log = "Stopping dicodePing bootstrap VPN before probes")
+        update(ScannerStage.DISCONNECTING, progress = 48, log = "Stopping bootstrap VPN before native probes")
         disconnectStrict(ignoreFailure = false)
         ensureRunning()
 
-        update(ScannerStage.PROBING, progress = 50, total = configs.size, log = "Running real Xray HTTP probes")
-        val probeStarted = System.nanoTime()
+        update(ScannerStage.PROBING, progress = 50, done = 0, total = configs.size, log = "Running serialized real Xray HTTP probes")
         val imported = repo.importScannerConfigs(
-            configs,
-            name,
+            configs = configs,
+            requestedName = name,
             stopRequested = { stop.get() },
             onSaving = {
-                update(ScannerStage.SAVING, progress = 97, log = "Committing verified results")
+                update(ScannerStage.SAVING, progress = 97, log = "Committing the verified SUB transaction")
             },
             onProgress = { done, total, alive ->
                 _state.value = _state.value.copy(
@@ -154,39 +195,46 @@ class ScannerCoordinator private constructor(private val context: Context) {
         if (stop.get()) {
             update(
                 ScannerStage.STOPPED,
-                progress = _state.value.progress,
                 alive = healthy.size,
                 result = if (healthy.isEmpty()) {
-                    "اسکن متوقف شد؛ هنوز سرور سالمی پیدا نشده بود."
+                    "اسکن متوقف شد؛ هنوز سرور سالمی ذخیره نشده بود."
                 } else {
                     "اسکن متوقف شد و ${healthy.size} سرور سالم ذخیره شد."
                 },
-                log = "Probe submission stopped; verified partial results committed",
+                log = "Verified partial results committed",
             )
             return
         }
-        check(healthy.isNotEmpty()) { "No config passed the Xray HTTP probe." }
+        check(healthy.isNotEmpty()) { "No config passed the real Xray HTTP probe." }
         update(
             ScannerStage.DONE,
             progress = 100,
-            done = _state.value.done,
+            done = configs.size,
             total = configs.size,
             alive = healthy.size,
-            result = "${healthy.size} healthy servers were saved.",
+            result = "${healthy.size} healthy servers were saved in SUB.",
             log = "Scanner transaction completed",
         )
     }
 
-    private suspend fun connectBootstrap(validationChannel: String) {
+    private suspend fun connectBootstrap() {
         check(VpnService.prepare(context) == null) {
             "مجوز VPN صادر نشده است؛ اسکن را دوباره بزنید و مجوز سیستم را تایید کنید."
         }
-        val candidates = repo.primaryAutomaticCandidates(5)
-        check(candidates.isNotEmpty()) { "No healthy primary-source bootstrap server is available." }
-        var lastError = "No bootstrap candidate passed validation."
-        for (server in candidates) {
+        disconnectStrict(ignoreFailure = true)
+
+        val candidates = linkedMapOf<String, ServerRecord>()
+        (repo.primaryAutomaticCandidates(8) + repo.automaticCandidates(8)).forEach { candidates.putIfAbsent(it.id, it) }
+        check(candidates.isNotEmpty()) { "No verified automatic bootstrap server is available." }
+
+        var lastError = "No bootstrap candidate reached the connected state."
+        candidates.values.forEachIndexed { index, server ->
             ensureRunning()
-            update(ScannerStage.CONNECTING, log = "Validating bootstrap ${mask(server.name)}")
+            update(
+                ScannerStage.CONNECTING,
+                progress = 2 + ((index + 1) * 3).coerceAtMost(18),
+                log = "Bootstrap attempt ${index + 1}/${candidates.size}: ${mask(server.name)}",
+            )
             val settings = repo.settings
             val intent = Intent(context, DicodeVpnService::class.java)
                 .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
@@ -194,41 +242,48 @@ class ScannerCoordinator private constructor(private val context: Context) {
                 .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
                 .putExtra(DicodeVpnService.EXTRA_NAME, server.name)
                 .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, settings.bypassDomains)
-                .putStringArrayListExtra(DicodeVpnService.EXTRA_BYPASS_APPS, arrayListOf<String>())
-                // Route the crawler itself through the bootstrap TUN. The native
-                // core protects its own sockets, so this does not create a loop.
+                .putStringArrayListExtra(DicodeVpnService.EXTRA_BYPASS_APPS, arrayListOf())
                 .putExtra(DicodeVpnService.EXTRA_PER_APP_MODE, "allowlist")
-                .putStringArrayListExtra(
-                    DicodeVpnService.EXTRA_PER_APP_PACKAGES,
-                    arrayListOf(context.packageName),
-                )
+                .putStringArrayListExtra(DicodeVpnService.EXTRA_PER_APP_PACKAGES, arrayListOf(context.packageName))
                 .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_USB, false)
                 .putExtra(DicodeVpnService.EXTRA_VPN_SHARING_HOTSPOT, false)
-            ContextCompat.startForegroundService(context, intent)
+
+            val started = runCatching { ContextCompat.startForegroundService(context, intent) }
+            if (started.isFailure) {
+                lastError = started.exceptionOrNull()?.message ?: "Cannot start the VPN foreground service."
+                return@forEachIndexed
+            }
+
             val outcome = runCatching {
-                val connected = withTimeout(CONNECTION_TIMEOUT_MS) {
+                val state = withTimeout(CONNECTION_TIMEOUT_MS) {
                     VpnStateStore.state.first {
-                        it.serverId == server.id &&
-                            (it.status == VpnStatus.CONNECTED || it.status == VpnStatus.ERROR)
+                        it.serverId == server.id && it.status in setOf(VpnStatus.CONNECTED, VpnStatus.ERROR)
                     }
                 }
-                check(connected.status == VpnStatus.CONNECTED) {
-                    connected.message.ifBlank { "Bootstrap VPN failed" }
+                check(state.status == VpnStatus.CONNECTED) {
+                    state.message.ifBlank { "Bootstrap VPN failed" }
                 }
+                // DicodeVpnService publishes CONNECTED only after a real HTTP probe,
+                // so no single Telegram channel is allowed to invalidate a healthy VPN.
+                delay(300)
                 ensureRunning()
-                check(TelegramChannelCrawler.fetchChannel(validationChannel, 1).ok) {
-                    "Telegram Preview validation failed inside the bootstrap VPN."
-                }
             }
-            if (outcome.isSuccess) return
+            if (outcome.isSuccess) {
+                update(ScannerStage.CONNECTING, progress = 22, log = "Bootstrap VPN connected and HTTP-verified")
+                return
+            }
             lastError = outcome.exceptionOrNull()?.message ?: lastError
-            disconnectStrict(ignoreFailure = false)
+            disconnectStrict(ignoreFailure = true)
         }
         error(lastError)
     }
 
     private suspend fun disconnectStrict(ignoreFailure: Boolean) {
-        context.startService(Intent(context, DicodeVpnService::class.java).setAction(DicodeVpnService.ACTION_STOP))
+        if (VpnStateStore.state.value.status == VpnStatus.DISCONNECTED) return
+        val stopSent = runCatching {
+            context.startService(Intent(context, DicodeVpnService::class.java).setAction(DicodeVpnService.ACTION_STOP))
+        }.isSuccess
+        if (!stopSent && !ignoreFailure) error("Could not request bootstrap VPN shutdown.")
         val disconnected = runCatching {
             withTimeout(DISCONNECT_TIMEOUT_MS) {
                 VpnStateStore.state.first { it.status == VpnStatus.DISCONNECTED }
@@ -245,10 +300,9 @@ class ScannerCoordinator private constructor(private val context: Context) {
         val result = linkedMapOf<String, Int>()
         for (index in 0 until rows.length()) {
             val row = rows.getJSONObject(index)
-            val limit = if (row.getInt("rank") == 1) rank1 else rank2
-            result[row.getString("name")] = limit
+            result[row.getString("name")] = if (row.getInt("rank") == 1) rank1 else rank2
         }
-        return result.entries.associate { it.key to it.value }
+        return result
     }
 
     private fun ensureRunning() {
@@ -279,13 +333,16 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private fun mask(value: String): String = value.take(48).replace(Regex("[?&#].*"), "")
 
     companion object {
-        private const val CONNECTION_TIMEOUT_MS = 45_000L
-        private const val DISCONNECT_TIMEOUT_MS = 15_000L
-        private const val MAX_LOG_LINES = 120
+        private const val CONNECTION_TIMEOUT_MS = 55_000L
+        private const val DISCONNECT_TIMEOUT_MS = 18_000L
+        private const val MAX_LOG_LINES = 160
         @Volatile private var instance: ScannerCoordinator? = null
+
         fun get(context: Context): ScannerCoordinator = instance ?: synchronized(this) {
             instance ?: ScannerCoordinator(context.applicationContext).also { instance = it }
         }
-        fun normalizeLimit(value: Int): Int = if (value in 1..20) value else 8
+
+        fun normalizeLimit(value: Int, fallback: Int): Int = if (value in 1..20) value else fallback
+        fun normalizeLimit(value: Int): Int = normalizeLimit(value, 3)
     }
 }

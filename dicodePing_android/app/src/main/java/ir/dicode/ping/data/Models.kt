@@ -77,7 +77,7 @@ data class ServerRecord(
 }
 
 object ServerPolicy {
-    const val MIN_AUTO_PING_MS = 70
+    const val MIN_AUTO_PING_MS = 1
     private val restrictedCountryNames = setOf(
         "iran", "islamic republic of iran", "ایران", "جمهوری اسلامی ایران",
     )
@@ -91,7 +91,6 @@ object ServerPolicy {
             server.pingKind == "PROXY_HTTP" &&
             server.pingMs != null &&
             server.pingMs!! >= MIN_AUTO_PING_MS &&
-            server.countryCode.isNotBlank() &&
             !isRestricted(server)
 }
 

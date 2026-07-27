@@ -6,6 +6,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.request
@@ -13,11 +14,12 @@ from pathlib import Path
 
 AETHER_VERSION = "1.4.0"
 USQUE_VERSION = "4.2.1"
+ANDROID_API = 24
 
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.9"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.9-hotfix2"})
     with urllib.request.urlopen(request, timeout=90) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output)
 
@@ -49,10 +51,8 @@ def prepare_aether(work: Path, jni: Path) -> None:
         download(base, archive)
         download(base + ".sha256", checksum)
         verify_upstream_sha(archive, checksum)
-        extract = work / f"aether-{abi}"
-        extract.mkdir(parents=True, exist_ok=True)
         with tarfile.open(archive, "r:gz") as bundle:
-            members = [m for m in bundle.getmembers() if Path(m.name).name == "aether" and m.isfile()]
+            members = [member for member in bundle.getmembers() if Path(member.name).name == "aether" and member.isfile()]
             if len(members) != 1:
                 raise RuntimeError(f"Aether executable missing in {name}")
             source = bundle.extractfile(members[0])
@@ -70,21 +70,107 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Non
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
+def _host_prebuilt_tag() -> str:
+    if sys.platform.startswith("linux"):
+        return "linux-x86_64"
+    if sys.platform == "darwin":
+        return "darwin-x86_64"
+    if os.name == "nt":
+        return "windows-x86_64"
+    raise RuntimeError(f"Unsupported build host for Android NDK: {sys.platform}")
+
+
+def find_ndk() -> Path:
+    explicit = [os.environ.get("ANDROID_NDK_HOME"), os.environ.get("ANDROID_NDK_ROOT")]
+    for raw in explicit:
+        if raw:
+            candidate = Path(raw).expanduser().resolve()
+            if candidate.is_dir():
+                return candidate
+
+    sdk_raw = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+    if sdk_raw:
+        ndk_root = Path(sdk_raw).expanduser().resolve() / "ndk"
+        if ndk_root.is_dir():
+            versions = sorted(
+                (path for path in ndk_root.iterdir() if path.is_dir()),
+                key=lambda path: tuple(int(part) if part.isdigit() else part for part in path.name.replace("-", ".").split(".")),
+                reverse=True,
+            )
+            if versions:
+                return versions[0]
+    raise RuntimeError(
+        "Android NDK was not found. Set ANDROID_NDK_HOME/ANDROID_NDK_ROOT or install an NDK under ANDROID_HOME/ndk."
+    )
+
+
+def ndk_toolchain(ndk: Path) -> Path:
+    toolchain = ndk / "toolchains" / "llvm" / "prebuilt" / _host_prebuilt_tag() / "bin"
+    if not toolchain.is_dir():
+        raise RuntimeError(f"Android NDK LLVM toolchain was not found: {toolchain}")
+    return toolchain
+
+
 def prepare_usque(work: Path, jni: Path) -> None:
     source = work / "usque"
-    run([
-        "git", "clone", "--depth", "1", "--branch", f"v{USQUE_VERSION}",
-        "https://github.com/Diniboy1123/usque.git", str(source),
-    ], work)
-    for abi, goarch in (("arm64-v8a", "arm64"), ("x86_64", "amd64")):
+    run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            f"v{USQUE_VERSION}",
+            "https://github.com/Diniboy1123/usque.git",
+            str(source),
+        ],
+        work,
+    )
+
+    toolchain = ndk_toolchain(find_ndk())
+    llvm_ar = toolchain / ("llvm-ar.exe" if os.name == "nt" else "llvm-ar")
+    builds = (
+        ("arm64-v8a", "arm64", "aarch64-linux-android"),
+        ("x86_64", "amd64", "x86_64-linux-android"),
+    )
+    for abi, goarch, clang_prefix in builds:
+        suffix = ".cmd" if os.name == "nt" else ""
+        cc = toolchain / f"{clang_prefix}{ANDROID_API}-clang{suffix}"
+        cxx = toolchain / f"{clang_prefix}{ANDROID_API}-clang++{suffix}"
+        if not cc.is_file() or not cxx.is_file() or not llvm_ar.is_file():
+            raise RuntimeError(f"Required NDK cross tools are missing for {abi}: {cc}, {cxx}, {llvm_ar}")
+
         target = jni / abi / "libusque.so"
         target.parent.mkdir(parents=True, exist_ok=True)
         env = os.environ.copy()
-        env.update({"GOOS": "android", "GOARCH": goarch, "CGO_ENABLED": "0"})
-        run([
-            "go", "build", "-trimpath", "-buildmode=pie", "-ldflags=-s -w",
-            "-o", str(target), ".",
-        ], source, env)
+        env.update(
+            {
+                "GOOS": "android",
+                "GOARCH": goarch,
+                "CGO_ENABLED": "1",
+                "CC": str(cc),
+                "CXX": str(cxx),
+                "AR": str(llvm_ar),
+                "GOTOOLCHAIN": "auto",
+            }
+        )
+        if goarch == "amd64":
+            # Android x86_64 implements the x86-64-v2 baseline.
+            env["GOAMD64"] = "v2"
+        run(
+            [
+                "go",
+                "build",
+                "-trimpath",
+                "-buildmode=pie",
+                "-ldflags=-s -w -extldflags=-Wl,-z,max-page-size=16384",
+                "-o",
+                str(target),
+                ".",
+            ],
+            source,
+            env,
+        )
         target.chmod(0o755)
         if target.stat().st_size < 500_000:
             raise RuntimeError(f"Usque Android build is unexpectedly small: {target}")

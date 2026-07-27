@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0-rc.9 Hotfix 2
+
+- Fixed the Android x86_64 Usque build with NDK-backed CGO/external linking.
+- Bundled and verified Aether/Usque ELF executables for arm64-v8a and x86_64 inside the APK.
+- Serialized Android Xray JNI probes process-wide to prevent libgojni concurrency crashes.
+- Hardened scanner foreground-service, VPN-consent, Activity recreation, cancellation, and shutdown paths.
+- Made the Android scanner a guarded connect/collect/persist/disconnect/probe/save transaction.
+- Expanded automatic connection to eight sequentially verified candidates and accepted every positive real HTTP ping.
+
 ## 1.9.0-rc.9
 
 - Reworked the scanner into connect, collect, persist, disconnect, probe, and save stages.

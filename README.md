@@ -20,12 +20,6 @@ Expected assets:
 - `dicodePing-v1.9.0-rc.9-macos-x86_64.dmg`
 - `dicodePing-v1.9.0-rc.9-android.apk`
 
-## Bundled connection cores
-
-Each platform artifact includes Xray, Aether, and WARP/Usque. They are no longer published as separate release downloads. On Android, Aether and Usque are packaged as APK-owned native executables and run from the system-managed `nativeLibraryDir`.
-
-The Android scanner requests VPN consent on its own screen and then starts the bootstrap VPN automatically. Per-app VPN controls are under Settings → Routing.
-
 ## Scanner pipeline
 
 1. Start and validate the dicodePing bootstrap VPN.
@@ -38,3 +32,7 @@ The Android scanner requests VPN consent on its own screen and then starts the b
 Default per-channel extraction limits are 8 for rank 1 and 9 for rank 2. The desktop scanner probes a bounded candidate set and saves the fastest verified results.
 
 Bilingual release notes: `docs/releases/v1.9.0-rc.9.md`.
+
+## RC9 Hotfix 2
+
+This source fixes the Android x86_64 bundled-Usque build by using NDK CGO cross-linking. It also serializes native Xray probes, hardens the scanner foreground service and VPN permission lifecycle, and makes automatic connection try up to eight real-verified candidates. The release tag remains `v1.9.0-rc.9` so the recovery workflow can replace the failed partial RC9 assets.

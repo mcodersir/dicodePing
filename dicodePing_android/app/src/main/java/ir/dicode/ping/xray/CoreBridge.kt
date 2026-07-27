@@ -173,18 +173,23 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
      * supplied server configuration. This is a proxy health test, not ICMP/TCP
      * latency to the server host.
      */
-    fun measureOutboundDelay(config: String, testUrl: String = BATCH_PROBE_URL): Long {
-        val lib = runCatching { prepareEnvironment() }.getOrNull() ?: return -1L
-        val method = runCatching {
-            lib.getMethod("measureOutboundDelay", String::class.java, String::class.java)
-        }.getOrNull() ?: return -1L
-        return runCatching {
-            (method.invoke(null, config, testUrl) as? Number)?.toLong() ?: -1L
-        }.getOrDefault(-1L)
-    }
+    fun measureOutboundDelay(config: String, testUrl: String = BATCH_PROBE_URL): Long =
+        synchronized(OUTBOUND_PROBE_LOCK) {
+            // AndroidLibXrayLite owns process-wide Go/JNI state. Concurrent batch
+            // probes can race inside libgojni and crash the whole process, so all
+            // one-shot outbound probes are serialized across CoreBridge instances.
+            val lib = runCatching { prepareEnvironment() }.getOrNull() ?: return@synchronized -1L
+            val method = runCatching {
+                lib.getMethod("measureOutboundDelay", String::class.java, String::class.java)
+            }.getOrNull() ?: return@synchronized -1L
+            runCatching {
+                (method.invoke(null, config, testUrl) as? Number)?.toLong() ?: -1L
+            }.getOrDefault(-1L)
+        }
 
     private companion object {
         val ENV_LOCK = Any()
+        val OUTBOUND_PROBE_LOCK = Any()
         @Volatile var environmentReady = false
         val PROBE_URLS = listOf(
             "https://www.gstatic.com/generate_204",

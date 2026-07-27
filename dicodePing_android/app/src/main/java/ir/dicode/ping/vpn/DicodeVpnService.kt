@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -12,6 +13,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import ir.dicode.ping.MainActivity
 import ir.dicode.ping.R
 import ir.dicode.ping.util.AppLog
@@ -106,6 +108,12 @@ class DicodeVpnService : VpnService() {
         val vpnSharingUsb = intent?.getBooleanExtra(EXTRA_VPN_SHARING_USB, false) ?: false
         val vpnSharingHotspot = intent?.getBooleanExtra(EXTRA_VPN_SHARING_HOTSPOT, false) ?: false
         if (raw.isBlank() && coreId == "xray") {
+            VpnStateStore.state.value = VpnState(
+                VpnStatus.ERROR,
+                serverId,
+                name,
+                getString(R.string.invalid_server_config),
+            )
             stopSelf()
             return START_NOT_STICKY
         }
@@ -115,7 +123,17 @@ class DicodeVpnService : VpnService() {
         val generation = startGeneration.incrementAndGet()
         val previousStart = startJob
         AppLog.i("VPN", "Start requested for $name; bypassApps=${bypassApps.size}; perAppMode=$perAppMode; perAppPackages=${perAppPackages.size}; sharingUsb=$vpnSharingUsb; sharingHotspot=$vpnSharingHotspot; generation=$generation")
-        startForeground(NOTIFICATION_ID, notification(name, getString(R.string.connecting)))
+        val foregroundType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(
+            this,
+            NOTIFICATION_ID,
+            notification(name, getString(R.string.connecting)),
+            foregroundType,
+        )
         VpnStateStore.state.value = VpnState(VpnStatus.CONNECTING, serverId, name, getString(R.string.preparing_vpn))
         startJob = scope.launch {
             previousStart?.cancelAndJoin()
@@ -456,16 +474,19 @@ class DicodeVpnService : VpnService() {
         AppLog.i("VPN", "Stop requested for $currentName")
         startGeneration.incrementAndGet()
         val previousStart = startJob
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        // Native core shutdown can wait for internal threads. Keep it off the
-        // service main thread so Disconnect never freezes or triggers an ANR.
+        // Keep the foreground service alive until native cleanup finishes. This
+        // prevents Android from killing the process while libgojni is shutting down.
         startJob = scope.launch {
-            previousStart?.cancelAndJoin()
-            runtimeMutex.withLock { stopRuntime() }
-            VpnStateStore.state.value = VpnState()
-            currentName = ""
-            stopping.set(false)
-            stopSelf()
+            try {
+                previousStart?.cancelAndJoin()
+                runtimeMutex.withLock { stopRuntime() }
+                VpnStateStore.state.value = VpnState()
+                currentName = ""
+            } finally {
+                stopping.set(false)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
     }
 

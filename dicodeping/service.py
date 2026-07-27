@@ -18,7 +18,7 @@ LOGGER = get_logger("service")
 StageCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, int], None]
 
-MIN_TRUSTED_AUTO_PING_MS = 40
+MIN_TRUSTED_AUTO_PING_MS = 1
 MAX_TRUSTED_AUTO_PING_MS = 5_000
 # v1.6.0-rc.3: weight the failure history and recent-connection bonus
 # into the auto-selection sort key so the chosen server is not just the

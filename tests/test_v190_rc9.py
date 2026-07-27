@@ -15,7 +15,7 @@ def test_scanner_requests_vpn_permission_and_starts_its_own_foreground_pipeline(
     assert "startScannerService()" in fragment
     assert "ContextCompat.startForegroundService(context, intent)" in coordinator
     assert 'putExtra(DicodeVpnService.EXTRA_CORE_ID, "xray")' in coordinator
-    assert "Stopping dicodePing bootstrap VPN before probes" in coordinator
+    assert "Stopping bootstrap VPN before native probes" in coordinator
 
 
 def test_android_permission_callback_is_view_lifecycle_safe() -> None:
@@ -63,7 +63,7 @@ def test_connection_ui_publishes_feedback_before_permission_or_service_start() -
     service = read("dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt")
     assert "VpnStateStore.state.value = VpnState(" in activity
     assert "status = VpnStatus.CONNECTING" in activity
-    assert "startForeground(NOTIFICATION_ID" in service
+    assert "ServiceCompat.startForeground(" in service
     assert "AtomicBoolean(false)" in service
     assert "previousStart?.cancelAndJoin()" in service
 

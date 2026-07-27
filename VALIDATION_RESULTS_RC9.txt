@@ -1,14 +1,17 @@
-dicodePing v1.9.0-rc.9 source validation
+dicodePing v1.9.0-rc.9 Hotfix 2 source validation
 
-- Python tests: 222 passed
+- Python tests: 227 passed
 - Quality gate: 0 errors, 0 warnings
 - Android XML: 55 files validated
 - Android localized strings: 219 validated
 - Android project validation: passed
 - Gradle Kotlin DSL preflight: passed
 - Release version consistency: package=1.9.0rc9, release=1.9.0-rc.9
+- Android Usque x86_64 build path: NDK CGO/external-link preflight passed
+- Android scanner JNI serialization regression guard: passed
+- Android VPN/foreground-service lifecycle regression guard: passed
 - Workflow YAML parse: passed
 - Python compilation: passed
 - Embedded GitHub token scan: passed
 - Native release artifact exclusion: passed
-- Full Android APK/native execution test: delegated to GitHub Actions runner
+- Full APK/native execution test: delegated to the GitHub Actions Android runner
