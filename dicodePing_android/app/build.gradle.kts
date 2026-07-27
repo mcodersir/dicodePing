@@ -170,6 +170,18 @@ android {
         buildConfig = true
     }
 
+    lint {
+        // Release CI must stay strict for correctness/security errors. The
+        // legacy project still has non-blocking advisory warnings, so report
+        // errors only until those warnings are migrated incrementally.
+        abortOnError = true
+        checkReleaseBuilds = true
+        ignoreWarnings = true
+        htmlReport = true
+        textReport = true
+        sarifReport = true
+    }
+
     packaging {
         // The bundled Aether/Usque executables are APK-owned native code. Legacy
         // packaging makes PackageManager extract them into read-only

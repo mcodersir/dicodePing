@@ -1,6 +1,8 @@
 package ir.dicode.ping.core
 
 import android.content.Context
+import android.os.Build
+import android.os.SystemClock
 import ir.dicode.ping.util.AppLog
 import java.io.File
 import java.net.InetSocketAddress
@@ -44,7 +46,52 @@ class AndroidExternalCoreProcess(
 
     fun isBundled(): Boolean = executable().let { it.isFile && it.length() >= 500_000L }
 
-    fun isRunning(): Boolean = process?.isAlive == true
+    /** API-24-safe replacement for Process.isAlive(), which was added in API 26. */
+    private fun Process.isAliveCompat(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) return isAlive
+        return try {
+            exitValue()
+            false
+        } catch (_: IllegalThreadStateException) {
+            true
+        }
+    }
+
+    /**
+     * API-24-safe timed wait. Process.waitFor(timeout, unit) only exists from
+     * API 26, so Android 7.x uses the documented exitValue polling contract.
+     */
+    private fun Process.waitForCompat(timeoutMillis: Long): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
+        }
+        val deadline = SystemClock.elapsedRealtime() + timeoutMillis.coerceAtLeast(0L)
+        while (SystemClock.elapsedRealtime() < deadline) {
+            if (!isAliveCompat()) return true
+            val remaining = deadline - SystemClock.elapsedRealtime()
+            try {
+                Thread.sleep(minOf(50L, remaining.coerceAtLeast(1L)))
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return !isAliveCompat()
+            }
+        }
+        return !isAliveCompat()
+    }
+
+    /** Gracefully stops on API 24/25 and escalates on API 26+. */
+    private fun Process.stopCompat(graceMillis: Long = 2_000L) {
+        runCatching { destroy() }
+        if (waitForCompat(graceMillis)) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching { destroyForcibly() }
+            waitForCompat(graceMillis)
+        } else {
+            AppLog.w("Core/$coreId", "Process did not exit after destroy() on Android API < 26")
+        }
+    }
+
+    fun isRunning(): Boolean = process?.isAliveCompat() == true
 
     fun warpConfig(): File = File(runtimeDir, "config.json")
 
@@ -75,13 +122,23 @@ class AndroidExternalCoreProcess(
             .directory(runtimeDir)
             .redirectErrorStream(true)
             .start()
-        val output = registration.inputStream.bufferedReader().use { it.readText() }
-        if (!registration.waitFor(75, TimeUnit.SECONDS)) {
-            registration.destroyForcibly()
+        val output = StringBuilder()
+        val outputReader = thread(name = "dicodePing-warp-register-log", isDaemon = true) {
+            runCatching {
+                registration.inputStream.bufferedReader().forEachLine { line ->
+                    synchronized(output) { output.appendLine(line) }
+                    appendOutput(line)
+                }
+            }
+        }
+        if (!registration.waitForCompat(75_000L)) {
+            registration.stopCompat()
             error("WARP registration timed out.")
         }
+        outputReader.join(1_000L)
+        val registrationOutput = synchronized(output) { output.toString() }
         check(registration.exitValue() == 0 && warpConfig().isFile) {
-            output.takeLast(1600).ifBlank { "WARP registration failed." }
+            registrationOutput.takeLast(1600).ifBlank { "WARP registration failed." }
         }
         AppLog.i("Core", "WARP registration completed")
     }
@@ -124,7 +181,7 @@ class AndroidExternalCoreProcess(
 
         repeat(120) {
             val child = process
-            if (child?.isAlive != true) {
+            if (child?.isAliveCompat() != true) {
                 error(
                     recentOutput().ifBlank {
                         "$coreId stopped during startup with exit code ${runCatching { child?.exitValue() }.getOrNull()}."
@@ -149,12 +206,6 @@ class AndroidExternalCoreProcess(
     fun stop() {
         val child = process ?: return
         process = null
-        runCatching { child.destroy() }
-        runCatching {
-            if (!child.waitFor(2, TimeUnit.SECONDS)) {
-                child.destroyForcibly()
-                child.waitFor(2, TimeUnit.SECONDS)
-            }
-        }
+        child.stopCompat()
     }
 }

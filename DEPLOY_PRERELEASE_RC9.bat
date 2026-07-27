@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
-title dicodePing v1.9.0 RC9 Hotfix 3 - Release Recovery Deploy
+title dicodePing v1.9.0 RC9 Hotfix 4 - Release Recovery Deploy
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
@@ -10,7 +10,7 @@ set "BRANCH=main"
 set "TAG=v1.9.0-rc.9"
 set "WORKFLOW=v1.9.0-rc.9-release.yml"
 set "TRIGGER_REL=.github\release-triggers\v1.9.0-rc.9.txt"
-set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.9 Android CI and scanner hotfix 3"
+set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.9 Android CI and scanner hotfix 4"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc9-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release_rc9.ps1"
@@ -30,7 +30,7 @@ set "GIT_TERMINAL_PROMPT=1"
 
 cls
 echo ================================================================
-echo      dicodePing v1.9.0 RC9 Hotfix 3 - Release Recovery Deploy
+echo      dicodePing v1.9.0 RC9 Hotfix 4 - Release Recovery Deploy
 echo ================================================================
 echo.
 echo This script uses Git for repository authentication and deployment.
@@ -39,7 +39,7 @@ echo.
 echo Steps:
 echo   1. Clone the latest main branch using Git Credential Manager.
 echo   2. Detect an existing tag or partial GitHub release without stopping.
-echo   3. Copy and validate the RC9 Hotfix 3 source.
+echo   3. Copy and validate the RC9 Hotfix 4 source.
 echo   4. Commit and push a unique release trigger to main.
 echo   5. Move the RC9 tag to the fixed commit when GitHub permits it.
 echo   6. GitHub Actions rebuilds all platforms and overwrites release assets.

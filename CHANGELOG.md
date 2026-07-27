@@ -1,12 +1,12 @@
-
-## 1.9.0-rc.9 hotfix 3
-
-- Align Android automatic-server tests with the positive real HTTP latency policy.
-- Add validated fallback candidates for dashboard and scanner bootstrap connections.
-- Harden Android scanner lifecycle, crawler memory/time bounds, and progress state updates.
-- Remove current Android/CI deprecation and native-strip warnings.
-
 # Changelog
+
+## 1.9.0-rc.9 Hotfix 4
+
+- Replaced all seven Android API-26-only `Process` lifecycle calls with API-24-safe compatibility helpers.
+- Kept forceful termination on API 26+ while using graceful exit polling on Android 7.x.
+- Configured release lint to fail on correctness/security errors and omit legacy advisory warnings from CI output.
+- Added always-uploaded HTML, text, and SARIF lint reports for future Android failures.
+
 
 ## 1.9.0-rc.9 Hotfix 3
 

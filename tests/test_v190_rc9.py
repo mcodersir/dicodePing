@@ -74,3 +74,25 @@ def test_rc9_release_metadata_and_bilingual_notes_exist() -> None:
     assert "v1.9.0-rc.9" in workflow
     assert "## فارسی" in notes
     assert "## English" in notes
+
+
+def test_android_external_process_is_api24_compatible_and_lint_strict() -> None:
+    process = read("dicodePing_android/app/src/main/java/ir/dicode/ping/core/AndroidExternalCoreProcess.kt")
+    gradle = read("dicodePing_android/app/build.gradle.kts")
+    assert "private fun Process.isAliveCompat()" in process
+    assert "private fun Process.waitForCompat(timeoutMillis: Long)" in process
+    assert "private fun Process.stopCompat" in process
+    assert "Build.VERSION.SDK_INT >= Build.VERSION_CODES.O" in process
+    assert "fun isRunning(): Boolean = process?.isAliveCompat() == true" in process
+    assert "registration.waitForCompat(75_000L)" in process
+    assert "child?.isAliveCompat() != true" in process
+    assert "child.stopCompat()" in process
+    assert "ignoreWarnings = true" in gradle
+    assert "abortOnError = true" in gradle
+
+
+def test_android_ci_always_uploads_lint_reports() -> None:
+    workflow = read(".github/workflows/v1.9.0-rc.9-release.yml")
+    assert "Upload Android lint reports" in workflow
+    assert "if: always()" in workflow
+    assert "android-lint-reports" in workflow

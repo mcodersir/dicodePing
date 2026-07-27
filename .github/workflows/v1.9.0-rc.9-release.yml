@@ -202,6 +202,16 @@ jobs:
             unzip -Z1 "$apk" | grep -q "^lib/$abi/libaether.so$"
             unzip -Z1 "$apk" | grep -q "^lib/$abi/libusque.so$"
           done
+      - name: Upload Android lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-lint-reports
+          path: |
+            dicodePing_android/app/build/reports/lint-results-*.html
+            dicodePing_android/app/build/reports/lint-results-*.txt
+            dicodePing_android/app/build/reports/lint-results-*.sarif
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: android
