@@ -1,4 +1,6 @@
-# dicodePing v1.9.0-rc.5 source archive manifest
+# dicodePing v1.9.0-rc.6 source archive manifest
+# Generated from the validated source tree; native release artifacts and secrets are excluded.
+
 .editorconfig
 .gitattributes
 .github/ISSUE_TEMPLATE/bug.yml
@@ -7,6 +9,7 @@
 .github/release-trigger.txt
 .github/release-triggers/v1.9.0-rc.4.txt
 .github/release-triggers/v1.9.0-rc.5.txt
+.github/release-triggers/v1.9.0-rc.6.txt
 .github/release-v013-rc2-trigger.txt
 .github/release-v013-rc3-trigger.txt
 .github/workflows/ci.yml
@@ -28,18 +31,23 @@
 .github/workflows/v1.9.0-rc.3-release.yml
 .github/workflows/v1.9.0-rc.4-release.yml
 .github/workflows/v1.9.0-rc.5-release.yml
+.github/workflows/v1.9.0-rc.6-release.yml
 .gitignore
 .source-files.txt
 BUILD_RELEASE_RC4.bat
 BUILD_RELEASE_RC5.bat
+BUILD_RELEASE_RC6.bat
 BUILD_SIGNED_APK_RC4.bat
 BUILD_SIGNED_APK_RC5.bat
+BUILD_SIGNED_APK_RC6.bat
 CHANGELOG.md
 CONTRIBUTING.md
 DEPLOY_PRERELEASE_RC4.bat
 DEPLOY_PRERELEASE_RC4_README_FA.txt
 DEPLOY_PRERELEASE_RC5.bat
 DEPLOY_PRERELEASE_RC5_README_FA.txt
+DEPLOY_PRERELEASE_RC6.bat
+DEPLOY_PRERELEASE_RC6_README_FA.txt
 LICENSE
 LOCAL_VALIDATION_RC4.txt
 PRIVACY.md
@@ -47,15 +55,19 @@ RC4_SECURITY_FIXES_FA.txt
 README.md
 RUN_SOURCE_RC4.bat
 RUN_SOURCE_RC5.bat
+RUN_SOURCE_RC6.bat
 SECURITY.md
 START_HERE_RC4.txt
 START_HERE_RC5.txt
+START_HERE_RC6.txt
 THIRD_PARTY_NOTICES.md
 VALIDATION_RESULTS_RC4.txt
 VALIDATION_RESULTS_RC5.txt
+VALIDATION_RESULTS_RC6.txt
 app.py
 app_v190_rc4.py
 app_v190_rc5.py
+app_v190_rc6.py
 assets/app.ico
 assets/app.png
 assets/app.svg
@@ -199,8 +211,11 @@ dicodePing_android/build_apk.bat
 dicodePing_android/build_apk.sh
 dicodePing_android/build_apk_rc5.bat
 dicodePing_android/build_apk_rc5.sh
+dicodePing_android/build_apk_rc6.bat
+dicodePing_android/build_apk_rc6.sh
 dicodePing_android/build_debug_apk.bat
 dicodePing_android/build_debug_apk_rc5.bat
+dicodePing_android/build_debug_apk_rc6.bat
 dicodePing_android/gradle.properties
 dicodePing_android/gradle/wrapper/gradle-wrapper.jar
 dicodePing_android/gradle/wrapper/gradle-wrapper.properties
@@ -214,6 +229,7 @@ dicodePing_android/tools/prepare_core.ps1
 dicodePing_android/tools/prepare_core.sh
 dicodePing_android/tools/validate_project.py
 dicodeping/__init__.py
+dicodeping/config_checker.py
 dicodeping/config_profile.py
 dicodeping/conn_methods.py
 dicodeping/connection_manager.py
@@ -308,6 +324,7 @@ docs/releases/v1.9.0-rc.2.md
 docs/releases/v1.9.0-rc.3.md
 docs/releases/v1.9.0-rc.4.md
 docs/releases/v1.9.0-rc.5.md
+docs/releases/v1.9.0-rc.6.md
 docs/screenshots/README.md
 docs/screenshots/v1.8.0-rc.2/about-en-dark-compact.png
 docs/screenshots/v1.8.0-rc.2/about-en-dark-expanded.png
@@ -538,6 +555,7 @@ tests/test_v190_rc3.py
 tests/test_v190_rc4_release_recovery.py
 tests/test_v190_rc4_security.py
 tests/test_v190_rc5.py
+tests/test_v190_rc6.py
 tools/__init__.py
 tools/build_linux.py
 tools/build_macos.py
@@ -552,4 +570,5 @@ tools/validate_android_gradle_kts.py
 tools/verify_version.py
 tools/wait_for_github_release.ps1
 tools/wait_for_github_release_rc5.ps1
+tools/wait_for_github_release_rc6.ps1
 tools/windows_version_info.txt

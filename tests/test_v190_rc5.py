@@ -12,12 +12,12 @@ def read(path: str) -> str:
 
 
 def test_rc5_release_metadata_and_deployer_are_consistent() -> None:
-    assert 'RELEASE_VERSION = "1.9.0-rc.5"' in read("dicodeping/constants.py")
-    assert '__version__ = "1.9.0rc5"' in read("dicodeping/__init__.py")
-    deploy = read("DEPLOY_PRERELEASE_RC5.bat")
-    assert "v1.9.0-rc.5" in deploy
-    assert "v1.9.0-rc.5-release.yml" in deploy
-    assert "wait_for_github_release_rc5.ps1" in deploy
+    assert 'RELEASE_VERSION = "1.9.0-rc.6"' in read("dicodeping/constants.py")
+    assert '__version__ = "1.9.0rc6"' in read("dicodeping/__init__.py")
+    deploy = read("DEPLOY_PRERELEASE_RC6.bat")
+    assert "v1.9.0-rc.6" in deploy
+    assert "v1.9.0-rc.6-release.yml" in deploy
+    assert "wait_for_github_release_rc6.ps1" in deploy
 
 
 def test_scanner_always_updates_one_copyable_sub() -> None:
@@ -83,8 +83,8 @@ def test_android_rc5_is_api36_64_bit_and_serializes_native_core() -> None:
     wrapper = read("dicodePing_android/gradle/wrapper/gradle-wrapper.properties")
     assert "compileSdk = 36" in gradle
     assert "targetSdk = 36" in gradle
-    assert "versionCode = 40" in gradle
-    assert 'versionName = "1.9.0-rc.5"' in gradle
+    assert "versionCode = 41" in gradle
+    assert 'versionName = "1.9.0-rc.6"' in gradle
     assert 'setOf("arm64-v8a", "x86_64")' in gradle
     assert "jniLibs.useLegacyPackaging = false" in gradle
     assert 'com.android.tools.build:gradle:8.10.1' in root_gradle
@@ -95,8 +95,8 @@ def test_android_rc5_is_api36_64_bit_and_serializes_native_core() -> None:
 def test_android_core_validation_regex_is_valid_kotlin_dsl() -> None:
     gradle = read("dicodePing_android/app/build.gradle.kts")
     validator = read("tools/validate_android_gradle_kts.py")
-    deploy = read("DEPLOY_PRERELEASE_RC5.bat")
-    workflow = read(".github/workflows/v1.9.0-rc.5-release.yml")
+    deploy = read("DEPLOY_PRERELEASE_RC6.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.6-release.yml")
     assert 'Regex("""jni/.+/(libgojni|libv2ray)\\.so""")' in gradle
     assert 'Regex("jni/.+/(libgojni|libv2ray)\\.so")' not in gradle
     assert "Android Gradle Kotlin DSL regex validation passed" in validator
@@ -113,12 +113,12 @@ def test_android_flavors_do_not_redeclare_tethering_controller() -> None:
 
 
 def test_release_workflow_verifies_android_native_packaging() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.5-release.yml")
+    workflow = read(".github/workflows/v1.9.0-rc.6-release.yml")
     assert '"$zipalign_bin" -c -P 16 -v 4 "$apk"' in workflow
     assert "armeabi-v7a|x86" in workflow
     assert "lib/arm64-v8a/" in workflow
     assert "lib/x86_64/" in workflow
-    assert "dicodePing-v1.9.0-rc.5-android.apk" in workflow
-    assert "dicodePing-v1.9.0-rc.5-macos-${{ matrix.architecture }}.dmg" in workflow
+    assert "dicodePing-v1.9.0-rc.6-android.apk" in workflow
+    assert "dicodePing-v1.9.0-rc.6-macos-${{ matrix.architecture }}.dmg" in workflow
     assert "architecture: arm64" in workflow
     assert "architecture: x86_64" in workflow

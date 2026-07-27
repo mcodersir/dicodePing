@@ -46,6 +46,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QTabBar,
     QTabWidget,
+    QToolButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -206,12 +207,12 @@ def build_stylesheet(theme: str) -> str:
     QPushButton[kind="danger"] {{ color: {c['danger']}; background: {c['dangerSoft']}; border-color: {c['danger']}; }}
     QPushButton[kind="ghost"] {{ background: transparent; border-color: transparent; color: {c['muted']}; }}
     QPushButton[kind="ghost"]:hover {{ background: {c['surface3']}; color: {c['text']}; }}
-    QPushButton#navButton {{
+    QPushButton#navButton, QToolButton#navButton {{
         min-height: 44px; max-height: 44px; padding: 0 14px; background: transparent;
         border-color: transparent; color: {c['muted']};
     }}
-    QPushButton#navButton:hover {{ background: {c['surface2']}; color: {c['text']}; }}
-    QPushButton#navButton:checked {{ background: {c['accentSoft']}; color: {c['accent']}; border-color: transparent; }}
+    QPushButton#navButton:hover, QToolButton#navButton:hover {{ background: {c['surface2']}; color: {c['text']}; }}
+    QPushButton#navButton:checked, QToolButton#navButton:checked {{ background: {c['accentSoft']}; color: {c['accent']}; border-color: transparent; }}
     QPushButton#windowButton, QPushButton#closeButton {{
         min-width: 36px; max-width: 36px; min-height: 32px; max-height: 32px;
         padding: 0; border: 0; border-radius: 8px; background: transparent;
@@ -636,7 +637,9 @@ class Sidebar(QFrame):
 
         top = QHBoxLayout()
         top.setSpacing(8)
-        self.menu_button = QPushButton(window.t("menu"))
+        self.menu_button = QToolButton()
+        self.menu_button.setText(window.t("menu"))
+        self.menu_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.menu_button.setObjectName("navButton")
         self.menu_button.setIcon(icon("menu.svg"))
         self.menu_button.setIconSize(QSize(19, 19))
@@ -648,7 +651,7 @@ class Sidebar(QFrame):
         self.navigation_label.setObjectName("tiny")
         layout.addWidget(self.navigation_label)
 
-        self.buttons: list[QPushButton] = []
+        self.buttons: list[QToolButton] = []
         self.keys = ("home", "servers", "scanner", "settings", "about")
         items = (
             ("home", "home.svg"),
@@ -659,7 +662,9 @@ class Sidebar(QFrame):
         )
         self.assets = tuple(asset for _, asset in items)
         for index, (key, asset) in enumerate(items):
-            button = QPushButton(window.t(key))
+            button = QToolButton()
+            button.setText(window.t(key))
+            button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
             button.setObjectName("navButton")
             button.setCheckable(True)
             button.setIcon(icon(asset))
@@ -695,8 +700,12 @@ class Sidebar(QFrame):
         for button in [self.menu_button, *self.buttons]:
             button.setLayoutDirection(direction)
             if self.expanded:
-                button.setStyleSheet(f"text-align:{alignment};padding-left:14px;padding-right:14px;")
+                button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+                button.setStyleSheet(
+                    f"text-align:{alignment};padding-left:14px;padding-right:14px;"
+                )
             else:
+                button.setToolButtonStyle(Qt.ToolButtonIconOnly)
                 button.setStyleSheet("text-align:center;padding:0;")
 
     def _request_page(self, index: int, _checked: bool = False) -> None:
@@ -1458,32 +1467,41 @@ class MainWindow(QMainWindow):
             self.scanner_stage_labels.append(dot)
         action_layout.addLayout(stage_row)
 
-        # Throughput and health are kept on their own responsive row so long
-        # Persian text cannot crush or overlap the three-stage indicator.
-        metrics_row = QBoxLayout(QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
-        self.scanner_metrics_layout = metrics_row
+        # Independent metric cards remain readable on narrow windows and never
+        # collapse into one long Persian sentence.
+        metrics_box = QWidget()
+        metrics_row = QBoxLayout(QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight, metrics_box)
+        metrics_row.setContentsMargins(0, 0, 0, 0)
         metrics_row.setSpacing(8)
-        self.scanner_alive_label = QLabel("")
-        self.scanner_alive_label.setObjectName("muted")
-        self.scanner_alive_label.setStyleSheet(
-            "background:#10271D;color:#4FD08A;border-radius:10px;"
-            "padding:5px 10px;font-weight:700;"
+        self.scanner_metrics_layout = metrics_row
+
+        def metric_label(text: str, style: str) -> QLabel:
+            label = QLabel(text)
+            label.setObjectName("muted")
+            label.setWordWrap(True)
+            label.setMinimumWidth(150)
+            label.setStyleSheet(style)
+            return label
+
+        self.scanner_crawl_label = metric_label(
+            "دریافت تلگرام: —" if self.language != "en" else "Telegram fetch: —",
+            "background:#19233E;color:#8FB3FF;border-radius:10px;padding:7px 10px;font-weight:700;",
+        )
+        self.scanner_probe_label = metric_label(
+            "تست واقعی: —" if self.language != "en" else "Real tests: —",
+            "background:#2A2415;color:#F1B95A;border-radius:10px;padding:7px 10px;font-weight:700;",
+        )
+        self.scanner_alive_label = metric_label(
+            "سالم: ۰" if self.language != "en" else "Alive: 0",
+            "background:#10271D;color:#4FD08A;border-radius:10px;padding:7px 10px;font-weight:700;",
         )
         self.scanner_alive_label.setVisible(False)
+        metrics_row.addWidget(self.scanner_crawl_label, 1)
+        metrics_row.addWidget(self.scanner_probe_label, 1)
         metrics_row.addWidget(self.scanner_alive_label)
-        self.scanner_speed_label = QLabel(
-            "تلگرام: —  |  تست اتصال: —" if self.language != "en" else "Telegram: —  |  Tests: —"
-        )
-        self.scanner_speed_label.setObjectName("muted")
-        self.scanner_speed_label.setWordWrap(True)
-        self.scanner_speed_label.setStyleSheet(
-            "background:#19233E;color:#8FB3FF;border-radius:10px;"
-            "padding:5px 10px;font-weight:700;"
-        )
-        self.scanner_speed_label.setVisible(False)
-        self.scanner_eta_label = self.scanner_speed_label  # compatibility alias
-        metrics_row.addWidget(self.scanner_speed_label, 1)
-        action_layout.addLayout(metrics_row)
+        self.scanner_speed_label = self.scanner_crawl_label  # compatibility alias
+        self.scanner_eta_label = self.scanner_crawl_label
+        action_layout.addWidget(metrics_box)
 
         # Status line.
         self.scanner_stage_label = QLabel(self.t("ready"))
@@ -1523,18 +1541,32 @@ class MainWindow(QMainWindow):
         self.scanner_clear_log_button.clicked.connect(self._clear_scanner_log)
         log_top.addWidget(self.scanner_clear_log_button)
         log_layout.addLayout(log_top)
-        self.scanner_log_view = QPlainTextEdit()
-        self.scanner_log_view.setReadOnly(True)
-        self.scanner_log_view.setMaximumBlockCount(1200)
-        self.scanner_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
-        self.scanner_log_view.setStyleSheet(
-            "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
-            "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; }"
-        )
-        self.scanner_log_view.setPlaceholderText(self.t("scanner_log_empty"))
-        self.scanner_log_view.setMinimumHeight(140)
+        self.scanner_log_tabs = QTabWidget()
+        self.scanner_log_tabs.setDocumentMode(True)
+
+        def make_log_view() -> QPlainTextEdit:
+            view = QPlainTextEdit()
+            view.setReadOnly(True)
+            view.setMaximumBlockCount(1200)
+            view.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+            view.setStyleSheet(
+                "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
+                "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; padding:6px; }"
+            )
+            view.setPlaceholderText(self.t("scanner_log_empty"))
+            view.setMinimumHeight(150)
+            return view
+
+        self.scanner_log_view = make_log_view()
+        self.scanner_tg_log_view = make_log_view()
+        self.scanner_test_log_view = make_log_view()
         self._scanner_log_highlighter = ScannerLogHighlighter(self.scanner_log_view.document())
-        log_layout.addWidget(self.scanner_log_view)
+        self._scanner_tg_log_highlighter = ScannerLogHighlighter(self.scanner_tg_log_view.document())
+        self._scanner_test_log_highlighter = ScannerLogHighlighter(self.scanner_test_log_view.document())
+        self.scanner_log_tabs.addTab(self.scanner_log_view, "همه" if self.language != "en" else "All")
+        self.scanner_log_tabs.addTab(self.scanner_tg_log_view, "دریافت تلگرام" if self.language != "en" else "Telegram")
+        self.scanner_log_tabs.addTab(self.scanner_test_log_view, "تست واقعی" if self.language != "en" else "Real tests")
+        log_layout.addWidget(self.scanner_log_tabs)
         layout.addWidget(log_card, 1)
 
         # --- History card ------------------------------------------------
@@ -1625,11 +1657,13 @@ class MainWindow(QMainWindow):
         self.scanner_result_label.setText("")
         self._scanner_crawl_metric = ""
         self._scanner_probe_metric = ""
-        self.scanner_speed_label.setVisible(True)
-        self.scanner_speed_label.setText(
-            "تلگرام: در انتظار…  |  تست اتصال: در انتظار…"
-            if self.language != "en"
-            else "Telegram: waiting…  |  Tests: waiting…"
+        self.scanner_crawl_label.setVisible(True)
+        self.scanner_probe_label.setVisible(True)
+        self.scanner_crawl_label.setText(
+            "دریافت تلگرام: در انتظار…" if self.language != "en" else "Telegram fetch: waiting…"
+        )
+        self.scanner_probe_label.setText(
+            "تست واقعی: در انتظار…" if self.language != "en" else "Real tests: waiting…"
         )
         self.scanner_alive_label.setVisible(False)
         self._scanner_alive_count = 0
@@ -1779,14 +1813,16 @@ class MainWindow(QMainWindow):
             )
         crawl = getattr(
             self, "_scanner_crawl_metric",
-            "تلگرام: در انتظار…" if self.language != "en" else "Telegram: waiting…",
+            "دریافت تلگرام: در انتظار…" if self.language != "en" else "Telegram: waiting…",
         )
         probe = getattr(
             self, "_scanner_probe_metric",
-            "تست اتصال: در انتظار…" if self.language != "en" else "Tests: waiting…",
+            "تست واقعی: در انتظار…" if self.language != "en" else "Real tests: waiting…",
         )
-        self.scanner_speed_label.setText(f"{crawl}  |  {probe}")
-        self.scanner_speed_label.setVisible(True)
+        self.scanner_crawl_label.setText(crawl)
+        self.scanner_probe_label.setText(probe)
+        self.scanner_crawl_label.setVisible(True)
+        self.scanner_probe_label.setVisible(True)
 
     @Slot(object)
     def _scanner_log_batch(self, rows: object) -> None:
@@ -1795,11 +1831,21 @@ class MainWindow(QMainWindow):
         lines = [str(row).rstrip() for row in (rows or ()) if str(row).strip()]
         if not lines:
             return
-        bar = self.scanner_log_view.verticalScrollBar()
-        follow_tail = bar.value() >= max(0, bar.maximum() - 4)
-        self.scanner_log_view.appendPlainText("\n".join(lines))
-        if follow_tail:
-            bar.setValue(bar.maximum())
+        def append(view: QPlainTextEdit, selected: list[str]) -> None:
+            if not selected:
+                return
+            bar = view.verticalScrollBar()
+            follow_tail = bar.value() >= max(0, bar.maximum() - 4)
+            view.appendPlainText("\n".join(selected))
+            if follow_tail:
+                bar.setValue(bar.maximum())
+
+        append(self.scanner_log_view, lines)
+        append(self.scanner_tg_log_view, [line for line in lines if "[TG]" in line.upper()])
+        append(
+            self.scanner_test_log_view,
+            [line for line in lines if any(tag in line.upper() for tag in ("[TEST]", "[DISCONNECT]"))],
+        )
 
     def _scanner_log_line(self, line: str) -> None:
         self._scanner_log_batch((line,))
@@ -1811,8 +1857,10 @@ class MainWindow(QMainWindow):
             self.scanner_thread = None
 
     def _clear_scanner_log(self) -> None:
-        if hasattr(self, "scanner_log_view"):
-            self.scanner_log_view.clear()
+        for name in ("scanner_log_view", "scanner_tg_log_view", "scanner_test_log_view"):
+            view = getattr(self, name, None)
+            if view is not None:
+                view.clear()
 
     def _scanner_succeeded(self, result) -> None:
         self.scanner_run_button.setVisible(True)
@@ -1827,7 +1875,8 @@ class MainWindow(QMainWindow):
         alive = len(getattr(result, "servers", []))
         total = getattr(result, "downloaded", 0)
         stopped_early = bool(getattr(result, "stopped_early", False))
-        self.scanner_speed_label.setVisible(True)
+        self.scanner_crawl_label.setVisible(True)
+        self.scanner_probe_label.setVisible(True)
         self.scanner_alive_label.setVisible(False)
         self._set_scanner_stage_dot(3)
         self.scanner_stage_label.setText(self.t("scanner_done"))
@@ -1865,7 +1914,8 @@ class MainWindow(QMainWindow):
         self.scanner_run_button.style().polish(self.scanner_run_button)
         self.scanner_progress.setRange(0, 100)
         self.scanner_progress.setValue(0)
-        self.scanner_speed_label.setVisible(True)
+        self.scanner_crawl_label.setVisible(True)
+        self.scanner_probe_label.setVisible(True)
         self.scanner_alive_label.setVisible(False)
         self.scanner_stage_label.setText(self.t("operation_failed"))
         self.scanner_result_label.setText(message)

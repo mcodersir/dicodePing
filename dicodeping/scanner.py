@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .constants import DATA_DIR, MAX_DISCOVERY_CONFIGS
+from .config_checker import ConfigQualityResult, test_config
 from .crawler import crawl_telegram_channels, load_channels, load_channel_specs
 from .diagnostics import get_logger
 from .i18n import tr
@@ -58,8 +59,10 @@ LOGGER = get_logger("scanner")
 RESOURCE_PROFILE = current_resource_profile()
 SCAN_CRAWL_WORKERS = min(12, max(4, RESOURCE_PROFILE.crawl_workers))
 SCAN_CRAWL_TIMEOUT_S = 8.0
-SCAN_PROBE_WORKERS = min(12, max(4, RESOURCE_PROFILE.probe_workers // 2))
-SCAN_PROBE_TIMEOUT_S = 3.2
+SCAN_PROBE_WORKERS = min(8, max(4, RESOURCE_PROFILE.probe_workers // 2))
+SCAN_PROBE_TIMEOUT_S = 3.4
+SCAN_PROBE_ATTEMPTS = 3
+SCAN_PROBE_MIN_SUCCESS = 2
 SCAN_PROBE_RETRY_LIMIT = 1
 SCAN_PROBE_RETRY_WORKERS = min(4, max(2, RESOURCE_PROFILE.retry_workers))
 SCAN_PROBE_QUEUE_LIMIT = min(
@@ -147,23 +150,20 @@ def _probe_one(
     *,
     timeout: float = SCAN_PROBE_TIMEOUT_S,
     stop_event: threading.Event | None = None,
-) -> int | None:
-    from .xray import probe_outbound_delay
-    if stop_event is not None and stop_event.is_set():
-        return None
-    try:
-        delay = probe_outbound_delay(raw_config, timeout=timeout, cancel_event=stop_event)
-    except Exception:
-        delay = None
-    if delay is None or delay <= 0:
-        return None
-    return int(delay)
+) -> ConfigQualityResult:
+    return test_config(
+        raw_config,
+        attempts=SCAN_PROBE_ATTEMPTS,
+        min_success=SCAN_PROBE_MIN_SUCCESS,
+        per_attempt_timeout=timeout,
+        stop_event=stop_event,
+    )
 
 
 @dataclass
 class _ProbeState:
     stop_requested: threading.Event = field(default_factory=threading.Event)
-    alive: list[tuple[str, int]] = field(default_factory=list)
+    alive: list[tuple[str, ConfigQualityResult]] = field(default_factory=list)
     completed: int = 0
     total: int = 0
     lock: threading.RLock = field(default_factory=threading.RLock)
@@ -325,7 +325,11 @@ def _probe_only(
     if stage:
         stage(tr(language, "scanner_stage2_probe"))
     _log("[STAGE] " + tr(language, "scanner_stage2_probe"))
-    _log(f"[TEST][INFO] configs={len(configs)} workers={SCAN_PROBE_WORKERS} timeout={SCAN_PROBE_TIMEOUT_S:.1f}s")
+    _log(
+        f"[TEST][INFO] configs={len(configs)} workers={SCAN_PROBE_WORKERS} "
+        f"attempts={SCAN_PROBE_ATTEMPTS} min_success={SCAN_PROBE_MIN_SUCCESS} "
+        f"timeout={SCAN_PROBE_TIMEOUT_S:.1f}s engine=DicodeConfigChecker"
+    )
 
     state.total = len(configs)
     state.completed = 0
@@ -339,7 +343,7 @@ def _probe_only(
         thread_name_prefix="dicodePing-probe",
     )
     config_iter = iter(configs)
-    future_to_raw: dict[concurrent.futures.Future[int | None], str] = {}
+    future_to_raw: dict[concurrent.futures.Future[ConfigQualityResult], str] = {}
 
     def _fill_queue() -> None:
         while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT and not state.stop_requested.is_set():
@@ -369,13 +373,13 @@ def _probe_only(
             for future in ready:
                 raw = future_to_raw.pop(future)
                 try:
-                    ping_ms = future.result()
-                except Exception:
-                    ping_ms = None
+                    result = future.result()
+                except Exception as exc:
+                    result = ConfigQualityResult(False, None, None, None, SCAN_PROBE_ATTEMPTS, 0, error=exc.__class__.__name__)
                 with state.lock:
                     state.completed += 1
-                    if ping_ms is not None:
-                        state.alive.append((raw, ping_ms))
+                    if result.ok and result.ping_ms is not None:
+                        state.alive.append((raw, result))
                     else:
                         failed_raws.append(raw)
                     done = state.completed
@@ -398,14 +402,19 @@ def _probe_only(
                     )
                 endpoint = parse_endpoint(raw)
                 host = f"{endpoint.host}:{endpoint.port}" if endpoint else "unknown"
-                if ping_ms is not None:
+                sample_text = ",".join(str(value) for value in result.samples_ms) or "-"
+                if result.ok and result.ping_ms is not None:
                     _log(
-                        f"[TEST][OK] {done}/{state.total} {host} | {ping_ms} ms | "
-                        f"alive={alive_count} | speed={tests_per_second:.1f}/s"
+                        f"[TEST][OK] {done}/{state.total} {host} | median={result.ping_ms} ms "
+                        f"min={result.min_ms} avg={result.avg_ms} | samples=[{sample_text}] "
+                        f"success={result.success_count}/{result.attempts} tester={result.tester} | "
+                        f"alive={alive_count} speed={tests_per_second:.1f}/s"
                     )
                 else:
                     _log(
-                        f"[TEST][ERR] {done}/{state.total} {host} | timeout/invalid | "
+                        f"[TEST][ERR] {done}/{state.total} {host} | "
+                        f"success={result.success_count}/{result.attempts} tester={result.tester} "
+                        f"error={result.error or 'failed'} samples=[{sample_text}] | "
                         f"speed={tests_per_second:.1f}/s"
                     )
             if len(state.alive) >= SCAN_TARGET_HEALTHY:
@@ -444,25 +453,25 @@ def _probe_only(
                         pending.cancel()
                     break
                 try:
-                    ping_ms = future.result()
-                except Exception:
-                    ping_ms = None
-                if ping_ms is not None:
+                    result = future.result()
+                except Exception as exc:
+                    result = ConfigQualityResult(False, None, None, None, SCAN_PROBE_ATTEMPTS, 0, error=exc.__class__.__name__)
+                if result.ok and result.ping_ms is not None:
                     with state.lock:
-                        state.alive.append((retry_map[future], ping_ms))
+                        state.alive.append((retry_map[future], result))
                     if alive_count_callback:
                         alive_count_callback(len(state.alive))
-                    _log(f"[TEST][RETRY-OK] {ping_ms} ms")
+                    _log(f"[TEST][RETRY-OK] median={result.ping_ms} ms samples={list(result.samples_ms)}")
 
     with state.lock:
-        state.alive.sort(key=lambda item: item[1])
+        state.alive.sort(key=lambda item: item[1].ping_ms or 999999)
         state.alive = state.alive[: min(SCAN_MAX_SERVERS, SCAN_TARGET_HEALTHY)]
         elapsed = max(0.001, time.monotonic() - started)
         _log(
             f"[TEST][DONE] checked={state.completed}/{state.total} alive={len(state.alive)} "
             f"avg={state.completed / elapsed:.1f}/s duration={elapsed:.2f}s"
         )
-        return [raw for raw, _ in state.alive]
+        return [raw for raw, _result in state.alive]
 
 
 def run_scan(
@@ -651,7 +660,7 @@ def run_scan(
         source_id = SCANNER_SOURCE_ID
         records: list[ServerRecord] = []
         from .config_profile import classify_config_profile
-        for index, (raw, ping_ms) in enumerate(alive, start=1):
+        for index, (raw, quality) in enumerate(alive, start=1):
             endpoint = parse_endpoint(raw)
             if not endpoint:
                 continue
@@ -665,7 +674,7 @@ def run_scan(
                     host=endpoint.host,
                     port=endpoint.port,
                     config_blob=config_to_blob(clean_raw),
-                    ping_ms=ping_ms,
+                    ping_ms=quality.ping_ms,
                     ip="",
                     country="نامشخص",
                     country_code="",
@@ -681,7 +690,7 @@ def run_scan(
                 )
             )
 
-        raw_lines = [set_display_name(raw, "") for raw, _ in alive]
+        raw_lines = [set_display_name(raw, "") for raw, _quality in alive]
         base64_payload = b64_encode_text("\n".join(raw_lines))
 
         settings = store.load_settings()
@@ -713,6 +722,19 @@ def run_scan(
             "dropped": max(0, state.total - len(records)),
             "duration_seconds": time.monotonic() - started,
             "stopped_early": state.stop_requested.is_set(),
+            "quality": [
+                {
+                    "raw": raw,
+                    "ping_ms": quality.ping_ms,
+                    "min_ms": quality.min_ms,
+                    "avg_ms": quality.avg_ms,
+                    "samples_ms": list(quality.samples_ms),
+                    "success_count": quality.success_count,
+                    "attempts": quality.attempts,
+                    "tester": quality.tester,
+                }
+                for raw, quality in alive
+            ],
             "log_lines": state.log_lines,
         }
         # RC5 keeps exactly one scanner subscription and one history item.

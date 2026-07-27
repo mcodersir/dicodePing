@@ -11,7 +11,7 @@ class MaintenanceTests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 40", gradle)
+        self.assertIn("versionCode = 41", gradle)
         self.assertIn('versionName = "1.8.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -47,25 +47,26 @@ class MaintenanceTests(unittest.TestCase):
         self.assertLess(app_run.index("find_application_update"), app_run.index("check_source_updates"))
         self.assertLess(worker_run.index("find_application_update"), worker_run.index("check_source_updates"))
 
-    def test_splash_tracks_real_server_discovery_and_logs_are_visible(self) -> None:
+    def test_splash_completes_real_server_preparation_and_logs_are_separated(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
-        self.assertIn("startup_scan.preview_ready.connect", app)
-        self.assertIn("Fetching and preparing servers", app)
-        self.assertIn('window.settings.get("auto_scan_empty", True)', app)
-        self.assertIn("QTimer.singleShot(12000, splash.close)", app)
-        self.assertIn("self.log_path_label = QLabel(str(LOG_FILE))", ui)
-        self.assertIn("QDesktopServices.openUrl(QUrl.fromLocalFile(str(LOG_FILE)))", ui)
+        startup_worker = app.split("class StartupPrepareThread", 1)[1].split("class UpdateCheckThread", 1)[0]
+        self.assertIn("discover_config_entries", startup_worker)
+        self.assertIn("ServerService", startup_worker)
+        self.assertIn("build_and_save", startup_worker)
+        self.assertIn("find_application_update", startup_worker)
+        self.assertIn("check_source_updates", startup_worker)
+        self.assertIn("self.scanner_log_tabs = QTabWidget()", ui)
+        self.assertIn("self.scanner_tg_log_view", ui)
+        self.assertIn("self.scanner_test_log_view", ui)
 
-    def test_rc9_startup_cannot_be_held_by_network_or_ui_failure(self) -> None:
+    def test_rc6_startup_has_a_bounded_complete_splash_gate(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
-        startup_worker = app.split("class StartupPrepareThread", 1)[1].split("_SINGLE_INSTANCE_HANDLE", 1)[0]
-        self.assertNotIn("discover_config_entries", startup_worker)
-        self.assertNotIn("ServerService", startup_worker)
         self.assertIn("StartupGate()", app)
-        self.assertIn("watchdog.setInterval(4000)", app)
+        self.assertIn("watchdog.setInterval(300_000)", app)
         self.assertIn("preloaded_servers=[]", app)
-        self.assertIn("finally:", app)
+        self.assertIn("worker.ready.connect(prepared)", app)
+        self.assertIn("watchdog.timeout.connect(preparation_timed_out)", app)
         self.assertIn("splash.close()", app)
         self.assertIn("--startup-smoke-test", app)
 

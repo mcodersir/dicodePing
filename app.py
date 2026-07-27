@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import os
 import traceback
+import time
 from typing import Any
 from pathlib import Path
 
@@ -15,6 +16,8 @@ from dicodeping.core_manager import reverify_installed_cores
 from dicodeping.diagnostics import configure_logging, get_logger
 from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
 from dicodeping.sources import normalize_sources, serialize_sources
+from dicodeping.discovery import discover_config_entries
+from dicodeping.service import ServerService
 from dicodeping.storage import JsonStore
 from dicodeping.ui import MainWindow
 from dicodeping.updates import check_source_updates, find_application_update
@@ -105,7 +108,7 @@ class StartupSplash(QWidget):
 
 class StartupPrepareThread(QThread):
     stage = Signal(int, str, str)
-    ready = Signal(object, object, str, bool)
+    ready = Signal(object, object, str, bool, object, object)
 
     def __init__(self, language: str) -> None:
         super().__init__()
@@ -116,24 +119,77 @@ class StartupPrepareThread(QThread):
         settings: dict[str, Any] = {}
         cached: list[Any] = []
         startup_error = ""
-        refresh_due = True
+        release = None
+        changed_sources: list[Any] = []
         try:
             self.stage.emit(4, "در حال بررسی صحت هسته‌ها...", "Verifying installed cores...")
             reverify_installed_cores()
-            self.stage.emit(8, "در حال بارگذاری تنظیمات...", "Loading settings...")
+            self.stage.emit(9, "در حال بارگذاری تنظیمات...", "Loading settings...")
             settings = store.load_settings()
             cached = store.load_servers()
             sources = normalize_sources(settings, self.language)
             settings["sources"] = serialize_sources(sources)
             settings.pop("custom_subscriptions", None)
+
+            self.stage.emit(14, "در حال بررسی نسخه جدید برنامه...", "Checking for application updates...")
+            platform_name = "windows" if is_windows() else ("macos" if sys.platform == "darwin" else "linux")
+            try:
+                release = find_application_update(RELEASE_VERSION, platform_name, timeout=4.0)
+            except Exception:
+                LOGGER.info("Application update check unavailable during splash", exc_info=True)
+
+            self.stage.emit(20, "در حال بررسی به‌روزرسانی منابع...", "Checking server source updates...")
+            observed: dict[str, str] = {}
+            try:
+                changed_sources, observed = check_source_updates(
+                    sources, settings.get("source_revisions")
+                )
+            except Exception:
+                LOGGER.info("Source update check unavailable during splash", exc_info=True)
+
             refresh_due = server_refresh_due(
                 len(cached),
                 settings.get("last_server_refresh_at", 0),
                 interval_seconds=SERVER_REFRESH_INTERVAL_SECONDS,
             )
+            should_refresh = bool(changed_sources) or refresh_due or not cached
+            if should_refresh and sources:
+                self.stage.emit(25, "در حال دریافت کانفیگ‌های منابع...", "Downloading source configurations...")
+
+                def discovery_progress(current: int, total: int) -> None:
+                    ratio = current / max(1, total)
+                    self.stage.emit(25 + int(ratio * 20), "در حال دریافت منابع...", "Downloading sources...")
+
+                configs = discover_config_entries(
+                    sources,
+                    stage=lambda text: self.stage.emit(30, text, text),
+                    progress=discovery_progress,
+                    language=self.language,
+                )
+                if configs:
+                    service = ServerService(store)
+
+                    def ping_progress(current: int, total: int) -> None:
+                        ratio = current / max(1, total)
+                        self.stage.emit(45 + int(ratio * 28), "در حال سنجش سرورها...", "Testing servers...")
+
+                    def geo_progress(current: int, total: int) -> None:
+                        ratio = current / max(1, total)
+                        self.stage.emit(73 + int(ratio * 17), "در حال تکمیل اطلاعات سرورها...", "Resolving server details...")
+
+                    cached = service.build_and_save(
+                        configs,
+                        stage=lambda text: self.stage.emit(50, text, text),
+                        language=self.language,
+                        ping_progress=ping_progress,
+                        geo_progress=geo_progress,
+                    )
+                    settings["last_server_refresh_at"] = time.time()
+            if observed:
+                settings["source_revisions"] = observed
             store.save_settings(settings)
-            self.stage.emit(82, "در حال بارگذاری اطلاعات ذخیره شده...", "Loading cached server data...")
-            self.stage.emit(96, "در حال آماده سازی رابط...", "Preparing interface...")
+            self.stage.emit(93, "در حال بارگذاری نتایج سنجش...", "Loading tested server results...")
+            self.stage.emit(98, "در حال آماده‌سازی رابط...", "Preparing interface...")
         except Exception as exc:
             LOGGER.exception("Startup preparation failed")
             startup_error = str(exc)
@@ -142,7 +198,7 @@ class StartupPrepareThread(QThread):
                 cached = cached or store.load_servers()
             except Exception:
                 LOGGER.exception("Startup cache recovery failed")
-        self.ready.emit(cached, settings, startup_error, refresh_due)
+        self.ready.emit(cached, settings, startup_error, False, release, changed_sources)
 
 
 class UpdateCheckThread(QThread):
@@ -412,13 +468,15 @@ def main() -> int:
 
     watchdog = QTimer()
     watchdog.setSingleShot(True)
-    watchdog.setInterval(4000)
+    watchdog.setInterval(300_000)
 
     def prepared(
         servers: object,
         prepared_settings: object,
         startup_error: str,
         refresh_due: bool,
+        release: object,
+        changed_sources: object,
     ) -> None:
         if not gate.claim():
             return
@@ -426,6 +484,22 @@ def main() -> int:
         rows = startup_rows(servers)
         loaded_settings = dict(prepared_settings) if isinstance(prepared_settings, dict) else settings
         try:
+            # Update discovery belongs to the startup gate as well: present the
+            # already-fetched release decision while the splash is still active,
+            # then open the main interface only after the decision is complete.
+            if release:
+                answer = QMessageBox.question(
+                    splash,
+                    APP_NAME,
+                    (f"نسخه {release.tag} آماده است. صفحه دریافت باز شود؟"
+                     if language != "en" else
+                     f"Version {release.tag} is available. Open the download page?"),
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                if answer == QMessageBox.Yes:
+                    QDesktopServices.openUrl(QUrl(release.asset_url))
+
             # Hydrate cached rows after the window becomes responsive. Building
             # a large table inside this signal used to freeze the splash.
             window = MainWindow(
@@ -446,89 +520,12 @@ def main() -> int:
                     window.render_servers()
                 except Exception:
                     LOGGER.exception("Deferred server list hydration failed")
+                splash.set_stage(100, "آماده", "Ready", language)
+                QTimer.singleShot(180, splash.close)
 
-                def start_deferred_refresh() -> None:
-                    if not window.isVisible():
-                        return
-                    if not window.settings.get("accepted_disclaimer"):
-                        QTimer.singleShot(500, start_deferred_refresh)
-                        return
-                    should_scan = (
-                        bool(window.settings.get("auto_scan_empty", True))
-                        or not rows
-                        or refresh_due
-                    )
-                    if should_scan and not window.worker and not window.manager.connected:
-                        splash.set_indeterminate(
-                            "در حال دریافت و آماده سازی سرورها...",
-                            "Fetching and preparing servers...",
-                            language,
-                        )
-                        window.start_scan()
-                        startup_scan = window.worker
-                        if startup_scan:
-                            state["startup_scan"] = startup_scan
-                            startup_scan.stage.connect(
-                                lambda text: splash.set_indeterminate(text, text, language)
-                            )
-
-                            def server_rows_ready(*_args) -> None:
-                                splash.set_stage(100, "سرورها آماده شدند", "Servers are ready", language)
-                                QTimer.singleShot(180, splash.close)
-
-                            startup_scan.preview_ready.connect(server_rows_ready)
-                            startup_scan.success.connect(server_rows_ready)
-                            startup_scan.failed.connect(lambda _message: splash.close())
-                    elif rows:
-                        QTimer.singleShot(350, splash.close)
-
-                QTimer.singleShot(650, start_deferred_refresh)
-
-                def check_updates() -> None:
-                    if not window.isVisible():
-                        return
-                    update_worker = UpdateCheckThread(window.settings, window.language)
-                    state["update_worker"] = update_worker
-
-                    def offer(source_data: object, release: object) -> None:
-                        changed, observed = source_data if isinstance(source_data, tuple) else ([], {})
-                        if observed and not window.settings.get("source_revisions"):
-                            window.settings["source_revisions"] = observed
-                            window.store.save_settings(window.settings)
-                        if changed:
-                            names = "، ".join(item.name for item in changed[:3])
-                            answer = QMessageBox.question(
-                                window, APP_NAME,
-                                (f"به‌روزرسانی منبع سرورها آماده است ({names}). اکنون دریافت شود؟"
-                                 if window.language != "en" else
-                                 f"A server source update is available ({names}). Download it now?"),
-                                QMessageBox.Yes | QMessageBox.No,
-                                QMessageBox.Yes,
-                            )
-                            if answer == QMessageBox.Yes:
-                                window.settings["source_revisions"] = observed
-                                window.store.save_settings(window.settings)
-                                window.start_scan()
-                        if release:
-                            answer = QMessageBox.question(
-                                window, APP_NAME,
-                                (f"نسخه {release.tag} آماده است. صفحه دریافت باز شود؟"
-                                 if window.language != "en" else
-                                 f"Version {release.tag} is available. Open the download page?"),
-                                QMessageBox.Yes | QMessageBox.No,
-                                QMessageBox.Yes,
-                            )
-                            if answer == QMessageBox.Yes:
-                                QDesktopServices.openUrl(QUrl(release.asset_url))
-
-                    update_worker.ready.connect(offer)
-                    update_worker.finished.connect(update_worker.deleteLater)
-                    update_worker.start()
-
-                # Start while the splash is still visible.  A watchdog closes
-                # it soon after, so an unavailable update service cannot hold
-                # the interface hostage.
-                QTimer.singleShot(0, check_updates)
+                if changed_sources:
+                    names = "، ".join(getattr(item, "name", "") for item in list(changed_sources)[:3])
+                    LOGGER.info("Sources refreshed on splash: %s", names)
 
             QTimer.singleShot(80, hydrate_and_refresh)
         except Exception as exc:
@@ -541,14 +538,19 @@ def main() -> int:
             )
             QMessageBox.critical(None, APP_NAME, f"{message}\n\n{exc}")
             QTimer.singleShot(0, lambda: app.exit(2))
-        finally:
-            # Discovery is shown on the splash but can never hold the app
-            # indefinitely. The main window is already alive behind it.
-            QTimer.singleShot(12000, splash.close)
-
     def preparation_timed_out() -> None:
-        LOGGER.warning("Startup preparation timed out; opening the interface with safe defaults")
-        prepared([], settings, "Startup preparation timed out", True)
+        if not gate.claim():
+            return
+        LOGGER.error("Complete splash preparation timed out")
+        worker.requestInterruption()
+        splash.close()
+        message = (
+            "آماده‌سازی منابع و سنجش سرورها در زمان مجاز کامل نشد. اتصال شبکه را بررسی و برنامه را دوباره اجرا کنید."
+            if language != "en"
+            else "Source preparation and server testing did not finish in time. Check the network and restart the app."
+        )
+        QMessageBox.critical(None, APP_NAME, message)
+        QTimer.singleShot(0, lambda: app.exit(2))
 
     def worker_finished() -> None:
         if state.get("worker") is worker:

@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -281,15 +282,35 @@ class AppRepository private constructor(context: Context) {
                                 sem.withPermit {
                                     if (stopRequested()) return@withPermit null
                                     val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
-                                    val delay = if (reachable) runCatching {
-                                        proxyProbe.measureOutboundDelay(
-                                            XrayConfigBuilder.build(
-                                                server.raw,
-                                                bufferSizeKiB = tuning.bufferSizeKiB,
-                                            )
-                                        )
-                                    }.getOrDefault(-1L) else -1L
-                                    val ping = delay.takeIf { it in 1..60_000 }?.toInt()
+                                    val samples = mutableListOf<Long>()
+                                    if (reachable) {
+                                        for (attempt in 0 until SCANNER_TEST_ATTEMPTS) {
+                                            if (stopRequested()) break
+                                            val measured = runCatching {
+                                                proxyProbe.measureOutboundDelay(
+                                                    XrayConfigBuilder.build(
+                                                        server.raw,
+                                                        bufferSizeKiB = tuning.bufferSizeKiB,
+                                                    )
+                                                )
+                                            }.getOrDefault(-1L)
+                                            if (measured in 1..SCANNER_MAX_DELAY_MS) samples += measured
+                                            val remaining = SCANNER_TEST_ATTEMPTS - attempt - 1
+                                            if (samples.size >= SCANNER_MIN_SUCCESS || samples.size + remaining < SCANNER_MIN_SUCCESS) {
+                                                break
+                                            }
+                                            delay(SCANNER_ATTEMPT_GAP_MS)
+                                        }
+                                    }
+                                    val ping = samples.takeIf { it.size >= SCANNER_MIN_SUCCESS }
+                                        ?.sorted()
+                                        ?.let { sorted -> sorted[sorted.size / 2].toInt() }
+                                    AppLog.i(
+                                        "Scanner",
+                                        "${server.name}: tester=xray-http attempts=${SCANNER_TEST_ATTEMPTS} " +
+                                            "success=${samples.size} samples=${samples.joinToString(",")} " +
+                                            "median=${ping ?: -1}ms",
+                                    )
                                     val doneNow = done.incrementAndGet()
                                     val aliveNow = if (ping != null) aliveDone.incrementAndGet() else aliveDone.get()
                                     progress.value = ProgressState(
@@ -691,6 +712,10 @@ class AppRepository private constructor(context: Context) {
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 240
         private const val SCANNER_HEALTHY_TARGET = 5
+        private const val SCANNER_TEST_ATTEMPTS = 3
+        private const val SCANNER_MIN_SUCCESS = 2
+        private const val SCANNER_MAX_DELAY_MS = 60_000L
+        private const val SCANNER_ATTEMPT_GAP_MS = 120L
 
         @Volatile
         private var instance: AppRepository? = null

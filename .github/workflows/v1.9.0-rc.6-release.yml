@@ -1,0 +1,277 @@
+name: Release v1.9.0-rc.6 legacy-style packages
+
+on:
+  # The recovery BAT changes only this marker after source validation.
+  # This avoids duplicate tag-triggered runs and also supports an existing release.
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/release-triggers/v1.9.0-rc.6.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-v1.9.0-rc.6
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python tools/prepare_build_workspace.py
+          python tools/verify_version.py --tag v1.9.0-rc.6
+          python tools/validate_android_gradle_kts.py
+          python -m pytest -q
+          python tools/quality_gate.py
+          python dicodePing_android/tools/validate_project.py
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python tools/build_windows.py --skip-install
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-v190-rc6-smoke"
+          $env:LOCALAPPDATA = $env:APPDATA
+          $env:DICODEPING_DISCOVERY_SMOKE = "1"
+          $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP "windows-smoke.txt"
+          $arguments = @(
+            "--startup-smoke-test",
+            "--discovery-smoke",
+            "--startup-smoke-report=$env:DICODEPING_STARTUP_SMOKE_REPORT"
+          )
+          $process = Start-Process -FilePath "release/dicodePing-v1.9.0-rc.6-windows-x64.exe" -ArgumentList $arguments -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
+            throw "Packaged Windows smoke test failed: $($process.ExitCode)"
+          }
+          Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/dicodePing-v1.9.0-rc.6-windows-x64.exe
+          if-no-files-found: error
+
+  linux:
+    needs: validate
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python tools/build_linux.py --skip-install
+          mkdir -p "$RUNNER_TEMP/dicodeping-v190-rc6-smoke"
+          tar -xzf release/dicodePing-v1.9.0-rc.6-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-v190-rc6-smoke"
+          binary="$RUNNER_TEMP/dicodeping-v190-rc6-smoke/dicodePing-v1.9.0-rc.6-linux-x86_64/dicodePing"
+          report="$RUNNER_TEMP/linux-smoke.txt"
+          env QT_QPA_PLATFORM=offscreen XDG_CONFIG_HOME="$RUNNER_TEMP/dicodeping-config" DICODEPING_DISCOVERY_SMOKE=1 DICODEPING_STARTUP_SMOKE_REPORT="$report" timeout 45s "$binary" --startup-smoke-test --discovery-smoke "--startup-smoke-report=$report"
+          cat "$report"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: release/dicodePing-v1.9.0-rc.6-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  macos:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            architecture: arm64
+          - os: macos-15-intel
+            architecture: x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+      - shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python tools/build_macos.py --skip-install
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.architecture }}
+          path: release/dicodePing-v1.9.0-rc.6-macos-${{ matrix.architecture }}.dmg
+          if-no-files-found: error
+
+  android:
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dicodePing_android
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/dicodePing_android/release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - shell: bash
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: |
+          set -euo pipefail
+          stale_controller="app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+          if [ -e "$stale_controller" ]; then
+            echo "Removing stale common-source AndroidTetheringController that conflicts with product flavors"
+            rm -f "$stale_controller"
+          fi
+          test -f app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
+          test -f app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
+          python ../tools/validate_android_gradle_kts.py
+          python tools/validate_project.py
+
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is missing" >&2
+            exit 1
+          fi
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          test -s "$ANDROID_KEYSTORE_PATH"
+          target="local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar"
+          mkdir -p "$(dirname "$target")"
+          curl --fail --location --retry 4 --output "$target" "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar"
+          echo "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352  $target" | sha256sum --check --strict
+          chmod +x gradlew build_apk_rc6.sh
+          ./build_apk_rc6.sh
+
+          apk="release/dicodePing-v1.9.0-rc.6-android.apk"
+          zipalign_bin="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -1)"
+          test -x "$zipalign_bin"
+          "$zipalign_bin" -c -P 16 -v 4 "$apk"
+          if unzip -Z1 "$apk" | grep -Eq '^lib/(armeabi-v7a|x86)/'; then
+            echo "32-bit native libraries are not allowed in the RC6 public APK" >&2
+            exit 1
+          fi
+          unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/.*\.so$'
+          unzip -Z1 "$apk" | grep -q '^lib/x86_64/.*\.so$'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dicodePing_android/release/dicodePing-v1.9.0-rc.6-android.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, linux, macos, android]
+    runs-on: ubuntu-latest
+    env:
+      PSIPHON_CLIENT_CONFIG_B64: ${{ secrets.PSIPHON_CLIENT_CONFIG_B64 }}
+      PSIPHON_CLIENT_CONFIG_SIGNATURE: ${{ secrets.PSIPHON_CLIENT_CONFIG_SIGNATURE }}
+      PSIPHON_SPONSOR_ID: ${{ secrets.PSIPHON_SPONSOR_ID }}
+      PSIPHON_PROPAGATION_CHANNEL_ID: ${{ secrets.PSIPHON_PROPAGATION_CHANNEL_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: |
+          set -euo pipefail
+          mkdir release-assets
+          cp artifacts/windows/* artifacts/linux/* artifacts/android/* release-assets/
+          cp artifacts/macos-arm64/* artifacts/macos-x86_64/* release-assets/
+          cp assets/core-manifest.json release-assets/core-manifest.json
+          cp docs/releases/v1.9.0-rc.6.md release-assets/RELEASE_NOTES.md
+          cp CHANGELOG.md THIRD_PARTY_NOTICES.md release-assets/
+          python tools/generate_sbom.py
+          cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
+          git archive --format=zip --output=release-assets/source.zip HEAD
+
+          curl --fail --location --retry 4 -o /tmp/aether-win.zip https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-windows-x86_64.zip
+          echo "4b4ac4c2dcade01c13bc6f1706f7f62e94c3b3058184212692bd9d598c0ce9b4  /tmp/aether-win.zip" | sha256sum --check --strict
+          cp /tmp/aether-win.zip release-assets/dicodePing-core-aether-1.4.0-windows-x64.zip
+
+          curl --fail --location --retry 4 -o /tmp/aether-linux.tar.gz https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-linux-x86_64.tar.gz
+          echo "683dc190a948e8555fc9738ef2d1be403d95606e191e75f0e6941012c6b869cd  /tmp/aether-linux.tar.gz" | sha256sum --check --strict
+          cp /tmp/aether-linux.tar.gz release-assets/dicodePing-core-aether-1.4.0-linux-x86_64.tar.gz
+
+          curl --fail --location --retry 4 -o /tmp/aether-macos-arm64.tar.gz https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-arm64.tar.gz
+          echo "a966c0d72aa90a6db000172f9bf88f225377fe4d8546cf2340ef6aee1ccbd958  /tmp/aether-macos-arm64.tar.gz" | sha256sum --check --strict
+          cp /tmp/aether-macos-arm64.tar.gz release-assets/dicodePing-core-aether-1.4.0-macos-arm64.tar.gz
+
+          curl --fail --location --retry 4 -o /tmp/aether-macos-x86_64.tar.gz https://github.com/CluvexStudio/Aether/releases/download/v1.4.0/aether-macos-x86_64.tar.gz
+          echo "ae2cd0a987d709ae017a9ea762b26f9276c418beb2a6f882253563c44b5aec1f  /tmp/aether-macos-x86_64.tar.gz" | sha256sum --check --strict
+          cp /tmp/aether-macos-x86_64.tar.gz release-assets/dicodePing-core-aether-1.4.0-macos-x86_64.tar.gz
+
+          curl --fail --location --retry 4 -o /tmp/usque-win.zip https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_windows_amd64.zip
+          echo "f6f7f0a1a2bc9bcc15cf563ec1f892d00690a92c086b23ed3211b802209099e7  /tmp/usque-win.zip" | sha256sum --check --strict
+          cp /tmp/usque-win.zip release-assets/dicodePing-core-usque-4.2.1-windows-x64.zip
+
+          curl --fail --location --retry 4 -o /tmp/usque-linux.zip https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_linux_amd64.zip
+          echo "4117e20695078af9c11edecd1a826c009bbc7ea0b7f64458612b4198910bc313  /tmp/usque-linux.zip" | sha256sum --check --strict
+          cp /tmp/usque-linux.zip release-assets/dicodePing-core-usque-4.2.1-linux-x86_64.zip
+
+          curl --fail --location --retry 4 -o /tmp/usque-macos-arm64.zip https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_arm64.zip
+          echo "762e2dc875669566207a3c776a53dc6bb50770da25f90e1ab69fbc53e91f8da1  /tmp/usque-macos-arm64.zip" | sha256sum --check --strict
+          cp /tmp/usque-macos-arm64.zip release-assets/dicodePing-core-usque-4.2.1-macos-arm64.zip
+
+          curl --fail --location --retry 4 -o /tmp/usque-macos-x86_64.zip https://github.com/Diniboy1123/usque/releases/download/v4.2.1/usque_4.2.1_darwin_amd64.zip
+          echo "1eb41e34bf4cd0b81e06222ef844cea75eb56229a62fe29c07cf8e7bd253357d  /tmp/usque-macos-x86_64.zip" | sha256sum --check --strict
+          cp /tmp/usque-macos-x86_64.zip release-assets/dicodePing-core-usque-4.2.1-macos-x86_64.zip
+
+          if [ -n "$PSIPHON_CLIENT_CONFIG_B64" ] && [ -n "$PSIPHON_CLIENT_CONFIG_SIGNATURE" ] && [ -n "$PSIPHON_SPONSOR_ID" ] && [ -n "$PSIPHON_PROPAGATION_CHANNEL_ID" ]; then
+            mkdir /tmp/psiphon-pack
+            printf '%s' "$PSIPHON_CLIENT_CONFIG_B64" | base64 -d > /tmp/psiphon-pack/client.config
+            printf '%s' "$PSIPHON_CLIENT_CONFIG_SIGNATURE" > /tmp/psiphon-pack/client.config.signature
+            printf '{"sponsorId":"%s","propagationChannelId":"%s"}\n' "$PSIPHON_SPONSOR_ID" "$PSIPHON_PROPAGATION_CHANNEL_ID" > /tmp/psiphon-pack/distribution.json
+            (cd /tmp/psiphon-pack && zip -r "$GITHUB_WORKSPACE/release-assets/dicodePing-core-psiphon-authorized.zip" .)
+          else
+            echo "Psiphon authorized config unavailable; capability remains disabled."
+          fi
+
+          printf '{"repository":"%s","commit":"%s","runId":"%s","workflow":"%s"}\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_WORKFLOW" > release-assets/provenance.json
+          (cd release-assets && sha256sum * > SHA256SUMS)
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.9.0-rc.6
+          target_commitish: ${{ github.sha }}
+          name: dicodePing v1.9.0-rc.6
+          body_path: docs/releases/v1.9.0-rc.6.md
+          prerelease: true
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: release-assets/*

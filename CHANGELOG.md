@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0 RC6
+
+- Integrated DicodeConfigChecker-style real Xray HTTP verification with repeated samples and median latency.
+- Added complete splash-screen source refresh, testing, geolocation and update checks before the UI opens.
+- Split scanner logs into All, Telegram and Real tests views with independent live metrics.
+- Corrected Persian right-edge and English left-edge sidebar alignment.
+- Added Android repeated native-core scanner verification and the single atomic `SUB` lifecycle.
+- Added bilingual Persian/English release notes and RC6 multi-platform pre-release automation.
+
 ## 1.9.0 RC5 Android build hotfix
 
 - Fixed the Gradle Kotlin DSL `Illegal escape: \.` error in the native-library validation regex.

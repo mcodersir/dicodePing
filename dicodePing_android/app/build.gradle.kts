@@ -86,11 +86,11 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 36
-        // RC3 used versionCode = 34; RC5 must be strictly greater.
-        versionCode = 40
+        // RC3 used versionCode = 34; RC6 must be strictly greater.
+        versionCode = 41
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.5"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.5\"")
+        versionName = "1.9.0-rc.6"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.6\"")
         multiDexEnabled = true
 
     }

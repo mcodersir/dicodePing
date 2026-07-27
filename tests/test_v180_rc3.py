@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_rc3_versions_are_consistent():
-    assert 'RELEASE_VERSION = "1.9.0-rc.5"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc5"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.6"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc6"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'versionName = "1.9.0-rc.5"' in gradle
-    assert "versionCode = 40" in gradle
+    assert 'versionName = "1.9.0-rc.6"' in gradle
+    assert "versionCode = 41" in gradle
 
 
 def test_manifest_is_sha_only_fallback_and_never_claims_signature():
@@ -92,9 +92,11 @@ def test_scanner_has_no_continue_on_bootstrap_or_disconnect():
 
 def test_scanner_uses_bounded_probe_queue_and_real_http_probe():
     scanner = (ROOT / "dicodeping/scanner.py").read_text("utf-8")
+    checker = (ROOT / "dicodeping/config_checker.py").read_text("utf-8")
     xray = (ROOT / "dicodeping/xray.py").read_text("utf-8")
-    assert "SCAN_PROBE_WORKERS = min(12" in scanner
+    assert "SCAN_PROBE_WORKERS = min(8" in scanner
     assert "while len(future_to_raw) < SCAN_PROBE_QUEUE_LIMIT" in scanner
+    assert "probe_outbound_delay" in checker
     assert "_socks_http_probe" in xray
     assert "/generate_204" in xray
 
