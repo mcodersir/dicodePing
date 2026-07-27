@@ -65,7 +65,7 @@ val verifyCore by tasks.registering {
         if ("classes.jar" !in entries) {
             throw GradleException("Android core is invalid: classes.jar is missing.")
         }
-        if (entries.none { it.matches(Regex("jni/.+/(libgojni|libv2ray)\.so")) }) {
+        if (entries.none { it.matches(Regex("""jni/.+/(libgojni|libv2ray)\.so""")) }) {
             throw GradleException("Android core is invalid: native Android libraries are missing.")
         }
         for (abi in listOf("arm64-v8a", "x86_64")) {

@@ -548,6 +548,7 @@ tools/prepare_build_workspace.py
 tools/prepare_core.py
 tools/prepare_optional_cores.py
 tools/quality_gate.py
+tools/validate_android_gradle_kts.py
 tools/verify_version.py
 tools/wait_for_github_release.ps1
 tools/wait_for_github_release_rc5.ps1

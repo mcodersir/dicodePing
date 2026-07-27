@@ -32,6 +32,7 @@ jobs:
           python -m pip install -r requirements-build.txt
           python tools/prepare_build_workspace.py
           python tools/verify_version.py --tag v1.9.0-rc.5
+          python tools/validate_android_gradle_kts.py
           python -m pytest -q
           python tools/quality_gate.py
           python dicodePing_android/tools/validate_project.py
@@ -160,6 +161,7 @@ jobs:
           fi
           test -f app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
           test -f app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt
+          python ../tools/validate_android_gradle_kts.py
           python tools/validate_project.py
 
           if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then

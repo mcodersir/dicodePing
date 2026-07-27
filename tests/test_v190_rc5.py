@@ -92,6 +92,18 @@ def test_android_rc5_is_api36_64_bit_and_serializes_native_core() -> None:
     assert bridge.count("@Synchronized") >= 4
 
 
+def test_android_core_validation_regex_is_valid_kotlin_dsl() -> None:
+    gradle = read("dicodePing_android/app/build.gradle.kts")
+    validator = read("tools/validate_android_gradle_kts.py")
+    deploy = read("DEPLOY_PRERELEASE_RC5.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.5-release.yml")
+    assert 'Regex("""jni/.+/(libgojni|libv2ray)\\.so""")' in gradle
+    assert 'Regex("jni/.+/(libgojni|libv2ray)\\.so")' not in gradle
+    assert "Android Gradle Kotlin DSL regex validation passed" in validator
+    assert "validate_android_gradle_kts.py" in deploy
+    assert workflow.count("validate_android_gradle_kts.py") == 2
+
+
 def test_android_flavors_do_not_redeclare_tethering_controller() -> None:
     controllers = list((ROOT / "dicodePing_android/app/src").rglob("AndroidTetheringController.kt"))
     relative = {path.relative_to(ROOT).as_posix() for path in controllers}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.0 RC5 Android build hotfix
+
+- Fixed the Gradle Kotlin DSL `Illegal escape: \.` error in the native-library validation regex.
+- Added local, test-suite, and GitHub Actions preflight checks so this exact script-compilation regression is rejected before the APK build.
+
 ## 1.9.0 RC5
 
 - Replaced the scanner's fixed 20-second bootstrap poll with a worker-result handshake and separate 55-second connection / 18-second teardown guards.

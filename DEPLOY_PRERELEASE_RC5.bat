@@ -168,6 +168,12 @@ if errorlevel 1 (
     popd
     goto :failed
 )
+python tools\validate_android_gradle_kts.py
+if errorlevel 1 (
+    echo [ERROR] Android Gradle Kotlin DSL validation failed before push.
+    popd
+    goto :failed
+)
 python dicodePing_android\tools\validate_project.py
 if errorlevel 1 (
     echo [ERROR] Android source validation failed before push.

@@ -1,9 +1,10 @@
 dicodePing v1.9.0-rc.5 local source validation
 
 - Python compileall: passed
-- Pytest: 195 passed
+- Pytest: 196 passed
 - Quality gate: 0 errors, 0 warnings
 - Android project validator: passed
+- Android Gradle Kotlin DSL regex preflight: passed
 - Android XML validation: 55 files
 - Android localized strings validation: 213 strings
 - Version consistency: package=1.9.0rc5, release=1.9.0-rc.5
