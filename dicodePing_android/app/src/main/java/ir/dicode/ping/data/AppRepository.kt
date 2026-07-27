@@ -240,13 +240,10 @@ class AppRepository private constructor(context: Context) {
     ): List<ServerRecord> =
         withContext(Dispatchers.IO) {
             refreshMutex.withLock {
-                val sourceName = requestedName.trim().take(64).ifBlank {
-                    "Scanner ${java.text.SimpleDateFormat("yyyy-MM-dd HH-mm", java.util.Locale.US).format(java.util.Date())}"
-                }
-                val sourceId = "scanner-" + MessageDigest.getInstance("SHA-256")
-                    .digest(sourceName.toByteArray())
-                    .take(6)
-                    .joinToString("") { "%02x".format(it) }
+                @Suppress("UNUSED_VARIABLE")
+                val ignoredRequestedName = requestedName
+                val sourceName = SCANNER_SOURCE_NAME
+                val sourceId = SCANNER_SOURCE_ID
                 val parsed = configs.asSequence()
                     .map(String::trim)
                     .filter(String::isNotBlank)
@@ -333,9 +330,9 @@ class AppRepository private constructor(context: Context) {
                     order = sources.value.size,
                     enabled = true,
                 )
-                val nextSources = (sources.value.filterNot { it.id == sourceId } + source)
+                val nextSources = (sources.value.filterNot { it.id.startsWith("scanner-") } + source)
                     .mapIndexed { index, item -> item.apply { order = index } }
-                val nextServers = servers.value.filterNot { it.sourceId == sourceId } + healthy
+                val nextServers = servers.value.filterNot { it.sourceId.startsWith("scanner-") } + healthy
                 onSaving()
                 val rawSubscription = healthy.joinToString("\n") { it.raw }
                 settings.saveScannerTransaction(
@@ -597,8 +594,17 @@ class AppRepository private constructor(context: Context) {
     fun updateSource(updated: SourceDefinition) =
         saveSources(sources.value.map { if (it.id == updated.id) updated else it })
 
-    fun removeSource(id: String) =
-        saveSources(sources.value.filterNot { it.id == id && !it.isDefault })
+    fun removeSource(id: String) {
+        val selected = sources.value.firstOrNull { it.id == id } ?: return
+        if (selected.isDefault) return
+        val nextSources = sources.value.filterNot { it.id == id }
+        val nextServers = servers.value.filterNot { it.sourceId == id }
+        sources.value = nextSources.mapIndexed { index, source -> source.apply { order = index } }
+        servers.value = sortServers(nextServers)
+        settings.saveSources(sources.value)
+        settings.saveServers(servers.value)
+        if (id.startsWith("scanner-")) settings.clearScannerResult()
+    }
 
     fun moveSource(id: String, delta: Int) {
         val list = sources.value.toMutableList()
@@ -678,6 +684,8 @@ class AppRepository private constructor(context: Context) {
         .joinToString("") { "%02x".format(it) }
 
     companion object {
+        const val SCANNER_SOURCE_ID = "scanner-sub"
+        const val SCANNER_SOURCE_NAME = "SUB"
         private const val REAL_PROXY_PING = "PROXY_HTTP"
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000

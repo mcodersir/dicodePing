@@ -59,11 +59,11 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private var job: Job? = null
 
     @Synchronized
-    fun start(name: String, rank1: Int = 3, rank2: Int = 3) {
+    fun start(name: String = "SUB", rank1: Int = 3, rank2: Int = 3) {
         if (job?.isActive == true) return
         stop.set(false)
         job = scope.launch {
-            runCatching { run(name, normalizeLimit(rank1), normalizeLimit(rank2)) }
+            runCatching { run("SUB", normalizeLimit(rank1), normalizeLimit(rank2)) }
                 .onFailure { error ->
                     if (error is CancellationException || stop.get()) {
                         update(ScannerStage.STOPPED, result = "اسکن متوقف شد؛ هنوز سرور سالمی پیدا نشده بود.")
@@ -99,14 +99,11 @@ class ScannerCoordinator private constructor(private val context: Context) {
         val started = System.nanoTime()
         update(ScannerStage.CRAWLING, total = channels.size, log = "Crawling canonical Xray channels")
         val configs = TelegramChannelCrawler.crawl(channels, tuning.crawlWorkers, channelPlan) { done, total, channel ->
-            val elapsed = max(1.0, (System.nanoTime() - started) / 1_000_000_000.0)
-            val rate = done / elapsed
-            val eta = if (done >= 2 && rate > 0) ((total - done) / rate).toLong() else null
             _state.value = _state.value.copy(
                 progress = if (total > 0) done * 45 / total else 0,
                 done = done,
                 total = total,
-                etaSeconds = eta,
+                etaSeconds = null,
                 log = (_state.value.log + "Fetched ${mask(channel)}").takeLast(MAX_LOG_LINES),
             )
         }
@@ -127,14 +124,12 @@ class ScannerCoordinator private constructor(private val context: Context) {
                 update(ScannerStage.SAVING, progress = 97, log = "Committing verified results")
             },
             onProgress = { done, total, alive ->
-                val elapsed = max(1.0, (System.nanoTime() - probeStarted) / 1_000_000_000.0)
-                val rate = done / elapsed
                 _state.value = _state.value.copy(
                     progress = 50 + if (total > 0) done * 45 / total else 0,
                     done = done,
                     total = total,
                     alive = alive,
-                    etaSeconds = if (done >= 2 && rate > 0) ((total - done) / rate).toLong() else null,
+                    etaSeconds = null,
                 )
             },
         )
@@ -263,8 +258,8 @@ class ScannerCoordinator private constructor(private val context: Context) {
     private fun mask(value: String): String = value.take(48).replace(Regex("[?&#].*"), "")
 
     companion object {
-        private const val CONNECTION_TIMEOUT_MS = 30_000L
-        private const val DISCONNECT_TIMEOUT_MS = 10_000L
+        private const val CONNECTION_TIMEOUT_MS = 45_000L
+        private const val DISCONNECT_TIMEOUT_MS = 15_000L
         private const val MAX_LOG_LINES = 120
         @Volatile private var instance: ScannerCoordinator? = null
         fun get(context: Context): ScannerCoordinator = instance ?: synchronized(this) {

@@ -11,5 +11,5 @@ class SourceAdapter(private val onEdit:(SourceDefinition)->Unit,private val onTo
     inner class H(val b:ItemSourceBinding):RecyclerView.ViewHolder(b.root)
     override fun onCreateViewHolder(p:ViewGroup,v:Int)=H(ItemSourceBinding.inflate(LayoutInflater.from(p.context),p,false))
     override fun getItemCount()=items.size
-    override fun onBindViewHolder(h:H,pos:Int){val s=items[pos];with(h.b){name.text=s.name;url.text=s.url;enabled.setOnCheckedChangeListener(null);enabled.isChecked=s.enabled;enabled.isEnabled=!s.isDefault;delete.isEnabled=!s.isDefault;up.isEnabled=pos>0;down.isEnabled=pos<items.lastIndex;edit.setOnClickListener{onEdit(s)};enabled.setOnCheckedChangeListener{_,x->onToggle(s,x)};delete.setOnClickListener{onDelete(s)};up.setOnClickListener{onMove(s,-1)};down.setOnClickListener{onMove(s,1)}}}
+    override fun onBindViewHolder(h:H,pos:Int){val s=items[pos];with(h.b){name.text=s.name;url.text=if(s.url.isBlank()) "Local scanner output" else s.url;enabled.setOnCheckedChangeListener(null);enabled.isChecked=s.enabled;enabled.isEnabled=!s.isDefault;delete.isEnabled=!s.isDefault;up.isEnabled=pos>0;down.isEnabled=pos<items.lastIndex;edit.setOnClickListener{onEdit(s)};enabled.setOnCheckedChangeListener{_,x->onToggle(s,x)};delete.setOnClickListener{onDelete(s)};up.setOnClickListener{onMove(s,-1)};down.setOnClickListener{onMove(s,1)}}}
 }

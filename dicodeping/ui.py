@@ -207,11 +207,11 @@ def build_stylesheet(theme: str) -> str:
     QPushButton[kind="ghost"] {{ background: transparent; border-color: transparent; color: {c['muted']}; }}
     QPushButton[kind="ghost"]:hover {{ background: {c['surface3']}; color: {c['text']}; }}
     QPushButton#navButton {{
-        min-height: 44px; max-height: 44px; padding: 0 14px; text-align: start; background: transparent;
+        min-height: 44px; max-height: 44px; padding: 0 14px; background: transparent;
         border-color: transparent; color: {c['muted']};
     }}
     QPushButton#navButton:hover {{ background: {c['surface2']}; color: {c['text']}; }}
-    QPushButton#navButton:checked {{ background: {c['accent']}; color: #FFFFFF; border-color: {c['accent']}; }}
+    QPushButton#navButton:checked {{ background: {c['accentSoft']}; color: {c['accent']}; border-color: transparent; }}
     QPushButton#windowButton, QPushButton#closeButton {{
         min-width: 36px; max-width: 36px; min-height: 32px; max-height: 32px;
         padding: 0; border: 0; border-radius: 8px; background: transparent;
@@ -687,6 +687,17 @@ class Sidebar(QFrame):
         version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)
         self.version_label = version
+        self._apply_button_alignment()
+
+    def _apply_button_alignment(self) -> None:
+        direction = Qt.RightToLeft if self.window.is_rtl else Qt.LeftToRight
+        alignment = "right" if self.window.is_rtl else "left"
+        for button in [self.menu_button, *self.buttons]:
+            button.setLayoutDirection(direction)
+            if self.expanded:
+                button.setStyleSheet(f"text-align:{alignment};padding-left:14px;padding-right:14px;")
+            else:
+                button.setStyleSheet("text-align:center;padding:0;")
 
     def _request_page(self, index: int, _checked: bool = False) -> None:
         self.page_requested.emit(index)
@@ -718,6 +729,7 @@ class Sidebar(QFrame):
             button.setText(self.window.t(self.keys[position]) if expanded else "")
             button.setToolTip("" if expanded else self.window.t(self.keys[position]))
         self.menu_button.setText(self.window.t("menu") if expanded else "")
+        self._apply_button_alignment()
         self.navigation_label.setVisible(expanded)
         self.status_card.setVisible(expanded)
         self.version_label.setText(f"dicodePing  v{RELEASE_VERSION}" if expanded else f"v{RELEASE_VERSION}")
@@ -1401,23 +1413,26 @@ class MainWindow(QMainWindow):
         # RC3 intentionally uses one primary button that changes behavior.
         action_layout.addLayout(action_top)
 
-        # Optional custom sub name input.
+        # RC5 exposes one stable, copyable scanner source named SUB.
         name_row = QHBoxLayout()
         self.scanner_name_layout = name_row
         name_row.setSpacing(8)
-        name_label = QLabel(self.t("scanner_name_prompt"))
+        name_label = QLabel("نام ساب ثابت" if self.language != "en" else "Fixed subscription")
         name_label.setObjectName("muted")
         name_label.setMinimumWidth(110)
         name_row.addWidget(name_label)
-        self.scanner_name_edit = QLineEdit()
-        self.scanner_name_edit.setPlaceholderText(self.t("scanner_name_prompt"))
-        self.scanner_name_edit.setAlignment(Qt.AlignRight if self.is_rtl else Qt.AlignLeft)
-        self.scanner_name_edit.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
+        self.scanner_name_edit = QLineEdit("SUB")
+        self.scanner_name_edit.setReadOnly(True)
+        self.scanner_name_edit.setAlignment(Qt.AlignCenter)
+        self.scanner_name_edit.setToolTip(
+            "هر بار اسکن، همین ساب را به‌روزرسانی می‌کند" if self.language != "en"
+            else "Every scan updates this same subscription"
+        )
         name_row.addWidget(self.scanner_name_edit, 1)
         action_layout.addLayout(name_row)
 
         # Stage indicator (3 dots / labels).
-        stage_row = QBoxLayout(QBoxLayout.LeftToRight)
+        stage_row = QBoxLayout(QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
         self.scanner_stepper_layout = stage_row
         stage_row.setSpacing(10)
         self.scanner_stage_labels: list[QLabel] = []
@@ -1441,28 +1456,34 @@ class MainWindow(QMainWindow):
             step_layout.addWidget(caption, 1)
             stage_row.addWidget(step, 1)
             self.scanner_stage_labels.append(dot)
-        # Live "alive count" badge.
+        action_layout.addLayout(stage_row)
+
+        # Throughput and health are kept on their own responsive row so long
+        # Persian text cannot crush or overlap the three-stage indicator.
+        metrics_row = QBoxLayout(QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
+        self.scanner_metrics_layout = metrics_row
+        metrics_row.setSpacing(8)
         self.scanner_alive_label = QLabel("")
         self.scanner_alive_label.setObjectName("muted")
         self.scanner_alive_label.setStyleSheet(
             "background:#10271D;color:#4FD08A;border-radius:10px;"
-            "padding:3px 10px;font-weight:700;"
+            "padding:5px 10px;font-weight:700;"
         )
         self.scanner_alive_label.setVisible(False)
-        stage_row.addWidget(self.scanner_alive_label)
-        # RC3: real throughput instead of an unreliable finish-time estimate.
+        metrics_row.addWidget(self.scanner_alive_label)
         self.scanner_speed_label = QLabel(
             "تلگرام: —  |  تست اتصال: —" if self.language != "en" else "Telegram: —  |  Tests: —"
         )
         self.scanner_speed_label.setObjectName("muted")
+        self.scanner_speed_label.setWordWrap(True)
         self.scanner_speed_label.setStyleSheet(
             "background:#19233E;color:#8FB3FF;border-radius:10px;"
-            "padding:3px 10px;font-weight:700;"
+            "padding:5px 10px;font-weight:700;"
         )
         self.scanner_speed_label.setVisible(False)
         self.scanner_eta_label = self.scanner_speed_label  # compatibility alias
-        stage_row.addWidget(self.scanner_speed_label)
-        action_layout.addLayout(stage_row)
+        metrics_row.addWidget(self.scanner_speed_label, 1)
+        action_layout.addLayout(metrics_row)
 
         # Status line.
         self.scanner_stage_label = QLabel(self.t("ready"))
@@ -1505,7 +1526,7 @@ class MainWindow(QMainWindow):
         self.scanner_log_view = QPlainTextEdit()
         self.scanner_log_view.setReadOnly(True)
         self.scanner_log_view.setMaximumBlockCount(1200)
-        self.scanner_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.scanner_log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.scanner_log_view.setStyleSheet(
             "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
             "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; }"
@@ -1589,7 +1610,7 @@ class MainWindow(QMainWindow):
 
         if self.scanner_thread is not None and self.scanner_thread.isRunning():
             return
-        custom_name = self.scanner_name_edit.text().strip() if hasattr(self, "scanner_name_edit") else ""
+        custom_name = "SUB"
         # Pull the per-channel limits from settings.
         from .scanner import normalize_rank_limit
         rank1_limit = normalize_rank_limit(self.settings.get("scanner_rank1_limit", 3))
@@ -1661,20 +1682,33 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _scanner_connect_bootstrap(self, server_id: str) -> None:
-        """UI-thread callback: connect to the chosen bootstrap server."""
+        """Start bootstrap connection and report its actual completion to the scanner."""
+        self._scanner_bootstrap_server_id = str(server_id or "")
+        thread = self.scanner_thread
         try:
-            self.connect_by_id(server_id)
-        except Exception:
+            if not self._scanner_bootstrap_server_id:
+                raise RuntimeError("Scanner selected an empty bootstrap server id.")
+            self.connect_by_id(self._scanner_bootstrap_server_id)
+            if not self.worker and not self.manager.connected:
+                raise RuntimeError("Bootstrap connection worker did not start.")
+        except Exception as exc:
             LOGGER.exception("Scanner: bootstrap connect failed")
+            if thread is not None:
+                thread.notify_connection_result(False, str(exc))
 
     @Slot()
     def _scanner_disconnect_bootstrap(self) -> None:
-        """UI-thread callback: tear down the bootstrap TUN connection."""
+        """Tear down bootstrap and notify the scanner only after cleanup ends."""
+        thread = self.scanner_thread
         try:
-            if self.manager.connected:
+            if self.manager.connected or getattr(self, "_disconnecting", False):
                 self.disconnect(show_message=False)
-        except Exception:
+            elif thread is not None:
+                thread.notify_disconnected(True)
+        except Exception as exc:
             LOGGER.exception("Scanner: bootstrap disconnect failed")
+            if thread is not None:
+                thread.notify_disconnected(False, str(exc))
 
     def _scanner_stage_updated(self, text: str) -> None:
         self.scanner_stage_label.setText(text)
@@ -1809,6 +1843,7 @@ class MainWindow(QMainWindow):
             )
         self.scanner_latest_sub = getattr(result, "sub_name", "") or ""
         try:
+            self.settings = self.store.load_settings()
             self.sources = normalize_sources(self.settings, self.language)
             self.settings["sources"] = serialize_sources(self.sources)
         except Exception:
@@ -2797,8 +2832,14 @@ class MainWindow(QMainWindow):
                 (QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight)
             )
         if hasattr(self, "scanner_stepper_layout"):
+            wide_direction = QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight
             self.scanner_stepper_layout.setDirection(
-                QBoxLayout.TopToBottom if mode is WindowClass.COMPACT else QBoxLayout.LeftToRight
+                QBoxLayout.TopToBottom if width < 860 else wide_direction
+            )
+        if hasattr(self, "scanner_metrics_layout"):
+            wide_direction = QBoxLayout.RightToLeft if self.is_rtl else QBoxLayout.LeftToRight
+            self.scanner_metrics_layout.setDirection(
+                QBoxLayout.TopToBottom if width < 760 else wide_direction
             )
         super().resizeEvent(event)
 
@@ -2912,14 +2953,28 @@ class MainWindow(QMainWindow):
         self.connection_monitor = monitor
         monitor.start()
 
+    def _release_retired_thread(self, thread: object) -> None:
+        retired = getattr(self, "_retired_threads", [])
+        if thread in retired:
+            retired.remove(thread)
+        if hasattr(thread, "deleteLater"):
+            thread.deleteLater()
+
     def _stop_connection_monitor(self) -> None:
         monitor = self.connection_monitor
         self.connection_monitor = None
         if not monitor:
             return
         monitor.requestInterruption()
-        if monitor.isRunning():
-            monitor.wait(1500)
+        if monitor.isRunning() and not monitor.wait(2600):
+            retired = getattr(self, "_retired_threads", None)
+            if retired is None:
+                retired = []
+                self._retired_threads = retired
+            if monitor not in retired:
+                retired.append(monitor)
+                monitor.finished.connect(lambda m=monitor: self._release_retired_thread(m))
+            return
         monitor.deleteLater()
 
     def _connection_metrics_updated(self, payload: object) -> None:
@@ -3628,6 +3683,10 @@ class MainWindow(QMainWindow):
         LOGGER.info("Connection verified: id=%s host=%s", item.id, item.host)
         self._stop_connect_animation()
         self.connected_id = item.id
+        scanner = getattr(self, "scanner_thread", None)
+        expected = getattr(self, "_scanner_bootstrap_server_id", "")
+        if scanner is not None and scanner.isRunning() and (not expected or expected == item.id):
+            scanner.notify_connection_result(True)
         self._auto_connect_queue.clear()
         self._automatic_connect_attempt = False
         self._connecting_server_id = ""
@@ -3655,13 +3714,19 @@ class MainWindow(QMainWindow):
 
     def connect_failed(self, message: str) -> None:
         LOGGER.error("Connection failed: %s", message)
+        scanner = getattr(self, "scanner_thread", None)
+        scanner_waiting = scanner is not None and scanner.isRunning()
+        if scanner_waiting:
+            scanner.notify_connection_result(False, message)
         failed_id = self._connecting_server_id
         was_automatic = self._automatic_connect_attempt
         self._automatic_connect_attempt = False
         self._connecting_server_id = ""
         self._stop_connect_animation()
         self._stop_connection_monitor()
-        self.manager.stop()
+        # Connection workers and core managers already own failure cleanup.
+        # Running stop() again on the GUI thread can block Qt and race a
+        # simultaneous disconnect, so only schedule the UI-side cleanup here.
         if self._sharing_thread and self._sharing_thread.isRunning():
             self._sharing_thread.requestInterruption()
         self._sharing_thread = SharingThread(enable=False)
@@ -3685,7 +3750,8 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(300, self._continue_auto_connect)
         else:
             self._auto_connect_queue.clear()
-            AppDialog.error(self, self.t("connection_error"), message, self.t("ok"))
+            if not scanner_waiting:
+                AppDialog.error(self, self.t("connection_error"), message, self.t("ok"))
         self.render_servers()
 
     def _continue_auto_connect(self) -> None:
@@ -3832,8 +3898,10 @@ class MainWindow(QMainWindow):
             name_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
             self.source_manager_table.setItem(row, 1, name_item)
 
-            url_item = QTableWidgetItem(source.url)
-            url_item.setToolTip(source.url)
+            source_url_text = source.url or ("خروجی محلی اسکنر" if self.language != "en" else "Local scanner output")
+            url_item = QTableWidgetItem(source_url_text)
+            url_item.setData(Qt.UserRole + 2, source.url)
+            url_item.setToolTip(source_url_text)
             url_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             self.source_manager_table.setItem(row, 2, url_item)
 
@@ -3861,7 +3929,7 @@ class MainWindow(QMainWindow):
                 SourceDefinition(
                     id="default" if is_default else source_id,
                     name=name,
-                    url=DEFAULT_SUBSCRIPTION_URL if is_default else url_item.text().strip(),
+                    url=DEFAULT_SUBSCRIPTION_URL if is_default else str(url_item.data(Qt.UserRole + 2) if url_item.data(Qt.UserRole + 2) is not None else url_item.text()).strip(),
                     order=row,
                     enabled=True if is_default else enabled_item.checkState() == Qt.Checked,
                     is_default=is_default,
@@ -3926,10 +3994,22 @@ class MainWindow(QMainWindow):
         if selected.is_default:
             AppDialog.info(self, self.t("sources"), self.t("default_source_locked"), self.t("ok"))
             return
+        removed_id = selected.id
         self.sources = [source for index, source in enumerate(current) if index != row]
         for order, source in enumerate(self.sources):
             source.order = order
+        self.servers = [server for server in self.servers if server.source_id != removed_id]
+        self.settings["sources"] = serialize_sources(self.sources)
+        self.store.save_settings(self.settings)
+        self.store.save_servers(self.servers)
+        if removed_id.startswith("scanner-"):
+            from .scanner import delete_scanner_sub
+            delete_scanner_sub()
+            self.scanner_latest_sub = ""
+            self._refresh_scanner_history()
         self.render_subscription_list()
+        self.render_source_tabs()
+        self.render_servers()
 
     def save_settings_page(self) -> None:
         old_language = self.language

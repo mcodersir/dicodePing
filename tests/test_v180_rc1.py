@@ -16,9 +16,9 @@ def test_release_version_and_optional_cores_are_not_bundled():
 
 
 def test_scanner_preserves_and_sanitizes_user_source_name():
-    assert generate_sub_name("  Office scan  ") == "Office scan"
-    assert generate_sub_name('bad<>:"/\\|?*name') == "bad name"
-    assert generate_sub_name("").startswith("Scanner ")
+    assert generate_sub_name("  Office scan  ") == "SUB"
+    assert generate_sub_name('bad<>:"/\\|?*name') == "SUB"
+    assert generate_sub_name("") == "SUB"
 
 
 def test_cdn_formatting_keeps_origin_as_vless_host_and_sni():

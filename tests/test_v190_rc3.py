@@ -18,14 +18,14 @@ def _vless(host: str, port: int = 443) -> str:
 
 
 def test_rc3_release_entrypoints_and_metadata() -> None:
-    assert (ROOT / "BUILD_RELEASE_RC4.bat").is_file()
-    assert (ROOT / "RUN_SOURCE_RC4.bat").is_file()
-    assert (ROOT / "app_v190_rc4.py").is_file()
-    build = (ROOT / "BUILD_RELEASE_RC4.bat").read_text("utf-8")
-    assert "--tag v1.9.0-rc.4" in build
+    assert (ROOT / "BUILD_RELEASE_RC5.bat").is_file()
+    assert (ROOT / "RUN_SOURCE_RC5.bat").is_file()
+    assert (ROOT / "app_v190_rc5.py").is_file()
+    build = (ROOT / "BUILD_RELEASE_RC5.bat").read_text("utf-8")
+    assert "--tag v1.9.0-rc.5" in build
     assert "tools\\build_windows.py --skip-install" in build
     assert "legacy-style portable Windows EXE" in build
-    assert "BUILD_SIGNED_APK_RC4.bat" in build
+    assert "BUILD_SIGNED_APK_RC5.bat" in build
 
 
 def test_scanner_ui_uses_queued_slots_batched_logs_and_highlighting() -> None:

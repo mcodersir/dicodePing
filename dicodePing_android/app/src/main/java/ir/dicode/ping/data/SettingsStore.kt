@@ -121,6 +121,10 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("servers", arr.toString()).apply()
     }
 
+    fun clearScannerResult() {
+        prefs.edit().remove("scanner_last_result").apply()
+    }
+
     fun saveScannerTransaction(
         sources: List<SourceDefinition>,
         servers: List<ServerRecord>,

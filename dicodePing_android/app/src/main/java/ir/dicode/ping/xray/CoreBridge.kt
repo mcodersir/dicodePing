@@ -95,6 +95,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         Base64.decode(value, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING).size == 32
     }.getOrDefault(false)
 
+    @Synchronized
     fun isRunning(): Boolean {
         val c = controller ?: return false
         return runCatching {
@@ -110,6 +111,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         }.getOrDefault(false)
     }
 
+    @Synchronized
     fun queryTrafficDelta(): Pair<Long, Long> {
         val c = controller ?: return 0L to 0L
         return runCatching {
@@ -141,6 +143,7 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
     }
 
     /** Measures an HTTP round trip through the running Xray outbound. */
+    @Synchronized
     fun measureDelay(urls: List<String> = PROBE_URLS): Long? {
         val c = controller ?: return null
         val method = c.javaClass.methods.firstOrNull {

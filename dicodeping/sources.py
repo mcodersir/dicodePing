@@ -26,10 +26,11 @@ def normalize_sources(settings: dict[str, Any], language: str = "fa") -> list[So
                 continue
             item = SourceDefinition.from_dict(raw)
             item.url = item.url.strip()
-            if not item.url.lower().startswith(("http://", "https://")):
+            is_local = item.id.startswith("scanner-") and not item.url
+            if not is_local and not item.url.lower().startswith(("http://", "https://")):
                 continue
             item.id = item.id or source_id_for_url(item.url)
-            item.name = item.name.strip() or default_source_name(language)
+            item.name = item.name.strip() or ("SUB" if is_local else default_source_name(language))
             rows.append(item)
 
     # Migration from the older custom_subscriptions setting.
@@ -78,7 +79,7 @@ def normalize_sources(settings: dict[str, Any], language: str = "fa") -> list[So
     deduped: list[SourceDefinition] = []
     seen_urls: set[str] = set()
     for item in sorted(rows, key=lambda row: (row.order, row.name.casefold())):
-        key = item.url.casefold()
+        key = item.url.casefold() if item.url else f"local:{item.id.casefold()}"
         if key in seen_urls:
             continue
         seen_urls.add(key)

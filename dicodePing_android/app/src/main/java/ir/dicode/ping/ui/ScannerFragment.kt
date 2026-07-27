@@ -47,16 +47,15 @@ class ScannerFragment : Fragment() {
                     Intent(requireContext(), ScannerService::class.java).setAction(ScannerService.ACTION_STOP)
                 )
             } else {
-                val name = binding.scannerNameEdit.text?.toString().orEmpty().trim()
                 ContextCompat.startForegroundService(
                     requireContext(),
                     Intent(requireContext(), ScannerService::class.java)
-                        .putExtra(ScannerService.EXTRA_NAME, name),
+                        .putExtra(ScannerService.EXTRA_NAME, "SUB"),
                 )
             }
         }
         binding.copyAllButton.setOnClickListener {
-            val servers = vm.repo.servers.value.filter { it.sourceId.startsWith("scanner-") && it.healthy }
+            val servers = vm.repo.servers.value.filter { it.sourceId == "scanner-sub" && it.healthy }
             if (servers.isEmpty()) {
                 Snackbar.make(binding.root, R.string.scanner_empty_history, Snackbar.LENGTH_SHORT).show()
             } else {
@@ -78,7 +77,6 @@ class ScannerFragment : Fragment() {
                             append(state.stage.name.lowercase())
                             if (state.total > 0) append(" • ${state.done}/${state.total}")
                             append(" • ${state.alive} healthy")
-                            state.etaSeconds?.let { append(" • ETA ${it}s") }
                         }
                         binding.scannerResultLabel.text = state.result
                         binding.scannerRunButton.text = getString(
@@ -88,7 +86,7 @@ class ScannerFragment : Fragment() {
                 }
                 launch {
                     vm.repo.servers.collect { servers ->
-                        val count = servers.count { it.sourceId.startsWith("scanner-") && it.healthy }
+                        val count = servers.count { it.sourceId == "scanner-sub" && it.healthy }
                         binding.scannerHistoryEmpty.visibility = if (count == 0) View.VISIBLE else View.GONE
                         binding.scannerHistoryContent.visibility = if (count == 0) View.GONE else View.VISIBLE
                         if (count > 0) {

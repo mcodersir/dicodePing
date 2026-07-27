@@ -367,22 +367,62 @@ class ScannerThread(QThread):
         self._log_lock = threading.Lock()
         self._log_buffer: list[str] = []
         self._last_log_flush = time.monotonic()
+        self._connection_event = threading.Event()
+        self._disconnect_event = threading.Event()
+        self._connection_ok = False
+        self._connection_message = ""
+        self._disconnect_ok = False
+        self._disconnect_message = ""
 
     def requestStop(self) -> None:  # noqa: N802
         self._stop_event.set()
         self.requestInterruption()
 
     def _request_connect(self, server_id: str) -> None:
+        self._connection_ok = False
+        self._connection_message = ""
+        self._connection_event.clear()
         if self.connect_callback is not None:
             self.connect_callback(server_id)
         else:
             self.connect_requested.emit(server_id)
 
     def _request_disconnect(self) -> None:
+        self._disconnect_ok = False
+        self._disconnect_message = ""
+        self._disconnect_event.clear()
         if self.disconnect_callback is not None:
             self.disconnect_callback()
         else:
             self.disconnect_requested.emit()
+
+    def notify_connection_result(self, success: bool, message: str = "") -> None:
+        self._connection_ok = bool(success)
+        self._connection_message = str(message or "")
+        self._connection_event.set()
+
+    def notify_disconnected(self, success: bool = True, message: str = "") -> None:
+        self._disconnect_ok = bool(success)
+        self._disconnect_message = str(message or "")
+        self._disconnect_event.set()
+
+    def _wait_for_event(self, event: threading.Event, timeout: float, *, connected: bool) -> tuple[bool, str]:
+        deadline = time.monotonic() + max(0.1, timeout)
+        while time.monotonic() < deadline:
+            if self._stop_event.is_set() or self.isInterruptionRequested():
+                return False, "Scanner stopped while waiting for the network operation."
+            if event.wait(min(0.15, max(0.01, deadline - time.monotonic()))):
+                if connected:
+                    return self._connection_ok, self._connection_message
+                return self._disconnect_ok, self._disconnect_message
+        action = "connection" if connected else "disconnect"
+        return False, f"Bootstrap {action} worker did not finish within {int(timeout)} seconds."
+
+    def wait_for_connection(self, timeout: float) -> tuple[bool, str]:
+        return self._wait_for_event(self._connection_event, timeout, connected=True)
+
+    def wait_for_disconnect(self, timeout: float) -> tuple[bool, str]:
+        return self._wait_for_event(self._disconnect_event, timeout, connected=False)
 
     def _queue_log(self, line: str) -> None:
         line = str(line).rstrip()
@@ -428,6 +468,8 @@ class ScannerThread(QThread):
                 is_connected_callback=self.is_connected_callback,
                 validate_connection_callback=self.validate_connection_callback,
                 proxy_port_callback=self.proxy_port_callback,
+                wait_connected_callback=self.wait_for_connection if self.connect_callback is None else None,
+                wait_disconnected_callback=self.wait_for_disconnect if self.disconnect_callback is None else None,
                 bootstrap_server_id=self.bootstrap_server_id,
             )
             self._flush_logs()

@@ -106,7 +106,10 @@ def discover_config_entries(
     progress: ProgressCallback | None = None,
     language: str = "fa",
 ) -> list[DiscoveredConfig]:
-    enabled = [source for source in sorted(sources, key=lambda item: item.order) if source.enabled]
+    enabled = [
+        source for source in sorted(sources, key=lambda item: item.order)
+        if source.enabled and source.url.lower().startswith(("http://", "https://"))
+    ]
     if not enabled:
         raise RuntimeError(tr(language, "source_fetch_failed"))
     if stage:

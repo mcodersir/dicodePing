@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.9.0 RC5
+
+- Replaced the scanner's fixed 20-second bootstrap poll with a worker-result handshake and separate 55-second connection / 18-second teardown guards.
+- Made scanner progress, throughput metrics and highlighted logs responsive; removed ETA output.
+- Scanner persistence now atomically replaces exactly one local source named `SUB`, immediately populates Servers, and cascades deletion from Settings > Sources.
+- Moved desktop disconnect to an asynchronous worker and retained Qt threads until `finished`, preventing Windows/Linux/macOS teardown crashes.
+- Removed duplicate blocking `manager.stop()` from the failed-connect GUI path.
+- Aligned sidebar icons and labels to the outer edge in RTL/LTR layouts with a minimal selected state.
+- Updated Android to API 36, AGP 8.10.1 and Gradle 8.11.1; release packages only 64-bit ABIs and uses modern JNI packaging.
+- Serialized Android native-core lifecycle calls and removed the common-source tethering-controller collision.
+- Added signed-APK 16 KiB zip-alignment and ABI checks to the release workflow.
+- Added one-click RC5 Git deployment and existing-pre-release recovery.
+
 ## 1.9.0 RC4 Existing Release Recovery Hotfix 7
 
 - Existing or partial `v1.9.0-rc.4` releases no longer abort the one-click deploy.

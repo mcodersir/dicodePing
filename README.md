@@ -1,65 +1,61 @@
-# dicodePing 1.9.0 RC4 — Existing Release Recovery Hotfix 7
+# dicodePing 1.9.0 RC5
 
-این نسخه خروجی‌ها را مثل Release نسخه `v1.8.0-rc.4` می‌سازد و macOS را نیز اضافه می‌کند.
+RC5 is the scanner, subscription lifecycle, disconnect-safety and Android compatibility release.
 
-## ساخت EXE ویندوز
+## One-click GitHub pre-release
 
-ZIP را در یک مسیر کوتاه استخراج و اجرا کن:
-
-```bat
-BUILD_RELEASE_RC4.bat
-```
-
-خروجی:
-
-```text
-release\dicodePing-v1.9.0-rc.4-windows-x64.exe
-```
-
-## ساخت APK امضاشده
-
-متغیرهای keystore را تنظیم کن و اجرا کن:
+On Windows, extract the source ZIP and run:
 
 ```bat
-BUILD_SIGNED_APK_RC4.bat
+DEPLOY_PRERELEASE_RC5.bat
 ```
 
-خروجی:
+The deployer uses Git for Windows and Git Credential Manager. It clones `main`, copies and validates RC5, pushes a unique release trigger, updates `v1.9.0-rc.5`, waits for the exact GitHub Actions run, then verifies the five required assets before opening the pre-release page.
 
-```text
-dicodePing_android\release\dicodePing-v1.9.0-rc.4-android.apk
-```
+Expected release assets:
 
-## ساخت همه پلتفرم‌ها
+- `dicodePing-v1.9.0-rc.5-windows-x64.exe`
+- `dicodePing-v1.9.0-rc.5-linux-x86_64.tar.gz`
+- `dicodePing-v1.9.0-rc.5-macos-arm64.dmg`
+- `dicodePing-v1.9.0-rc.5-macos-x86_64.dmg`
+- `dicodePing-v1.9.0-rc.5-android.apk`
 
-Workflow زیر را در GitHub Actions اجرا کن:
+The Android signing secrets must already exist in Repository Settings > Secrets and variables > Actions:
 
-```text
-.github/workflows/v1.9.0-rc.4-release.yml
-```
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
 
-Release شامل EXE ویندوز، APK اندروید، tar.gz لینوکس، DMG مک برای arm64 و x86_64، Coreهای مستقل Aether/WARP، سورس، SBOM و SHA256SUMS خواهد بود.
+## Local builds
 
-## اجرای مستقیم سورس
+Windows EXE:
 
 ```bat
-RUN_SOURCE_RC4.bat
+BUILD_RELEASE_RC5.bat
 ```
 
-## انتشار کامل و خودکار روی GitHub
-
-برای Push سورس، ساخت Tag، اجرای GitHub Actions و ایجاد Pre-Release فقط این فایل را اجرا کن:
+Direct source run:
 
 ```bat
-DEPLOY_PRERELEASE_RC4.bat
+RUN_SOURCE_RC5.bat
 ```
 
-این نسخه از **Git for Windows و Git Credential Manager** استفاده می‌کند و به GitHub CLI یا بررسی API Token وابسته نیست. اگر ورود Git روی سیستم ذخیره نشده باشد، مرورگر برای ورود به GitHub باز می‌شود.
+Signed Android APK:
 
-اسکریپت شاخه `main` را Clone می‌کند، سورس RC4 را جایگزین و اعتبارسنجی می‌کند، یک فایل Trigger یکتا می‌سازد و Commit را Push می‌کند. سپس Tag زیر را به Commit اصلاح‌شده منتقل می‌کند:
-
-```text
-v1.9.0-rc.4
+```bat
+BUILD_SIGNED_APK_RC5.bat
 ```
 
-اگر Pre-Release قبلاً ساخته شده ولی ناقص باشد، اسکریپت دیگر متوقف نمی‌شود. Workflow همان Release را به‌روزرسانی می‌کند و فایل‌های هم‌نام را جایگزین می‌کند. پایان کار فقط زمانی موفق اعلام می‌شود که اجرای دقیق همان Commit موفق باشد و EXE، APK، Linux و هر دو DMG مک داخل Release موجود باشند. Secrets امضای Android باید از قبل در Repository تنظیم شده باشند.
+## RC5 changes
+
+- Scanner bootstrap uses a real worker completion handshake instead of the old fixed 20-second poll.
+- Scanner status, log and throughput metrics adapt to narrow windows and do not show an ETA.
+- Each scan atomically replaces one local subscription named `SUB`.
+- `SUB` servers appear immediately in the Servers page and are removed together when the source is deleted from Settings > Sources.
+- Desktop disconnect and shutdown do not delete a running `QThread` or perform duplicate blocking core teardown on the UI thread.
+- Sidebar icon/text alignment follows RTL and LTR direction.
+- Android targets API 36 with AGP 8.10.1/Gradle 8.11.1, publishes only `arm64-v8a` and `x86_64`, uses modern native-library packaging and serializes JNI lifecycle operations.
+- CI checks the signed APK for 16 KiB zip alignment and rejects 32-bit native ABIs.
+
+See `docs/releases/v1.9.0-rc.5.md` for release notes and `VALIDATION_RESULTS_RC5.txt` for the local validation summary.

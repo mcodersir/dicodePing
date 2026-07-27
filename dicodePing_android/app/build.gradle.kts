@@ -65,8 +65,13 @@ val verifyCore by tasks.registering {
         if ("classes.jar" !in entries) {
             throw GradleException("Android core is invalid: classes.jar is missing.")
         }
-        if (entries.none { it.matches(Regex("jni/.+/(libgojni|libv2ray)\\.so")) }) {
+        if (entries.none { it.matches(Regex("jni/.+/(libgojni|libv2ray)\.so")) }) {
             throw GradleException("Android core is invalid: native Android libraries are missing.")
+        }
+        for (abi in listOf("arm64-v8a", "x86_64")) {
+            if (entries.none { it.startsWith("jni/$abi/") && it.endsWith(".so") }) {
+                throw GradleException("Android core is missing required 64-bit ABI: $abi")
+            }
         }
 
         logger.lifecycle("Using Android core: ${coreAar.absolutePath}")
@@ -75,22 +80,19 @@ val verifyCore by tasks.registering {
 
 android {
     namespace = "ir.dicode.ping"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
-        targetSdk = 35
-        // RC3 used versionCode = 34; RC4 must be strictly greater.
-        versionCode = 39
+        targetSdk = 36
+        // RC3 used versionCode = 34; RC5 must be strictly greater.
+        versionCode = 40
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.4"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.4\"")
+        versionName = "1.9.0-rc.5"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.5\"")
         multiDexEnabled = true
 
-        ndk {
-            abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-        }
     }
 
     flavorDimensions += "distribution"
@@ -98,12 +100,14 @@ android {
         create("standard") {
             dimension = "distribution"
             buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "false")
+            ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
         }
         create("rooted") {
             dimension = "distribution"
             applicationIdSuffix = ".rooted"
             versionNameSuffix = "-rooted"
             buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "true")
+            ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
         }
     }
 
@@ -152,7 +156,7 @@ android {
     }
 
     packaging {
-        jniLibs.useLegacyPackaging = true
+        jniLibs.useLegacyPackaging = false
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 }

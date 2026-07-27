@@ -46,10 +46,25 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "1.9.0-rc.4"' not in build_file:
-    errors.append("versionName must be 1.9.0-rc.4 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.4\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 1.9.0-rc.4 for this release")
+if 'versionName = "1.9.0-rc.5"' not in build_file:
+    errors.append("versionName must be 1.9.0-rc.5 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.5\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 1.9.0-rc.5 for this release")
+
+if "compileSdk = 36" not in build_file or "targetSdk = 36" not in build_file:
+    errors.append("Android RC5 must compile and target API 36")
+root_build = (ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
+if "com.android.tools.build:gradle:8.10.1" not in root_build:
+    errors.append("AGP 8.10.1 is required for supported API 36 builds")
+if "gradle-8.11.1-bin.zip" not in wrapper:
+    errors.append("Gradle 8.11.1 is required by AGP 8.10.x")
+if "versionCode = 40" not in build_file:
+    errors.append("Android RC5 versionCode must be 40")
+if 'setOf("arm64-v8a", "x86_64")' not in build_file:
+    errors.append("Android public packages must be limited to 64-bit ABIs")
+if "jniLibs.useLegacyPackaging = false" not in build_file:
+    errors.append("Native libraries must use modern uncompressed packaging")
 
 if 'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")' not in build_file:
     errors.append("Android core must be resolved through the local Maven repository")
@@ -113,5 +128,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 1.9.0-rc.4")
+print("Version is 1.9.0-rc.5")
 print("Project structure is ready for Android build")

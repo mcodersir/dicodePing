@@ -482,6 +482,9 @@ class DicodeVpnService : VpnService() {
     override fun onDestroy() {
         startGeneration.incrementAndGet()
         startJob?.cancel()
+        metricsJob?.cancel()
+        // CoreBridge serializes live JNI reads with stopLoop, preventing the
+        // libgojni shutdown race seen on older Xiaomi/Android builds.
         stopRuntime()
         scope.cancel()
         super.onDestroy()

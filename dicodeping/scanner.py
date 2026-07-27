@@ -34,7 +34,6 @@ import re
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Callable
 
 from .constants import DATA_DIR, MAX_DISCOVERY_CONFIGS
@@ -69,6 +68,10 @@ SCAN_PROBE_QUEUE_LIMIT = min(
 )
 SCAN_MAX_SERVERS = 240
 SCAN_TARGET_HEALTHY = 5
+SCAN_BOOTSTRAP_CONNECT_TIMEOUT_S = 55.0
+SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S = 18.0
+SCANNER_SOURCE_ID = "scanner-sub"
+SCANNER_SOURCE_NAME = "SUB"
 
 DEFAULT_RANK1_PER_CHANNEL = 3
 DEFAULT_RANK2_PER_CHANNEL = 3
@@ -82,6 +85,7 @@ ETACallback = Callable[[str], None]  # retained for API compatibility; RC3 no lo
 AliveCountCallback = Callable[[int], None]
 LogCallback = Callable[[str], None]
 MetricsCallback = Callable[[dict[str, object]], None]
+ConnectionWaitCallback = Callable[[float], tuple[bool, str]]
 
 
 @dataclass
@@ -129,14 +133,13 @@ def list_scanner_subs() -> list[dict]:
 
 
 def generate_sub_name(custom: str | None = None) -> str:
-    """Generate the sub name.
+    """Return the single stable scanner subscription name.
 
-    v1.7.0-rc.3: always use "sub" as the name.  Each scan updates the
-    same "sub" source — no need for the user to pick a name.
+    RC5 intentionally ignores custom names: every run atomically replaces the
+    same local source and export, so the UI never accumulates duplicate subs.
     """
-    cleaned = re.sub(r"[\x00-\x1f<>:\"/\\|?*]+", " ", (custom or "")).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)[:64].strip()
-    return cleaned or f"Scanner {datetime.now().strftime('%Y-%m-%d %H-%M')}"
+    del custom
+    return SCANNER_SOURCE_NAME
 
 
 def _probe_one(
@@ -483,6 +486,8 @@ def run_scan(
     is_connected_callback: Callable[[], bool] | None = None,
     validate_connection_callback: Callable[[], bool] | None = None,
     proxy_port_callback: Callable[[], int] | None = None,
+    wait_connected_callback: ConnectionWaitCallback | None = None,
+    wait_disconnected_callback: ConnectionWaitCallback | None = None,
     bootstrap_server_id: str | None = None,
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
@@ -505,6 +510,37 @@ def run_scan(
             log_callback(line)
         LOGGER.info("scanner: %s", line)
 
+    def _wait_connected(timeout: float) -> None:
+        if wait_connected_callback is not None:
+            ok, message = wait_connected_callback(timeout)
+            if not ok:
+                raise RuntimeError(message or "Bootstrap connection failed before the TUN became ready.")
+            return
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if state.stop_requested.is_set():
+                raise RuntimeError("Scanner stopped while connecting; no results were saved.")
+            if is_connected_callback and is_connected_callback():
+                return
+            time.sleep(0.25)
+        raise RuntimeError(
+            f"Bootstrap TUN did not reach the connected state in {int(timeout)} seconds. "
+            "The connection worker did not report success."
+        )
+
+    def _wait_disconnected(timeout: float) -> None:
+        if wait_disconnected_callback is not None:
+            ok, message = wait_disconnected_callback(timeout)
+            if not ok:
+                raise RuntimeError(message or "Bootstrap disconnect did not finish safely.")
+            return
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if not is_connected_callback or not is_connected_callback():
+                return
+            time.sleep(0.2)
+        raise RuntimeError("contaminationRisk: Bootstrap TUN/process is still active; probes were not started.")
+
     # --- Stage 1: Connect to best server -----------------------------
     if bootstrap_server_id is None:
         if stage_change:
@@ -515,18 +551,8 @@ def run_scan(
             if connect_callback:
                 _log(f"Connecting to bootstrap server {sid}...")
                 connect_callback(sid)
-                # Wait for the TUN to actually come up by polling the
-                # is_connected_callback (provided by the UI thread).
-                deadline = time.monotonic() + 20.0
-                while time.monotonic() < deadline:
-                    if state.stop_requested.is_set():
-                        raise RuntimeError("Scanner stopped while connecting; no results were saved.")
-                    if is_connected_callback and is_connected_callback():
-                        _log("Bootstrap TUN is up.")
-                        break
-                    time.sleep(0.5)
-                else:
-                    raise RuntimeError("Bootstrap TUN did not reach the connected state in 20 seconds.")
+                _wait_connected(SCAN_BOOTSTRAP_CONNECT_TIMEOUT_S)
+                _log("[CONNECT][OK] Bootstrap TUN is ready and verified by the connection worker.")
                 if validate_connection_callback and not validate_connection_callback():
                     raise RuntimeError("Bootstrap TUN failed real HTTP validation.")
         except Exception:
@@ -542,16 +568,8 @@ def run_scan(
         elif connect_callback:
             _log(f"[CONNECT][INFO] Restoring bootstrap server {bootstrap_server_id}...")
             connect_callback(bootstrap_server_id)
-            deadline = time.monotonic() + 20.0
-            while time.monotonic() < deadline:
-                if state.stop_requested.is_set():
-                    raise RuntimeError("Scanner stopped while connecting; no results were saved.")
-                if is_connected_callback and is_connected_callback():
-                    already_connected = True
-                    break
-                time.sleep(0.25)
-            if not already_connected:
-                raise RuntimeError("Existing bootstrap TUN is not connected.")
+            _wait_connected(SCAN_BOOTSTRAP_CONNECT_TIMEOUT_S)
+            already_connected = True
         else:
             raise RuntimeError("Existing bootstrap connection is unavailable.")
         if validate_connection_callback and not validate_connection_callback():
@@ -594,20 +612,8 @@ def run_scan(
         if disconnect_callback:
             _log("Disconnecting VPN before testing configs...")
             disconnect_callback()
-            deadline = time.monotonic() + 10.0
-            while time.monotonic() < deadline:
-                if not is_connected_callback or not is_connected_callback():
-                    _log("VPN disconnected and bootstrap process stopped.")
-                    break
-                time.sleep(0.2)
-            else:
-                _log("Bootstrap disconnect timed out; running one bounded force-cleanup.")
-                disconnect_callback()
-                time.sleep(1.0)
-                if is_connected_callback and is_connected_callback():
-                    raise RuntimeError(
-                        "contaminationRisk: bootstrap TUN/process is still active; probes were not started."
-                    )
+            _wait_disconnected(SCAN_BOOTSTRAP_DISCONNECT_TIMEOUT_S)
+            _log("[DISCONNECT][OK] VPN disconnected and bootstrap process stopped.")
 
         # --- Stage 2c: Probe (without VPN) ----------------------------
         alive_raws = _probe_only(
@@ -642,7 +648,7 @@ def run_scan(
             )
 
         sub_name = generate_sub_name(custom_name)
-        source_id = "scanner-" + hashlib.sha1(sub_name.encode("utf-8")).hexdigest()[:10]
+        source_id = SCANNER_SOURCE_ID
         records: list[ServerRecord] = []
         from .config_profile import classify_config_profile
         for index, (raw, ping_ms) in enumerate(alive, start=1):
@@ -680,7 +686,10 @@ def run_scan(
 
         settings = store.load_settings()
         sources_list = list(settings.get("sources") or [])
-        sources_list = [s for s in sources_list if not (isinstance(s, dict) and s.get("id") == source_id)]
+        sources_list = [
+            source for source in sources_list
+            if not (isinstance(source, dict) and str(source.get("id") or "").startswith("scanner-"))
+        ]
         sources_list.append(
             SourceDefinition(
                 id=source_id,
@@ -706,13 +715,10 @@ def run_scan(
             "stopped_early": state.stop_requested.is_set(),
             "log_lines": state.log_lines,
         }
-        history = _load_history()
-        history = [h for h in history if h.get("source_id") != source_id]
-        history.append(history_record)
-        if len(history) > 12:
-            history = history[-12:]
+        # RC5 keeps exactly one scanner subscription and one history item.
+        history = [history_record]
         current = store.load_servers()
-        by_id = {s.id: s for s in current if s.source_id != source_id}
+        by_id = {s.id: s for s in current if not s.source_id.startswith("scanner-")}
         for record in records:
             by_id[record.id] = record
         merged = list(by_id.values())
@@ -727,6 +733,9 @@ def run_scan(
             base64_path=SCANNER_EXPORT_DIR / f"{source_id}.base64.txt",
             base64_payload=base64_payload,
         )
+        for stale in SCANNER_EXPORT_DIR.glob("scanner-*.*"):
+            if stale.name not in {f"{source_id}.txt", f"{source_id}.base64.txt"}:
+                stale.unlink(missing_ok=True)
 
         duration = time.monotonic() - started
         stopped = state.stop_requested.is_set()
@@ -775,10 +784,14 @@ def copy_all_servers(sub_name: str) -> str:
     return export_subscription(sub_name, as_base64=False)
 
 
-def delete_scanner_sub(sub_name: str) -> None:
-    rows = _load_history()
-    rows = [row for row in rows if row.get("name") != sub_name]
-    _save_history(rows)
+def delete_scanner_sub(sub_name: str = SCANNER_SOURCE_NAME) -> None:
+    del sub_name
+    _save_history([])
+    for path in (
+        SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.txt",
+        SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.base64.txt",
+    ):
+        path.unlink(missing_ok=True)
 
 
 def _connect_best_server(

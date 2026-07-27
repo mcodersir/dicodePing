@@ -203,19 +203,19 @@ def _routed_ping(self, timeout=2.2):
 
 
 class _DisconnectThread(QThread):
-    done = Signal()
     def __init__(self, manager, parent=None):
         super().__init__(parent)
         self.manager = manager
+        self.error = ""
+
     def run(self):
         try:
             self.manager.stop()
-        except Exception:
-            # Teardown is best effort: a stale driver/process must not take the
-            # GUI down when the user presses Disconnect.
+        except Exception as exc:
+            # Teardown is best effort: keep the QThread alive until run() really
+            # returns and report cleanup failure without crashing the GUI.
+            self.error = str(exc)
             service_module.LOGGER.exception("Connection teardown failed")
-        finally:
-            self.done.emit()
 
 
 def _install_ui_patch():
@@ -327,22 +327,32 @@ def _install_ui_patch():
         QApplication.processEvents()
         thread = _DisconnectThread(self.manager, self)
         self._disconnect_thread = thread
+
         def finish():
             if self._disconnect_thread is not thread:
                 return
             self._disconnecting = False
             self.connected_id = ""
+            self._auto_connect_queue.clear()
+            self._automatic_connect_attempt = False
+            self._connecting_server_id = ""
             self.live_metrics_card.setVisible(False)
             self.live_download_value.setText("0 B")
             self.live_upload_value.setText("0 B")
             self.live_ping_value.setText("—")
             self.update_connection_ui()
             self.render_servers()
+            scanner = getattr(self, "scanner_thread", None)
+            if scanner is not None and scanner.isRunning():
+                scanner.notify_disconnected(not bool(thread.error), thread.error)
             if show_message:
                 self.home_hero_detail.setText(self.t("disconnected"))
+            # Clear only from QThread.finished: deleting a still-running QThread
+            # is the cross-platform crash fixed in RC5.
             self._disconnect_thread = None
-        thread.done.connect(finish)
-        thread.finished.connect(thread.deleteLater)
+            thread.deleteLater()
+
+        thread.finished.connect(finish)
         thread.start()
 
     MainWindow.__init__ = init
