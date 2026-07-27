@@ -851,11 +851,11 @@ def _connect_best_server(
             }
             for future in concurrent.futures.as_completed(futures):
                 try:
-                    ping = future.result()
+                    quality = future.result()
                 except Exception:
-                    ping = None
-                if ping is not None:
-                    verified.append((ping, futures[future]))
+                    quality = None
+                if quality is not None and quality.ok and quality.ping_ms is not None:
+                    verified.append((int(quality.ping_ms), futures[future]))
         if not verified:
             return None
         verified.sort(key=lambda row: row[0])

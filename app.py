@@ -121,6 +121,7 @@ class StartupPrepareThread(QThread):
         startup_error = ""
         release = None
         changed_sources: list[Any] = []
+        partial_ping = False
         try:
             self.stage.emit(4, "در حال بررسی صحت هسته‌ها...", "Verifying installed cores...")
             reverify_installed_cores()
@@ -153,6 +154,16 @@ class StartupPrepareThread(QThread):
                 interval_seconds=SERVER_REFRESH_INTERVAL_SECONDS,
             )
             should_refresh = bool(changed_sources) or refresh_due or not cached
+            service = ServerService(store)
+
+            def ping_progress(current: int, total: int) -> None:
+                ratio = current / max(1, total)
+                self.stage.emit(45 + int(ratio * 28), "در حال سنجش نمونه ۳۰٪ هر منبع...", "Testing a 30% sample from each source...")
+
+            def geo_progress(current: int, total: int) -> None:
+                ratio = current / max(1, total)
+                self.stage.emit(73 + int(ratio * 17), "در حال تکمیل اطلاعات نمونه‌ها...", "Resolving sampled server details...")
+
             if should_refresh and sources:
                 self.stage.emit(25, "در حال دریافت کانفیگ‌های منابع...", "Downloading source configurations...")
 
@@ -167,24 +178,26 @@ class StartupPrepareThread(QThread):
                     language=self.language,
                 )
                 if configs:
-                    service = ServerService(store)
-
-                    def ping_progress(current: int, total: int) -> None:
-                        ratio = current / max(1, total)
-                        self.stage.emit(45 + int(ratio * 28), "در حال سنجش سرورها...", "Testing servers...")
-
-                    def geo_progress(current: int, total: int) -> None:
-                        ratio = current / max(1, total)
-                        self.stage.emit(73 + int(ratio * 17), "در حال تکمیل اطلاعات سرورها...", "Resolving server details...")
-
                     cached = service.build_and_save(
                         configs,
                         stage=lambda text: self.stage.emit(50, text, text),
                         language=self.language,
                         ping_progress=ping_progress,
                         geo_progress=geo_progress,
+                        ping_sample_ratio=0.30,
                     )
+                    partial_ping = bool(cached)
                     settings["last_server_refresh_at"] = time.time()
+            elif cached:
+                self.stage.emit(42, "در حال سنجش نمونه ۳۰٪ هر منبع...", "Testing a 30% sample from each source...")
+                cached = service.refresh_sampled(
+                    ratio=0.30,
+                    stage=lambda text: self.stage.emit(50, text, text),
+                    language=self.language,
+                    ping_progress=ping_progress,
+                    geo_progress=geo_progress,
+                )
+                partial_ping = bool(cached)
             if observed:
                 settings["source_revisions"] = observed
             store.save_settings(settings)
@@ -198,7 +211,7 @@ class StartupPrepareThread(QThread):
                 cached = cached or store.load_servers()
             except Exception:
                 LOGGER.exception("Startup cache recovery failed")
-        self.ready.emit(cached, settings, startup_error, False, release, changed_sources)
+        self.ready.emit(cached, settings, startup_error, partial_ping, release, changed_sources)
 
 
 class UpdateCheckThread(QThread):
@@ -474,7 +487,7 @@ def main() -> int:
         servers: object,
         prepared_settings: object,
         startup_error: str,
-        refresh_due: bool,
+        partial_ping: bool,
         release: object,
         changed_sources: object,
     ) -> None:
@@ -522,6 +535,25 @@ def main() -> int:
                     LOGGER.exception("Deferred server list hydration failed")
                 splash.set_stage(100, "آماده", "Ready", language)
                 QTimer.singleShot(180, splash.close)
+
+                if partial_ping and rows:
+                    def offer_full_ping() -> None:
+                        answer = QMessageBox.question(
+                            window,
+                            "تکمیل سنجش سرورها" if language != "en" else "Complete server testing",
+                            (
+                                "برای باز شدن سریع‌تر، از هر منبع ۳۰٪ سرورها در اسپلش سنجیده شدند. "
+                                "همه سرورها اکنون سنجیده شوند؟"
+                                if language != "en" else
+                                "To open faster, the splash tested 30% of each source. "
+                                "Test every saved server now?"
+                            ),
+                            QMessageBox.Yes | QMessageBox.No,
+                            QMessageBox.No,
+                        )
+                        if answer == QMessageBox.Yes:
+                            window.start_refresh()
+                    QTimer.singleShot(650, offer_full_ping)
 
                 if changed_sources:
                     names = "، ".join(getattr(item, "name", "") for item in list(changed_sources)[:3])

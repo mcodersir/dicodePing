@@ -60,7 +60,7 @@ def test_android_startup_and_scanner_use_full_pre_ui_and_repeated_native_probes(
     assert 'tester=xray-http' in repository
 
 
-def test_rc6_sidebar_and_live_scanner_log_views_are_directional_and_separate() -> None:
+def test_rc7_sidebar_and_live_scanner_log_views_are_directional_and_separate() -> None:
     ui = read("dicodeping/ui.py")
     assert "QToolButton.ToolButtonPopupMode" not in ui
     assert "Qt.RightToLeft if self.window.is_rtl else Qt.LeftToRight" in ui
@@ -71,15 +71,15 @@ def test_rc6_sidebar_and_live_scanner_log_views_are_directional_and_separate() -
     assert '("[TEST]", "[DISCONNECT]")' in ui
 
 
-def test_rc6_release_is_bilingual_and_multi_platform() -> None:
-    notes = read("docs/releases/v1.9.0-rc.6.md")
-    workflow = read(".github/workflows/v1.9.0-rc.6-release.yml")
-    deploy = read("DEPLOY_PRERELEASE_RC6.bat")
+def test_rc7_release_is_bilingual_and_multi_platform() -> None:
+    notes = read("docs/releases/v1.9.0-rc.7.md")
+    workflow = read(".github/workflows/v1.9.0-rc.7-release.yml")
+    deploy = read("DEPLOY_PRERELEASE_RC7.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in ("windows-x64.exe", "linux-x86_64.tar.gz", "android.apk"):
         assert asset in workflow
     assert "macos-${{ matrix.architecture }}.dmg" in workflow
     assert "architecture: arm64" in workflow
     assert "architecture: x86_64" in workflow
-    assert "v1.9.0-rc.6" in deploy
-    assert "wait_for_github_release_rc6.ps1" in deploy
+    assert "v1.9.0-rc.7" in deploy
+    assert "wait_for_github_release_rc7.ps1" in deploy

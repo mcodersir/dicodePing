@@ -1,43 +1,41 @@
-# dicodePing 1.9.0 RC6
+# dicodePing 1.9.0 RC7
 
-RC6 adds real multi-sample scanner verification, full splash-screen preparation on desktop and Android, separated live scanner logs, and corrected RTL/LTR sidebar alignment.
+RC7 fixes automatic best-server selection, tests a deterministic 30% sample from every subscription during splash startup, and stabilizes the sidebar and settings layout across Windows, Linux and macOS.
 
 ## One-click GitHub pre-release
 
-Extract the source ZIP and run:
+Run:
 
 ```bat
-DEPLOY_PRERELEASE_RC6.bat
+DEPLOY_PRERELEASE_RC7.bat
 ```
 
-The script uses Git for Windows and Git Credential Manager, pushes the fixed source to `main`, creates or moves `v1.9.0-rc.6`, waits for GitHub Actions, verifies all required assets, and opens the pre-release page.
+The script uses Git for Windows and Git Credential Manager, pushes the RC7 source to `main`, creates or updates tag `v1.9.0-rc.7`, waits for the multi-platform GitHub Actions workflow, verifies all required assets, and opens the pre-release page.
 
 Expected assets:
 
-- `dicodePing-v1.9.0-rc.6-windows-x64.exe`
-- `dicodePing-v1.9.0-rc.6-linux-x86_64.tar.gz`
-- `dicodePing-v1.9.0-rc.6-macos-arm64.dmg`
-- `dicodePing-v1.9.0-rc.6-macos-x86_64.dmg`
-- `dicodePing-v1.9.0-rc.6-android.apk`
+- `dicodePing-v1.9.0-rc.7-windows-x64.exe`
+- `dicodePing-v1.9.0-rc.7-linux-x86_64.tar.gz`
+- `dicodePing-v1.9.0-rc.7-macos-arm64.dmg`
+- `dicodePing-v1.9.0-rc.7-macos-x86_64.dmg`
+- `dicodePing-v1.9.0-rc.7-android.apk`
 
-## Local commands
-
-Windows source run:
+Run from source on Windows:
 
 ```bat
-RUN_SOURCE_RC6.bat
+RUN_SOURCE_RC7.bat
 ```
 
-Windows EXE build:
+Build only the Windows EXE:
 
 ```bat
-BUILD_RELEASE_RC6.bat
+BUILD_RELEASE_RC7.bat
 ```
 
-Signed Android APK:
+Build only the signed Android APK:
 
 ```bat
-BUILD_SIGNED_APK_RC6.bat
+BUILD_SIGNED_APK_RC7.bat
 ```
 
-Bilingual release notes: `docs/releases/v1.9.0-rc.6.md`.
+Bilingual release notes: `docs/releases/v1.9.0-rc.7.md`.

@@ -19,14 +19,14 @@ class V160Rc1Tests(unittest.TestCase):
         # The 1.6.0 line.  The RC suffix changes per release; we assert
         # the major version is present in every metadata location.
         self.assertIn('VERSION = "1.9.0"', constants)
-        self.assertIn('RELEASE_VERSION = "1.9.0-rc.6"', constants)
-        self.assertIn('__version__ = "1.9.0rc6"', init)
+        self.assertIn('RELEASE_VERSION = "1.9.0-rc.7"', constants)
+        self.assertIn('__version__ = "1.9.0rc7"', init)
         self.assertIn('APP_VERSION = "1.9.0"', windows_builder)
         self.assertIn('APP_VERSION = "1.9.0"', linux_builder)
-        self.assertIn('RC_VERSION = "rc.6"', linux_builder)
-        self.assertIn("filevers=(1, 9, 0, 6)", version_info)
+        self.assertIn('RC_VERSION = "rc.7"', linux_builder)
+        self.assertIn("filevers=(1, 9, 0, 7)", version_info)
         self.assertIn("'ProductVersion', '1.9.0.0'", version_info)
-        self.assertIn('versionName = "1.9.0-rc.6"', gradle)
+        self.assertIn('versionName = "1.9.0-rc.7"', gradle)
 
     def test_scanner_module_is_present_and_wired(self) -> None:
         scanner = (ROOT / "dicodeping/scanner.py").read_text(encoding="utf-8")

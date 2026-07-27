@@ -26,7 +26,7 @@ class UpdateTests(unittest.TestCase):
         payload = [
             {
                 "tag_name": "v0.1.5-rc.2",
-                "name": "Compatibility bridge — dicodePing v0.1.4-rc.7",
+                "name": "Compatibility bridge — dicodePing v0.1.4-rc.6",
                 "assets": [],
             },
             {

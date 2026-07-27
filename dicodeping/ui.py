@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizeGrip,
+    QSizePolicy,
     QSpinBox,
     QStackedWidget,
     QTabBar,
@@ -234,7 +235,12 @@ def build_stylesheet(theme: str) -> str:
     QLineEdit:hover, QComboBox:hover, QPlainTextEdit:hover, QSpinBox:hover {{ border-color: {c['muted2']}; }}
     QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QSpinBox:focus {{ border: 1px solid {c['accent']}; background: {c['surface']}; }}
     QPlainTextEdit {{ padding: 10px 12px; min-height: 170px; }}
-    QComboBox::drop-down {{ border: 0; width: 30px; }}
+    QComboBox {{ padding-left: 14px; padding-right: 36px; }}
+    QComboBox::drop-down {{
+        subcontrol-origin: padding; subcontrol-position: center right;
+        border: 0; width: 34px; background: transparent;
+    }}
+    QComboBox::down-arrow {{ image: url({(ASSET_DIR / "chevron-down.svg").as_posix()}); width: 13px; height: 13px; }}
     QSpinBox::up-button, QSpinBox::down-button {{ width: 0px; border: 0; background: transparent; }}
     QSpinBox::up-arrow, QSpinBox::down-arrow {{ width: 0px; height: 0px; }}
     QComboBox QAbstractItemView {{
@@ -625,6 +631,7 @@ class Sidebar(QFrame):
         super().__init__()
         self.window = window
         self.setObjectName("sidebar")
+        self.setLayoutDirection(Qt.LeftToRight)
         self.expanded_width = 232
         self.collapsed_width = 76
         self.setMinimumWidth(self.expanded_width)
@@ -642,9 +649,11 @@ class Sidebar(QFrame):
         self.menu_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.menu_button.setObjectName("navButton")
         self.menu_button.setIcon(icon("menu.svg"))
-        self.menu_button.setIconSize(QSize(19, 19))
+        self.menu_button.setIconSize(QSize(20, 20))
+        self.menu_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.menu_button.setMinimumHeight(46)
         self.menu_button.clicked.connect(self.toggle)
-        top.addWidget(self.menu_button)
+        top.addWidget(self.menu_button, 1)
         layout.addLayout(top)
 
         self.navigation_label = QLabel(window.t("navigation"))
@@ -668,7 +677,9 @@ class Sidebar(QFrame):
             button.setObjectName("navButton")
             button.setCheckable(True)
             button.setIcon(icon(asset))
-            button.setIconSize(QSize(19, 19))
+            button.setIconSize(QSize(20, 20))
+            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            button.setMinimumHeight(46)
             button.clicked.connect(partial(self._request_page, index))
             self.buttons.append(button)
             layout.addWidget(button)
@@ -697,12 +708,17 @@ class Sidebar(QFrame):
     def _apply_button_alignment(self) -> None:
         direction = Qt.RightToLeft if self.window.is_rtl else Qt.LeftToRight
         alignment = "right" if self.window.is_rtl else "left"
+        label_alignment = Qt.AlignRight if self.window.is_rtl else Qt.AlignLeft
+        self.navigation_label.setAlignment(label_alignment | Qt.AlignVCenter)
+        self.status_title.setAlignment(label_alignment | Qt.AlignVCenter)
+        self.status_value.setAlignment(label_alignment | Qt.AlignVCenter)
         for button in [self.menu_button, *self.buttons]:
             button.setLayoutDirection(direction)
+            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             if self.expanded:
                 button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
                 button.setStyleSheet(
-                    f"text-align:{alignment};padding-left:14px;padding-right:14px;"
+                    f"text-align:{alignment};padding-left:16px;padding-right:16px;"
                 )
             else:
                 button.setToolButtonStyle(Qt.ToolButtonIconOnly)
@@ -936,6 +952,7 @@ class MainWindow(QMainWindow):
         shell_layout.addWidget(self.title_bar)
 
         body = QWidget()
+        body.setLayoutDirection(Qt.LeftToRight)
         self.body_layout = QHBoxLayout(body)
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(0)
@@ -949,7 +966,7 @@ class MainWindow(QMainWindow):
         self.content_layout = content_layout
         content_layout.setContentsMargins(22, 20, 22, 14)
         content_layout.setSpacing(14)
-        self.body_layout.addWidget(content, 1)
+        self.content_widget = content
 
         self.activity_bar = ActivityBar()
         content_layout.addWidget(self.activity_bar)
@@ -982,9 +999,15 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar(self)
         self.sidebar.page_requested.connect(self.switch_page)
-        # The application layout direction mirrors this logical leading item:
-        # left in English and right in Persian.
-        self.body_layout.insertWidget(0, self.sidebar)
+        # Do not rely on QApplication RTL mirroring here. The body is always
+        # physically left-to-right and the rail is inserted on the requested
+        # edge explicitly: right for Persian, left for English.
+        if self.is_rtl:
+            self.body_layout.addWidget(content, 1)
+            self.body_layout.addWidget(self.sidebar, 0)
+        else:
+            self.body_layout.addWidget(self.sidebar, 0)
+            self.body_layout.addWidget(content, 1)
 
     def _page_header(self, title: str, subtitle: str) -> QWidget:
         container = QWidget()
@@ -2031,7 +2054,7 @@ class MainWindow(QMainWindow):
         behavior_layout.addWidget(self.auto_connect_checkbox)
         behavior_layout.addWidget(self.auto_scan_checkbox)
         self.secure_dns_checkbox = QCheckBox(self.t("secure_dns_doh"))
-        self.secure_dns_checkbox.setChecked(bool(self.settings.get("secure_dns_doh", True)))
+        self.secure_dns_checkbox.setChecked(bool(self.settings.get("secure_dns_doh", False)))
         self.secure_dns_checkbox.setToolTip(self.t("secure_dns_doh_help"))
         behavior_layout.addWidget(self.secure_dns_checkbox)
         self.connection_mode_combo.currentIndexChanged.connect(
@@ -2275,8 +2298,7 @@ class MainWindow(QMainWindow):
         methods_tab_layout = QVBoxLayout(methods_tab)
         methods_tab_layout.setContentsMargins(0, 0, 0, 0)
         methods_tab_layout.setSpacing(14)
-        methods_tab_layout.addWidget(self._build_connection_methods_section())
-        methods_tab_layout.addStretch()
+        methods_tab_layout.addWidget(self._build_connection_methods_section(), 1)
         tabs.addTab(methods_tab, self.t("conn_method_title"))
 
         # --- VPN sharing tab (v1.7.0-rc.1) -----------------------------
@@ -2284,11 +2306,12 @@ class MainWindow(QMainWindow):
         sharing_tab_layout = QVBoxLayout(sharing_tab)
         sharing_tab_layout.setContentsMargins(0, 0, 0, 0)
         sharing_tab_layout.setSpacing(14)
-        sharing_tab_layout.addWidget(self._build_vpn_sharing_section())
-        sharing_tab_layout.addStretch()
+        sharing_tab_layout.addWidget(self._build_vpn_sharing_section(), 1)
         tabs.addTab(sharing_tab, self.t("vpn_sharing_title"))
 
         settings_body = QWidget()
+        settings_body.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         settings_body_layout = QBoxLayout(QBoxLayout.LeftToRight, settings_body)
         self.settings_body_layout = settings_body_layout
         settings_body_layout.setContentsMargins(0, 0, 0, 0)
@@ -2927,7 +2950,11 @@ class MainWindow(QMainWindow):
         selected = self.selected_server() if hasattr(self, "table") else None
         self.manual_connect_button.setEnabled(bool(selected) and not busy and not connected)
         manual = self.settings.get("connection_mode", "auto") == "manual"
-        self.home_primary_button.setEnabled(connecting or (not busy and (connected or has_best or not has_servers or (manual and has_servers))))
+        # The dashboard can always start automatic quality selection when it
+        # has server rows, even when the startup sample has not verified a
+        # winner yet. Keep the button enabled outside active work; ConnectThread
+        # stays clickable so the user can cancel it.
+        self.home_primary_button.setEnabled(connecting or not busy)
 
     def _set_stage_text(self, text: str) -> None:
         self.activity_bar.set_stage(text)
@@ -3620,10 +3647,7 @@ class MainWindow(QMainWindow):
             else:
                 self.switch_page(1)
             return
-        if self.service.best_server(self.servers):
-            self.connect_best()
-        else:
-            self.start_refresh()
+        self.connect_best()
 
     def connect_best(self) -> None:
         if getattr(self.manager, "active_core", "xray") != "xray":
@@ -3715,7 +3739,7 @@ class MainWindow(QMainWindow):
             self.language,
             bypass_domains=bypass_domains,
             cdn_domain=cdn_domain,
-            secure_dns=bool(self.settings.get("secure_dns_doh", True)),
+            secure_dns=bool(self.settings.get("secure_dns_doh", False)),
             core_options={
                 "protocol": self.settings.get("aether_protocol", "masque"),
                 "scan": self.settings.get("aether_scan", "balanced"),
@@ -3912,10 +3936,14 @@ class MainWindow(QMainWindow):
                 self.home_primary_button.setText(self.t("connect_best"))
                 self.home_primary_button.setIcon(tinted_icon("bolt.svg"))
             elif self.servers:
-                self.home_hero_title.setText(self.t("manual_only_ready"))
-                self.home_hero_detail.setText(self.t("icmp_blocked_auto_hint"))
-                self.home_primary_button.setText(self.t("refresh_ping"))
-                self.home_primary_button.setIcon(tinted_icon("refresh.svg"))
+                self.home_hero_title.setText(self.t("simple_fast_ready"))
+                self.home_hero_detail.setText(
+                    "با زدن اتصال، بهترین سرور با تست واقعی انتخاب می‌شود"
+                    if self.language != "en" else
+                    "Press Connect to select the best server with a real tunnel test"
+                )
+                self.home_primary_button.setText(self.t("connect_best"))
+                self.home_primary_button.setIcon(tinted_icon("bolt.svg"))
             else:
                 self.home_hero_title.setText(self.t("need_servers"))
                 self.home_hero_detail.setText(self.t("list_empty"))

@@ -62,7 +62,7 @@ def test_desktop_live_language_and_core_specific_home_are_wired() -> None:
     ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")
     assert "def _apply_language_live" in ui
     assert "application.setLayoutDirection(direction)" in ui
-    assert "self.body_layout.insertWidget(0, self.sidebar)" in ui
+    assert "self.body_layout.addWidget(self.sidebar, 0)" in ui
     assert "alternative_core_connect" in ui
     assert "self.home_recent_card.setVisible(not alternative)" in ui
     assert "install_rc10_patches," in (ROOT / "app_v190_rc4.py").read_text(encoding="utf-8")

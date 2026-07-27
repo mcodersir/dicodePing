@@ -66,7 +66,7 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("diagnostic_logging", false)
         set(value) = prefs.edit().putBoolean("diagnostic_logging", value).apply()
     var secureDnsDoh: Boolean
-        get() = prefs.getBoolean("secure_dns_doh", true)
+        get() = prefs.getBoolean("secure_dns_doh", false)
         set(value) = prefs.edit().putBoolean("secure_dns_doh", value).apply()
     var sourceRevisions: Map<String, String>
         get() = runCatching {

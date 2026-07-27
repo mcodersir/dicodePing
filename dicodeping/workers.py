@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import subprocess
 import threading
@@ -514,6 +515,80 @@ class VolumeFetchThread(QThread):
             self.finished_set.emit({})
 
 
+class BestServerSelectionThread(TaskThread):
+    """Rank unverified dashboard candidates using real Xray HTTP probes.
+
+    Startup intentionally tests only a sample of each subscription. When that
+    sample does not already contain an automatic candidate, this worker gives
+    the dashboard button a deterministic, non-blocking path to a real winner.
+    """
+
+    def __init__(self, servers: list[ServerRecord], language: str = "fa", limit: int = 10) -> None:
+        super().__init__()
+        self.language = language
+        self.servers = list(servers)[: max(1, min(16, int(limit)))]
+
+    def run(self) -> None:
+        from .config_checker import test_config
+
+        try:
+            if not self.servers:
+                raise RuntimeError(
+                    "هیچ سروری برای سنجش وجود ندارد"
+                    if self.language != "en" else "No server is available for testing"
+                )
+            self.stage.emit(
+                "در حال انتخاب بهترین سرور با تست واقعی…"
+                if self.language != "en" else
+                "Selecting the best server with real tunnel tests…"
+            )
+            ranked: list[tuple[int, ServerRecord]] = []
+            workers = min(4, len(self.servers))
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max(1, workers), thread_name_prefix="dicodePing-best"
+            ) as pool:
+                future_map = {
+                    pool.submit(
+                        test_config,
+                        blob_to_config(server.config_blob),
+                        attempts=2,
+                        min_success=1,
+                        per_attempt_timeout=3.8,
+                    ): server
+                    for server in self.servers
+                    if server.config_blob
+                }
+                total = len(future_map)
+                done = 0
+                for future in concurrent.futures.as_completed(future_map):
+                    self.checkpoint()
+                    server = future_map[future]
+                    try:
+                        result = future.result()
+                    except Exception:
+                        result = None
+                    done += 1
+                    self.progress.emit(done, max(1, total))
+                    if result is not None and result.ok and result.ping_ms is not None:
+                        server.ping_ms = int(result.ping_ms)
+                        server.status = "online"
+                        server.failures = 0
+                        ranked.append((int(result.ping_ms), server))
+            if not ranked:
+                raise RuntimeError(
+                    "هیچ سروری در تست واقعی پاسخ معتبر نداد"
+                    if self.language != "en" else
+                    "No server passed the real tunnel test"
+                )
+            ranked.sort(key=lambda row: (row[0], row[1].failures, row[1].source_order, row[1].name.casefold()))
+            self.success.emit([server for _ping, server in ranked])
+        except TaskCancelled:
+            return
+        except Exception as exc:
+            LOGGER.exception("Best-server selection failed")
+            self.failed.emit(str(exc))
+
+
 class ConnectThread(TaskThread):
     def __init__(
         self,
@@ -522,7 +597,7 @@ class ConnectThread(TaskThread):
         language: str = "fa",
         bypass_domains: list[str] | None = None,
         cdn_domain: str = "",
-        secure_dns: bool = True,
+        secure_dns: bool = False,
         core_options: dict[str, object] | None = None,
     ) -> None:
         super().__init__()

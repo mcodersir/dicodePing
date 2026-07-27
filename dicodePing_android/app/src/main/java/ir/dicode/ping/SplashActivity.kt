@@ -57,7 +57,7 @@ class SplashActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             val startedAt = System.currentTimeMillis()
-            // RC6 keeps the complete update/download/location/real-probe pipeline
+            // RC7 keeps the complete update/download/location/real-probe pipeline
             // on the splash. MainActivity is never opened with half-tested rows.
             runCatching { repo.initialize() }
             val changed = withTimeoutOrNull(6_000) { repo.subscriptionUpdates() }.orEmpty()

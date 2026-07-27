@@ -1,13 +1,23 @@
 # Changelog
 
-## 1.9.0 RC6
+## 1.9.0 RC7
+
+- Fixed scanner bootstrap ranking so `ConfigQualityResult` objects are never compared directly.
+- Added deterministic 30% per-subscription startup testing with an optional full-test prompt after launch.
+- Restored dashboard automatic connection with real background Xray quality selection.
+- Reworked explicit RTL/LTR sidebar placement and edge alignment across desktop platforms.
+- Expanded settings pages to use the full available height and restored visible combo-box arrows.
+- Disabled DoH by default for fresh desktop and Android installations.
+
+
+## 1.9.0 RC7
 
 - Integrated DicodeConfigChecker-style real Xray HTTP verification with repeated samples and median latency.
 - Added complete splash-screen source refresh, testing, geolocation and update checks before the UI opens.
 - Split scanner logs into All, Telegram and Real tests views with independent live metrics.
 - Corrected Persian right-edge and English left-edge sidebar alignment.
 - Added Android repeated native-core scanner verification and the single atomic `SUB` lifecycle.
-- Added bilingual Persian/English release notes and RC6 multi-platform pre-release automation.
+- Added bilingual Persian/English release notes and RC7 multi-platform pre-release automation.
 
 ## 1.9.0 RC5 Android build hotfix
 

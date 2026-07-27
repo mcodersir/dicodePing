@@ -20,8 +20,8 @@ from dicodeping.models import ServerRecord  # noqa: E402
 from dicodeping.rc2_runtime import install_rc2_patches  # noqa: E402
 from dicodeping.rc3_runtime import install_rc3_patches  # noqa: E402
 from dicodeping.rc4_runtime import install_rc4_patches  # noqa: E402
-from dicodeping.rc6_runtime import install_rc6_patches  # noqa: E402
-from dicodeping.rc6_runtime import install_rc6_patches  # noqa: E402
+from dicodeping.rc7_runtime import install_rc7_patches  # noqa: E402
+from dicodeping.rc7_runtime import install_rc7_patches  # noqa: E402
 from dicodeping.rc7_runtime import install_rc7_patches  # noqa: E402
 from dicodeping.rc8_runtime import install_rc8_patches  # noqa: E402
 from dicodeping.rc9_runtime import install_rc9_patches  # noqa: E402
@@ -31,8 +31,8 @@ for install in (
     install_rc2_patches,
     install_rc3_patches,
     install_rc4_patches,
-    install_rc6_patches,
-    install_rc6_patches,
+    install_rc7_patches,
+    install_rc7_patches,
     install_rc7_patches,
     install_rc8_patches,
     install_rc9_patches,
@@ -69,7 +69,7 @@ def sample_servers() -> list[ServerRecord]:
 
 
 def main() -> int:
-    output = ROOT / "docs/screenshots/v1.9.0-rc.6"
+    output = ROOT / "docs/screenshots/v1.9.0-rc.7"
     output.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     available = set(QFontDatabase.families())

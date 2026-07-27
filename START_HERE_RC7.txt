@@ -1,0 +1,22 @@
+dicodePing 1.9.0 RC7
+
+برای Push، Build و ساخت خودکار Pre-release در GitHub فقط اجرا کنید:
+
+  DEPLOY_PRERELEASE_RC7.bat
+
+خروجی‌های مورد انتظار:
+
+  dicodePing-v1.9.0-rc.7-windows-x64.exe
+  dicodePing-v1.9.0-rc.7-linux-x86_64.tar.gz
+  dicodePing-v1.9.0-rc.7-macos-arm64.dmg
+  dicodePing-v1.9.0-rc.7-macos-x86_64.dmg
+  dicodePing-v1.9.0-rc.7-android.apk
+
+اجرای سورس ویندوز:
+  RUN_SOURCE_RC7.bat
+
+ساخت EXE ویندوز:
+  BUILD_RELEASE_RC7.bat
+
+ساخت APK امضاشده:
+  BUILD_SIGNED_APK_RC7.bat
