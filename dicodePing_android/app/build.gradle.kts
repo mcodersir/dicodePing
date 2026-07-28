@@ -101,6 +101,7 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 36
+        // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
         // RC10 used versionCode = 45; RC14 must be strictly greater.
         versionCode = 49
         // Previous stable-display scheme used: versionName = "1.8.0"

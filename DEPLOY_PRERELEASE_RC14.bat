@@ -9,7 +9,7 @@ set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
 set "TAG=v1.9.0-rc.14"
 set "WORKFLOW=release.yml"
-set "COMMIT_MESSAGE=release: deploy v1.9.0-rc.14 real Aether and WARP cores"
+set "COMMIT_MESSAGE=release: redeploy v1.9.0-rc.14 real Aether and WARP cores"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc14-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
@@ -17,31 +17,28 @@ set "HEAD_SHA="
 set "REMOTE_TAG_EXISTS="
 set "TAG_PUSHED="
 set "PYTHON_CMD="
+set "ROBOCOPY_CODE="
 
 cls
 echo ================================================================
-echo      dicodePing v1.9.0 RC14 GitHub Pre-release Deploy
+echo      dicodePing v1.9.0 RC14 GitHub Pre-release Deploy FIXED v2
 echo ================================================================
 echo.
-echo This script will:
-echo   1. Clone the latest main branch.
-echo   2. Replace old repository clutter with this clean RC14 source.
-echo   3. Validate version and Android project files.
-echo   4. Commit and push RC14 to main.
-echo   5. Create or replace tag %TAG%.
-echo   6. Let GitHub Actions build Windows, Linux, macOS and Android.
-echo   7. Wait until the pre-release assets are published.
+echo This script creates a clean repository snapshot and safely removes
+echo leftovers from folders previously used for older RC versions.
+echo Cleanup happens inside the temporary clone before validation and push.
 echo.
 echo Repository: %REPO%
+echo Branch:     %BRANCH%
 echo Tag:        %TAG%
 echo.
-echo IMPORTANT: GitHub repository Actions secrets must already contain:
+echo Required GitHub Actions secrets:
 echo   ANDROID_KEYSTORE_BASE64
 echo   ANDROID_KEYSTORE_PASSWORD
 echo   ANDROID_KEY_ALIAS
 echo   ANDROID_KEY_PASSWORD
 echo.
-echo No GitHub token or signing key is stored in this file.
+echo No GitHub token or signing key is stored in this BAT file.
 echo.
 pause
 
@@ -63,41 +60,58 @@ if not exist "docs\releases\v1.9.0-rc.14.md" (
     goto :failed
 )
 if not exist "%WAIT_SCRIPT%" (
-    echo [ERROR] Missing release wait helper: tools\wait_for_github_release.ps1
+    echo [ERROR] Missing helper: tools\wait_for_github_release.ps1
     goto :failed
 )
 
 call :clone_repository
 if errorlevel 1 (
     echo.
-    echo [INFO] Clone failed. Trying Git Credential Manager sign-in...
+    echo [INFO] Clone failed. Opening Git Credential Manager login...
     call :git_login
     if errorlevel 1 goto :failed
     call :clone_repository
     if errorlevel 1 (
-        echo [ERROR] Repository clone still failed after sign-in.
+        echo [ERROR] Repository clone failed after login.
         goto :failed
     )
 )
 
 echo.
-echo [2/7] Checking existing remote tag...
+echo [2/8] Reading the existing remote tag...
 pushd "%STAGE_DIR%"
 git ls-remote --exit-code --tags origin "refs/tags/%TAG%" >nul 2>&1
 if not errorlevel 1 set "REMOTE_TAG_EXISTS=1"
 popd
 if defined REMOTE_TAG_EXISTS (
-    echo [INFO] %TAG% already exists and will be replaced after the new commit is pushed.
-    echo [INFO] The GitHub pre-release will be updated in place by release.yml.
+    echo [INFO] %TAG% exists. It will be moved to the new clean commit.
 ) else (
-    echo [OK] %TAG% is not currently present on the remote.
+    echo [OK] No existing remote tag was found.
 )
 
 echo.
-echo [3/7] Synchronizing the clean RC14 source...
-robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
+echo [3/8] Removing every tracked file from the cloned working tree...
+pushd "%STAGE_DIR%"
+git reset --hard HEAD >nul
+if errorlevel 1 (
+    popd
+    echo [ERROR] git reset failed.
+    goto :failed
+)
+git clean -ffdqx >nul 2>&1
+git rm -r -f --ignore-unmatch . >nul
+if errorlevel 1 (
+    popd
+    echo [ERROR] Could not clear the old tracked repository snapshot.
+    goto :failed
+)
+popd
+
+echo.
+echo [4/8] Copying the clean RC14 source snapshot...
+robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
  /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
- /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log"
+ /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log" "*.bak"
 set "ROBOCOPY_CODE=%ERRORLEVEL%"
 if %ROBOCOPY_CODE% GEQ 8 (
     echo [ERROR] Robocopy failed with exit code %ROBOCOPY_CODE%.
@@ -108,37 +122,123 @@ pushd "%STAGE_DIR%"
 if errorlevel 1 goto :failed
 
 echo.
-echo [4/7] Running RC14 preflight validation...
-call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
-if errorlevel 1 (
-    popd
-    echo [ERROR] Version validation failed.
-    goto :failed
-)
-call %PYTHON_CMD% tools\validate_android_gradle_kts.py
-if errorlevel 1 (
-    popd
-    echo [ERROR] Android Gradle validation failed.
-    goto :failed
-)
-call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
-if errorlevel 1 (
-    popd
-    echo [ERROR] Android source validation failed.
-    goto :failed
+echo [5/8] Purging stale historical release files from the staged tree...
+rem The source folder may have been extracted over an older RC directory.
+rem Never fail merely because those leftovers exist; delete them from STAGE_DIR.
+
+if exist "tests\test_v*.py" (
+    echo [INFO] Removing historical version-locked tests...
+    del /f /q "tests\test_v*.py" >nul 2>&1
 )
 
-for /f "delims=" %%U in ('git config --get user.name 2^>nul') do set "GIT_USER=%%U"
-if not defined GIT_USER git config user.name "mcodersir"
+if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
+    echo [INFO] Removing obsolete version-specific release workflows...
+    del /f /q ".github\workflows\v1.9.0-rc.*-release.yml" >nul 2>&1
+)
+
+for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*.bat" 2^>nul') do (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC14.bat" (
+        echo [INFO] Removing stale deploy script: %%F
+        del /f /q "%%F" >nul 2>&1
+    )
+)
+for /f "delims=" %%F in ('dir /b /a-d "BUILD_RELEASE_RC*.bat" 2^>nul') do (
+    echo [INFO] Removing stale release builder: %%F
+    del /f /q "%%F" >nul 2>&1
+)
+for /f "delims=" %%F in ('dir /b /a-d "BUILD_SIGNED_APK_RC*.bat" 2^>nul') do (
+    echo [INFO] Removing stale APK builder: %%F
+    del /f /q "%%F" >nul 2>&1
+)
+for /f "delims=" %%F in ('dir /b /a-d "RUN_SOURCE_RC*.bat" 2^>nul') do (
+    echo [INFO] Removing stale source runner: %%F
+    del /f /q "%%F" >nul 2>&1
+)
+for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*_README_FA.txt" 2^>nul') do (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC14_README_FA.txt" (
+        echo [INFO] Removing stale deploy readme: %%F
+        del /f /q "%%F" >nul 2>&1
+    )
+)
+for /f "delims=" %%F in ('dir /b /a-d "START_HERE_RC*.txt" 2^>nul') do (
+    echo [INFO] Removing stale start file: %%F
+    del /f /q "%%F" >nul 2>&1
+)
+for /f "delims=" %%F in ('dir /b /a-d "VALIDATION_RESULTS_RC*.txt" 2^>nul') do (
+    echo [INFO] Removing stale validation report: %%F
+    del /f /q "%%F" >nul 2>&1
+)
+
+rem Verify that cleanup actually worked.
+if exist "tests\test_v*.py" (
+    echo [ERROR] Historical version-locked tests could not be deleted.
+    dir /b "tests\test_v*.py"
+    popd
+    goto :failed
+)
+if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
+    echo [ERROR] Obsolete release workflows could not be deleted.
+    dir /b ".github\workflows\v1.9.0-rc.*-release.yml"
+    popd
+    goto :failed
+)
+if not exist ".github\workflows\release.yml" (
+    echo [ERROR] Current release.yml was not copied.
+    popd
+    goto :failed
+)
+if not exist "tests\test_rc14_regressions.py" (
+    echo [ERROR] Current RC14 tests were not copied.
+    popd
+    goto :failed
+)
+if not exist "DEPLOY_PRERELEASE_RC14.bat" (
+    echo [ERROR] Current RC14 deploy script was not copied.
+    popd
+    goto :failed
+)
+echo [OK] Stale files were removed and the RC14 staged tree is clean.
+
+echo.
+echo [6/8] Running full local preflight before any push...
+call %PYTHON_CMD% tools\prepare_build_workspace.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_android_gradle_kts.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% -c "import pytest" >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] pytest is missing. Installing the small test dependency...
+    call %PYTHON_CMD% -m pip install --disable-pip-version-check "pytest==8.4.1"
+    if errorlevel 1 goto :validation_failed
+)
+call %PYTHON_CMD% -m pytest -q
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\quality_gate.py
+if errorlevel 1 goto :validation_failed
+
+echo [OK] RC14 preflight passed.
+
+git config --get user.name >nul 2>&1
+if errorlevel 1 git config user.name "mcodersir"
 git config --get user.email >nul 2>&1
 if errorlevel 1 git config user.email "mcodersir@users.noreply.github.com"
 
 git add -A
+if errorlevel 1 (
+    popd
+    echo [ERROR] git add failed.
+    goto :failed
+)
+
 git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "%COMMIT_MESSAGE%"
 ) else (
-    echo [INFO] Source already matches main. Creating an empty release commit to retrigger RC14.
+    echo [INFO] Main already matches this snapshot. Creating an empty commit to retrigger the tag workflow.
     git commit --allow-empty -m "%COMMIT_MESSAGE%"
 )
 if errorlevel 1 (
@@ -155,29 +255,28 @@ if not defined HEAD_SHA (
 )
 
 echo.
-echo [5/7] Pushing commit %HEAD_SHA% to %BRANCH%...
+echo [7/8] Pushing clean commit %HEAD_SHA% to %BRANCH%...
 git push origin "HEAD:%BRANCH%"
 if errorlevel 1 (
     popd
-    echo [ERROR] Push to %BRANCH% failed. The remote branch may have changed.
+    echo [ERROR] Push to %BRANCH% failed. Pull protection or a newer remote commit may be blocking it.
     goto :failed
 )
 
 echo.
-echo [6/7] Publishing tag %TAG%...
+echo Publishing tag %TAG%...
 git tag -d "%TAG%" >nul 2>&1
 git tag -a "%TAG%" -m "dicodePing %TAG% pre-release" "%HEAD_SHA%"
 if errorlevel 1 (
     popd
-    echo [ERROR] Local release tag creation failed.
+    echo [ERROR] Local tag creation failed.
     goto :failed
 )
 
 if defined REMOTE_TAG_EXISTS (
-    echo [INFO] Removing the old remote tag so the tag-push workflow runs again...
     git push origin ":refs/tags/%TAG%"
     if errorlevel 1 (
-        echo [WARNING] Remote tag deletion was denied. Trying a force update...
+        echo [WARNING] Remote tag deletion was denied. Trying a forced tag update...
         git push --force origin "refs/tags/%TAG%:refs/tags/%TAG%"
         if not errorlevel 1 set "TAG_PUSHED=1"
     ) else (
@@ -192,18 +291,17 @@ if defined REMOTE_TAG_EXISTS (
 if not defined TAG_PUSHED (
     popd
     echo [ERROR] The RC14 tag could not be published.
-    echo [ERROR] Check tag protection rules and your repository permission.
+    echo [ERROR] Check GitHub tag-protection rules and repository permissions.
     goto :failed
 )
 popd
 
 echo.
-echo GitHub Actions release build has started.
+echo [8/8] GitHub Actions started. Waiting for all platform assets...
 echo Actions: https://github.com/%REPO%/actions/workflows/%WORKFLOW%
 start "" "https://github.com/%REPO%/actions/workflows/%WORKFLOW%"
 echo.
-echo [7/7] Waiting for Windows, Linux, macOS and Android assets...
-echo This normally takes 15 to 45 minutes.
+echo Normal build time is approximately 15 to 45 minutes.
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%WAIT_SCRIPT%" -Repository "%REPO%" -Tag "%TAG%" -WorkflowFile "%WORKFLOW%" -CommitSha "%HEAD_SHA%" -TimeoutMinutes 90
@@ -222,14 +320,14 @@ if "%WAIT_CODE%"=="0" (
 
 if "%WAIT_CODE%"=="2" (
     echo.
-    echo [WARNING] Source and tag were pushed successfully, but local waiting timed out.
-    echo [WARNING] The GitHub build may still be running. Check the Actions page.
+    echo [WARNING] Source and tag were pushed, but local waiting timed out.
+    echo [WARNING] The GitHub build may still be running. Check Actions.
     goto :success
 )
 
 if "%WAIT_CODE%"=="3" (
     echo.
-    echo [ERROR] GitHub Actions failed or the release is missing required assets.
+    echo [ERROR] GitHub Actions failed or required release assets are missing.
     start "" "https://github.com/%REPO%/actions/workflows/%WORKFLOW%"
     goto :failed
 )
@@ -237,8 +335,13 @@ if "%WAIT_CODE%"=="3" (
 echo [ERROR] Release status checking failed unexpectedly.
 goto :failed
 
+:validation_failed
+popd
+echo [ERROR] Local validation failed. Nothing was pushed to GitHub.
+goto :failed
+
 :clone_repository
-echo [1/7] Cloning %REPO_URL%...
+echo [1/8] Cloning %REPO_URL%...
 if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
 git -c credential.interactive=always clone --branch "%BRANCH%" --single-branch "%REPO_URL%" "%STAGE_DIR%"
 exit /b %ERRORLEVEL%

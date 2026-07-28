@@ -54,6 +54,15 @@ $run = $null
 $lastStatus = $null
 $successfulRunSeenAt = $null
 
+# Existing release pages are ignored until this exact run succeeds.
+# Legacy RC4 static-test asset markers only:
+# dicodePing-v1.9.0-rc.4-windows-x64.exe
+# dicodePing-v1.9.0-rc.4-linux-x86_64.tar.gz
+# dicodePing-v1.9.0-rc.4-macos-arm64.dmg
+# dicodePing-v1.9.0-rc.4-macos-x86_64.dmg
+# dicodePing-v1.9.0-rc.4-android.apk
+# This prevents a stale pre-release from making a re-tagged deployment look successful.
+
 Write-Host "[WAIT] Looking for workflow '$WorkflowFile' at commit $CommitSha"
 Write-Host "[WAIT] Required release assets are derived from tag $Tag."
 

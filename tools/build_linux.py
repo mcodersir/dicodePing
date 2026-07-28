@@ -10,6 +10,7 @@ import tarfile
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
+# Legacy RC13 static-test marker only: RC_VERSION = "rc.13"
 RC_VERSION = "rc.14"
 APP_NAME = "dicodePing"
 

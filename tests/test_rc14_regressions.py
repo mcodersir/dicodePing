@@ -31,7 +31,7 @@ def test_usque_uses_supported_config_flag():
     desktop=text('dicodeping/connection_manager.py')
     android=text('dicodePing_android/app/src/main/java/ir/dicode/ping/core/ExternalCoreCommandBuilder.kt')
     process=text('dicodePing_android/app/src/main/java/ir/dicode/ping/core/AndroidExternalCoreProcess.kt')
-    assert 'command = [str(executable), "-c", str(config)]' in desktop
+    assert 'command = [str(executable), "--config", str(config)]' in desktop
     assert '"-c", config' in android
     assert 'ExternalCoreCommandBuilder.registration' in process
 

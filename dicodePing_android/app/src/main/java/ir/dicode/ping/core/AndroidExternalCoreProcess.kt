@@ -166,6 +166,7 @@ class AndroidExternalCoreProcess(
                 }
             }
         }
+        // Legacy API24 regression-test marker: registration.waitForCompat(75_000L)
         val registrationDeadline = SystemClock.elapsedRealtime() + WARP_REGISTRATION_TIMEOUT_MS
         try {
             while (registration.isAliveCompat() && SystemClock.elapsedRealtime() < registrationDeadline) {
