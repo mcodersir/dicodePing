@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="server_validity_days">
+        <item quantity="one">%d day validity</item>
+        <item quantity="other">%d days validity</item>
+    </plurals>
+    <plurals name="server_validity_weeks">
+        <item quantity="one">%d week validity</item>
+        <item quantity="other">%d weeks validity</item>
+    </plurals>
+    <plurals name="server_validity_hours">
+        <item quantity="one">%d hour validity</item>
+        <item quantity="other">%d hours validity</item>
+    </plurals>
+</resources>

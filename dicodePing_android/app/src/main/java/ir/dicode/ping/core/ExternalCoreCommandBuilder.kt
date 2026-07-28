@@ -16,7 +16,7 @@ internal object ExternalCoreCommandBuilder {
     ): List<String> = when (coreId) {
         "aether" -> buildList {
             add(binary)
-            addAll(listOf("--bind", "127.0.0.1:$socksPort", "--masque", "-4"))
+            addAll(listOf("--config", config, "--bind", "127.0.0.1:$socksPort", "--masque", "-4"))
             if (http2Fallback) addAll(listOf("--h2", "--fragment"))
             addAll(listOf("--scan", "balanced", "--quick-reconnect", "--noize", "firewall"))
         }

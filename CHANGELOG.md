@@ -1,18 +1,15 @@
 # Changelog
 
-## 1.9.0-rc.15
+## 1.9.0-rc.16
 
-- Fixed RC15 deployment from folders contaminated by an older `src/main` tethering controller; local and direct APK builds now purge the duplicate class safely.
-- Prevented Android crashes from blank, malformed or scheme-less subscription URLs.
-- Migrated corrupt RC14 source settings and restored the built-in subscription automatically.
-- Incremented Android versionCode to 50 so RC15 is installed as a distinct update.
-- Moved Aether/Usque preparation into the APK build command itself.
-- Added final-APK checks for Xray, Aether and Usque on arm64-v8a and x86_64.
-- Added ELF architecture and SHA-256 manifest validation for bundled native cores.
-
-- Completed the Android Aether/WARP foreground connection flow with real SOCKS readiness and HTTP verification.
-- Added automatic HTTP/2 fallback, per-app routing migration, scanner progress/log improvements and independent server badges.
-- Corrected Usque CLI invocation and retained the RC14 UI/repository cleanup work.
+- Fixed real Aether/Usque startup and HTTP/2 argument ordering on desktop.
+- Added atomic WARP registration validation/retry on Android and desktop.
+- Made cancellation terminate both WARP registration and active native-core processes immediately.
+- Preserved local scanner subscriptions and verified servers across restart and remote-source refresh on all four platforms.
+- Added parallel TCP prefiltering and reduced redundant scanner probes for substantially faster scans.
+- Reworked Android and desktop live logs to append at the tail without jumping upward.
+- Replaced compact duration labels such as `8d`/`2w` with localized human-readable validity badges.
+- Bumped Android to versionCode 51 and retained mandatory APK verification for Xray, Aether and Usque on arm64-v8a/x86_64.
 
 ## 1.9.0-rc.13
 

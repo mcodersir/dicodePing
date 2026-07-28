@@ -1,4 +1,4 @@
-# dicodePing Android — v1.9.0-rc.15
+# dicodePing Android — v1.9.0-rc.16
 
 کلاینت بومی Android با Kotlin، Material 3، `VpnService` و AndroidLibXrayLite.
 

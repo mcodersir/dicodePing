@@ -38,6 +38,8 @@ class ScannerFragment : Fragment() {
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
     private var selectedLogTab = 0
+    private var renderedLogTab = -1
+    private var renderedLogLines: List<String> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -150,13 +152,36 @@ class ScannerFragment : Fragment() {
 
     private fun renderLog(review: List<String>, output: List<String>) {
         val b = _binding ?: return
-        val lines = if (selectedLogTab == 0) review else output
-        b.scannerLogText.text = highlighted(lines.ifEmpty { listOf(getString(R.string.scanner_log_empty)) })
-        b.scannerLogScroll.post { b.scannerLogScroll.fullScroll(View.FOCUS_DOWN) }
+        val incoming = (if (selectedLogTab == 0) review else output).takeLast(240)
+        val lines = incoming.ifEmpty { listOf(getString(R.string.scanner_log_empty)) }
+        val scroll = b.scannerLogScroll
+        val child = scroll.getChildAt(0)
+        val nearBottom = child == null || child.bottom - (scroll.height + scroll.scrollY) <= resources.displayMetrics.density * 36
+        val overlap = if (renderedLogTab == selectedLogTab) {
+            minOf(renderedLogLines.size, lines.size).downTo(1).firstOrNull { count ->
+                renderedLogLines.takeLast(count) == lines.take(count)
+            } ?: 0
+        } else 0
+        val canAppend = renderedLogTab == selectedLogTab && (renderedLogLines.isEmpty() || overlap > 0)
+        if (canAppend && b.scannerLogText.lineCount < 800) {
+            val added = lines.drop(overlap)
+            if (added.isNotEmpty()) b.scannerLogText.append(highlighted(added, prefixNewline = b.scannerLogText.text.isNotEmpty()))
+        } else {
+            b.scannerLogText.text = highlighted(lines)
+        }
+        renderedLogTab = selectedLogTab
+        renderedLogLines = lines.toList()
+        if (nearBottom || incoming.isNotEmpty()) {
+            scroll.post {
+                val content = scroll.getChildAt(0) ?: return@post
+                scroll.scrollTo(0, content.bottom)
+            }
+        }
     }
 
-    private fun highlighted(lines: List<String>): CharSequence {
+    private fun highlighted(lines: List<String>, prefixNewline: Boolean = false): CharSequence {
         val builder = SpannableStringBuilder()
+        if (prefixNewline && lines.isNotEmpty()) builder.append('\n')
         val ok = ContextCompat.getColor(requireContext(), R.color.success)
         val error = ContextCompat.getColor(requireContext(), R.color.danger)
         val brand = ContextCompat.getColor(requireContext(), R.color.brand)

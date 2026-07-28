@@ -65,6 +65,24 @@ def rate_quality(ping_ms: int | None, jitter_ms: float | None = None, failures: 
     return QualityRating("poor", score, "ضعیف", "Poor")
 
 
+def humanize_limit_label(value: str | None, language: str = "fa") -> str:
+    """Expand compact quota hints such as 8d/2w/12h for real users."""
+    import re
+    text = str(value or "").strip()
+    match = re.fullmatch(r"(?i)(\d+)\s*([dwh])", text)
+    if not match:
+        return text
+    amount = int(match.group(1))
+    unit = match.group(2).lower()
+    if language == "en":
+        word = {"d": "day", "w": "week", "h": "hour"}[unit]
+        if amount != 1:
+            word += "s"
+        return f"{amount} {word} validity"
+    word = {"d": "روز", "w": "هفته", "h": "ساعت"}[unit]
+    return f"اعتبار {amount} {word}"
+
+
 # --- Auto-disconnect timer (kept for backward compat; harmless no-op) ---
 
 import threading

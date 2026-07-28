@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
-RC_VERSION = "rc.15"
+RC_VERSION = "rc.16"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
 
@@ -55,7 +55,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v190_rc15.py"
+    entrypoint = root / "app_v190_rc16.py"
     required = [entrypoint, assets / "app.png", core / "xray", core / "aether", core / "usque"]
     missing = [str(path) for path in required if not path.exists()]
     if missing:

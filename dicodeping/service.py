@@ -220,6 +220,11 @@ class ServerService:
                     failures=0 if ping_ms is not None else ((previous.failures + 1) if previous else 1),
                 )
             )
+        # Local scanner subscriptions have no remote URL and must survive a
+        # normal source refresh/restart. Merge them after rebuilding remotes.
+        local_scanner = [row for row in old.values() if row.source_id.startswith("scanner-")]
+        known = {row.id for row in records}
+        records.extend(row for row in local_scanner if row.id not in known)
         records.sort(key=_sort_key)
         self.store.save_servers(records)
         LOGGER.info("Saved %d servers after discovery", len(records))
@@ -275,6 +280,11 @@ class ServerService:
             if not (_has_trusted_ping(server.ping_ms) and _has_trusted_location(server)):
                 server.ping_ms = None
                 server.status = "unverified"
+        # Local scanner subscriptions have no remote URL and must survive a
+        # normal source refresh/restart. Merge them after rebuilding remotes.
+        local_scanner = [row for row in old.values() if row.source_id.startswith("scanner-")]
+        known = {row.id for row in records}
+        records.extend(row for row in local_scanner if row.id not in known)
         records.sort(key=_sort_key)
         self.store.save_servers(records)
         # Persist the fresh results into the short-lived cache so the
@@ -416,6 +426,11 @@ class ServerService:
             if not (_has_trusted_ping(server.ping_ms) and _has_trusted_location(server)):
                 server.ping_ms = None
                 server.status = "unverified"
+        # Local scanner subscriptions have no remote URL and must survive a
+        # normal source refresh/restart. Merge them after rebuilding remotes.
+        local_scanner = [row for row in old.values() if row.source_id.startswith("scanner-")]
+        known = {row.id for row in records}
+        records.extend(row for row in local_scanner if row.id not in known)
         records.sort(key=_sort_key)
         self.store.save_servers(records)
         try:
@@ -451,6 +466,11 @@ class ServerService:
                 server.failures += 1
                 server.last_checked = utc_now()
                 break
+        # Local scanner subscriptions have no remote URL and must survive a
+        # normal source refresh/restart. Merge them after rebuilding remotes.
+        local_scanner = [row for row in old.values() if row.source_id.startswith("scanner-")]
+        known = {row.id for row in records}
+        records.extend(row for row in local_scanner if row.id not in known)
         records.sort(key=_sort_key)
         self.store.save_servers(records)
 
@@ -469,6 +489,11 @@ class ServerService:
             if server.id == server_id:
                 server.favorite = not server.favorite
                 break
+        # Local scanner subscriptions have no remote URL and must survive a
+        # normal source refresh/restart. Merge them after rebuilding remotes.
+        local_scanner = [row for row in old.values() if row.source_id.startswith("scanner-")]
+        known = {row.id for row in records}
+        records.extend(row for row in local_scanner if row.id not in known)
         records.sort(key=_sort_key)
         self.store.save_servers(records)
         return records

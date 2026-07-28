@@ -92,7 +92,7 @@ class SettingsFragment : Fragment() {
 
     private fun setupConnectionFeatures() {
         val store = vm.repo.settings
-        // RC15 migration: the old “apps outside connection” list duplicated denylist mode.
+        // RC16 migration: the old “apps outside connection” list duplicated denylist mode.
         if (store.bypassApps.isNotEmpty()) {
             if (store.perAppVpnPackages.isEmpty()) store.perAppVpnPackages = store.bypassApps
             if (store.perAppVpnMode == "disabled") store.perAppVpnMode = "denylist"

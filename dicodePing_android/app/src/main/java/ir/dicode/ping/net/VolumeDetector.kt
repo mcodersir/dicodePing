@@ -45,6 +45,8 @@ object VolumeDetector {
         val remainingBytes: Long?,
         val label: String,
         val source: String,
+        val durationAmount: Int? = null,
+        val durationUnit: String? = null,
     ) {
         companion object {
             val UNKNOWN = VolumeInfo(false, null, null, null, "—", "none")
@@ -126,15 +128,23 @@ object VolumeDetector {
                 val amount = time.groupValues[1].toInt()
                 val unit = time.groupValues[2].lowercase()
                 when {
-                    unit.startsWith("w") -> "${amount}w"
-                    unit.startsWith("d") -> "${amount}d"
-                    else -> "${amount}h"
+                    unit.startsWith("w") -> "$amount weeks validity"
+                    unit.startsWith("d") -> "$amount days validity"
+                    else -> "$amount hours validity"
                 }
             }
             else -> "حجمی"
         }
 
-        return VolumeInfo(true, totalBytes, null, totalBytes, label, "remark")
+        val durationAmount = time?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val durationUnit = time?.groupValues?.getOrNull(2)?.lowercase()?.let { unit ->
+            when {
+                unit.startsWith("w") -> "week"
+                unit.startsWith("d") -> "day"
+                else -> "hour"
+            }
+        }
+        return VolumeInfo(true, totalBytes, null, totalBytes, label, "remark", durationAmount, durationUnit)
     }
 
     /** Convenience: extract the remark from a ServerRecord's raw config URI. */

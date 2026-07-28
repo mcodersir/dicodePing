@@ -337,11 +337,13 @@ class DicodeVpnService : VpnService() {
                 )
             }
             try {
+                // Publish the helper before startup completes so Stop can kill
+                // an in-flight Aether scan or WARP registration immediately.
+                externalCore = helper
                 helper.start(
                     warpTermsAccepted = settings.warpTermsAccepted,
                     http2Fallback = http2Fallback,
                 )
-                externalCore = helper
                 val bridgeConfig = XrayConfigBuilder.buildSocksBridge(
                     helper.socksPort,
                     bufferSizeKiB,
@@ -579,6 +581,9 @@ class DicodeVpnService : VpnService() {
         AppLog.i("VPN", "Stop requested for $currentName")
         startGeneration.incrementAndGet()
         val previousStart = startJob
+        // Interrupt external registration/scanning before waiting for coroutine
+        // cancellation; otherwise Process.waitFor can keep Stop visibly stuck.
+        runCatching { externalCore?.stop() }
         // Keep the foreground service alive until native cleanup finishes. This
         // prevents Android from killing the process while libgojni is shutting down.
         startJob = scope.launch {

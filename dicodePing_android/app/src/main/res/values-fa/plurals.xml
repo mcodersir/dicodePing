@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="server_validity_days">
+        <item quantity="one">اعتبار %d روز</item>
+        <item quantity="other">اعتبار %d روز</item>
+    </plurals>
+    <plurals name="server_validity_weeks">
+        <item quantity="one">اعتبار %d هفته</item>
+        <item quantity="other">اعتبار %d هفته</item>
+    </plurals>
+    <plurals name="server_validity_hours">
+        <item quantity="one">اعتبار %d ساعت</item>
+        <item quantity="other">اعتبار %d ساعت</item>
+    </plurals>
+</resources>

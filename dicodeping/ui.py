@@ -1576,6 +1576,7 @@ class MainWindow(QMainWindow):
             view.setReadOnly(True)
             view.setMaximumBlockCount(1200)
             view.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+            view.setMaximumBlockCount(800)
             view.setStyleSheet(
                 "QPlainTextEdit { background:#0B0F15; color:#B8C4D6; border:1px solid #222D3B; "
                 "border-radius:8px; font-family:'Cascadia Code','Consolas','Menlo',monospace; font-size:11px; padding:6px; }"
@@ -1972,10 +1973,16 @@ class MainWindow(QMainWindow):
             if not selected:
                 return
             bar = view.verticalScrollBar()
-            follow_tail = bar.value() >= max(0, bar.maximum() - 4)
-            view.appendPlainText("\n".join(selected))
+            follow_tail = bar.value() >= max(0, bar.maximum() - max(12, bar.pageStep() // 8))
+            cursor = view.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            if not view.document().isEmpty():
+                cursor.insertText("\n")
+            cursor.insertText("\n".join(selected))
             if follow_tail:
-                bar.setValue(bar.maximum())
+                view.setTextCursor(cursor)
+                view.ensureCursorVisible()
+                QTimer.singleShot(0, lambda b=bar: b.setValue(b.maximum()))
 
         append(self.scanner_log_view, lines)
         append(
@@ -3493,7 +3500,7 @@ class MainWindow(QMainWindow):
             # four buckets and render the cell background accordingly.  The
             # bucket label is also exposed via the tooltip so screen readers
             # and hover-inspection still work.
-            from .volume import rate_quality
+            from .volume import rate_quality, humanize_limit_label
             rating = rate_quality(server.ping_ms)
             icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
             xray_text = f"{server.ping_ms} ms" if server.ping_ms is not None else "—"
@@ -3513,7 +3520,7 @@ class MainWindow(QMainWindow):
             }
             ping_brush = QBrush(QColor(quality_color_map.get(rating.bucket, "#1B2430")))
             ping_item.setBackground(ping_brush)
-            volume_label = getattr(server, "_volume_label", None) or "—"
+            volume_label = humanize_limit_label(getattr(server, "_volume_label", None), self.language) or "—"
             ping_item.setToolTip(
                 self.t("latency_details", icmp=icmp_text, xray=xray_text)
                 + "\n"

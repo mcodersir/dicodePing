@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "release": "1.9.0-rc.15",
+  "release": "1.9.0-rc.16",
   "integrity": "SHA-256 verified",
   "signature": {
     "windows": "legacy-style portable EXE; unsigned debug/test desktop build",

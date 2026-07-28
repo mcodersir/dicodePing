@@ -1,44 +1,51 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing v1.9.0 RC15 GitHub Pre-release Deploy
+title dicodePing RC16 One-Click Clone + Pre-release + Pages Deploy
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
-set "TAG=v1.9.0-rc.15"
+set "TAG=v1.9.0-rc.16"
 set "WORKFLOW=release.yml"
-set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.15 Android URL crash and bundled cores"
+set "DOCS_WORKFLOW=docs.yml"
+set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.16 release and GitHub Pages recovery"
 set "SOURCE_DIR=%CD%"
-set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc15-%RANDOM%%RANDOM%"
+set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc16-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
+set "PAGES_SCRIPT=%SOURCE_DIR%\tools\configure_github_pages.ps1"
+set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
 set "HEAD_SHA="
 set "REMOTE_TAG_EXISTS="
 set "TAG_PUSHED="
 set "PYTHON_CMD="
 set "ROBOCOPY_CODE="
+set "PAGES_CODE=0"
 
 cls
 echo ================================================================
-echo      dicodePing v1.9.0 RC15 GitHub Pre-release Deploy FINAL
+echo  dicodePing RC16 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY
 echo ================================================================
 echo.
-echo This script creates a clean repository snapshot and safely removes
-echo leftovers from folders previously used for older RC versions.
-echo Cleanup happens inside the temporary clone before validation and push.
+echo This deployer will:
+echo   1. Clone the current GitHub repository into a temporary folder.
+echo   2. Replace it with a clean RC16 snapshot.
+echo   3. Remove stale RC tests and old release files.
+echo   4. Validate the complete project before any push.
+echo   5. Push main and recreate the v1.9.0-rc.16 tag.
+echo   6. Publish the GitHub pre-release and all platform assets.
+echo   7. Repair and deploy the GitHub Pages website.
 echo.
 echo Repository: %REPO%
 echo Branch:     %BRANCH%
 echo Tag:        %TAG%
 echo.
-echo Required GitHub Actions secrets:
-echo   ANDROID_KEYSTORE_BASE64
-echo   ANDROID_KEYSTORE_PASSWORD
-echo   ANDROID_KEY_ALIAS
-echo   ANDROID_KEY_PASSWORD
+echo Android signing:
+echo   Missing GitHub Actions secrets are created or restored automatically.
+echo   A persistent private backup is stored in Documents\dicodePing-signing.
 echo.
-echo No GitHub token or signing key is stored in this BAT file.
+echo No GitHub token or signing key is stored in this source folder or BAT file.
 echo.
 pause
 
@@ -48,6 +55,10 @@ call :require_command robocopy "Windows Robocopy"
 if errorlevel 1 goto :failed
 call :require_command powershell "Windows PowerShell"
 if errorlevel 1 goto :failed
+call :ensure_gh
+if errorlevel 1 goto :failed
+call :ensure_android_signing
+if errorlevel 1 goto :failed
 call :find_python
 if errorlevel 1 goto :failed
 
@@ -55,30 +66,49 @@ if not exist ".github\workflows\%WORKFLOW%" (
     echo [ERROR] Missing workflow: .github\workflows\%WORKFLOW%
     goto :failed
 )
-if not exist "docs\releases\v1.9.0-rc.15.md" (
-    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.15.md
+if not exist ".github\workflows\%DOCS_WORKFLOW%" (
+    echo [ERROR] Missing workflow: .github\workflows\%DOCS_WORKFLOW%
+    goto :failed
+)
+if not exist "docs\releases\v1.9.0-rc.16.md" (
+    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.16.md
     goto :failed
 )
 if not exist "%WAIT_SCRIPT%" (
     echo [ERROR] Missing helper: tools\wait_for_github_release.ps1
     goto :failed
 )
+if not exist "%PAGES_SCRIPT%" (
+    echo [ERROR] Missing helper: tools\configure_github_pages.ps1
+    goto :failed
+)
+if not exist "%SIGNING_SCRIPT%" (
+    echo [ERROR] Missing helper: tools\bootstrap_android_signing.ps1
+    goto :failed
+)
+if not exist "tools\purge_stale_release_tests.py" (
+    echo [ERROR] Missing helper: tools\purge_stale_release_tests.py
+    goto :failed
+)
+if not exist "tools\bootstrap_android_signing.ps1" (
+    echo [ERROR] Missing helper: tools\bootstrap_android_signing.ps1
+    goto :failed
+)
 
 call :clone_repository
 if errorlevel 1 (
     echo.
-    echo [INFO] Clone failed. Opening Git Credential Manager login...
-    call :git_login
-    if errorlevel 1 goto :failed
+    echo [INFO] Clone failed. Refreshing GitHub authentication...
+    gh auth setup-git >nul 2>&1
     call :clone_repository
     if errorlevel 1 (
-        echo [ERROR] Repository clone failed after login.
+        echo [ERROR] Repository clone failed after authentication refresh.
         goto :failed
     )
 )
 
 echo.
-echo [2/8] Reading the existing remote tag...
+echo [2/10] Reading the existing remote tag...
 pushd "%STAGE_DIR%"
 git ls-remote --exit-code --tags origin "refs/tags/%TAG%" >nul 2>&1
 if not errorlevel 1 set "REMOTE_TAG_EXISTS=1"
@@ -90,7 +120,7 @@ if defined REMOTE_TAG_EXISTS (
 )
 
 echo.
-echo [3/8] Removing every tracked file from the cloned working tree...
+echo [3/10] Removing every tracked file from the cloned working tree...
 pushd "%STAGE_DIR%"
 git reset --hard HEAD >nul
 if errorlevel 1 (
@@ -108,7 +138,7 @@ if errorlevel 1 (
 popd
 
 echo.
-echo [4/8] Copying the clean RC15 source snapshot...
+echo [4/10] Copying the clean RC16 source snapshot...
 robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
  /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
  /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log" "*.bak"
@@ -122,13 +152,12 @@ pushd "%STAGE_DIR%"
 if errorlevel 1 goto :failed
 
 echo.
-echo [5/8] Purging stale historical release files from the staged tree...
-rem The source folder may have been extracted over an older RC directory.
-rem Never fail merely because those leftovers exist; delete them from STAGE_DIR.
-
-if exist "tests\test_v*.py" (
-    echo [INFO] Removing historical version-locked tests...
-    del /f /q "tests\test_v*.py" >nul 2>&1
+echo [5/10] Purging stale historical release files from the staged tree...
+call %PYTHON_CMD% tools\purge_stale_release_tests.py
+if errorlevel 1 (
+    echo [ERROR] Automatic stale release-test cleanup failed.
+    popd
+    goto :failed
 )
 
 set "STALE_TETHER_CONTROLLER=dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt"
@@ -143,7 +172,7 @@ if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
 )
 
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*.bat" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC15.bat" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC16.bat" (
         echo [INFO] Removing stale deploy script: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -161,7 +190,7 @@ for /f "delims=" %%F in ('dir /b /a-d "RUN_SOURCE_RC*.bat" 2^>nul') do (
     del /f /q "%%F" >nul 2>&1
 )
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*_README_FA.txt" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC15_README_FA.txt" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC16_README_FA.txt" (
         echo [INFO] Removing stale deploy readme: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -175,21 +204,26 @@ for /f "delims=" %%F in ('dir /b /a-d "VALIDATION_RESULTS_RC*.txt" 2^>nul') do (
     del /f /q "%%F" >nul 2>&1
 )
 
-rem Verify that cleanup actually worked.
 if exist "tests\test_v*.py" (
-    echo [ERROR] Historical version-locked tests could not be deleted.
+    echo [ERROR] Historical test_v files survived cleanup.
     dir /b "tests\test_v*.py"
     popd
     goto :failed
 )
+if exist "tests\test_rc15*.py" (
+    echo [ERROR] RC15 tests survived cleanup and would block RC16.
+    dir /b "tests\test_rc15*.py"
+    popd
+    goto :failed
+)
 if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
-    echo [ERROR] Obsolete release workflows could not be deleted.
+    echo [ERROR] Obsolete release workflows survived cleanup.
     dir /b ".github\workflows\v1.9.0-rc.*-release.yml"
     popd
     goto :failed
 )
 if exist "%STALE_TETHER_CONTROLLER%" (
-    echo [ERROR] Stale main-source AndroidTetheringController could not be deleted.
+    echo [ERROR] Stale AndroidTetheringController survived cleanup.
     popd
     goto :failed
 )
@@ -198,36 +232,54 @@ if not exist ".github\workflows\release.yml" (
     popd
     goto :failed
 )
-if not exist "tests\test_rc15_regressions.py" (
-    echo [ERROR] Current RC15 tests were not copied.
+if not exist ".github\workflows\docs.yml" (
+    echo [ERROR] Current docs.yml was not copied.
     popd
     goto :failed
 )
-if not exist "DEPLOY_PRERELEASE_RC15.bat" (
-    echo [ERROR] Current RC15 deploy script was not copied.
+if not exist "tests\test_rc16_regressions.py" (
+    echo [ERROR] Current RC16 tests were not copied.
     popd
     goto :failed
 )
-if not exist "app_v190_rc15.py" (
-    echo [ERROR] RC15 runtime wrapper app_v190_rc15.py was not copied.
+if not exist "app_v190_rc16.py" (
+    echo [ERROR] RC16 runtime wrapper app_v190_rc16.py was not copied.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc15.py" "tools\build_windows.py" >nul
+findstr /C:"app_v190_rc16.py" "tools\build_windows.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Windows builder is not using app_v190_rc15.py.
+    echo [ERROR] Windows builder is not using app_v190_rc16.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc15.py" "tools\build_linux.py" >nul
+findstr /C:"app_v190_rc16.py" "tools\build_linux.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Linux builder is not using app_v190_rc15.py.
+    echo [ERROR] Linux builder is not using app_v190_rc16.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc15.py" "tools\build_macos.py" >nul
+findstr /C:"app_v190_rc16.py" "tools\build_macos.py" >nul
 if errorlevel 1 (
-    echo [ERROR] macOS builder is not using app_v190_rc15.py.
+    echo [ERROR] macOS builder is not using app_v190_rc16.py.
+    popd
+    goto :failed
+)
+findstr /C:"actions/upload-pages-artifact@v4" ".github\workflows\docs.yml" >nul
+if errorlevel 1 (
+    echo [ERROR] GitHub Pages workflow does not use upload-pages-artifact v4.
+    popd
+    goto :failed
+)
+findstr /C:"pages: write" ".github\workflows\docs.yml" >nul
+if errorlevel 1 (
+    echo [ERROR] GitHub Pages write permission is missing.
+    popd
+    goto :failed
+)
+findstr /C:"id-token: write" ".github\workflows\docs.yml" >nul
+if errorlevel 1 (
+    echo [ERROR] GitHub Pages OIDC permission is missing.
     popd
     goto :failed
 )
@@ -249,16 +301,45 @@ if errorlevel 1 (
     popd
     goto :failed
 )
-findstr /C:"versionCode = 50" "dicodePing_android\app\build.gradle.kts" >nul
+findstr /C:"versionCode = 51" "dicodePing_android\app\build.gradle.kts" >nul
 if errorlevel 1 (
-    echo [ERROR] Android versionCode 50 is missing.
+    echo [ERROR] Android versionCode 51 is missing.
     popd
     goto :failed
 )
-echo [OK] Stale files were removed and the RC15 staged tree is clean.
+findstr /C:"registrationProcess" "dicodePing_android\app\src\main\java\ir\dicode\ping\core\AndroidExternalCoreProcess.kt" >nul
+if errorlevel 1 (
+    echo [ERROR] Android external-core cancellation fix is missing.
+    popd
+    goto :failed
+)
+findstr /C:"val localServers = servers.value.filter" "dicodePing_android\app\src\main\java\ir\dicode\ping\data\AppRepository.kt" >nul
+if errorlevel 1 (
+    echo [ERROR] Android scanner persistence fix is missing.
+    popd
+    goto :failed
+)
+findstr /C:"SCANNER_TCP_PREFILTER_WORKERS = 16" "dicodePing_android\app\src\main\java\ir\dicode\ping\data\AppRepository.kt" >nul
+if errorlevel 1 (
+    echo [ERROR] Android scanner prefilter is missing.
+    popd
+    goto :failed
+)
+if not exist "tools\bootstrap_android_signing.ps1" (
+    echo [ERROR] Android signing bootstrap helper was not copied.
+    popd
+    goto :failed
+)
+findstr /C:"gh secret set --repo $Repository --app actions --env-file" "tools\bootstrap_android_signing.ps1" >nul
+if errorlevel 1 (
+    echo [ERROR] Android signing bootstrap cannot upload repository secrets.
+    popd
+    goto :failed
+)
+echo [OK] Stale files were removed and the RC16 staged tree is clean.
 
 echo.
-echo [6/8] Running full local preflight before any push...
+echo [6/10] Running full local preflight before any push...
 call %PYTHON_CMD% tools\prepare_build_workspace.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
@@ -269,7 +350,7 @@ call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% -c "import pytest" >nul 2>&1
 if errorlevel 1 (
-    echo [INFO] pytest is missing. Installing the small test dependency...
+    echo [INFO] pytest is missing. Installing the test dependency...
     call %PYTHON_CMD% -m pip install --disable-pip-version-check "pytest==8.4.1"
     if errorlevel 1 goto :validation_failed
 )
@@ -278,7 +359,7 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\quality_gate.py
 if errorlevel 1 goto :validation_failed
 
-echo [OK] RC15 preflight passed.
+echo [OK] RC16 preflight passed.
 
 git config --get user.name >nul 2>&1
 if errorlevel 1 git config user.name "mcodersir"
@@ -296,7 +377,7 @@ git diff --cached --quiet
 if errorlevel 1 (
     git commit -m "%COMMIT_MESSAGE%"
 ) else (
-    echo [INFO] Main already matches this snapshot. Creating an empty commit to retrigger the tag workflow.
+    echo [INFO] Main already matches this snapshot. Creating an empty commit to retrigger workflows.
     git commit --allow-empty -m "%COMMIT_MESSAGE%"
 )
 if errorlevel 1 (
@@ -313,16 +394,27 @@ if not defined HEAD_SHA (
 )
 
 echo.
-echo [7/8] Pushing clean commit %HEAD_SHA% to %BRANCH%...
+echo [7/10] Pushing clean commit %HEAD_SHA% to %BRANCH%...
 git push origin "HEAD:%BRANCH%"
 if errorlevel 1 (
     popd
-    echo [ERROR] Push to %BRANCH% failed. Pull protection or a newer remote commit may be blocking it.
+    echo [ERROR] Push to %BRANCH% failed. Branch protection or a newer commit may be blocking it.
     goto :failed
 )
 
 echo.
-echo Publishing tag %TAG%...
+echo [8/10] Recreating GitHub pre-release tag %TAG%...
+gh release view "%TAG%" --repo "%REPO%" >nul 2>&1
+if not errorlevel 1 (
+    echo [INFO] Removing the old GitHub release so stale assets cannot survive...
+    gh release delete "%TAG%" --repo "%REPO%" --yes
+    if errorlevel 1 (
+        popd
+        echo [ERROR] Existing GitHub release could not be deleted.
+        goto :failed
+    )
+)
+
 git tag -d "%TAG%" >nul 2>&1
 git tag -a "%TAG%" -m "dicodePing %TAG% pre-release" "%HEAD_SHA%"
 if errorlevel 1 (
@@ -348,14 +440,23 @@ if defined REMOTE_TAG_EXISTS (
 
 if not defined TAG_PUSHED (
     popd
-    echo [ERROR] The RC15 tag could not be published.
+    echo [ERROR] The RC16 tag could not be published.
     echo [ERROR] Check GitHub tag-protection rules and repository permissions.
     goto :failed
 )
 popd
 
 echo.
-echo [8/8] GitHub Actions started. Waiting for all platform assets...
+echo [9/10] Repairing GitHub Pages and deploying docs/site...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PAGES_SCRIPT%" -Repository "%REPO%" -Branch "%BRANCH%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%DOCS_WORKFLOW%" -TimeoutMinutes 30
+set "PAGES_CODE=%ERRORLEVEL%"
+if not "%PAGES_CODE%"=="0" (
+    echo [WARNING] GitHub Pages deployment failed. Release monitoring will continue.
+    start "" "https://github.com/%REPO%/actions/workflows/%DOCS_WORKFLOW%"
+)
+
+echo.
+echo [10/10] Waiting for all pre-release platform assets...
 echo Actions: https://github.com/%REPO%/actions/workflows/%WORKFLOW%
 start "" "https://github.com/%REPO%/actions/workflows/%WORKFLOW%"
 echo.
@@ -368,11 +469,17 @@ set "WAIT_CODE=%ERRORLEVEL%"
 if "%WAIT_CODE%"=="0" (
     echo.
     echo ================================================================
-    echo                 RC15 DEPLOYED SUCCESSFULLY
+    echo          RC16 PRE-RELEASE AND DEPLOY FINISHED
     echo ================================================================
     echo Commit:  %HEAD_SHA%
     echo Release: https://github.com/%REPO%/releases/tag/%TAG%
+    if "%PAGES_CODE%"=="0" (
+        echo Pages:   https://mcodersir.github.io/dicodePing/
+    ) else (
+        echo Pages:   FAILED - check Documentation workflow
+    )
     start "" "https://github.com/%REPO%/releases/tag/%TAG%"
+    if "%PAGES_CODE%"=="0" start "" "https://mcodersir.github.io/dicodePing/"
     goto :success
 )
 
@@ -399,26 +506,58 @@ echo [ERROR] Local validation failed. Nothing was pushed to GitHub.
 goto :failed
 
 :clone_repository
-echo [1/8] Cloning %REPO_URL%...
+echo [1/10] Cloning %REPO_URL%...
 if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
 git -c credential.interactive=always clone --branch "%BRANCH%" --single-branch "%REPO_URL%" "%STAGE_DIR%"
 exit /b %ERRORLEVEL%
 
-:git_login
-git credential-manager --version >nul 2>&1
-if not errorlevel 1 (
-    git credential-manager github login
-    exit /b %ERRORLEVEL%
+:ensure_gh
+where gh >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] GitHub CLI is missing. Trying installation through winget...
+    where winget >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] GitHub CLI is required for one-click release and Pages deployment.
+        start "" "https://cli.github.com/"
+        exit /b 1
+    )
+    winget install --id GitHub.cli --exact --source winget --accept-package-agreements --accept-source-agreements
+    if errorlevel 1 (
+        echo [ERROR] GitHub CLI installation failed.
+        start "" "https://cli.github.com/"
+        exit /b 1
+    )
+    set "PATH=%PATH%;%ProgramFiles%\GitHub CLI"
 )
-git credential-manager-core --version >nul 2>&1
-if not errorlevel 1 (
-    git credential-manager-core github login
-    exit /b %ERRORLEVEL%
+
+gh auth status --hostname github.com >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Sign in to GitHub in the browser window...
+    gh auth login --hostname github.com --git-protocol https --web
+    if errorlevel 1 (
+        echo [ERROR] GitHub CLI authentication failed.
+        exit /b 1
+    )
 )
-echo [ERROR] Git Credential Manager is unavailable.
-echo Install the current Git for Windows and enable Credential Manager.
-start "" "https://git-scm.com/download/win"
-exit /b 1
+gh auth setup-git >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] GitHub CLI could not configure Git authentication.
+    exit /b 1
+)
+echo [OK] GitHub CLI authenticated.
+exit /b 0
+
+
+:ensure_android_signing
+echo.
+echo [SIGNING] Checking Android release-signing configuration...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SIGNING_SCRIPT%" -Repository "%REPO%"
+if errorlevel 1 (
+    echo [ERROR] Android signing bootstrap failed.
+    echo [ERROR] Nothing has been cloned, committed or pushed.
+    exit /b 1
+)
+exit /b 0
 
 :find_python
 py -3 --version >nul 2>&1

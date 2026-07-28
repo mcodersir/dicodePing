@@ -122,12 +122,17 @@ class SettingsStore(context: Context) {
         }
 
         if (list.removeAll { source ->
-                !source.isDefault && source.id != "default" && normalizedSubscriptionHttpUrl(source.url) == null
+                !source.isDefault && source.id != "default" && !isLocalScannerSource(source) &&
+                    normalizedSubscriptionHttpUrl(source.url) == null
             }
         ) {
             repaired = true
         }
 
+        list.filter(::isLocalScannerSource).forEach { local ->
+            local.enabled = true
+            if (local.name.isBlank()) local.name = "SUB"
+        }
         list.sortBy { it.order }
         list.forEachIndexed { i, source -> source.order = i }
         if (repaired) saveSources(list)
@@ -189,6 +194,9 @@ class SettingsStore(context: Context) {
             true,
             true,
         )
+
+        fun isLocalScannerSource(source: SourceDefinition): Boolean =
+            source.id.startsWith("scanner-") && source.url.isBlank()
 
         fun idForUrl(url: String): String {
             val hash = MessageDigest.getInstance("SHA-256").digest(url.trim().toByteArray())

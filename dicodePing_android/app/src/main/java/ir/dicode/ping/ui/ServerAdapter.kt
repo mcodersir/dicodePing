@@ -182,7 +182,12 @@ class ServerAdapter(
         if (profileLabel.isNotBlank()) styleBadge(binding.profileBadge, ContextCompat.getColor(context, R.color.brand))
 
         val volume = VolumeDetector.detectFromServer(server)
-        val volumeLabel = volume.label.takeUnless { it.isBlank() || it == "—" }.orEmpty()
+        val volumeLabel = when (volume.durationUnit) {
+            "day" -> context.resources.getQuantityString(R.plurals.server_validity_days, volume.durationAmount ?: 0, volume.durationAmount ?: 0)
+            "week" -> context.resources.getQuantityString(R.plurals.server_validity_weeks, volume.durationAmount ?: 0, volume.durationAmount ?: 0)
+            "hour" -> context.resources.getQuantityString(R.plurals.server_validity_hours, volume.durationAmount ?: 0, volume.durationAmount ?: 0)
+            else -> volume.label.takeUnless { it.isBlank() || it == "—" }.orEmpty()
+        }
         binding.volumeBadge.visibility = if (volumeLabel.isBlank()) View.GONE else View.VISIBLE
         binding.volumeBadge.text = volumeLabel
         if (volumeLabel.isNotBlank()) styleBadge(binding.volumeBadge, ContextCompat.getColor(context, R.color.warning))

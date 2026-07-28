@@ -13,7 +13,7 @@ VERSION = "1.9.0"
 # version formatting.
 # Previous RC metadata retained for migration tests: RELEASE_VERSION = "1.8.0-rc.2"
 # Legacy RC13 static-test marker only: RELEASE_VERSION = "1.9.0-rc.13"
-RELEASE_VERSION = "1.9.0-rc.15"
+RELEASE_VERSION = "1.9.0-rc.16"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 DEFAULT_SUBSCRIPTION_MIRRORS = (

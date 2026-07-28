@@ -179,7 +179,7 @@ class AppRepository private constructor(context: Context) {
     suspend fun subscriptionUpdates(): List<SourceDefinition> = withContext(Dispatchers.IO) {
         val previous = settings.sourceRevisions
         val observed = mutableMapOf<String, String>()
-        val changed = sources.value.filter { it.enabled }.filter { source ->
+        val changed = sources.value.filter { it.enabled && !isLocalScannerSource(it) }.filter { source ->
             val revision = downloader.revision(source.url)
             if (revision.isBlank()) false else {
                 observed[source.id] = revision
@@ -191,7 +191,7 @@ class AppRepository private constructor(context: Context) {
     }
 
     private suspend fun rememberSourceRevisions() {
-        val observed = sources.value.filter { it.enabled }.mapNotNull { source ->
+        val observed = sources.value.filter { it.enabled && !isLocalScannerSource(it) }.mapNotNull { source ->
             downloader.revision(source.url).takeIf { it.isNotBlank() }?.let { source.id to it }
         }.toMap()
         if (observed.isNotEmpty()) settings.sourceRevisions = observed
@@ -200,7 +200,8 @@ class AppRepository private constructor(context: Context) {
     private suspend fun refreshServersInternal() {
         if (progress.value.active) return
         error.value = null
-        val enabled = sources.value.filter { it.enabled }.sortedBy { it.order }
+        val enabled = sources.value.filter { it.enabled && !isLocalScannerSource(it) }.sortedBy { it.order }
+        val localServers = servers.value.filter { it.sourceId.startsWith("scanner-") }
         val discovered = mutableListOf<ServerRecord>()
         var successfulSources = 0
 
@@ -263,7 +264,7 @@ class AppRepository private constructor(context: Context) {
             }
             // Keep source order stable until the final ping stage. This prevents rows from
             // jumping while location and latency results arrive.
-            servers.value = unique
+            servers.value = (unique + localServers).distinctBy { it.id }
             settings.saveServers(servers.value)
             if (successfulSources > 0) settings.lastServerRefreshAt = System.currentTimeMillis()
         } else if (servers.value.isEmpty()) {
@@ -346,13 +347,35 @@ class AppRepository private constructor(context: Context) {
                     .take(MAX_SCANNER_SERVERS)
                     .toList()
                 if (parsed.isEmpty()) return@withLock emptyList()
-                // Replaces the old non-transactional pingServers(imported) path.
+                // Fast parallel TCP filtering removes dead endpoints before the
+                // process-global native Xray probe. Native probes remain serial
+                // for JNI safety, but RC16 tests far fewer dead candidates.
+                progress.value = ProgressState(true, "prefilter", 0, parsed.size, "Filtering reachable candidates")
+                val prefilterDone = AtomicInteger(0)
+                val prefilterSem = Semaphore(SCANNER_TCP_PREFILTER_WORKERS)
+                val reachable = coroutineScope {
+                    parsed.map { server ->
+                        async(Dispatchers.IO) {
+                            prefilterSem.withPermit {
+                                if (stopRequested()) return@withPermit null
+                                val ok = !needsTcpPrecheck(server) || tcpReachable(server, SCANNER_TCP_PREFILTER_TIMEOUT_MS)
+                                val current = prefilterDone.incrementAndGet()
+                                progress.value = ProgressState(true, "prefilter", current, parsed.size, server.name)
+                                if (ok) server else null
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
+                }.take(SCANNER_NATIVE_CANDIDATE_LIMIT)
+                if (reachable.isEmpty()) {
+                    progress.value = ProgressState()
+                    return@withLock emptyList()
+                }
                 val done = AtomicInteger(0)
                 val aliveDone = AtomicInteger(0)
-                progress.value = ProgressState(true, "ping", 0, parsed.size, "Testing scanner candidates")
+                progress.value = ProgressState(true, "ping", 0, reachable.size, "Testing scanner candidates")
                 val healthy = mutableListOf<ServerRecord>()
                 val concurrency = 1 // libgojni one-shot probes are process-global; keep scanner probes crash-safe
-                for (batch in parsed.chunked(concurrency * 2)) {
+                for (batch in reachable.chunked(concurrency * 2)) {
                     if (stopRequested()) break
                     val completed = coroutineScope {
                         val sem = Semaphore(concurrency)
@@ -360,10 +383,8 @@ class AppRepository private constructor(context: Context) {
                             async(Dispatchers.IO) {
                                 sem.withPermit {
                                     if (stopRequested()) return@withPermit null
-                                    val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
                                     val samples = mutableListOf<Long>()
-                                    if (reachable) {
-                                        for (attempt in 0 until SCANNER_TEST_ATTEMPTS) {
+                                    for (attempt in 0 until SCANNER_TEST_ATTEMPTS) {
                                             if (stopRequested()) break
                                             val measured = runCatching {
                                                 proxyProbe.measureOutboundDelay(
@@ -379,7 +400,6 @@ class AppRepository private constructor(context: Context) {
                                                 break
                                             }
                                             delay(SCANNER_ATTEMPT_GAP_MS)
-                                        }
                                     }
                                     val ping = samples.takeIf { it.size >= SCANNER_MIN_SUCCESS }
                                         ?.sorted()
@@ -396,10 +416,10 @@ class AppRepository private constructor(context: Context) {
                                         true,
                                         "ping",
                                         doneNow,
-                                        parsed.size,
+                                        reachable.size,
                                         server.name,
                                     )
-                                    onProgress(doneNow, parsed.size, aliveNow)
+                                    onProgress(doneNow, reachable.size, aliveNow)
                                     ping?.let {
                                         server.copy(
                                             pingMs = it,
@@ -633,9 +653,9 @@ class AppRepository private constructor(context: Context) {
             node.protocol.lowercase() !in setOf("hysteria2", "wireguard", "tuic")
     }
 
-    private fun tcpReachable(server: ServerRecord): Boolean = runCatching {
+    private fun tcpReachable(server: ServerRecord, timeoutMs: Int = TCP_PRECHECK_TIMEOUT_MS): Boolean = runCatching {
         Socket().use { socket ->
-            socket.connect(InetSocketAddress(server.host, server.port), TCP_PRECHECK_TIMEOUT_MS)
+            socket.connect(InetSocketAddress(server.host, server.port), timeoutMs)
         }
         true
     }.getOrDefault(false)
@@ -814,6 +834,9 @@ class AppRepository private constructor(context: Context) {
         settings.saveServers(servers.value)
     }
 
+    private fun isLocalScannerSource(source: SourceDefinition): Boolean =
+        source.id.startsWith("scanner-") && source.url.isBlank()
+
     private fun idForRaw(raw: String): String = MessageDigest.getInstance("SHA-256")
         .digest(raw.substringBefore('#').toByteArray())
         .take(8)
@@ -830,11 +853,14 @@ class AppRepository private constructor(context: Context) {
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 160
-        private const val SCANNER_HEALTHY_TARGET = 60
-        private const val SCANNER_TEST_ATTEMPTS = 3
-        private const val SCANNER_MIN_SUCCESS = 2
+        private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 96
+        private const val SCANNER_TCP_PREFILTER_WORKERS = 16
+        private const val SCANNER_TCP_PREFILTER_TIMEOUT_MS = 650
+        private const val SCANNER_HEALTHY_TARGET = 48
+        private const val SCANNER_TEST_ATTEMPTS = 2
+        private const val SCANNER_MIN_SUCCESS = 1
         private const val SCANNER_MAX_DELAY_MS = 60_000L
-        private const val SCANNER_ATTEMPT_GAP_MS = 120L
+        private const val SCANNER_ATTEMPT_GAP_MS = 40L
 
         @Volatile
         private var instance: AppRepository? = null

@@ -20,7 +20,7 @@ ANDROID_API = 24
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.15"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.16"})
     with urllib.request.urlopen(request, timeout=90) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output)
 
@@ -226,7 +226,7 @@ def main() -> int:
     manifest_path.write_text(
         json.dumps(
             {
-                "release": "1.9.0-rc.15",
+                "release": "1.9.0-rc.16",
                 "aether": AETHER_VERSION,
                 "usque": USQUE_VERSION,
                 "abis": ["arm64-v8a", "x86_64"],

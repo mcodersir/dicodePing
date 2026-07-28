@@ -53,36 +53,49 @@ def register_warp(*, accept_terms: bool) -> Path:
             pass
 
     temporary = destination.with_name("config.registering.json")
-    temporary.unlink(missing_ok=True)
-    result = subprocess.run(
-        [
-            str(executable),
-            "--config",
-            str(temporary),
-            "register",
-            "--accept-tos",
-            "--name",
-            "dicodePing",
-        ],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="ignore",
-        timeout=90,
-        cwd=str(executable.parent),
-        creationflags=_creation_flags(),
-    )
-    try:
-        if result.returncode != 0 or not temporary.is_file():
-            raise RuntimeError((result.stderr or result.stdout or "WARP registration failed")[-1200:])
-        payload = json.loads(temporary.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict) or not payload.get("private_key") or not payload.get("endpoint_pub_key"):
-            raise RuntimeError("WARP registration returned an incomplete configuration")
-        temporary.replace(destination)
-        return destination
-    finally:
+    last_error = "WARP registration failed"
+    for attempt in range(2):
         temporary.unlink(missing_ok=True)
+        result = subprocess.run(
+            [
+                str(executable),
+                "-c",
+                str(temporary),
+                "register",
+                "--accept-tos",
+                "--name",
+                "dicodePing",
+            ],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            timeout=90,
+            cwd=str(executable.parent),
+            creationflags=_creation_flags(),
+        )
+        try:
+            if result.returncode != 0 or not temporary.is_file():
+                last_error = (result.stderr or result.stdout or last_error)[-1200:]
+            else:
+                payload = json.loads(temporary.read_text(encoding="utf-8"))
+                if (
+                    isinstance(payload, dict)
+                    and payload.get("private_key")
+                    and payload.get("endpoint_pub_key")
+                    and payload.get("ipv4")
+                ):
+                    temporary.replace(destination)
+                    return destination
+                last_error = "WARP registration returned an incomplete configuration"
+        except Exception as exc:
+            last_error = str(exc)
+        finally:
+            temporary.unlink(missing_ok=True)
+        if attempt == 0:
+            time.sleep(1.5)
+    raise RuntimeError(last_error)
 
 
 def _socks5_connect(port: int, host: str, target_port: int, timeout: float) -> socket.socket:
@@ -290,120 +303,133 @@ class AlternativeCoreManager:
         language: str = "fa",
         **_kwargs,
     ) -> None:
+        # Cancellation must never wait behind the startup lock. RC16 held this
+        # lock for the whole scan/validation window, so Stop could block for up
+        # to three minutes. Detach old resources first, then only lock short
+        # state transitions and process assignments.
+        self.stop()
+        token = self.lifecycle.begin(CoreState.STARTING)
         with self._lock:
-            self.stop()
-            token = self.lifecycle.begin(CoreState.STARTING)
             self._options = dict(core_options or {})
-            _emit_progress(progress_value, 8)
-            executable = resolve_core_path(self.core_id)
-            if executable is None:
-                self.lifecycle.fail(token, f"{self.core_id} core is not downloaded")
-                raise RuntimeError(f"{self.core_id} core is not downloaded")
-            runtime = core_dir(self.core_id) / "runtime"
-            runtime.mkdir(parents=True, exist_ok=True)
-            log_path = runtime / "session.log"
+        _emit_progress(progress_value, 8)
+        executable = resolve_core_path(self.core_id)
+        if executable is None:
+            self.lifecycle.fail(token, f"{self.core_id} core is not downloaded")
+            raise RuntimeError(f"{self.core_id} core is not downloaded")
+        runtime = core_dir(self.core_id) / "runtime"
+        runtime.mkdir(parents=True, exist_ok=True)
+        log_path = runtime / "session.log"
+        with self._lock:
             self._log_handle = log_path.open("w", encoding="utf-8")
-            environment = os.environ.copy()
             self.socks_port = PORT_REGISTRY.acquire()
-            _emit_progress(progress_value, 15)
-            try:
-                requested_transport = str(self._options.get("transport", "auto"))
-                protocol = str(self._options.get("protocol", "masque"))
-                if self.core_id == "aether" and protocol != "masque":
-                    # HTTP/2 is a MASQUE-only Aether transport. Retrying a WG/gool
-                    # process with an ignored --h2 flag doubled startup time in RC1.
-                    transports = ["quic"]
-                else:
-                    transports = ["http2"] if requested_transport == "http2" else ["quic", "http2"]
-                scan = str(self._options.get("scan", "balanced"))
-                initial_timeout = {
-                    "turbo": 20,
-                    "balanced": 30,
-                    "thorough": 42,
-                    "stealth": 50,
-                    "ironclad": 62,
-                }.get(scan, 30)
-                performance = str(self._options.get("performance", "medium"))
-                probe_timeout, poll_interval = {
-                    "low": (1.55, 0.34),
-                    "medium": (1.15, 0.20),
-                    "high": (0.85, 0.12),
-                }.get(performance, (1.15, 0.20))
+        environment = os.environ.copy()
+        _emit_progress(progress_value, 15)
+        try:
+            requested_transport = str(self._options.get("transport", "auto"))
+            protocol = str(self._options.get("protocol", "masque"))
+            if self.core_id == "aether" and protocol != "masque":
+                transports = ["quic"]
+            else:
+                transports = ["http2"] if requested_transport == "http2" else ["quic", "http2"]
+            scan = str(self._options.get("scan", "balanced"))
+            initial_timeout = {
+                "turbo": 20,
+                "balanced": 30,
+                "thorough": 42,
+                "stealth": 50,
+                "ironclad": 62,
+            }.get(scan, 30)
+            performance = str(self._options.get("performance", "medium"))
+            probe_timeout, poll_interval = {
+                "low": (1.55, 0.34),
+                "medium": (1.15, 0.20),
+                "high": (0.85, 0.12),
+            }.get(performance, (1.15, 0.20))
 
-                for attempt, transport in enumerate(transports):
-                    token.raise_if_cancelled()
-                    if attempt:
+            for attempt, transport in enumerate(transports):
+                token.raise_if_cancelled()
+                if attempt:
+                    with self._lock:
                         old_process, self.process = self.process, None
-                        PROCESS_REGISTRY.stop(old_process, timeout=3)
-                    label = "HTTP/2" if transport == "http2" else "HTTP/3 / QUIC"
+                    PROCESS_REGISTRY.stop(old_process, timeout=3)
+                label = "HTTP/2" if transport == "http2" else "HTTP/3 / QUIC"
+                if progress:
+                    progress(
+                        f"در حال راه‌اندازی {self.core_id} با {label}…"
+                        if language != "en" else f"Starting {self.core_id} over {label}…"
+                    )
+                base = 20 if attempt == 0 else 56
+                ceiling = 54 if attempt == 0 else 82
+                _emit_progress(progress_value, base)
+                child = PROCESS_REGISTRY.register(
+                    subprocess.Popen(
+                        self._command(executable, runtime, environment, transport=transport),
+                        stdout=self._log_handle,
+                        stderr=self._log_handle,
+                        stdin=subprocess.DEVNULL,
+                        cwd=str(executable.parent),
+                        env=environment,
+                        text=True,
+                        encoding="utf-8",
+                        errors="ignore",
+                        creationflags=_creation_flags(),
+                        start_new_session=os.name != "nt",
+                    )
+                )
+                with self._lock:
+                    if token.is_cancelled():
+                        PROCESS_REGISTRY.stop(child, timeout=1)
+                        raise RuntimeError("Connection cancelled")
+                    self.process = child
+                self.lifecycle.transition(token, CoreState.VALIDATING)
+                timeout = initial_timeout if attempt == 0 else max(34, initial_timeout - 8)
+                deadline = time.monotonic() + timeout
+                next_stage_at = 0.0
+                while time.monotonic() < deadline:
+                    token.raise_if_cancelled()
+                    with self._lock:
+                        current = self.process
+                    if current is not child or child.poll() is not None:
+                        tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
+                        if attempt + 1 < len(transports):
+                            break
+                        raise RuntimeError(f"{self.core_id} stopped during startup: {tail}")
+                    elapsed = timeout - max(0.0, deadline - time.monotonic())
+                    ratio = min(1.0, elapsed / max(1.0, timeout))
+                    _emit_progress(progress_value, round(base + (ceiling - base) * ratio))
+                    now = time.monotonic()
+                    if progress and now >= next_stage_at:
+                        seconds_left = max(0, round(deadline - now))
+                        progress(
+                            f"در حال اعتبارسنجی اتصال {self.core_id}؛ حدود {seconds_left} ثانیه…"
+                            if language != "en" else f"Validating {self.core_id}; about {seconds_left}s remaining…"
+                        )
+                        next_stage_at = now + 3.0
+                    if _http_probe_through_socks(self.socks_port, timeout=probe_timeout) is not None:
+                        token.raise_if_cancelled()
+                        _emit_progress(progress_value, 88)
+                        if progress:
+                            progress("در حال فعال‌سازی پروکسی سیستم…" if language != "en" else "Enabling the system proxy…")
+                        self._system_proxy.enable(self.socks_port)
+                        self.lifecycle.transition(token, CoreState.CONNECTED)
+                        _emit_progress(progress_value, 94)
+                        return
+                    token.wait(poll_interval)
+
+                if attempt + 1 < len(transports):
                     if progress:
                         progress(
-                            (f"در حال راه‌اندازی {self.core_id} با {label}…" if language != "en" else f"Starting {self.core_id} over {label}…")
+                            f"{self.core_id} با QUIC پاسخ نداد؛ تلاش سریع با HTTP/2…"
+                            if language != "en" else f"{self.core_id} did not validate over QUIC; retrying over HTTP/2…"
                         )
-                    base = 20 if attempt == 0 else 56
-                    ceiling = 54 if attempt == 0 else 82
-                    _emit_progress(progress_value, base)
-                    self.process = PROCESS_REGISTRY.register(
-                        subprocess.Popen(
-                            self._command(executable, runtime, environment, transport=transport),
-                            stdout=self._log_handle,
-                            stderr=self._log_handle,
-                            stdin=subprocess.DEVNULL,
-                            cwd=str(executable.parent),
-                            env=environment,
-                            text=True,
-                            encoding="utf-8",
-                            errors="ignore",
-                            creationflags=_creation_flags(),
-                            start_new_session=os.name != "nt",
-                        )
-                    )
-                    self.lifecycle.transition(token, CoreState.VALIDATING)
-                    timeout = initial_timeout if attempt == 0 else max(34, initial_timeout - 8)
-                    deadline = time.monotonic() + timeout
-                    next_stage_at = 0.0
-                    while time.monotonic() < deadline:
-                        token.raise_if_cancelled()
-                        if self.process.poll() is not None:
-                            tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
-                            if attempt + 1 < len(transports):
-                                break
-                            raise RuntimeError(f"{self.core_id} stopped during startup: {tail}")
-                        elapsed = timeout - max(0.0, deadline - time.monotonic())
-                        ratio = min(1.0, elapsed / max(1.0, timeout))
-                        _emit_progress(progress_value, round(base + (ceiling - base) * ratio))
-                        now = time.monotonic()
-                        if progress and now >= next_stage_at:
-                            seconds_left = max(0, round(deadline - now))
-                            progress(
-                                (f"در حال اعتبارسنجی اتصال {self.core_id}؛ حدود {seconds_left} ثانیه…" if language != "en" else f"Validating {self.core_id}; about {seconds_left}s remaining…")
-                            )
-                            next_stage_at = now + 3.0
-                        if _http_probe_through_socks(self.socks_port, timeout=probe_timeout) is not None:
-                            _emit_progress(progress_value, 88)
-                            if progress:
-                                progress("در حال فعال‌سازی پروکسی سیستم…" if language != "en" else "Enabling the system proxy…")
-                            self._system_proxy.enable(self.socks_port)
-                            self.lifecycle.transition(token, CoreState.CONNECTED)
-                            _emit_progress(progress_value, 94)
-                            return
-                        token.wait(poll_interval)
-
-                    if attempt + 1 < len(transports):
-                        if progress:
-                            progress(
-                                (f"{self.core_id} با QUIC پاسخ نداد؛ تلاش سریع با HTTP/2…" if language != "en" else f"{self.core_id} did not validate over QUIC; retrying over HTTP/2…")
-                            )
-                        continue
-                    tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
-                    raise RuntimeError(
-                        f"{self.core_id} did not establish verified HTTP traffic via {label}: {tail}"
-                    )
-            except Exception as exc:
+                    continue
+                tail = log_path.read_text(encoding="utf-8", errors="ignore")[-1800:]
+                raise RuntimeError(f"{self.core_id} did not establish verified HTTP traffic via {label}: {tail}")
+        except Exception as exc:
+            if not token.is_cancelled():
                 self.lifecycle.fail(token, exc)
-                self._teardown()
-                raise
-
+            self._teardown()
+            raise
     def _command(
         self,
         executable: Path,
@@ -454,18 +480,18 @@ class AlternativeCoreManager:
             config = core_dir("warp") / "config.json"
             if not config.is_file():
                 raise RuntimeError("WARP registration is required; activate it from Settings first")
-            command = [str(executable), "--config", str(config)]
+            command = [
+                str(executable),
+                "-c", str(config),
+                "socks",
+                "-b", "127.0.0.1",
+                "-p", str(self.socks_port),
+                "--always-reconnect",
+                "--reconnect-delay", "1s",
+            ]
+            # --http2 belongs to the `socks` subcommand, not the root command.
             if transport == "http2":
                 command.append("--http2")
-            command.extend(
-                [
-                    "socks",
-                    "-b",
-                    "127.0.0.1",
-                    "-p",
-                    str(self.socks_port),
-                ]
-            )
             return command
         if self.core_id == "psiphon":
             config = core_dir("psiphon") / "client.config"
@@ -492,22 +518,27 @@ class AlternativeCoreManager:
         return (None, None)
 
     def stop(self) -> None:
-        with self._lock:
-            self.lifecycle.cancel()
-            self.lifecycle.status.state = CoreState.STOPPING
-            self._teardown()
-            self.lifecycle.status.state = CoreState.DISCONNECTED
+        # Signal cancellation before touching the lock so an in-flight startup
+        # loop exits immediately instead of making the Stop button wait.
+        self.lifecycle.cancel()
+        self.lifecycle.status.state = CoreState.STOPPING
+        self._teardown()
+        self.lifecycle.status.state = CoreState.DISCONNECTED
 
     def _teardown(self) -> None:
         self._system_proxy.restore()
-        process, self.process = self.process, None
-        PROCESS_REGISTRY.stop(process, timeout=4)
-        if self.socks_port:
-            PORT_REGISTRY.release(self.socks_port)
-            self.socks_port = 0
-        if self._log_handle:
-            self._log_handle.close()
-            self._log_handle = None
+        with self._lock:
+            process, self.process = self.process, None
+            port, self.socks_port = self.socks_port, 0
+            log_handle, self._log_handle = self._log_handle, None
+        PROCESS_REGISTRY.stop(process, timeout=2)
+        if port:
+            PORT_REGISTRY.release(port)
+        if log_handle:
+            try:
+                log_handle.close()
+            except Exception:
+                pass
 
 
 class ConnectionManager:
@@ -550,17 +581,17 @@ class ConnectionManager:
         return ""
 
     def start(self, raw_config: str = "", **kwargs) -> None:
+        # Only protect manager selection. The actual startup may scan for a long
+        # time and must not prevent another thread from calling stop().
         with self._lock:
             selected = get_active_core()
             if selected != self.active_core:
                 self._manager.stop()
                 self._manager = self._new_manager()
-            # ``core_options`` belongs to Aether/WARP.  RC1 forwarded it to
-            # XrayManager.start(), which raised ``unexpected keyword argument``.
-            # Keep the facade tolerant so old/new UI callers can share one path.
-            if isinstance(self._manager, XrayManager):
-                kwargs.pop("core_options", None)
-            self._manager.start(raw_config, **kwargs)
+            manager = self._manager
+        if isinstance(manager, XrayManager):
+            kwargs.pop("core_options", None)
+        manager.start(raw_config, **kwargs)
 
     def reload_selection(self) -> None:
         with self._lock:
@@ -581,7 +612,8 @@ class ConnectionManager:
 
     def stop(self) -> None:
         with self._lock:
-            self._manager.stop()
+            manager = self._manager
+        manager.stop()
 
     def dispose(self) -> None:
         self.stop()
