@@ -9,6 +9,7 @@ import ir.dicode.ping.vpn.DicodeVpnService
 import ir.dicode.ping.vpn.VpnStateStore
 import ir.dicode.ping.vpn.VpnStatus
 import ir.dicode.ping.xray.CoreBridge
+import ir.dicode.ping.xray.XrayConfigBuilder
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -146,8 +147,12 @@ class ScannerCoordinator private constructor(private val context: Context) {
             done = 0,
             log = "[CONNECT][OK] Bootstrap VPN verified; crawling ${channels.size} Telegram channels",
         )
+        update(
+            ScannerStage.CRAWLING,
+            progress = 5,
+            log = "[CONNECT][ROUTE] Telegram uses Xray SOCKS5 127.0.0.1:${XrayConfigBuilder.SCANNER_SOCKS_PORT} with proxy-side DNS",
+        )
         val crawlFound = AtomicInteger(0)
-        val plannedChannelBudget = minOf(channels.size, 72).coerceAtLeast(1)
         val crawlTarget = 180
         val crawled = withTimeoutOrNull(CRAWL_TIMEOUT_MS) {
             try {
@@ -156,9 +161,9 @@ class ScannerCoordinator private constructor(private val context: Context) {
                     maxWorkers = tuning.crawlWorkers.coerceIn(3, 8),
                     perChannelLimits = channelPlan,
                     progress = { done, total, channel ->
-                        val channelRatio = done.coerceAtLeast(0).toDouble() / plannedChannelBudget
+                        val channelRatio = done.coerceAtLeast(0).toDouble() / total.coerceAtLeast(1)
                         val configRatio = crawlFound.get().toDouble() / crawlTarget
-                        val phaseRatio = maxOf(channelRatio, configRatio).coerceIn(0.0, 1.0)
+                        val phaseRatio = (channelRatio * 0.70 + configRatio * 0.30).coerceIn(0.0, 1.0)
                         update(
                             stage = ScannerStage.CRAWLING,
                             progress = 5 + (phaseRatio * 40).toInt(),
@@ -169,9 +174,9 @@ class ScannerCoordinator private constructor(private val context: Context) {
                     },
                     onResult = { result, done, total ->
                         if (result.ok && result.picked > 0) crawlFound.addAndGet(result.picked)
-                        val channelRatio = done.coerceAtLeast(0).toDouble() / plannedChannelBudget
+                        val channelRatio = done.coerceAtLeast(0).toDouble() / total.coerceAtLeast(1)
                         val configRatio = crawlFound.get().toDouble() / crawlTarget
-                        val phaseRatio = maxOf(channelRatio, configRatio).coerceIn(0.0, 1.0)
+                        val phaseRatio = (channelRatio * 0.70 + configRatio * 0.30).coerceIn(0.0, 1.0)
                         val message = if (result.ok) {
                             "[TG][OK] $done/$total @${mask(result.channel)} " +
                                 "configs=${result.picked}/${result.found} host=t.me ${result.elapsedMs}ms"
@@ -204,6 +209,13 @@ class ScannerCoordinator private constructor(private val context: Context) {
             }
         }.orEmpty()
         ensureRunning()
+        if (crawled.isNotEmpty()) {
+            update(
+                ScannerStage.CRAWLING,
+                progress = 45,
+                log = "[TG][DONE] collected=${crawled.size} unique configs from t.me",
+            )
+        }
         val configs = crawled.ifEmpty {
             loadFreshStage1Cache()?.also {
                 update(ScannerStage.CRAWLING, progress = 45, log = "[TG][CACHE] Telegram was unavailable; using ${it.size} recent raw candidates")

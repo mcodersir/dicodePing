@@ -65,21 +65,21 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "1.9.0-rc.12"' not in build_file:
-    errors.append("versionName must be 1.9.0-rc.12 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.12\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 1.9.0-rc.12 for this release")
+if 'versionName = "1.9.0-rc.13"' not in build_file:
+    errors.append("versionName must be 1.9.0-rc.13 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.13\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 1.9.0-rc.13 for this release")
 
 if "compileSdk = 36" not in build_file or "targetSdk = 36" not in build_file:
-    errors.append("Android RC12 must compile and target API 36")
+    errors.append("Android RC13 must compile and target API 36")
 root_build = (ROOT / "build.gradle.kts").read_text(encoding="utf-8")
 wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
 if "com.android.tools.build:gradle:8.10.1" not in root_build:
     errors.append("AGP 8.10.1 is required for supported API 36 builds")
 if "gradle-8.11.1-bin.zip" not in wrapper:
     errors.append("Gradle 8.11.1 is required by AGP 8.10.x")
-if not re.search(r"^\s*versionCode\s*=\s*47\s*$", build_file, re.MULTILINE):
-    errors.append("Android RC12 versionCode must be 47")
+if not re.search(r"^\s*versionCode\s*=\s*48\s*$", build_file, re.MULTILINE):
+    errors.append("Android RC13 versionCode must be 48")
 if 'setOf("arm64-v8a", "x86_64")' not in build_file:
     errors.append("Android public packages must be limited to 64-bit ABIs")
 if "jniLibs.useLegacyPackaging = true" not in build_file:
@@ -116,6 +116,22 @@ if 'create("standard")' not in build_file or 'ENABLE_ROOT_TETHERING", "false"' n
 if 'android:allowBackup="false"' not in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
     errors.append("Android backup must remain disabled for VPN configuration data")
 
+crawler_source = (ROOT / "app/src/main/java/ir/dicode/ping/net/TelegramChannelCrawler.kt").read_text(encoding="utf-8")
+scanner_coordinator = (ROOT / "app/src/main/java/ir/dicode/ping/scanner/ScannerCoordinator.kt").read_text(encoding="utf-8")
+xray_builder = (ROOT / "app/src/main/java/ir/dicode/ping/xray/XrayConfigBuilder.kt").read_text(encoding="utf-8")
+if 'fetchUrl("https://t.me/s/$channel")' not in crawler_source or "telegram.me" in crawler_source:
+    errors.append("Android scanner must use only the canonical t.me preview endpoint")
+if "Proxy.Type.SOCKS" not in crawler_source or ".proxy(scannerProxy)" not in crawler_source:
+    errors.append("Android Telegram crawler must route through the embedded Xray SOCKS inbound")
+if "requireNotNull(preflight)" in crawler_source or "channels.take(4)" in crawler_source:
+    errors.append("Android crawler must not abort the full scan because the first channels fail")
+if 'const val SCANNER_SOCKS_PORT = 18089' not in xray_builder:
+    errors.append("Xray scanner SOCKS port is missing")
+if '.put("tag", "scanner-socks")' not in xray_builder or '.put("protocol", "socks")' not in xray_builder:
+    errors.append("Xray scanner SOCKS inbound is missing")
+if "proxy-side DNS" not in scanner_coordinator:
+    errors.append("Scanner route diagnostics must report proxy-side DNS")
+
 visible_code = "\n".join(
     (ROOT / rel).read_text(encoding="utf-8")
     for rel in (
@@ -149,5 +165,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 1.9.0-rc.12")
+print("Version is 1.9.0-rc.13")
 print("Project structure is ready for Android build")

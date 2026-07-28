@@ -1,6 +1,8 @@
 package ir.dicode.ping.net
 
 import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -21,6 +23,7 @@ import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import ir.dicode.ping.xray.XrayConfigBuilder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -28,7 +31,7 @@ import kotlin.coroutines.resumeWithException
 object TelegramChannelCrawler {
     private const val PER_CHANNEL_LIMIT = 30
     private const val MAX_WORKERS = 8
-    private const val TIMEOUT_SECONDS = 6L
+    private const val TIMEOUT_SECONDS = 8L
     private const val MAX_PREVIEW_BYTES = 1_500_000L
 
     private val CONFIG_PATTERNS = listOf(
@@ -39,17 +42,28 @@ object TelegramChannelCrawler {
         maxRequestsPerHost = MAX_WORKERS
     }
     private val connectionPool = ConnectionPool(MAX_WORKERS, 10, TimeUnit.SECONDS)
+    private val scannerProxy = Proxy(
+        Proxy.Type.SOCKS,
+        InetSocketAddress("127.0.0.1", XrayConfigBuilder.SCANNER_SOCKS_PORT),
+    )
+
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dispatcher(dispatcher)
             .connectionPool(connectionPool)
+            // The dicodePing package is excluded from its own VpnService to
+            // protect core sockets. Enter Xray explicitly through loopback
+            // SOCKS so t.me DNS and HTTPS both use the verified outbound.
+            .proxy(scannerProxy)
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(TIMEOUT_SECONDS + 2, TimeUnit.SECONDS)
-            .followRedirects(false)
-            .followSslRedirects(false)
-            .retryOnConnectionFailure(false)
+            // DicodeConfigChecker follows the normal t.me preview response.
+            // Cross-host redirects are rejected after the response is opened.
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
@@ -85,48 +99,37 @@ object TelegramChannelCrawler {
         val done = AtomicInteger(0)
         fun limitFor(channel: String): Int = normalizedLimits[channel.lowercase()]?.coerceIn(1, 20) ?: PER_CHANNEL_LIMIT
 
-        var preflight: ChannelResult? = null
-        for (channel in channels.take(4)) {
-            coroutineContext.ensureActive()
-            val attempt = fetchChannel(channel, limitFor(channel))
-            if (attempt.ok) {
-                preflight = attempt
-                break
-            }
-            onResult?.invoke(attempt, 0, total)
-        }
-        val first = requireNotNull(preflight) { "t.me preview is unreachable through the active VPN." }
-        first.configs.forEach { cfg -> if (seen.add(normalizeKey(cfg))) result.add(cfg) }
-        done.set(1)
-        progress?.invoke(1, total, first.channel)
-        onResult?.invoke(first, 1, total)
-
-        val queue = ConcurrentLinkedQueue(
-            channels.filterNot { it.equals(first.channel, ignoreCase = true) }
-        )
+        // Match DicodeConfigChecker: every channel is an independent fetch.
+        // A few unavailable channels must never abort the complete crawl.
+        val queue = ConcurrentLinkedQueue(channels)
         val workerCount = maxWorkers.coerceIn(1, MAX_WORKERS)
-        coroutineScope {
-            List(workerCount) {
-                async(Dispatchers.IO) {
-                    while (true) {
-                        coroutineContext.ensureActive()
-                        val shouldStop = synchronized(result) {
-                            done.get() >= minimumChannelsBeforeTarget && result.size >= maxUniqueConfigs
-                        }
-                        if (shouldStop) return@async
-                        val channel = queue.poll() ?: return@async
-                        val channelResult = fetchChannel(channel, limitFor(channel))
-                        synchronized(result) {
-                            channelResult.configs.forEach { cfg ->
-                                if (seen.add(normalizeKey(cfg))) result.add(cfg)
+        try {
+            coroutineScope {
+                List(workerCount) {
+                    async(Dispatchers.IO) {
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val shouldStop = synchronized(result) {
+                                done.get() >= minimumChannelsBeforeTarget && result.size >= maxUniqueConfigs
                             }
+                            if (shouldStop) return@async
+                            val channel = queue.poll() ?: return@async
+                            val channelResult = fetchChannel(channel, limitFor(channel))
+                            synchronized(result) {
+                                channelResult.configs.forEach { cfg ->
+                                    if (seen.add(normalizeKey(cfg))) result.add(cfg)
+                                }
+                            }
+                            val current = done.incrementAndGet()
+                            progress?.invoke(current, total, channel)
+                            onResult?.invoke(channelResult, current, total)
                         }
-                        val current = done.incrementAndGet()
-                        progress?.invoke(current, total, channel)
-                        onResult?.invoke(channelResult, current, total)
                     }
-                }
-            }.awaitAll()
+                }.awaitAll()
+            }
+        } finally {
+            // Cancelling the scanner must also cancel queued/in-flight HTTP calls.
+            dispatcher.cancelAll()
         }
         result.take(maxUniqueConfigs)
     }
@@ -176,6 +179,9 @@ object TelegramChannelCrawler {
             override fun onResponse(call: Call, response: Response) {
                 response.use {
                     try {
+                        if (!it.request.url.host.equals("t.me", ignoreCase = true)) {
+                            error("cross-host Telegram redirect blocked")
+                        }
                         if (!it.isSuccessful) error("HTTP ${it.code}")
                         val body = it.body ?: error("empty body")
                         val source = body.source()

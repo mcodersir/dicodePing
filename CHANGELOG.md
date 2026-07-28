@@ -1,14 +1,11 @@
-## 1.9.0-rc.12
+## 1.9.0-rc.13
 
-- Scanner no longer starts a VPN from inside the scanner page.
-- Added a one-time VPN requirement notice.
-- Scanner launch now routes through Home, automatic Xray connection and real connection verification.
-- Added automatic return to Scanner after a verified connection.
-- Added explicit Telegram/config/permission guidance when bootstrap connection fails.
-- Hardened Android activity/service lifecycle and desktop Qt pending-action state handling.
-- Kept pending scanner launches across Android Activity recreation until the foreground scanner service starts successfully.
-- Serialized VPN revoke cleanup so Android cannot destroy the service before Xray and TUN handles close.
-- Added guarded scanner foreground-service startup and actionable Telegram/config/internet/permission errors.
+- Routed Android Telegram preview requests through a dedicated loopback SOCKS5 inbound inside the verified Xray instance.
+- Prevented scanner traffic from escaping over the device physical IPv6 route while the app UID is excluded from its own VpnService.
+- Removed the fragile first-four-channel preflight; every channel is now an independent DicodeConfigChecker-style fetch.
+- Kept the canonical `https://t.me/s/<channel>` endpoint with cross-host redirect rejection.
+- Added bounded parallel collection, proxy-side DNS, monotonic weighted progress and cancellation of in-flight calls.
+- Incremented Android versionCode to 48 and added RC13 release validation for the SOCKS route and full-crawl behavior.
 
 ## 1.9.0-rc.10 Android Lint Hotfix 3
 

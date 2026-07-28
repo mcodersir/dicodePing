@@ -1,6 +1,6 @@
 """DicodeConfigChecker-compatible Telegram preview crawler.
 
-RC12 keeps network work outside the GUI thread and uses the canonical
+RC13 keeps network work outside the GUI thread and uses the canonical
 ``https://t.me/s/<channel>`` preview endpoint exclusively.  It extracts
 supported Xray links, deduplicates them, and uses a bounded worker pool.  When
 dicodePing exposes a verified local SOCKS5 listener that route is preferred so
@@ -162,7 +162,7 @@ def _decode_response(data: bytes, content_type: str) -> str:
 def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
     """Fetch one URL through the app-owned SOCKS5 listener.
 
-    RC12 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
+    RC13 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
     The ordinary TUN route is attempted only against the same canonical t.me
     endpoint. Limiting simultaneous TLS handshakes prevents the local Xray
     listener and bootstrap server from being flooded.

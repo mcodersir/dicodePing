@@ -60,12 +60,12 @@ def test_android_crawler_is_bounded_and_reports_each_result() -> None:
     assert "telegram.me" not in source
 
 
-def test_rc12_release_metadata_and_workflow_exist() -> None:
-    assert (ROOT / "DEPLOY_PRERELEASE_RC12.bat").is_file()
-    assert (ROOT / ".github/workflows/v1.9.0-rc.12-release.yml").is_file()
-    assert (ROOT / "docs/releases/v1.9.0-rc.12.md").is_file()
+def test_rc13_release_metadata_and_workflow_exist() -> None:
+    assert (ROOT / "DEPLOY_PRERELEASE_RC13.bat").is_file()
+    assert (ROOT / ".github/workflows/v1.9.0-rc.13-release.yml").is_file()
+    assert (ROOT / "docs/releases/v1.9.0-rc.13.md").is_file()
     constants = (ROOT / "dicodeping/constants.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'RELEASE_VERSION = "1.9.0-rc.12"' in constants
-    assert 'versionName = "1.9.0-rc.12"' in gradle
-    assert "versionCode = 47" in gradle
+    assert 'RELEASE_VERSION = "1.9.0-rc.13"' in constants
+    assert 'versionName = "1.9.0-rc.13"' in gradle
+    assert "versionCode = 48" in gradle

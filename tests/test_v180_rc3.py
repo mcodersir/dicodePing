@@ -29,11 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_rc3_versions_are_consistent():
-    assert 'RELEASE_VERSION = "1.9.0-rc.12"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
-    assert '__version__ = "1.9.0rc12"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.13"' in (ROOT / "dicodeping/constants.py").read_text("utf-8")
+    assert '__version__ = "1.9.0rc13"' in (ROOT / "dicodeping/__init__.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
-    assert 'versionName = "1.9.0-rc.12"' in gradle
-    assert "versionCode = 47" in gradle
+    assert 'versionName = "1.9.0-rc.13"' in gradle
+    assert "versionCode = 48" in gradle
 
 
 def test_manifest_is_sha_only_fallback_and_never_claims_signature():
@@ -229,7 +229,7 @@ def test_android_scanner_routes_crawl_through_bootstrap_and_saves_transactionall
     assert '"base64Subscription"' in repository
     assert "ssr|snell" not in crawler
     assert "hysteria2|hy2|tuic" not in crawler
-    assert "retryOnConnectionFailure(false)" in crawler
+    assert "retryOnConnectionFailure(true)" in crawler
 
 
 def test_android_xray_is_updated_and_hash_pinned():

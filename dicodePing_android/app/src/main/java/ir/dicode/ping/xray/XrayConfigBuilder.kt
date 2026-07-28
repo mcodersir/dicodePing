@@ -5,6 +5,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object XrayConfigBuilder {
+    const val SCANNER_SOCKS_PORT = 18089
+
     fun build(
         raw: String,
         bypassDomains: String = "",
@@ -83,24 +85,9 @@ object XrayConfigBuilder {
             )
             put(
                 "inbounds",
-                JSONArray().put(
-                    JSONObject()
-                        .put("tag", "tun-in")
-                        .put("protocol", "tun")
-                        .put(
-                            "settings",
-                            JSONObject()
-                                .put("name", "dicodePing0")
-                                .put("mtu", 1400)
-                                .put("userLevel", 8)
-                        )
-                        .put(
-                            "sniffing",
-                            JSONObject()
-                                .put("enabled", true)
-                                .put("destOverride", JSONArray(listOf("http", "tls", "quic")))
-                        )
-                )
+                JSONArray()
+                    .put(tunInbound())
+                    .put(scannerSocksInbound())
             )
             put(
                 "outbounds",
@@ -169,9 +156,7 @@ object XrayConfigBuilder {
             .put("handshake", 8).put("connIdle", 300).put("uplinkOnly", 2)
             .put("downlinkOnly", 2).put("bufferSize", bufferSizeKiB.coerceIn(4, 512))))
             .put("system", JSONObject().put("statsOutboundUplink", true).put("statsOutboundDownlink", true)))
-        put("inbounds", JSONArray().put(JSONObject().put("tag", "tun-in").put("protocol", "tun")
-            .put("settings", JSONObject().put("name", "dicodePing0").put("mtu", 1400).put("userLevel", 8))
-            .put("sniffing", JSONObject().put("enabled", true).put("destOverride", JSONArray(listOf("http", "tls", "quic"))))))
+        put("inbounds", JSONArray().put(tunInbound()).put(scannerSocksInbound()))
         put("outbounds", JSONArray().put(proxyOutbound)
             .put(JSONObject().put("tag", "direct").put("protocol", "freedom").put("settings", JSONObject()))
             .put(JSONObject().put("tag", "block").put("protocol", "blackhole").put("settings", JSONObject())))
@@ -180,6 +165,46 @@ object XrayConfigBuilder {
             listOf("https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query")
             else listOf("1.1.1.1", "8.8.8.8"))).put("queryStrategy", "UseIP"))
     }.toString()
+
+    private fun tunInbound(): JSONObject = JSONObject()
+        .put("tag", "tun-in")
+        .put("protocol", "tun")
+        .put(
+            "settings",
+            JSONObject()
+                .put("name", "dicodePing0")
+                .put("mtu", 1400)
+                .put("userLevel", 8)
+        )
+        .put(
+            "sniffing",
+            JSONObject()
+                .put("enabled", true)
+                .put("destOverride", JSONArray(listOf("http", "tls", "quic")))
+        )
+
+    /**
+     * The app UID is intentionally outside its own VpnService to prevent a
+     * routing loop. Scanner HTTP requests therefore enter Xray explicitly via
+     * this loopback SOCKS inbound, with hostname resolution performed remotely.
+     */
+    private fun scannerSocksInbound(): JSONObject = JSONObject()
+        .put("tag", "scanner-socks")
+        .put("listen", "127.0.0.1")
+        .put("port", SCANNER_SOCKS_PORT)
+        .put("protocol", "socks")
+        .put(
+            "settings",
+            JSONObject()
+                .put("auth", "noauth")
+                .put("udp", false)
+        )
+        .put(
+            "sniffing",
+            JSONObject()
+                .put("enabled", true)
+                .put("destOverride", JSONArray(listOf("http", "tls")))
+        )
 
     private fun applyCdnFormatting(outbound: JSONObject, cdnDomain: String) {
         require(

@@ -75,13 +75,13 @@ def test_android_scanner_foreground_transition_is_guarded() -> None:
     assert "return START_NOT_STICKY" in service
 
 
-def test_rc12_release_files_and_versions_are_consistent() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.12.md")
+def test_rc13_release_files_and_versions_are_consistent() -> None:
+    workflow = read(".github/workflows/v1.9.0-rc.13-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.13.md")
     gradle = read("dicodePing_android/app/build.gradle.kts")
     constants = read("dicodeping/constants.py")
-    assert "v1.9.0-rc.12" in workflow
-    assert "DEPLOY_PRERELEASE_RC12.bat" in {path.name for path in ROOT.iterdir()}
-    assert 'versionName = "1.9.0-rc.12"' in gradle
-    assert 'RELEASE_VERSION = "1.9.0-rc.12"' in constants
+    assert "v1.9.0-rc.13" in workflow
+    assert "DEPLOY_PRERELEASE_RC13.bat" in {path.name for path in ROOT.iterdir()}
+    assert 'versionName = "1.9.0-rc.13"' in gradle
+    assert 'RELEASE_VERSION = "1.9.0-rc.13"' in constants
     assert "## فارسی" in notes and "## English" in notes

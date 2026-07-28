@@ -13,10 +13,10 @@ class V160Rc2Tests(unittest.TestCase):
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         linux_builder = (ROOT / "tools/build_linux.py").read_text(encoding="utf-8")
         # The RC2+ line.  The exact RC suffix changes per release.
-        self.assertIn('RELEASE_VERSION = "1.9.0-rc.12"', constants)
-        self.assertIn('versionCode = 47', gradle)
-        self.assertIn('versionName = "1.9.0-rc.12"', gradle)
-        self.assertIn('RC_VERSION = "rc.12"', linux_builder)
+        self.assertIn('RELEASE_VERSION = "1.9.0-rc.13"', constants)
+        self.assertIn('versionCode = 48', gradle)
+        self.assertIn('versionName = "1.9.0-rc.13"', gradle)
+        self.assertIn('RC_VERSION = "rc.13"', linux_builder)
 
     def test_channels_file_is_bundled(self) -> None:
         channels = ROOT / "assets" / "channels.txt"
@@ -37,7 +37,7 @@ class V160Rc2Tests(unittest.TestCase):
         self.assertIn("def extract_configs(", crawler)
         self.assertIn("def load_channels(", crawler)
         self.assertIn("CONFIG_REGEXES", crawler)
-        # RC12 uses only the canonical t.me preview host.
+        # RC13 uses only the canonical t.me preview host.
         self.assertIn("https://t.me/s/", crawler)
         self.assertNotIn("telegram.me", crawler)
         # Config regexes cover the protocols that dicodePing can probe.

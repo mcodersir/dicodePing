@@ -70,16 +70,16 @@ def test_rc8_scanner_feedback_and_server_cards_are_explicit() -> None:
 
 
 def test_rc8_release_payload_is_bilingual_and_multiplatform() -> None:
-    workflow = read(".github/workflows/v1.9.0-rc.12-release.yml")
-    notes = read("docs/releases/v1.9.0-rc.12.md")
-    deploy = read("DEPLOY_PRERELEASE_RC12.bat")
+    workflow = read(".github/workflows/v1.9.0-rc.13-release.yml")
+    notes = read("docs/releases/v1.9.0-rc.13.md")
+    deploy = read("DEPLOY_PRERELEASE_RC13.bat")
     assert "## فارسی" in notes and "## English" in notes
     for asset in (
-        "dicodePing-v1.9.0-rc.12-windows-x64.exe",
-        "dicodePing-v1.9.0-rc.12-linux-x86_64.tar.gz",
-        "dicodePing-v1.9.0-rc.12-macos-${{ matrix.architecture }}.dmg",
-        "dicodePing-v1.9.0-rc.12-android.apk",
+        "dicodePing-v1.9.0-rc.13-windows-x64.exe",
+        "dicodePing-v1.9.0-rc.13-linux-x86_64.tar.gz",
+        "dicodePing-v1.9.0-rc.13-macos-${{ matrix.architecture }}.dmg",
+        "dicodePing-v1.9.0-rc.13-android.apk",
     ):
         assert asset in workflow
-    assert "v1.9.0-rc.12" in deploy
-    assert "wait_for_github_release_rc12.ps1" in deploy
+    assert "v1.9.0-rc.13" in deploy
+    assert "wait_for_github_release_rc13.ps1" in deploy
