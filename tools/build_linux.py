@@ -36,7 +36,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app.py"
+    entrypoint = root / "app_v190_rc14.py"
     required = [
         entrypoint,
         core / "xray",

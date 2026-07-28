@@ -42,7 +42,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app.py"
+    entrypoint = root / "app_v190_rc14.py"
     generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 

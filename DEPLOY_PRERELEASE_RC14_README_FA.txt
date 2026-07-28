@@ -42,3 +42,11 @@ DEPLOY_PRERELEASE_RC14.bat
 - اگر pytest نصب نباشد، اسکریپت فقط همان وابستگی را نصب می‌کند.
 - اگر Validation محلی شکست بخورد، هیچ چیزی به GitHub Push نمی‌شود.
 - اگر RC14 قبلاً Release شده باشد، Release موجود با Build جدید به‌روزرسانی می‌شود.
+
+اصلاح v3:
+خطای CI با متن زیر مربوط به BAT نبود:
+  ServerService.build_and_save() got an unexpected keyword argument 'preview_progress'
+علت این بود که بیلدهای Windows/Linux مستقیماً app.py را بسته‌بندی می‌کردند و
+نصب‌کننده‌های Runtime اجرا نمی‌شدند. اکنون هر سه بیلدر دسکتاپ از
+app_v190_rc14.py استفاده می‌کنند. همان DEPLOY_PRERELEASE_RC14.bat را دوباره اجرا
+کنید؛ تگ RC14 به Commit جدید منتقل می‌شود و Workflow از ابتدا اجرا خواهد شد.

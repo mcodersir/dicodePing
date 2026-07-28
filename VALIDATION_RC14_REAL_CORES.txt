@@ -22,3 +22,9 @@ NOT RUN in this environment:
 
 The release workflow downloads/builds the pinned native cores, verifies their hashes/ELF form,
 assembles the signed APK, checks both 64-bit ABIs and validates the bundled core inventory.
+
+FIXED v3 packaged desktop runtime:
+- Added app_v190_rc14.py runtime wrapper.
+- Windows/Linux/macOS builders and dicodePing.spec use the wrapper.
+- Regression suite: 95 passed.
+- Version, Android project, quality gate and compileall: passed.

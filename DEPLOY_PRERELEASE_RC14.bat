@@ -9,7 +9,7 @@ set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
 set "TAG=v1.9.0-rc.14"
 set "WORKFLOW=release.yml"
-set "COMMIT_MESSAGE=release: redeploy v1.9.0-rc.14 real Aether and WARP cores"
+set "COMMIT_MESSAGE=fix: redeploy v1.9.0-rc.14 packaged runtime entrypoint"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc14-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
@@ -21,7 +21,7 @@ set "ROBOCOPY_CODE="
 
 cls
 echo ================================================================
-echo      dicodePing v1.9.0 RC14 GitHub Pre-release Deploy FIXED v2
+echo      dicodePing v1.9.0 RC14 GitHub Pre-release Deploy FIXED v3
 echo ================================================================
 echo.
 echo This script creates a clean repository snapshot and safely removes
@@ -194,6 +194,29 @@ if not exist "tests\test_rc14_regressions.py" (
 )
 if not exist "DEPLOY_PRERELEASE_RC14.bat" (
     echo [ERROR] Current RC14 deploy script was not copied.
+    popd
+    goto :failed
+)
+if not exist "app_v190_rc14.py" (
+    echo [ERROR] RC14 runtime wrapper app_v190_rc14.py was not copied.
+    popd
+    goto :failed
+)
+findstr /C:"app_v190_rc14.py" "tools\build_windows.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Windows builder is not using app_v190_rc14.py.
+    popd
+    goto :failed
+)
+findstr /C:"app_v190_rc14.py" "tools\build_linux.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Linux builder is not using app_v190_rc14.py.
+    popd
+    goto :failed
+)
+findstr /C:"app_v190_rc14.py" "tools\build_macos.py" >nul
+if errorlevel 1 (
+    echo [ERROR] macOS builder is not using app_v190_rc14.py.
     popd
     goto :failed
 )

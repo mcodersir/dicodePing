@@ -19,3 +19,10 @@
 - Snapshot تمیز: 93 تست موفق.
 - شبیه‌سازی بدترین حالت با باقی‌ماندن کل تست‌های RC13: 271 تست موفق.
 - شبیه‌سازی پاک‌سازی Git: صفر تست test_v*.py و صفر Workflow نسخه‌ای قدیمی باقی ماند.
+
+FIX v3 - packaged discovery crash
+- Windows/Linux CI failed because desktop builders packaged app.py directly.
+- app.py does not install the RC runtime chain, so DiscoverThread called the old
+  ServerService signature and crashed on preview_progress/preview_only.
+- Added app_v190_rc14.py and made Windows, Linux, macOS and the local spec use it.
+- Added a regression test that prevents builders from returning to app.py.
