@@ -30,6 +30,7 @@ jobs:
           python tools/verify_version.py --tag v1.9.0-rc.18
           python tools/validate_android_gradle_kts.py
           python tools/validate_android_source_references.py
+          python tools/validate_rc18_tun_runtime_hotfix.py
           python -m pytest -q
           python tools/quality_gate.py
           python dicodePing_android/tools/validate_project.py

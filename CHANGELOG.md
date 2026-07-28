@@ -2,6 +2,11 @@
 
 ## 1.9.0-rc.18
 
+- Fixed a Windows TUN false negative where Xray was visibly carrying DNS/TCP traffic but the private liveness probe used only plain HTTP/80 and tore the working tunnel down.
+- Reworked the private SOCKS probe with exact fragmented-read handling, HTTPS-first targets and full HTTP status-line parsing.
+- Made the private SOCKS pre-check advisory; the authoritative connection result is now the ordinary system-wide request through the active TUN route.
+- Fixed `NameError: old is not defined` in connection-failure, favorite and saved-server refresh paths while preserving scanner-created servers.
+- Added a dedicated RC18 TUN runtime validator to local deployment and GitHub Actions.
 - Fixed one-click deployment from folders previously used for RC16/RC17 by removing all stale RC10+ test modules by filename and verifying the staged tree again before push.
 - Restored mandatory full-device Xray TUN routing on Windows, Linux and macOS; System Proxy is no longer used as a substitute.
 - Added platform-correct TUN settings, including Windows Wintun/DNS, Linux routing and dynamic macOS `utunN` selection.

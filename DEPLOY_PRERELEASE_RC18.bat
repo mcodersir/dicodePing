@@ -25,7 +25,7 @@ set "PAGES_CODE=0"
 
 cls
 echo ================================================================
-echo  dicodePing RC18 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY + XRAY FIX
+echo  dicodePing RC18 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY + TUN HOTFIX
 echo ================================================================
 echo.
 echo This deployer will:
@@ -419,6 +419,8 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_gradle_kts.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_source_references.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_rc18_tun_runtime_hotfix.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed

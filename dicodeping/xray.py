@@ -10,6 +10,7 @@ import re
 import shlex
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import threading
@@ -792,30 +793,104 @@ def _http_proxy_probe(port: int, host: str, path: str, timeout: float) -> int | 
         return None
 
 
-def _socks_http_probe(port: int, host: str, path: str, timeout: float) -> int | None:
+def _recv_exact(sock: socket.socket, size: int) -> bytes:
+    """Receive an exact number of bytes or fail cleanly.
+
+    TCP is a byte stream, so a single ``recv(size)`` is not guaranteed to
+    return ``size`` bytes.  The previous implementation occasionally parsed a
+    fragmented SOCKS reply as a dead server even though Xray had connected.
+    """
+    data = bytearray()
+    while len(data) < size:
+        chunk = sock.recv(size - len(data))
+        if not chunk:
+            raise OSError("unexpected EOF")
+        data.extend(chunk)
+    return bytes(data)
+
+
+def _read_http_status(sock: socket.socket, limit: int = 4096) -> int | None:
+    data = bytearray()
+    while b"\r\n" not in data and len(data) < limit:
+        chunk = sock.recv(min(512, limit - len(data)))
+        if not chunk:
+            break
+        data.extend(chunk)
+    first_line = bytes(data).split(b"\r\n", 1)[0]
+    match = re.match(rb"HTTP/\d(?:\.\d)?\s+(\d{3})(?:\s|$)", first_line)
+    return int(match.group(1)) if match else None
+
+
+def _socks_connect(sock: socket.socket, host: str, target_port: int) -> bool:
+    sock.sendall(b"\x05\x01\x00")
+    if _recv_exact(sock, 2) != b"\x05\x00":
+        return False
+    encoded = host.encode("idna")
+    if not encoded or len(encoded) > 255:
+        return False
+    sock.sendall(
+        b"\x05\x01\x00\x03"
+        + bytes([len(encoded)])
+        + encoded
+        + int(target_port).to_bytes(2, "big")
+    )
+    reply = _recv_exact(sock, 4)
+    if reply[0] != 5 or reply[1] != 0:
+        return False
+    atyp = reply[3]
+    if atyp == 1:
+        _recv_exact(sock, 4)
+    elif atyp == 4:
+        _recv_exact(sock, 16)
+    elif atyp == 3:
+        _recv_exact(sock, _recv_exact(sock, 1)[0])
+    else:
+        return False
+    _recv_exact(sock, 2)
+    return True
+
+
+def _socks_http_probe(
+    port: int,
+    host: str,
+    path: str,
+    timeout: float,
+    *,
+    use_tls: bool = False,
+) -> int | None:
+    """Perform a real HTTP request through Xray's private SOCKS inbound.
+
+    HTTPS is preferred because some otherwise healthy servers or upstream
+    networks block plain port 80. Certificate verification is intentionally
+    disabled here: this is only a liveness/path probe, not a trust decision.
+    """
     started = time.perf_counter()
+    target_port = 443 if use_tls else 80
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=timeout) as sock:
-            sock.settimeout(timeout)
-            sock.sendall(b"\x05\x01\x00")
-            if sock.recv(2) != b"\x05\x00":
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=timeout) as raw_sock:
+            raw_sock.settimeout(timeout)
+            if not _socks_connect(raw_sock, host, target_port):
                 return None
-            encoded = host.encode("idna")
-            sock.sendall(b"\x05\x01\x00\x03" + bytes([len(encoded)]) + encoded + (80).to_bytes(2, "big"))
-            reply = sock.recv(4)
-            if len(reply) != 4 or reply[1] != 0:
-                return None
-            atyp = reply[3]
-            trailing = 4 if atyp == 1 else 16 if atyp == 4 else (sock.recv(1)[0] if atyp == 3 else 0)
-            if trailing:
-                sock.recv(trailing + 2)
-            request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: dicodePing\r\n\r\n".encode()
-            sock.sendall(request)
-            header = sock.recv(64)
-            if b" 204 " not in header and b" 200 " not in header:
+            stream: socket.socket = raw_sock
+            if use_tls:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                stream = context.wrap_socket(raw_sock, server_hostname=host)
+                stream.settimeout(timeout)
+            request = (
+                f"GET {path} HTTP/1.1\r\n"
+                f"Host: {host}\r\n"
+                "Connection: close\r\n"
+                "User-Agent: dicodePing-connectivity-check\r\n"
+                "Accept: */*\r\n\r\n"
+            ).encode("ascii")
+            stream.sendall(request)
+            status = _read_http_status(stream)
+            if status is None or not 200 <= status < 400:
                 return None
             return max(1, int(round((time.perf_counter() - started) * 1000)))
-    except (OSError, ValueError):
+    except (OSError, ValueError, ssl.SSLError, IndexError):
         return None
 
 
@@ -847,16 +922,27 @@ def probe_outbound_delay(
                 start_new_session=not is_windows(),
             )
         )
-        ready_until = time.monotonic() + min(2.0, timeout)
+        ready_until = time.monotonic() + min(3.5, max(2.0, timeout))
+        targets = (
+            ("www.gstatic.com", "/generate_204", True),
+            ("cp.cloudflare.com", "/generate_204", True),
+            ("www.cloudflare.com", "/cdn-cgi/trace", True),
+            ("www.gstatic.com", "/generate_204", False),
+        )
         while time.monotonic() < ready_until and process.poll() is None:
             if cancel_event is not None and cancel_event.is_set():
                 return None
-            result = _socks_http_probe(port, "www.gstatic.com", "/generate_204", min(1.3, timeout))
-            if result is not None:
-                return result
-            time.sleep(0.08)
-        if process.poll() is None and not (cancel_event is not None and cancel_event.is_set()):
-            return _socks_http_probe(port, "cp.cloudflare.com", "/generate_204", timeout)
+            for host, path, use_tls in targets:
+                result = _socks_http_probe(
+                    port,
+                    host,
+                    path,
+                    min(2.4 if use_tls else 1.8, max(1.0, timeout)),
+                    use_tls=use_tls,
+                )
+                if result is not None:
+                    return result
+            time.sleep(0.10)
         return None
     except Exception:
         return None
@@ -1120,30 +1206,42 @@ class XrayManager:
                 else "Xray could not create the TUN interface; inspect diagnostic logs"
             )
 
-        # First verify the chosen outbound through the private SOCKS inbound.
-        # This separates a dead server from an OS routing problem.
+        # Probe the chosen outbound through the private SOCKS inbound. HTTPS is
+        # attempted first because a healthy server may legitimately block plain
+        # port 80. This pre-check is advisory: the authoritative success signal
+        # is the system-wide TUN request below. A failed private probe must never
+        # tear down a TUN route that is already carrying real traffic.
         _emit_progress_value(progress_value, 70)
-        proxy_deadline = time.monotonic() + 12.0
+        proxy_deadline = time.monotonic() + 14.0
         outbound_ready = False
+        validation_targets = (
+            ("www.gstatic.com", "/generate_204", True),
+            ("cp.cloudflare.com", "/generate_204", True),
+            ("www.cloudflare.com", "/cdn-cgi/trace", True),
+            ("www.gstatic.com", "/generate_204", False),
+        )
         while time.monotonic() < proxy_deadline and self.process.poll() is None:
             if cancel_start.is_set():
                 self.stop()
                 raise RuntimeError("Connection startup was cancelled")
-            for host in ("www.gstatic.com", "cp.cloudflare.com"):
-                if _socks_http_probe(self.validation_socks_port, host, "/generate_204", 1.5) is not None:
+            for host, path, use_tls in validation_targets:
+                if _socks_http_probe(
+                    self.validation_socks_port,
+                    host,
+                    path,
+                    2.8 if use_tls else 2.0,
+                    use_tls=use_tls,
+                ) is not None:
                     outbound_ready = True
                     break
             if outbound_ready:
                 break
-            time.sleep(0.18)
+            time.sleep(0.20)
         if not outbound_ready:
             tail = self._read_log_tail()
-            LOGGER.error("Xray outbound validation failed before TUN verification: %s", tail[-1400:])
-            self.stop()
-            raise RuntimeError(
-                "سرور انتخاب‌شده از داخل Xray ترافیک معتبر عبور نداد"
-                if language != "en"
-                else "The selected server did not carry verified traffic through Xray"
+            LOGGER.warning(
+                "Private SOCKS validation was inconclusive; continuing with authoritative TUN verification: %s",
+                tail[-1200:],
             )
 
         # Now verify ordinary process traffic with all proxy handlers disabled.
@@ -1167,6 +1265,12 @@ class XrayManager:
             tail = self._read_log_tail()
             LOGGER.error("System TUN route validation failed: %s", tail[-1600:])
             self.stop()
+            if not outbound_ready:
+                raise RuntimeError(
+                    "اتصال Xray و مسیر سراسری TUN تأیید نشد؛ کانفیگ سرور، اینترنت و مجوز مدیر را بررسی کنید"
+                    if language != "en"
+                    else "Neither the Xray outbound nor the system-wide TUN route could be verified"
+                )
             raise RuntimeError(
                 "هسته وصل شد اما مسیر سراسری TUN روی سیستم فعال نشد؛ دسترسی مدیر و Wintun/Network Extension را بررسی کنید"
                 if language != "en"
