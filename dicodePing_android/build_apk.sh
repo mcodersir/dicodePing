@@ -13,6 +13,7 @@ command -v curl >/dev/null 2>&1 || { echo "curl is required." >&2; exit 1; }
 
 # Remove stale files left when this ZIP was extracted over an older RC.
 python ../tools/prepare_build_workspace.py --keep-outputs
+python ../tools/validate_android_source_references.py
 
 # This is intentionally part of the build command itself. A release APK can no
 # longer be assembled unless Aether and Usque have first been prepared for all

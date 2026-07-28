@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[^/]+/[^/]+$')]
@@ -24,19 +24,61 @@ $apiVersion = '2026-03-10'
 $startedAt = Get-Date
 $deadline = $startedAt.AddMinutes($TimeoutMinutes)
 
+function Test-TransientGhFailure {
+    param([string]$Text)
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    return $Text -match '(?i)(TLS handshake timeout|i/o timeout|context deadline exceeded|connection reset|connection aborted|unexpected EOF|temporary failure|timed out|HTTP 429|HTTP 500|HTTP 502|HTTP 503|HTTP 504|server disconnected)'
+}
+
 function Invoke-Gh {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+        [ValidateRange(1, 10)]
+        [int]$MaxAttempts = 5
     )
 
-    $output = & gh @Arguments 2>&1
-    $code = $LASTEXITCODE
-    if ($code -ne 0 -and -not $AllowFailure) {
-        throw "gh $($Arguments -join ' ') failed with exit code $code`n$output"
+    $attempt = 0
+    while ($attempt -lt $MaxAttempts) {
+        $attempt++
+        $previousPreference = $ErrorActionPreference
+        try {
+            # Native stderr must be captured as output. With Stop, PowerShell can
+            # throw NativeCommandError before we can inspect gh's exit code.
+            $ErrorActionPreference = 'Continue'
+            $outputLines = & gh @Arguments 2>&1
+            $code = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousPreference
+        }
+
+        $output = ($outputLines -join "`n")
+        if ($code -eq 0) {
+            return [pscustomobject]@{ ExitCode = 0; Output = $output; Attempts = $attempt }
+        }
+
+        $transient = Test-TransientGhFailure -Text $output
+        if ($transient -and $attempt -lt $MaxAttempts) {
+            $delay = [Math]::Min(30, [Math]::Pow(2, $attempt))
+            Write-Host "[PAGES][RETRY] gh request failed transiently (attempt $attempt/$MaxAttempts). Retrying in $delay seconds..."
+            if (-not [string]::IsNullOrWhiteSpace($output)) {
+                Write-Host ($output.Split("`n") | Select-Object -Last 2)
+            }
+            Start-Sleep -Seconds $delay
+            continue
+        }
+
+        if (-not $AllowFailure) {
+            throw "gh $($Arguments -join ' ') failed with exit code $code after $attempt attempt(s)`n$output"
+        }
+        return [pscustomobject]@{ ExitCode = $code; Output = $output; Attempts = $attempt }
     }
-    [pscustomobject]@{ ExitCode = $code; Output = ($output -join "`n") }
+
+    if (-not $AllowFailure) {
+        throw "gh $($Arguments -join ' ') failed after $MaxAttempts attempts."
+    }
+    return [pscustomobject]@{ ExitCode = 1; Output = ''; Attempts = $MaxAttempts }
 }
 
 function Invoke-GhJson {

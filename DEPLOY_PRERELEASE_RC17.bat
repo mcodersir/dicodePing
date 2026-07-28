@@ -1,7 +1,7 @@
-@echo off
+﻿@echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing RC17 One-Click Clone + Pre-release + Pages Deploy
+title dicodePing RC17 Hotfix One-Click Release + Pages Deploy
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
@@ -10,7 +10,7 @@ set "BRANCH=main"
 set "TAG=v1.9.0-rc.17"
 set "WORKFLOW=release.yml"
 set "DOCS_WORKFLOW=docs.yml"
-set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.17 release and GitHub Pages recovery"
+set "COMMIT_MESSAGE=fix: RC17 Android compile and resilient GitHub Pages deploy"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc17-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
@@ -25,7 +25,7 @@ set "PAGES_CODE=0"
 
 cls
 echo ================================================================
-echo  dicodePing RC17 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY
+echo  dicodePing RC17 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY HOTFIX
 echo ================================================================
 echo.
 echo This deployer will:
@@ -336,6 +336,12 @@ if errorlevel 1 (
     popd
     goto :failed
 )
+findstr /C:"RuntimeTuning.detect(context, repo.settings.resourceMode)" "dicodePing_android\app\src\main\java\ir\dicode\ping\scanner\ScannerCoordinator.kt" >nul
+if errorlevel 1 (
+    echo [ERROR] Android ScannerCoordinator still contains an invalid repository reference.
+    popd
+    goto :failed
+)
 echo [OK] Stale files were removed and the RC17 staged tree is clean.
 
 echo.
@@ -345,6 +351,8 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_gradle_kts.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_android_source_references.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed
@@ -448,10 +456,19 @@ popd
 
 echo.
 echo [9/10] Repairing GitHub Pages and deploying docs/site...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PAGES_SCRIPT%" -Repository "%REPO%" -Branch "%BRANCH%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%DOCS_WORKFLOW%" -TimeoutMinutes 30
-set "PAGES_CODE=%ERRORLEVEL%"
+call :run_pages_attempt 1
 if not "%PAGES_CODE%"=="0" (
-    echo [WARNING] GitHub Pages deployment failed. Release monitoring will continue.
+    echo [PAGES] Transient failure detected. Waiting 15 seconds before retry...
+    timeout /t 15 /nobreak >nul
+    call :run_pages_attempt 2
+)
+if not "%PAGES_CODE%"=="0" (
+    echo [PAGES] Transient failure detected. Waiting 15 seconds before final retry...
+    timeout /t 15 /nobreak >nul
+    call :run_pages_attempt 3
+)
+if not "%PAGES_CODE%"=="0" (
+    echo [WARNING] GitHub Pages deployment failed after retries. Release monitoring will continue.
     start "" "https://github.com/%REPO%/actions/workflows/%DOCS_WORKFLOW%"
 )
 
@@ -510,6 +527,13 @@ echo [1/10] Cloning %REPO_URL%...
 if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
 git -c credential.interactive=always clone --branch "%BRANCH%" --single-branch "%REPO_URL%" "%STAGE_DIR%"
 exit /b %ERRORLEVEL%
+
+:run_pages_attempt
+set "PAGES_CODE=1"
+echo [PAGES] Full deployment attempt %~1/3...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PAGES_SCRIPT%" -Repository "%REPO%" -Branch "%BRANCH%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%DOCS_WORKFLOW%" -TimeoutMinutes 30
+set "PAGES_CODE=%ERRORLEVEL%"
+exit /b 0
 
 :ensure_gh
 where gh >nul 2>&1

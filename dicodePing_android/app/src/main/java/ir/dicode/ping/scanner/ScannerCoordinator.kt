@@ -139,7 +139,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         requireConnectedBootstrap()
         ensureRunning()
 
-        val tuning = RuntimeTuning.detect(context, repository.settings.resourceMode)
+        val tuning = RuntimeTuning.detect(context, repo.settings.resourceMode)
         update(
             ScannerStage.CRAWLING,
             progress = 5,

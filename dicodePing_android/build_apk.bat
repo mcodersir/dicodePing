@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0"
@@ -22,6 +22,8 @@ if errorlevel 1 (
 
 rem Remove stale files left when this ZIP was extracted over an older RC.
 py -3 ..\tools\prepare_build_workspace.py --keep-outputs
+if errorlevel 1 exit /b 1
+py -3 ..\tools\validate_android_source_references.py
 if errorlevel 1 exit /b 1
 
 rem Core preparation is part of the build, so Aether/Usque cannot be forgotten.
