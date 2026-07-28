@@ -290,4 +290,10 @@ Details: %1$s</string>
     <string name="core_stage_switching_http2">The primary transport did not pass traffic; trying HTTP/2 automatically…</string>
     <string name="core_stage_verifying_real_traffic">Verifying real internet traffic through the selected core…</string>
     <string name="external_core_connection_failed">The selected core started, but real internet traffic could not be verified. Check the network and try Connect again.</string>
+    <string name="resource_mode_title">Smart resource usage</string>
+    <string name="resource_mode_optimized">Optimized (recommended)</string>
+    <string name="resource_mode_professional">Professional</string>
+    <string name="resource_mode_help">Optimized mode adapts CPU, memory and network use to the phone. Professional mode enables higher scanner and test concurrency.</string>
+    <string name="resource_mode_applies_next_run">Resource mode applies on the next run</string>
+    <string name="security_estimate">Security estimate</string>
 </resources>

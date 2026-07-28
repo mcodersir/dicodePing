@@ -132,6 +132,37 @@
                                 android:text="@string/secure_dns_doh"
                                 android:textColor="@color/text_primary" />
 
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:text="@string/resource_mode_title"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.DicodePing.TextInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                app:hintEnabled="false"
+                                app:endIconMode="dropdown_menu">
+
+                                <AutoCompleteTextView
+                                    android:id="@+id/resourceMode"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="56dp"
+                                    android:inputType="none" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="@string/resource_mode_help"
+                                android:textColor="@color/text_tertiary"
+                                android:textSize="11sp" />
+
                             <com.google.android.material.switchmaterial.SwitchMaterial
                                 android:id="@+id/diagnosticLogging"
                                 android:layout_width="match_parent"

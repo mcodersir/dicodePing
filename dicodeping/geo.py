@@ -6,7 +6,7 @@ from typing import Callable
 
 from .constants import GEO_CACHE_TTL_DAYS
 from .diagnostics import get_logger
-from .net import lookup_geo
+from .net import lookup_geo, lookup_geo_fast
 from .storage import JsonStore
 
 
@@ -35,14 +35,15 @@ class GeoResolver:
         self.store = store
         self.cache = store.load_geo_cache()
 
-    def resolve_many(self, ips: list[str], callback: Callable[[int, int], None] | None = None) -> dict[str, dict[str, str]]:
+    def resolve_many(self, ips: list[str], callback: Callable[[int, int], None] | None = None, *, fast: bool = False) -> dict[str, dict[str, str]]:
         unique = list(dict.fromkeys(ip for ip in ips if ip and ip != "dns"))
         missing = [ip for ip in unique if ip not in self.cache or not _fresh(self.cache.get(ip, {}))]
         total = len(missing)
         done = 0
         if missing:
             with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
-                futures = {executor.submit(lookup_geo, ip): ip for ip in missing}
+                resolver = lookup_geo_fast if fast else lookup_geo
+                futures = {executor.submit(resolver, ip): ip for ip in missing}
                 for future in concurrent.futures.as_completed(futures):
                     ip = futures[future]
                     try:

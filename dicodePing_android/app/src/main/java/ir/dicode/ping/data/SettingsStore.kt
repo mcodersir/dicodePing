@@ -67,6 +67,9 @@ class SettingsStore(context: Context) {
     var lastServerRefreshAt: Long
         get() = prefs.getLong("last_server_refresh_at", 0L)
         set(value) = prefs.edit().putLong("last_server_refresh_at", value).apply()
+    var resourceMode: String
+        get() = prefs.getString("resource_mode", "optimized") ?: "optimized"
+        set(value) = prefs.edit().putString("resource_mode", if (value == "professional") value else "optimized").apply()
     var diagnosticLogging: Boolean
         get() = prefs.getBoolean("diagnostic_logging", false)
         set(value) = prefs.edit().putBoolean("diagnostic_logging", value).apply()

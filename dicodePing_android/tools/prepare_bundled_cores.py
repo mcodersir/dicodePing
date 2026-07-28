@@ -13,14 +13,15 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-AETHER_VERSION = "1.4.0"
+AETHER_MOBILE_COMMIT = "5c5a22e6b4c8fbfc2416966bb83a16b812ef7988"
+AETHER_VERSION = f"QW-AI-Code/Aether@{AETHER_MOBILE_COMMIT[:12]}"
 USQUE_VERSION = "4.2.1"
 ANDROID_API = 24
 
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.16"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.17"})
     with urllib.request.urlopen(request, timeout=90) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output)
 
@@ -41,29 +42,78 @@ def verify_upstream_sha(asset: Path, checksum_file: Path) -> None:
 
 
 def prepare_aether(work: Path, jni: Path) -> None:
-    assets = {
-        "arm64-v8a": "aether-android-arm64.tar.gz",
-        "x86_64": "aether-android-x86_64.tar.gz",
-    }
-    for abi, name in assets.items():
-        base = f"https://github.com/CluvexStudio/Aether/releases/download/v{AETHER_VERSION}/{name}"
-        archive = work / name
-        checksum = work / f"{name}.sha256"
-        download(base, archive)
-        download(base + ".sha256", checksum)
-        verify_upstream_sha(archive, checksum)
-        with tarfile.open(archive, "r:gz") as bundle:
-            members = [member for member in bundle.getmembers() if Path(member.name).name == "aether" and member.isfile()]
-            if len(members) != 1:
-                raise RuntimeError(f"Aether executable missing in {name}")
-            source = bundle.extractfile(members[0])
-            if source is None:
-                raise RuntimeError(f"Cannot extract Aether from {name}")
-            target = jni / abi / "libaether.so"
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with target.open("wb") as output:
-                shutil.copyfileobj(source, output)
-            target.chmod(0o755)
+    """Build Aether from QW-AI-Code/Aether's audited mobile source snapshot.
+
+    The mobile project vendors the compatible Aether/quiche source. We reuse
+    that source and its fetch step, but build only dicodePing's supported
+    64-bit ABIs. The result stays a separate executable process exposed as
+    libaether.so; no foreign Android UI code is copied into this application.
+    """
+    source = work / "aether-mobile"
+    run(["git", "clone", "--no-checkout", "--filter=blob:none", "https://github.com/QW-AI-Code/Aether.git", str(source)], work)
+    run(["git", "fetch", "--depth", "1", "origin", AETHER_MOBILE_COMMIT], source)
+    run(["git", "checkout", "--detach", AETHER_MOBILE_COMMIT], source)
+
+    env = os.environ.copy()
+    env["ANDROID_API"] = str(ANDROID_API)
+    env["AETHER_REPO"] = "QW-AI-Code/Aether"
+
+    # QW-AI-Code/Aether vendors the exact engine snapshot used by its Android
+    # client. Prefer it directly: this avoids cloning the unrelated TUN helper
+    # and makes the dicodePing build faster and more reproducible. Keep the
+    # upstream fetch script as a compatibility fallback if the layout changes.
+    native = source / "native" / "aether"
+    if not any(native.rglob("Cargo.toml")):
+        fetch = source / "scripts" / "fetch-natives.sh"
+        if not fetch.is_file():
+            raise RuntimeError("QW-AI-Code/Aether mobile native source is missing")
+        env.pop("AETHER_FORCE_CLONE", None)
+        run(["bash", str(fetch)], source, env)
+        native = source / ".native" / "aether"
+    manifests = sorted(native.rglob("Cargo.toml"))
+    crate = next(
+        (manifest.parent for manifest in manifests if (manifest.parent / "src" / "main.rs").is_file() and "quiche" not in manifest.parts),
+        None,
+    )
+    if crate is None:
+        raise RuntimeError("Aether mobile vendored binary crate was not found")
+    cargo_target = native / "target"
+    build_env = env.copy()
+    build_env["ANDROID_NDK_ROOT"] = str(find_ndk())
+    build_env["ANDROID_NDK_HOME"] = str(find_ndk())
+    build_env["CARGO_TARGET_DIR"] = str(cargo_target)
+
+    bin_name = "aether"
+    cargo_toml = (crate / "Cargo.toml").read_text(encoding="utf-8", errors="ignore")
+    match = __import__("re").search(r'^name\s*=\s*"([^"]+)"', cargo_toml, __import__("re").MULTILINE)
+    if match:
+        bin_name = match.group(1)
+
+    builds = (
+        ("arm64-v8a", "aarch64-linux-android"),
+        ("x86_64", "x86_64-linux-android"),
+    )
+    for abi, triple in builds:
+        run(
+            ["cargo", "ndk", "-t", abi, "--platform", str(ANDROID_API), "build", "--release"],
+            crate,
+            build_env,
+        )
+        release_dir = cargo_target / triple / "release"
+        candidate = release_dir / bin_name
+        if not candidate.is_file():
+            candidate = next(
+                (path for path in release_dir.iterdir() if path.is_file() and path.suffix not in {".d", ".rlib", ".rmeta", ".so"}),
+                None,
+            )
+        if candidate is None or not candidate.is_file():
+            raise RuntimeError(f"Aether mobile build did not produce an executable for {abi}")
+        target = jni / abi / "libaether.so"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(candidate, target)
+        target.chmod(0o755)
+        if target.stat().st_size < 500_000:
+            raise RuntimeError(f"Aether Android build is unexpectedly small: {target}")
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
@@ -226,7 +276,7 @@ def main() -> int:
     manifest_path.write_text(
         json.dumps(
             {
-                "release": "1.9.0-rc.16",
+                "release": "1.9.0-rc.17",
                 "aether": AETHER_VERSION,
                 "usque": USQUE_VERSION,
                 "abis": ["arm64-v8a", "x86_64"],

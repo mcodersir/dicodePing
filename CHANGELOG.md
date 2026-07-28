@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0-rc.17
+
+- Scanner results now resolve and permanently store IP, country, city, ISP and ASN before publishing the local SUB.
+- Added a conservative 0–100 security estimate to every server card. It is explicitly a configuration estimate, not a server audit.
+- Added optimized resource mode (default) and an opt-in professional mode on Android, Windows, Linux and macOS.
+- Android Aether is built through the QW-AI-Code/Aether mobile native pipeline.
+- Desktop Aether lifecycle now follows Aether-GUI style cancellation, fallback and process ownership patterns.
+- Updated core provenance and third-party notices; defyxVPN is used only as an architecture reference.
+
 ## 1.9.0-rc.16
 
 - Fixed real Aether/Usque startup and HTTP/2 argument ordering on desktop.

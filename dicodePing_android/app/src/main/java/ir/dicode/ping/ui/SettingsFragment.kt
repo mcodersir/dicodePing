@@ -58,6 +58,20 @@ class SettingsFragment : Fragment() {
         binding.mode.addOnButtonCheckedListener { _, id, checked ->
             if (checked) vm.repo.setConnectionMode(if (id == R.id.modeManual) "manual" else "auto")
         }
+        val resourceModeIds = listOf("optimized", "professional")
+        val resourceModeLabels = listOf(
+            getString(R.string.resource_mode_optimized),
+            getString(R.string.resource_mode_professional),
+        )
+        binding.resourceMode.setAdapter(
+            ArrayAdapter(requireContext(), R.layout.item_dropdown, R.id.dropdownText, resourceModeLabels)
+        )
+        binding.resourceMode.setText(resourceModeLabels[resourceModeIds.indexOf(store.resourceMode).coerceAtLeast(0)], false)
+        binding.resourceMode.setOnItemClickListener { _, _, position, _ ->
+            store.resourceMode = resourceModeIds[position]
+            Snackbar.make(binding.root, R.string.resource_mode_applies_next_run, Snackbar.LENGTH_SHORT).show()
+        }
+
         binding.diagnosticLogging.isChecked = store.diagnosticLogging
         binding.diagnosticLogging.setOnCheckedChangeListener { _, enabled ->
             store.diagnosticLogging = enabled
@@ -92,7 +106,7 @@ class SettingsFragment : Fragment() {
 
     private fun setupConnectionFeatures() {
         val store = vm.repo.settings
-        // RC16 migration: the old “apps outside connection” list duplicated denylist mode.
+        // RC17 migration: the old “apps outside connection” list duplicated denylist mode.
         if (store.bypassApps.isNotEmpty()) {
             if (store.perAppVpnPackages.isEmpty()) store.perAppVpnPackages = store.bypassApps
             if (store.perAppVpnMode == "disabled") store.perAppVpnMode = "denylist"

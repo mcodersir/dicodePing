@@ -45,6 +45,8 @@ data class ServerRecord(
     var healthy: Boolean = false,
     var favorite: Boolean = false,
     var profileTag: String = "unknown",
+    var securityScore: Int = 0,
+    var securityLevel: String = "unknown",
     /** Ephemeral UI state; deliberately not persisted between app launches. */
     var testState: String = TEST_IDLE,
 ) {
@@ -55,6 +57,7 @@ data class ServerRecord(
         put("country", country); put("countryCode", countryCode); put("region", region); put("city", city)
         put("isp", isp); put("asn", asn); put("geoConfidence", geoConfidence)
         put("healthy", healthy); put("favorite", favorite); put("profileTag", profileTag)
+        put("securityScore", securityScore); put("securityLevel", securityLevel)
     }
 
     companion object {
@@ -67,7 +70,9 @@ data class ServerRecord(
             region=o.optString("region"), city=o.optString("city"), isp=o.optString("isp"),
             asn=o.optString("asn"), geoConfidence=o.optString("geoConfidence"),
             healthy=o.optBoolean("healthy"), favorite=o.optBoolean("favorite"),
-            profileTag=o.optString("profileTag", "unknown"), testState=TEST_IDLE
+            profileTag=o.optString("profileTag", "unknown"),
+            securityScore=o.optInt("securityScore", 0), securityLevel=o.optString("securityLevel", "unknown"),
+            testState=TEST_IDLE
         )
 
         const val TEST_IDLE = "idle"

@@ -100,7 +100,7 @@ val verifyCore by tasks.registering {
             }
         }
         val bundledManifest = project.file("src/main/assets/bundled_cores.json")
-        if (!bundledManifest.isFile || !bundledManifest.readText().contains("1.9.0-rc.16")) {
+        if (!bundledManifest.isFile || !bundledManifest.readText().contains("1.9.0-rc.17")) {
             throw GradleException("Bundled core manifest is missing or stale: ${bundledManifest.absolutePath}")
         }
 
@@ -117,11 +117,11 @@ android {
         minSdk = 24
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
-        // RC10 used versionCode = 45; RC16 must be strictly greater.
-        versionCode = 51
+        // RC10 used versionCode = 45; RC17 must be strictly greater.
+        versionCode = 52
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.16"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.16\"")
+        versionName = "1.9.0-rc.17"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.17\"")
         multiDexEnabled = true
 
     }

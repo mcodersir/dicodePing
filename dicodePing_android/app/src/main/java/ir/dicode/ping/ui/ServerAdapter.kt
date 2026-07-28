@@ -19,6 +19,7 @@ import ir.dicode.ping.databinding.ItemServerBinding
 import ir.dicode.ping.net.QualityRating
 import ir.dicode.ping.net.VolumeDetector
 import ir.dicode.ping.net.ConfigProfileClassifier
+import ir.dicode.ping.net.ConfigSecurityRating
 import ir.dicode.ping.util.PublicServerLabel
 import java.util.Locale
 
@@ -181,6 +182,19 @@ class ServerAdapter(
         binding.profileBadge.text = profileLabel
         if (profileLabel.isNotBlank()) styleBadge(binding.profileBadge, ContextCompat.getColor(context, R.color.brand))
 
+        val security = if (server.securityScore > 0) {
+            ConfigSecurityRating.assess(server.raw, server.host).copy(score = server.securityScore, level = server.securityLevel)
+        } else ConfigSecurityRating.assess(server.raw, server.host)
+        val securityLabel = if (Locale.getDefault().language == "fa") security.labelFa else security.labelEn
+        binding.securityBadge.visibility = View.VISIBLE
+        binding.securityBadge.text = "$securityLabel • ${security.score}/100"
+        val securityColor = when (security.level) {
+            "high" -> ContextCompat.getColor(context, R.color.success)
+            "standard" -> ContextCompat.getColor(context, R.color.info)
+            else -> ContextCompat.getColor(context, R.color.warning)
+        }
+        styleBadge(binding.securityBadge, securityColor)
+
         val volume = VolumeDetector.detectFromServer(server)
         val volumeLabel = when (volume.durationUnit) {
             "day" -> context.resources.getQuantityString(R.plurals.server_validity_days, volume.durationAmount ?: 0, volume.durationAmount ?: 0)
@@ -192,7 +206,7 @@ class ServerAdapter(
         binding.volumeBadge.text = volumeLabel
         if (volumeLabel.isNotBlank()) styleBadge(binding.volumeBadge, ContextCompat.getColor(context, R.color.warning))
 
-        binding.serverBadges.visibility = if (hasQuality || profileLabel.isNotBlank() || volumeLabel.isNotBlank()) View.VISIBLE else View.GONE
+        binding.serverBadges.visibility = View.VISIBLE
     }
 
     private fun styleBadge(view: TextView, color: Int) {

@@ -17,7 +17,7 @@ data class RuntimeProfile(
 
 /** Resource limits shared by discovery, scanner and the embedded Xray core. */
 object RuntimeTuning {
-    fun detect(context: Context): RuntimeProfile {
+    fun detect(context: Context, mode: String = "optimized"): RuntimeProfile {
         val cpu = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
         val memoryMb = context.getSystemService(ActivityManager::class.java)
             ?.memoryClass
@@ -36,19 +36,21 @@ object RuntimeTuning {
             midMemory -> 4
             else -> (cpu * 2).coerceIn(6, 16)
         }
+        val professional = mode == "professional"
         return RuntimeProfile(
             cpuCores = cpu,
             memoryClassMb = memoryMb,
-            downloadWorkers = if (lowMemory) 2 else 4,
-            crawlWorkers = crawl.coerceAtMost((cpu * 2).coerceAtLeast(2)),
-            dnsWorkers = (cpu * 3).coerceIn(4, if (lowMemory) 8 else 24),
-            geoWorkers = (cpu * 2).coerceIn(2, if (lowMemory) 4 else 8),
-            probeWorkers = probe.coerceAtMost((cpu * 2).coerceAtLeast(2)),
-            retryWorkers = (probe / 3).coerceIn(2, 4),
+            downloadWorkers = if (professional) (if (lowMemory) 3 else 6) else (if (lowMemory) 2 else 4),
+            crawlWorkers = (if (professional) crawl + 3 else crawl).coerceAtMost((cpu * (if (professional) 3 else 2)).coerceAtLeast(2)),
+            dnsWorkers = (cpu * (if (professional) 4 else 3)).coerceIn(4, if (lowMemory) 8 else if (professional) 36 else 24),
+            geoWorkers = (cpu * (if (professional) 3 else 2)).coerceIn(2, if (lowMemory) 4 else if (professional) 12 else 8),
+            probeWorkers = (if (professional) probe + 4 else probe).coerceAtMost((cpu * (if (professional) 3 else 2)).coerceAtLeast(2)),
+            retryWorkers = (probe / 3 + (if (professional) 2 else 0)).coerceIn(2, if (professional) 8 else 4),
             bufferSizeKiB = when {
                 lowMemory -> 16
                 midMemory -> 64
                 memoryMb <= 1024 -> 128
+                professional && memoryMb > 512 -> 512
                 else -> 256
             },
         )

@@ -16,11 +16,11 @@ def test_subscription_urls_are_normalized_before_okhttp_request_building() -> No
     assert 'Request.Builder().url(url)' not in client
 
 
-def test_android_release_version_is_rc16_and_install_is_forced_by_version_code() -> None:
+def test_android_release_version_is_rc17_and_install_is_forced_by_version_code() -> None:
     gradle = read("dicodePing_android/app/build.gradle.kts")
-    assert 'versionCode = 51' in gradle
-    assert 'versionName = "1.9.0-rc.16"' in gradle
-    assert 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.16\\"")' in gradle
+    assert 'versionCode = 52' in gradle
+    assert 'versionName = "1.9.0-rc.17"' in gradle
+    assert 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.17\\"")' in gradle
 
 
 def test_apk_build_cannot_skip_aether_usque_or_final_apk_verification() -> None:
@@ -78,8 +78,8 @@ def test_dirty_old_workspace_tethering_copy_is_cleaned(tmp_path) -> None:
     assert (tmp_path / rooted).is_file()
 
 
-def test_rc16_deploy_and_local_apk_build_purge_stale_tethering_class() -> None:
-    deploy = read("DEPLOY_PRERELEASE_RC16.bat")
+def test_rc17_deploy_and_local_apk_build_purge_stale_tethering_class() -> None:
+    deploy = read("DEPLOY_PRERELEASE_RC17.bat")
     build_sh = read("dicodePing_android/build_apk.sh")
     build_bat = read("dicodePing_android/build_apk.bat")
     stale = "dicodePing_android\\app\\src\\main\\java\\ir\\dicode\\ping\\vpn\\AndroidTetheringController.kt"

@@ -80,6 +80,9 @@ class ServerRecord:
     last_connected: str = ""
     failures: int = 0
     profile_tag: str = "unknown"
+    security_score: int = 0
+    security_level: str = "unknown"
+    security_summary: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -113,4 +116,7 @@ class ServerRecord:
             last_connected=str(data.get("last_connected") or ""),
             failures=int(data.get("failures") or 0),
             profile_tag=str(data.get("profile_tag") or "unknown"),
+            security_score=int(data.get("security_score") or 0),
+            security_level=str(data.get("security_level") or "unknown"),
+            security_summary=str(data.get("security_summary") or ""),
         )

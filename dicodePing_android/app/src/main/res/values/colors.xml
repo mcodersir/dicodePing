@@ -19,4 +19,5 @@
     <color name="input_outline">#C9D3E2</color>
     <color name="skeleton_base">#E1E7F0</color>
     <color name="skeleton_highlight">#F2F5F9</color>
+    <color name="info">#79AFFF</color>
 </resources>

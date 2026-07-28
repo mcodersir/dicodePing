@@ -303,7 +303,7 @@ class AlternativeCoreManager:
         language: str = "fa",
         **_kwargs,
     ) -> None:
-        # Cancellation must never wait behind the startup lock. RC16 held this
+        # Cancellation must never wait behind the startup lock. RC17 held this
         # lock for the whole scan/validation window, so Stop could block for up
         # to three minutes. Detach old resources first, then only lock short
         # state transitions and process assignments.
@@ -339,12 +339,13 @@ class AlternativeCoreManager:
                 "stealth": 50,
                 "ironclad": 62,
             }.get(scan, 30)
-            performance = str(self._options.get("performance", "medium"))
+            performance = str(self._options.get("performance", "auto"))
             probe_timeout, poll_interval = {
                 "low": (1.55, 0.34),
                 "medium": (1.15, 0.20),
                 "high": (0.85, 0.12),
-            }.get(performance, (1.15, 0.20))
+                "auto": (1.10, 0.18),
+            }.get(performance, (1.10, 0.18))
 
             for attempt, transport in enumerate(transports):
                 token.raise_if_cancelled()
@@ -457,6 +458,7 @@ class AlternativeCoreManager:
                     "AETHER_QUICK_RECONNECT": "1" if quick_reconnect else "0",
                     "AETHER_NOIZE": "firewall" if protocol == "masque" else "balanced",
                     "AETHER_MASQUE_HTTP2": "1" if transport == "http2" and protocol == "masque" else "0",
+                    "AETHER_PERF": str(self._options.get("performance", "auto")),
                 }
             )
             command = [

@@ -6,6 +6,7 @@ import ir.dicode.ping.net.ConfigParser
 import ir.dicode.ping.net.GeoResolver
 import ir.dicode.ping.net.SubscriptionClient
 import ir.dicode.ping.net.ConfigProfileClassifier
+import ir.dicode.ping.net.ConfigSecurityRating
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.RuntimeTuning
 import ir.dicode.ping.xray.CoreBridge
@@ -39,7 +40,7 @@ class AppRepository private constructor(context: Context) {
     private val downloader = SubscriptionClient()
     private val geo = GeoResolver()
     private val proxyProbe = CoreBridge(app)
-    private val tuning = RuntimeTuning.detect(app)
+    private val tuning = RuntimeTuning.detect(app, settings.resourceMode)
     private val refreshMutex = Mutex()
     private val liveUpdateMutex = Mutex()
 
@@ -341,6 +342,8 @@ class AppRepository private constructor(context: Context) {
                                 sourceId = sourceId,
                                 sourceName = sourceName,
                                 profileTag = ConfigProfileClassifier.classify(raw, node.host).name.lowercase(),
+                                securityScore = ConfigSecurityRating.assess(raw, node.host).score,
+                                securityLevel = ConfigSecurityRating.assess(raw, node.host).level,
                             )
                         }
                     }
@@ -349,7 +352,7 @@ class AppRepository private constructor(context: Context) {
                 if (parsed.isEmpty()) return@withLock emptyList()
                 // Fast parallel TCP filtering removes dead endpoints before the
                 // process-global native Xray probe. Native probes remain serial
-                // for JNI safety, but RC16 tests far fewer dead candidates.
+                // for JNI safety, but RC17 tests far fewer dead candidates.
                 progress.value = ProgressState(true, "prefilter", 0, parsed.size, "Filtering reachable candidates")
                 val prefilterDone = AtomicInteger(0)
                 val prefilterSem = Semaphore(SCANNER_TCP_PREFILTER_WORKERS)
@@ -452,6 +455,12 @@ class AppRepository private constructor(context: Context) {
                 )
                 val nextSources = (sources.value.filterNot { it.id.startsWith("scanner-") } + source)
                     .mapIndexed { index, item -> item.apply { order = index } }
+                // RC17: resolve and persist locations before publishing the scanner SUB.
+                // This uses the shared cache and bounded workers, so flags survive app restarts.
+                progress.value = ProgressState(true, "geo", 0, healthy.size, "Resolving scanner locations")
+                val locatedHealthy = locateServerSnapshot(healthy)
+                healthy.clear()
+                healthy += locatedHealthy
                 val nextServers = servers.value.filterNot { it.sourceId.startsWith("scanner-") } + healthy
                 onSaving()
                 val rawSubscription = healthy.joinToString("\n") { it.raw }
@@ -479,6 +488,38 @@ class AppRepository private constructor(context: Context) {
                 healthy
             }
         }
+
+    private suspend fun locateServerSnapshot(input: List<ServerRecord>): List<ServerRecord> = coroutineScope {
+        if (input.isEmpty()) return@coroutineScope emptyList()
+        val sem = Semaphore(tuning.geoWorkers.coerceAtLeast(2))
+        val done = AtomicInteger(0)
+        input.map { server ->
+            async(Dispatchers.IO) {
+                sem.withPermit {
+                    val ip = server.ip.ifBlank {
+                        runCatching { InetAddress.getByName(server.host).hostAddress.orEmpty() }.getOrDefault("")
+                    }
+                    if (ip.isBlank()) {
+                        progress.value = ProgressState(true, "geo", done.incrementAndGet(), input.size, server.name)
+                        return@withPermit server
+                    }
+                    val info = geo.resolveFast(ip)
+                    val located = server.copy(
+                        ip = ip,
+                        country = info.country,
+                        countryCode = info.countryCode,
+                        region = info.region,
+                        city = info.city,
+                        isp = info.isp,
+                        asn = info.asn,
+                        geoConfidence = info.confidence,
+                    )
+                    progress.value = ProgressState(true, "geo", done.incrementAndGet(), input.size, server.name)
+                    located
+                }
+            }
+        }.awaitAll()
+    }
 
     private suspend fun locateServers(
         input: List<ServerRecord>,

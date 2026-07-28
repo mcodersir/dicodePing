@@ -53,6 +53,7 @@ class ResourceProfile:
     dns_workers: int
     internal_queue_limit: int
     network_buffer_kib: int
+    mode: str = "optimized"
 
     @property
     def memory_mib(self) -> int:
@@ -62,6 +63,7 @@ class ResourceProfile:
 def build_resource_profile(
     cpu_count: int | None = None,
     memory_bytes: int | None = None,
+    mode: str = "optimized",
 ) -> ResourceProfile:
     cpu = max(1, int(cpu_count or os.cpu_count() or 1))
     memory = max(0, int(_physical_memory_bytes() if memory_bytes is None else memory_bytes))
@@ -86,7 +88,15 @@ def build_resource_profile(
     ping = min(ping, max(8, cpu * 6))
     dns = min(dns, max(4, cpu * 3))
     retry = max(2, min(12, probe // 3))
-    queue_limit = max(probe, min(192, probe * 3))
+    normalized_mode = "professional" if str(mode).lower() == "professional" else "optimized"
+    if normalized_mode == "professional":
+        crawl = min(18, max(crawl + 2, round(crawl * 1.45)))
+        probe = min(64, max(probe + 4, round(probe * 1.50)))
+        ping = min(96, max(ping + 8, round(ping * 1.45)))
+        dns = min(48, max(dns + 4, round(dns * 1.40)))
+        retry = min(16, max(retry + 2, round(retry * 1.40)))
+        buffer_kib = min(2048, max(512, buffer_kib * 2))
+    queue_limit = max(probe, min(256 if normalized_mode == "professional" else 192, probe * 3))
     return ResourceProfile(
         cpu_count=cpu,
         memory_bytes=memory,
@@ -97,9 +107,15 @@ def build_resource_profile(
         dns_workers=dns,
         internal_queue_limit=queue_limit,
         network_buffer_kib=buffer_kib,
+        mode=normalized_mode,
     )
 
 
-@lru_cache(maxsize=1)
-def current_resource_profile() -> ResourceProfile:
-    return build_resource_profile()
+@lru_cache(maxsize=2)
+def current_resource_profile(mode: str = "optimized") -> ResourceProfile:
+    return build_resource_profile(mode=mode)
+
+
+def resource_mode_from_settings(settings: dict | None) -> str:
+    value = str((settings or {}).get("resource_mode") or "optimized").lower()
+    return "professional" if value == "professional" else "optimized"

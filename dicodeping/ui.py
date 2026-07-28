@@ -60,6 +60,7 @@ from .diagnostics import get_logger
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition
 from .protocols import blob_to_config, config_to_blob, set_display_name
+from .security_rating import assess_config_security
 from .service import ServerService
 from .sources import normalize_sources, serialize_sources, source_id_for_url
 from .storage import JsonStore
@@ -869,6 +870,8 @@ class MainWindow(QMainWindow):
         self.service = ServerService(self.store)
         self.manager = ConnectionManager()
         self.settings = dict(preloaded_settings) if preloaded_settings is not None else self.store.load_settings()
+        from .resource_tuning import current_resource_profile, resource_mode_from_settings
+        self.service.resources = current_resource_profile(resource_mode_from_settings(self.settings))
         from .core_manager import get_active_core
 
         self.settings["active_core"] = get_active_core()
@@ -887,6 +890,17 @@ class MainWindow(QMainWindow):
         QApplication.instance().setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
         self.setLayoutDirection(Qt.RightToLeft if self.is_rtl else Qt.LeftToRight)
         self.servers: list[ServerRecord] = list(preloaded_servers) if preloaded_servers is not None else self.store.load_servers()
+        security_migrated = False
+        for server in self.servers:
+            if int(getattr(server, "security_score", 0) or 0) > 0:
+                continue
+            assessment = assess_config_security(blob_to_config(server.config_blob), server.host)
+            server.security_score = assessment.score
+            server.security_level = assessment.level
+            server.security_summary = assessment.summary
+            security_migrated = True
+        if security_migrated:
+            self.store.save_servers(self.servers)
         self.worker = None
         self.connection_monitor: ConnectionMonitorThread | None = None
         self._last_connected_ping: int | None = None
@@ -2367,6 +2381,17 @@ class MainWindow(QMainWindow):
             advanced_form.addLayout(row)
             return field
 
+        self.resource_mode_combo = QComboBox()
+        self.resource_mode_combo.addItem(self.t("resource_mode_optimized"), "optimized")
+        self.resource_mode_combo.addItem(self.t("resource_mode_professional"), "professional")
+        self.resource_mode_combo.setCurrentIndex(max(0, self.resource_mode_combo.findData(self.settings.get("resource_mode", "optimized"))))
+        advanced_form.addWidget(QLabel(self.t("resource_mode_title")))
+        advanced_form.addWidget(self.resource_mode_combo)
+        resource_hint = QLabel(self.t("resource_mode_help"))
+        resource_hint.setObjectName("tiny")
+        resource_hint.setWordWrap(True)
+        advanced_form.addWidget(resource_hint)
+
         self.test_concurrency_spin = number_option("parallel_tests", "test_concurrency", 4, 32, 16)
         self.test_batch_spin = number_option("test_batch_size", "test_batch_size", 8, 96, 48)
         self.test_timeout_spin = number_option("test_timeout", "test_timeout_ms", 1500, 5000, 3000, " ms")
@@ -2581,9 +2606,9 @@ class MainWindow(QMainWindow):
         self.aether_transport_combo.setCurrentIndex(max(0, self.aether_transport_combo.findData(self.settings.get("aether_transport", "auto"))))
         profile_layout.addRow(self.t("alternative_transport"), self.aether_transport_combo)
         self.aether_perf_combo = QComboBox()
-        for value in ("low", "medium", "high"):
+        for value in ("auto", "low", "medium", "high"):
             self.aether_perf_combo.addItem(value.title(), value)
-        self.aether_perf_combo.setCurrentIndex(max(0, self.aether_perf_combo.findData(self.settings.get("aether_perf", "medium"))))
+        self.aether_perf_combo.setCurrentIndex(max(0, self.aether_perf_combo.findData(self.settings.get("aether_perf", "auto"))))
         profile_layout.addRow(self.t("alternative_performance"), self.aether_perf_combo)
         self.aether_quick_reconnect = QCheckBox(self.t("alternative_quick_reconnect"))
         self.aether_quick_reconnect.setChecked(bool(self.settings.get("aether_quick_reconnect", True)))
@@ -3533,6 +3558,8 @@ class MainWindow(QMainWindow):
             # word and the volume label inline, so the user does not need
             # to hover to see them.
             info_text = rating.label_fa
+            if getattr(server, "security_score", 0):
+                info_text += f"\n{getattr(server, 'security_summary', '')} {server.security_score}/100"
             profile_tag = getattr(server, "profile_tag", "unknown")
             profile_label = self.t(f"config_profile_{profile_tag}")
             if profile_tag != "unknown":
@@ -3545,7 +3572,8 @@ class MainWindow(QMainWindow):
             info_item.setBackground(ping_brush)
             info_item.setToolTip(
                 f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
-                f"{self.t('config_profile_title')}: {profile_label}"
+                f"{self.t('config_profile_title')}: {profile_label}\n"
+                f"{self.t('security_estimate')}: {getattr(server, 'security_summary', '—')} {getattr(server, 'security_score', 0)}/100"
             )
             self.table.setItem(row, 5, info_item)
 
@@ -3630,6 +3658,16 @@ class MainWindow(QMainWindow):
             text_layout.addWidget(title)
             text_layout.addWidget(meta)
             card_layout.addWidget(text_box, 1)
+
+            security_score = int(getattr(server, "security_score", 0) or 0)
+            if security_score:
+                security_badge = QLabel(f"{getattr(server, 'security_summary', '')} • {security_score}")
+                security_badge.setAlignment(Qt.AlignCenter)
+                security_badge.setStyleSheet(
+                    "background:#14243A;color:#8BB8FF;border-radius:9px;padding:6px 8px;font-weight:700;"
+                )
+                security_badge.setToolTip(self.t("security_estimate"))
+                card_layout.addWidget(security_badge)
 
             ping_badge = QLabel(latency)
             ping_badge.setAlignment(Qt.AlignCenter)
@@ -3955,7 +3993,7 @@ class MainWindow(QMainWindow):
                 "protocol": self.settings.get("aether_protocol", "masque"),
                 "scan": self.settings.get("aether_scan", "balanced"),
                 "transport": self.settings.get("aether_transport", "auto"),
-                "performance": self.settings.get("aether_perf", "medium"),
+                "performance": ("high" if self.settings.get("resource_mode") == "professional" else self.settings.get("aether_perf", "auto")),
                 "quick_reconnect": bool(self.settings.get("aether_quick_reconnect", True)),
             },
         )
@@ -4336,6 +4374,7 @@ class MainWindow(QMainWindow):
         self.bypass_domains_input.setPlainText("\n".join(bypass_domains))
         self.settings["language"] = self.language_combo.currentData()
         self.settings["language_explicitly_selected"] = True
+        self.settings["resource_mode"] = self.resource_mode_combo.currentData()
         self.settings["test_concurrency"] = self.test_concurrency_spin.value()
         self.settings["test_batch_size"] = self.test_batch_spin.value()
         self.settings["test_timeout_ms"] = self.test_timeout_spin.value()
@@ -4363,6 +4402,8 @@ class MainWindow(QMainWindow):
                 server.source_order = source.order
         self.store.save_servers(self.servers)
         self.store.save_settings(self.settings)
+        from .resource_tuning import current_resource_profile, resource_mode_from_settings
+        self.service.resources = current_resource_profile(resource_mode_from_settings(self.settings))
         self.render_source_tabs()
         self.render_servers()
         self.settings_saved_label.setText(self.t("settings_saved"))

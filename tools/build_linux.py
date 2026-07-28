@@ -11,7 +11,7 @@ from pathlib import Path
 
 APP_VERSION = "1.9.0"
 # Legacy RC13 static-test marker only: RC_VERSION = "rc.13"
-RC_VERSION = "rc.16"
+RC_VERSION = "rc.17"
 APP_NAME = "dicodePing"
 
 
@@ -36,7 +36,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v190_rc16.py"
+    entrypoint = root / "app_v190_rc17.py"
     required = [
         entrypoint,
         core / "xray",

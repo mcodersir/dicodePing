@@ -51,7 +51,10 @@ from .protocols import (
     record_id,
     set_display_name,
 )
-from .resource_tuning import current_resource_profile
+from .resource_tuning import current_resource_profile, resource_mode_from_settings
+from .security_rating import assess_config_security
+from .geo import GeoResolver
+from .net import resolve_ipv4
 from .storage import JsonStore
 
 LOGGER = get_logger("scanner")
@@ -543,6 +546,57 @@ def _probe_only(
         return [raw for raw, _result in state.alive]
 
 
+def _enrich_scanner_records(
+    records: list[ServerRecord],
+    *,
+    store: JsonStore,
+    log: LogCallback | None = None,
+) -> None:
+    """Resolve IP/location immediately and persist the enriched records.
+
+    DNS is bounded to a short batch window and geolocation uses the shared
+    cache, so saving a scanner SUB remains responsive while future launches can
+    display flags without repeating the same network work.
+    """
+    if not records:
+        return
+    settings = store.load_settings()
+    profile = current_resource_profile(resource_mode_from_settings(settings))
+    workers = max(4, min(profile.dns_workers, len(records), 24))
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
+    futures = {executor.submit(resolve_ipv4, record.host): record for record in records if record.host}
+    done, pending = concurrent.futures.wait(futures, timeout=5.5)
+    for future in done:
+        record = futures[future]
+        try:
+            record.ip = future.result() or ""
+        except Exception:
+            record.ip = ""
+    for future in pending:
+        future.cancel()
+    executor.shutdown(wait=False, cancel_futures=True)
+    ips = [record.ip for record in records if record.ip]
+    if log:
+        log(f"[GEO][START] resolving locations for {len(ips)}/{len(records)} saved servers")
+    geo_map = GeoResolver(store).resolve_many(ips, fast=True)
+    located = 0
+    for record in records:
+        value = geo_map.get(record.ip, {})
+        if not value:
+            continue
+        record.country = str(value.get("country") or "نامشخص")
+        record.country_code = str(value.get("country_code") or "")
+        record.region = str(value.get("region") or "")
+        record.city = str(value.get("city") or "")
+        record.isp = str(value.get("isp") or "")
+        record.asn = str(value.get("asn") or "")
+        record.geo_provider = str(value.get("geo_provider") or "")
+        record.geo_confidence = str(value.get("geo_confidence") or "single")
+        located += 1
+    if log:
+        log(f"[GEO][DONE] saved {located} server locations in the permanent scanner SUB")
+
+
 def run_scan(
     *,
     store: JsonStore,
@@ -570,6 +624,14 @@ def run_scan(
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
     started = time.monotonic()
+    # RC17 resource profile: optimized is always the default; professional is
+    # an explicit setting and only raises bounded concurrency.
+    selected_profile = current_resource_profile(resource_mode_from_settings(store.load_settings()))
+    global SCAN_CRAWL_WORKERS, SCAN_PROBE_WORKERS, SCAN_PROBE_RETRY_WORKERS, SCAN_PROBE_QUEUE_LIMIT
+    SCAN_CRAWL_WORKERS = min(24, max(6, selected_profile.crawl_workers + 2))
+    SCAN_PROBE_WORKERS = min(28, max(6, selected_profile.probe_workers))
+    SCAN_PROBE_RETRY_WORKERS = min(12, max(3, selected_profile.retry_workers))
+    SCAN_PROBE_QUEUE_LIMIT = min(72, max(SCAN_PROBE_WORKERS, selected_profile.internal_queue_limit))
     # Reuse the caller's Event directly.  The old watcher thread waited
     # forever after every successful scan and leaked one thread per run.
     state = _ProbeState(stop_requested=stop_event or threading.Event())
@@ -741,6 +803,7 @@ def run_scan(
                 continue
             server_id = record_id(raw)
             clean_raw = set_display_name(raw, f"SUB {index:03d}")
+            security = assess_config_security(raw, endpoint.host)
             records.append(
                 ServerRecord(
                     id=server_id,
@@ -762,9 +825,13 @@ def run_scan(
                     last_connected="",
                     failures=0,
                     profile_tag=classify_config_profile(raw, endpoint.host),
+                    security_score=security.score,
+                    security_level=security.level,
+                    security_summary=security.summary,
                 )
             )
 
+        _enrich_scanner_records(records, store=store, log=_log)
         raw_lines = [set_display_name(raw, "") for raw, _quality in alive]
         base64_payload = b64_encode_text("\n".join(raw_lines))
 

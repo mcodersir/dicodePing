@@ -26,7 +26,7 @@ def test_pages_workflow_uses_current_artifact_and_required_permissions() -> None
 
 
 def test_one_click_deployer_repairs_pages_and_purges_stale_tests() -> None:
-    deploy = read("DEPLOY_PRERELEASE_RC16.bat")
+    deploy = read("DEPLOY_PRERELEASE_RC17.bat")
     assert "tools\\purge_stale_release_tests.py" in deploy
     assert "tools\\configure_github_pages.ps1" in deploy
     assert "gh release delete" in deploy

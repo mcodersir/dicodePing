@@ -47,6 +47,7 @@ consistent with the LGPL combined-work requirements.
 - [`licenses/GPL-2.0.txt`](licenses/GPL-2.0.txt)
 - [`licenses/LGPL-3.0.txt`](licenses/LGPL-3.0.txt)
 - [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt)
+- [`licenses/AGPL-3.0.txt`](licenses/AGPL-3.0.txt)
 - [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)
 
 No private signing keys, credentials, or proprietary source are included in the
@@ -55,3 +56,19 @@ repository or Release assets.
 
 The RC10 scanner verification flow is adapted from the public `mcodersir/DicodeConfigChecker` project: supported configurations are tested by starting an Xray outbound and performing real HTTP traffic through it, while unsupported formats use a bounded TCP fallback. The RC10 implementation was rewritten for dicodePing's worker, cancellation, persistence and UI contracts.
 
+
+
+## Aether Mobile integration reference
+- Project: QW-AI-Code/Aether
+- License: AGPL-3.0-or-later
+- Use: Android native-engine build pipeline and lifecycle reference.
+
+## Aether GUI integration reference
+- Project: MatinSenPai/Aether-GUI
+- License: AGPL-3.0-or-later
+- Use: desktop lifecycle/state-machine design reference.
+
+## defyxVPN architecture reference
+- Project: UnboundTechCo/defyxVPN
+- License: MIT
+- Use: multi-core orchestration and one-tap UX reference; DXcore is not bundled.

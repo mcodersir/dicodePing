@@ -11,6 +11,7 @@ from .models import DiscoveredConfig, ServerRecord, utc_now
 from .net import ping_many
 from .resource_tuning import current_resource_profile
 from .protocols import config_to_blob, parse_endpoint, record_id, set_display_name
+from .security_rating import assess_config_security
 from .storage import JsonStore
 
 LOGGER = get_logger("service")
@@ -192,6 +193,7 @@ class ServerService:
             previous = old.get(server_id)
             final_name = previous.name if previous and previous.name else label
             clean_raw = set_display_name(endpoint.raw, final_name)
+            security = assess_config_security(endpoint.raw, endpoint.host)
             records.append(
                 ServerRecord(
                     id=server_id,
@@ -218,6 +220,9 @@ class ServerService:
                     last_checked=utc_now(),
                     last_connected=previous.last_connected if previous else "",
                     failures=0 if ping_ms is not None else ((previous.failures + 1) if previous else 1),
+                    security_score=security.score,
+                    security_level=security.level,
+                    security_summary=security.summary,
                 )
             )
         # Local scanner subscriptions have no remote URL and must survive a

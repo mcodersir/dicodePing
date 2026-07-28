@@ -290,4 +290,10 @@
     <string name="core_stage_switching_http2">مسیر اصلی پاسخ نداد؛ تلاش خودکار با HTTP/2…</string>
     <string name="core_stage_verifying_real_traffic">در حال بررسی عبور واقعی اینترنت از هسته انتخاب‌شده…</string>
     <string name="external_core_connection_failed">هسته انتخاب‌شده اجرا شد اما عبور واقعی اینترنت تأیید نشد. شبکه را بررسی کنید و دوباره اتصال را بزنید.</string>
+    <string name="resource_mode_title">مصرف هوشمند منابع</string>
+    <string name="resource_mode_optimized">بهینه (پیشنهادی)</string>
+    <string name="resource_mode_professional">حرفه‌ای</string>
+    <string name="resource_mode_help">حالت بهینه متناسب با توان گوشی CPU، رم و شبکه را تنظیم می‌کند. حالت حرفه‌ای هم‌زمانی بیشتری برای اسکن و تست دارد.</string>
+    <string name="resource_mode_applies_next_run">حالت منابع از اجرای بعدی اعمال می‌شود</string>
+    <string name="security_estimate">برآورد امنیت</string>
 </resources>

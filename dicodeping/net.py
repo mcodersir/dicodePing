@@ -550,6 +550,53 @@ def _parse_ipapi_is(data: dict) -> dict[str, str]:
     }
 
 
+def lookup_geo_fast(ip: str, timeout: float = 3.5) -> dict[str, str]:
+    """Fast location lookup used while committing scanner results.
+
+    It queries two independent HTTPS providers in parallel and returns as soon
+    as their bounded batch completes. The normal refresh path keeps the fuller
+    six-provider consensus lookup below.
+    """
+    if not ip or ip == "dns":
+        return {}
+    providers = (
+        (f"https://ipwho.is/{ip}?fields=success,country,country_code,region,city,connection", _parse_ipwho),
+        (f"https://ipapi.co/{ip}/json/", _parse_ipapi),
+    )
+
+    def query(item):
+        url, parser = item
+        try:
+            return parser(json.loads(fetch_text(url, timeout=timeout, allow_system_proxy=False)))
+        except Exception:
+            return {}
+
+    candidates: list[dict[str, str]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(query, item) for item in providers]
+        for future in concurrent.futures.as_completed(futures, timeout=timeout + 0.8):
+            try:
+                candidate = future.result()
+            except Exception:
+                candidate = {}
+            if candidate and candidate.get("country_code"):
+                candidates.append(candidate)
+    if not candidates:
+        return {}
+    preferred = candidates[0]
+    if len(candidates) > 1:
+        code = str(preferred.get("country_code") or "").upper()
+        matching = [row for row in candidates if str(row.get("country_code") or "").upper() == code]
+        if matching:
+            preferred = matching[0]
+    result = dict(preferred)
+    result["geo_provider"] = "+".join(
+        sorted({str(row.get("geo_provider") or "") for row in candidates if row.get("geo_provider")})
+    )
+    result["geo_confidence"] = "fast-consensus" if len(candidates) > 1 else "fast-single"
+    return {key: str(value) for key, value in result.items() if value}
+
+
 def lookup_geo(ip: str, timeout: float = 5.5) -> dict[str, str]:
     """Resolve a best-effort network location using provider consensus.
 

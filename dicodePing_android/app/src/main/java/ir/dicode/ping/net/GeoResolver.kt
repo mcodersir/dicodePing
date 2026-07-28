@@ -11,12 +11,21 @@ import java.util.concurrent.ConcurrentHashMap
 
 class GeoResolver {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(4, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .callTimeout(7, TimeUnit.SECONDS)
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(4, TimeUnit.SECONDS)
+        .callTimeout(5, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
     private val cache = ConcurrentHashMap<String, GeoInfo>()
+
+    suspend fun resolveFast(ip: String): GeoInfo = withContext(Dispatchers.IO) {
+        cache[ip]?.let { return@withContext it }
+        val resolved = ipWho(ip)?.copy(confidence = "fast")
+            ?: ipApiCo(ip)?.copy(confidence = "fast")
+            ?: GeoInfo(confidence = "unknown")
+        if (resolved.countryCode.isNotBlank()) cache[ip] = resolved
+        resolved
+    }
 
     suspend fun resolve(ip: String): GeoInfo = withContext(Dispatchers.IO) {
         cache[ip]?.let { return@withContext it }

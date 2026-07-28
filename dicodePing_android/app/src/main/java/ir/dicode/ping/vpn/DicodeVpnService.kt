@@ -245,7 +245,7 @@ class DicodeVpnService : VpnService() {
             }
             if (core?.available() != true) error(getString(R.string.core_unavailable))
 
-            val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext)
+            val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext, ir.dicode.ping.data.SettingsStore(applicationContext).resourceMode)
             val settings = SettingsStore(applicationContext)
             val verifiedPing = if (coreId == "xray") {
                 val xrayConfig = XrayConfigBuilder.build(
