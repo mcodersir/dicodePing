@@ -25,7 +25,7 @@ def main() -> int:
         if MANIFEST not in names:
             raise SystemExit(f"Missing bundled-core manifest: {MANIFEST}")
         manifest = json.loads(zf.read(MANIFEST).decode("utf-8"))
-        if manifest.get("release") != "1.9.0-rc.17":
+        if manifest.get("release") != "1.9.0-rc.18":
             raise SystemExit(f"Wrong bundled-core release manifest: {manifest.get('release')!r}")
 
         declared = {

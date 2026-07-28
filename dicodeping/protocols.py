@@ -165,13 +165,18 @@ def csv_list(value: str) -> list[str]:
 
 
 def build_stream_settings(parsed: urllib.parse.SplitResult, query: dict[str, list[str]]) -> dict[str, Any]:
-    network = first(query, "type", first(query, "net", "tcp")) or "tcp"
-    security = first(query, "security", "none") or "none"
+    network = (first(query, "type", first(query, "net", "tcp")) or "tcp").strip().lower()
+    if network == "raw":
+        network = "tcp"
+    security = (first(query, "security", "none") or "none").strip().lower()
+    host = first(query, "host", "").strip()
     stream: dict[str, Any] = {"network": network}
 
     if security != "none":
         stream["security"] = security
-        sni = first(query, "sni", first(query, "serverName", first(query, "peer", "")))
+        sni = first(query, "sni", first(query, "serverName", first(query, "peer", ""))).strip()
+        if not sni and host:
+            sni = host.split(",", 1)[0].strip()
         fp = first(query, "fp", first(query, "fingerprint", ""))
         alpn = csv_list(first(query, "alpn", ""))
         if security == "tls":
@@ -195,23 +200,42 @@ def build_stream_settings(parsed: urllib.parse.SplitResult, query: dict[str, lis
                     reality[target] = urllib.parse.unquote(value)
             stream["realitySettings"] = reality
 
-    host = first(query, "host", "")
     path = urllib.parse.unquote(first(query, "path", first(query, "serviceName", "")))
     header_type = first(query, "headerType", first(query, "header", "none")) or "none"
 
-    if network == "ws":
+    if network in {"ws", "websocket"}:
         settings: dict[str, Any] = {}
         if path:
             settings["path"] = path
         if host:
             settings["host"] = host
+        heartbeat = parse_int(first(query, "heartbeatPeriod", first(query, "heartbeat", "0")))
+        if heartbeat > 0:
+            settings["heartbeatPeriod"] = heartbeat
+        stream["network"] = "ws"
         stream["wsSettings"] = settings
     elif network == "grpc":
         settings = {}
         if path:
             settings["serviceName"] = path
-        if first(query, "mode") == "multi":
+        if host:
+            settings["authority"] = host
+        if first(query, "mode").lower() == "multi":
             settings["multiMode"] = True
+        user_agent = first(query, "user_agent", first(query, "userAgent", ""))
+        if user_agent:
+            settings["user_agent"] = urllib.parse.unquote(user_agent)
+        numeric_keys = (
+            ("idle_timeout", "idle_timeout"),
+            ("health_check_timeout", "health_check_timeout"),
+            ("initial_windows_size", "initial_windows_size"),
+        )
+        for source_key, target_key in numeric_keys:
+            value = parse_int(first(query, source_key, "0"))
+            if value > 0:
+                settings[target_key] = value
+        if bool_query(query, "permit_without_stream"):
+            settings["permit_without_stream"] = True
         stream["grpcSettings"] = settings
     elif network.lower() == "httpupgrade":
         settings = {}
@@ -290,6 +314,9 @@ def build_xray_outbound(raw: str) -> dict[str, Any] | None:
             flow = first(query, "flow")
             if flow:
                 user["flow"] = flow
+            packet_encoding = first(query, "packetEncoding", first(query, "packetencoding", ""))
+            if packet_encoding:
+                user["packetEncoding"] = packet_encoding
             return {
                 "tag": "proxy",
                 "protocol": "vless",

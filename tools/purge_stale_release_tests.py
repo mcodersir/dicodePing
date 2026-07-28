@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_RE = re.compile(r'^RELEASE_VERSION\s*=\s*["\'](?P<version>\d+\.\d+\.\d+-rc\.\d+)["\']', re.MULTILINE)
 RC_RE = re.compile(r'-rc\.(?P<rc>\d+)')
+RELEASE_TEST_NAME_RE = re.compile(r'^test_rc(?P<rc>\d+)_', re.IGNORECASE)
 STALE_MARKERS = (
     re.compile(r'1\.9\.0-rc\.(?P<rc>\d+)'),
     re.compile(r'app_v190_rc(?P<rc>\d+)\.py'),
@@ -31,8 +32,20 @@ def is_stale_release_test(path: Path, current_rc: int) -> bool:
     name = path.name.lower()
     if name.startswith('test_v'):
         return True
-    if name.startswith(f'test_rc{current_rc}'):
+    if name.startswith(f'test_rc{current_rc}_'):
         return False
+
+    # RC10+ test modules are release snapshots. They may contain generic
+    # regression assertions and therefore cannot be detected reliably by
+    # scanning their text for a version string. A ZIP extracted over an older
+    # workspace can leave these files behind, so remove every older RC10+
+    # module by filename. Keep the long-lived generic suites test_rc2.py ...
+    # test_rc9.py and similarly named generic fixtures.
+    filename_match = RELEASE_TEST_NAME_RE.match(name)
+    if filename_match:
+        filename_rc = int(filename_match.group('rc'))
+        if filename_rc >= 10 and filename_rc != current_rc:
+            return True
 
     text = path.read_text(encoding='utf-8', errors='ignore')
     referenced_rcs: set[int] = set()

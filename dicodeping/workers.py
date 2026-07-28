@@ -79,24 +79,28 @@ def _tunnel_passes_real_traffic(manager) -> bool:
     if verifier is not None and getattr(manager, "active_core", "xray") != "xray":
         return bool(verifier())
     _flush_windows_dns()
-    # Race several endpoints once.  Repeating long 5.5-second probes made a
-    # healthy Windows TUN look broken whenever a single public endpoint was
-    # filtered or slow.
-    # Three bounded rounds cover slower Windows route/DNS propagation without
-    # falling back to the old long sequential endpoint checks.
+    # The manager has already verified both the Xray outbound and the actual
+    # system-wide TUN route. This second check deliberately uses the same
+    # direct no-proxy path, preventing a SOCKS-only connection from being
+    # reported as a successful full-device VPN.
     waits = (0.25, 0.8, 1.6)
     for wait in waits:
         time.sleep(wait)
         if not manager.connected:
             return False
-        if is_any_url_reachable_parallel(
-            HEALTH_URLS,
-            timeout=3.2,
-            attempts=1,
-            allow_system_proxy=False,
-        ):
-            return True
-    return False
+        try:
+            if manager.connected_ping(timeout=3.2) is not None:
+                return True
+        except Exception:
+            pass
+    # Final independent check still disables all OS proxy/PAC handlers. If it
+    # succeeds, the request could only have left through the active TUN route.
+    return is_any_url_reachable_parallel(
+        HEALTH_URLS,
+        timeout=2.6,
+        attempts=1,
+        allow_system_proxy=False,
+    )
 
 
 class TaskThread(QThread):

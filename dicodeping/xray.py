@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -40,6 +41,7 @@ from .net import install_direct_host_routes, remove_direct_host_routes, resolve_
 from .protocols import build_xray_outbound, parse_endpoint
 from .resource_tuning import current_resource_profile
 from .core_runtime import PORT_REGISTRY, PROCESS_REGISTRY
+from .desktop_proxy import DesktopProxyController, restore_stale_system_proxy
 
 TUN_NAME = "dicodePing-TUN"
 LOGGER = get_logger("connection")
@@ -92,8 +94,15 @@ def is_admin() -> bool:
 
 
 def relaunch_as_admin() -> bool:
+    """Relaunch the desktop application with the privileges required by TUN.
+
+    Windows uses the normal UAC prompt, Linux uses PolicyKit, and macOS uses
+    the system administrator-password dialog.  User data/session environment
+    is preserved so an elevated launch does not create a second empty profile.
+    """
     if is_admin():
         return False
+    system = platform.system().lower()
     if is_windows():
         executable = sys.executable
         if getattr(sys, "frozen", False):
@@ -103,22 +112,41 @@ def relaunch_as_admin() -> bool:
         result = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, parameters, str(APP_ROOT), 1)
         return int(result) > 32
 
-    # Linux TUN creation needs CAP_NET_ADMIN. Prefer the desktop's PolicyKit
-    # prompt and preserve only the display/session variables needed by Qt.
-    pkexec = shutil.which("pkexec")
-    if not pkexec:
-        return False
     command = [sys.executable, *sys.argv[1:]] if getattr(sys, "frozen", False) else [
         sys.executable,
         str(Path(sys.argv[0]).resolve()),
         *sys.argv[1:],
     ]
-    environment = [
-        f"DISPLAY={os.environ.get('DISPLAY', '')}",
-        f"XAUTHORITY={os.environ.get('XAUTHORITY', '')}",
-        f"WAYLAND_DISPLAY={os.environ.get('WAYLAND_DISPLAY', '')}",
-        f"XDG_RUNTIME_DIR={os.environ.get('XDG_RUNTIME_DIR', '')}",
-    ]
+    preserved_names = (
+        "HOME", "USER", "LOGNAME", "PATH", "TMPDIR",
+        "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR",
+        "DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS",
+        "QT_QPA_PLATFORM", "QT_SCALE_FACTOR", "QT_AUTO_SCREEN_SCALE_FACTOR",
+    )
+    environment = [f"{name}={os.environ[name]}" for name in preserved_names if os.environ.get(name)]
+
+    if system == "darwin":
+        osascript = shutil.which("osascript")
+        if not osascript:
+            return False
+        shell_command = shlex.join(["env", *environment, *command])
+        escaped = shell_command.replace("\\", "\\\\").replace('"', '\\"')
+        script = f'do shell script "{escaped}" with administrator privileges'
+        try:
+            subprocess.Popen(
+                [osascript, "-e", script],
+                cwd=str(APP_ROOT),
+                start_new_session=True,
+            )
+            return True
+        except OSError:
+            return False
+
+    # Linux TUN creation needs CAP_NET_ADMIN. PolicyKit keeps the prompt in
+    # the user's graphical session while the preserved HOME keeps one profile.
+    pkexec = shutil.which("pkexec")
+    if not pkexec:
+        return False
     try:
         subprocess.Popen([pkexec, "env", *environment, *command], start_new_session=True)
         return True
@@ -156,11 +184,15 @@ def _powershell(script: str, timeout: float = 12.0) -> subprocess.CompletedProce
 def cleanup_named_tun() -> None:
     if not is_windows() or not is_admin():
         return
-    safe_name = TUN_NAME.replace("'", "''")
-    script = f"""
+    script = """
 $ErrorActionPreference='SilentlyContinue'
-Get-NetRoute -InterfaceAlias '{safe_name}' | Remove-NetRoute -Confirm:$false
-Get-NetIPInterface -InterfaceAlias '{safe_name}' | Set-NetIPInterface -Dhcp Disabled
+$adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object {
+  $_.Name -like '*dicodePing*' -or $_.InterfaceDescription -like '*dicodePing*'
+}
+foreach ($adapter in $adapters) {
+  Get-NetRoute -InterfaceIndex $adapter.ifIndex -ErrorAction SilentlyContinue | Remove-NetRoute -Confirm:$false
+  Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -ErrorAction SilentlyContinue | Set-NetIPInterface -Dhcp Disabled
+}
 ipconfig /flushdns | Out-Null
 """
     try:
@@ -223,6 +255,9 @@ def _kill_pid_tree(pid: int) -> None:
 
 
 def cleanup_stale_owned_process() -> None:
+    # A crash can leave the desktop pointed at a dead localhost proxy. Restore
+    # the exact pre-connection settings before cleaning stale Xray processes.
+    restore_stale_system_proxy()
     try:
         if not PID_FILE.exists():
             cleanup_named_tun()
@@ -453,10 +488,17 @@ def ensure_wintun(executable: Path, progress: Callable[[str], None] | None = Non
     return destination
 
 
-def ensure_xray(progress: Callable[[str], None] | None = None, force_download: bool = False, language: str = "fa") -> Path:
+def ensure_xray(
+    progress: Callable[[str], None] | None = None,
+    force_download: bool = False,
+    language: str = "fa",
+    *,
+    require_wintun: bool = True,
+) -> Path:
     existing = None if force_download else find_xray()
     if existing and _core_version_matches(existing):
-        ensure_wintun(existing, progress=progress, language=language)
+        if require_wintun:
+            ensure_wintun(existing, progress=progress, language=language)
         return existing
     if progress:
         progress(tr(language, "downloading_core"))
@@ -473,8 +515,100 @@ def ensure_xray(progress: Callable[[str], None] | None = None, force_download: b
         raise
     executable = _extract_core(archive, CORE_DIR)
     archive.unlink(missing_ok=True)
-    ensure_wintun(executable, progress=progress, language=language)
+    if require_wintun:
+        ensure_wintun(executable, progress=progress, language=language)
     return executable
+
+
+def _select_darwin_tun_name() -> str:
+    """Choose a high, currently unused utun number for macOS."""
+    occupied: set[str] = set()
+    try:
+        result = subprocess.run(
+            ["ifconfig", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+        occupied = set((result.stdout or "").split())
+    except Exception:
+        pass
+    for number in range(233, 1024):
+        candidate = f"utun{number}"
+        if candidate not in occupied:
+            return candidate
+    return "utun233"
+
+
+def _platform_tun_settings(
+    *,
+    platform_name: str | None = None,
+    tun_name: str | None = None,
+) -> dict[str, Any]:
+    """Return a valid Xray TUN profile for Windows, Linux or macOS."""
+    system = (platform_name or platform.system()).lower()
+    settings: dict[str, Any] = {
+        "mtu": 1400,
+        "gateway": ["10.77.0.1/30", "fd77::1/126"],
+        "userLevel": 0,
+        "autoSystemRoutingTable": ["0.0.0.0/0", "::/0"],
+        "autoOutboundsInterface": "auto",
+    }
+    if system.startswith("darwin") or system.startswith("mac"):
+        settings["name"] = tun_name or _select_darwin_tun_name()
+        # Xray currently applies only the IPv4 gateway on Darwin, but keeping
+        # the IPv6 prefix is harmless and makes the intended no-leak route clear.
+    else:
+        settings["name"] = tun_name or TUN_NAME
+    if system.startswith("win"):
+        settings["desc"] = "dicodePing"
+        settings["dns"] = ["1.1.1.1", "8.8.8.8"]
+    return settings
+
+
+def _source_ip_for_endpoint(host: str, port: int) -> str:
+    """Resolve the physical source IP before the default route moves to TUN."""
+    if not host:
+        return ""
+    try:
+        infos = socket.getaddrinfo(host, int(port or 443), socket.AF_UNSPEC, socket.SOCK_DGRAM)
+    except OSError:
+        return ""
+    for family, socktype, proto, _canonname, sockaddr in infos:
+        try:
+            with socket.socket(family, socktype, proto) as probe:
+                probe.settimeout(1.5)
+                probe.connect(sockaddr)
+                value = str(probe.getsockname()[0])
+                if value and value not in {"0.0.0.0", "::"}:
+                    return value
+        except OSError:
+            continue
+    return ""
+
+
+def _direct_tun_http_probe(timeout: float = 3.0) -> int | None:
+    """Verify that ordinary process traffic is routed through the active TUN."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    endpoints = (
+        "http://www.gstatic.com/generate_204",
+        "http://cp.cloudflare.com/generate_204",
+        "https://www.cloudflare.com/cdn-cgi/trace",
+    )
+    for url in endpoints:
+        started = time.perf_counter()
+        try:
+            request = urllib.request.Request(
+                url,
+                headers={"User-Agent": f"{APP_NAME}/{VERSION}", "Connection": "close"},
+            )
+            with opener.open(request, timeout=max(0.6, float(timeout))) as response:
+                if 200 <= int(response.status) < 400:
+                    return max(1, int(round((time.perf_counter() - started) * 1000)))
+        except (OSError, ValueError, urllib.error.URLError):
+            continue
+    return None
 
 
 def build_tun_config(
@@ -483,11 +617,17 @@ def build_tun_config(
     api_port: int = 0,
     validation_socks_port: int = 0,
     secure_dns: bool = True,
+    *,
+    platform_name: str | None = None,
+    tun_name: str | None = None,
+    outbound_bind_ip: str = "",
 ) -> dict[str, Any]:
     resources = current_resource_profile()
     outbound = build_xray_outbound(raw_config)
     if not outbound:
         raise ValueError("این نوع کانفیگ توسط نسخه فعلی پشتیبانی نمی‌شود")
+    if outbound_bind_ip:
+        outbound["sendThrough"] = outbound_bind_ip
     stream = outbound.setdefault("streamSettings", {})
     if isinstance(stream, dict):
         sockopt = stream.setdefault("sockopt", {})
@@ -565,15 +705,12 @@ def build_tun_config(
         "inbounds": [
             {
                 "tag": "tun-in",
+                "port": 0,
                 "protocol": "tun",
-                "settings": {
-                    "name": TUN_NAME,
-                    "mtu": 1400,
-                    "gateway": ["10.77.0.1/30", "fd77::1/126"],
-                    "dns": ["1.1.1.1", "8.8.8.8"],
-                    "autoSystemRoutingTable": ["0.0.0.0/0", "::/0"],
-                    "autoOutboundsInterface": "auto",
-                },
+                "settings": _platform_tun_settings(
+                    platform_name=platform_name,
+                    tun_name=tun_name,
+                ),
                 "sniffing": {"enabled": True, "destOverride": ["http", "tls", "quic"]},
             }
         ],
@@ -606,6 +743,7 @@ def build_tun_config(
     return config
 
 
+
 def build_probe_config(raw_config: str, socks_port: int) -> dict[str, Any]:
     """Build a short-lived SOCKS profile for a real outbound latency probe.
 
@@ -629,6 +767,29 @@ def build_probe_config(raw_config: str, socks_port: int) -> dict[str, Any]:
         "outbounds": [outbound, {"tag": "direct", "protocol": "freedom"}],
         "routing": {"domainStrategy": "IPIfNonMatch"},
     }
+
+
+def _http_proxy_probe(port: int, host: str, path: str, timeout: float) -> int | None:
+    """Verify Xray's local HTTP inbound with a real proxied request."""
+    started = time.perf_counter()
+    try:
+        with socket.create_connection(("127.0.0.1", int(port)), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            target = f"http://{host}{path}"
+            request = (
+                f"GET {target} HTTP/1.1\r\n"
+                f"Host: {host}\r\n"
+                "Connection: close\r\n"
+                "Proxy-Connection: close\r\n"
+                "User-Agent: dicodePing\r\n\r\n"
+            ).encode("ascii")
+            sock.sendall(request)
+            header = sock.recv(128)
+            if b" 204 " not in header and b" 200 " not in header:
+                return None
+            return max(1, int(round((time.perf_counter() - started) * 1000)))
+    except (OSError, ValueError):
+        return None
 
 
 def _socks_http_probe(port: int, host: str, path: str, timeout: float) -> int | None:
@@ -669,7 +830,7 @@ def probe_outbound_delay(
     # First-use extraction/download must be serialized; concurrent probe jobs
     # can otherwise race over the same core archive.
     with _PROBE_CORE_LOCK:
-        executable = ensure_xray(language="en")
+        executable = ensure_xray(language="en", require_wintun=False)
     port = PORT_REGISTRY.acquire()
     token = uuid.uuid4().hex
     config_path = RUNTIME_DIR / f"probe-{token}.json"
@@ -717,6 +878,7 @@ class XrayManager:
         self.executable: Path | None = None
         self.api_port = 0
         self.validation_socks_port = 0
+        self.http_proxy_port = 0
         self.connected_host = ""
         self.connected_ip = ""
         self.connected_port = 0
@@ -724,6 +886,8 @@ class XrayManager:
         self._active_log_file = LOG_FILE
         self._retain_log = False
         self._cancel_start = threading.Event()
+        self.route_mode = "disconnected"
+        self._system_proxy = DesktopProxyController()
         # stop() may be reached by the Disconnect action, a monitor callback
         # and the process-exit handler at nearly the same time.  Serialize
         # teardown so one caller never closes routes/files owned by another.
@@ -793,29 +957,40 @@ class XrayManager:
         # ``core_options`` is accepted for API compatibility with the shared
         # ConnectionManager facade. Xray does not consume alternative-core options.
         _ = core_options
+        if not is_admin():
+            raise RuntimeError(
+                "برای اتصال TUN برنامه باید با دسترسی مدیر اجرا شود"
+                if language != "en"
+                else "Administrator/root privileges are required for TUN mode"
+            )
         _emit_progress_value(progress_value, 8)
-        # Every attempt owns a cancellation token. Clearing and reusing the
-        # old Event could erase a concurrent Disconnect request.
         with self._stop_lock:
             self.stop()
             cancel_start = threading.Event()
             self._cancel_start = cancel_start
         cleanup_stale_owned_process()
-        executable = ensure_xray(progress, language=language)
+        executable = ensure_xray(
+            progress,
+            language=language,
+            require_wintun=is_windows(),
+        )
+        if is_windows():
+            wintun = ensure_wintun(executable, progress=progress, language=language)
+            if not wintun or not wintun.exists():
+                raise RuntimeError("فایل Wintun برای اتصال TUN آماده نیست")
         _emit_progress_value(progress_value, 22)
         if cancel_start.is_set():
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
-        wintun = ensure_wintun(executable, progress=progress, language=language)
-        if is_windows() and (not wintun or not wintun.exists()):
-            raise RuntimeError("یکی از بخش‌های لازم اتصال آماده نشد")
 
         endpoint = parse_endpoint(raw_config)
         self.connected_host = endpoint_host or (endpoint.host if endpoint else "")
         self.connected_port = int(endpoint_port or (endpoint.port if endpoint else 0) or 0)
         endpoint_ips = resolve_all_ips(self.connected_host) if self.connected_host else []
         self.connected_ip = endpoint_ips[0] if endpoint_ips else ""
-        if endpoint_ips:
-            self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
+        outbound_bind_ip = _source_ip_for_endpoint(self.connected_host, self.connected_port)
+        # A precise host route is a second loop-prevention layer in addition to
+        # autoOutboundsInterface and sendThrough. It is removed on Disconnect.
+        self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
         _emit_progress_value(progress_value, 32)
 
         try:
@@ -827,7 +1002,10 @@ class XrayManager:
                 api_port=self.api_port,
                 validation_socks_port=self.validation_socks_port,
                 secure_dns=secure_dns,
+                outbound_bind_ip=outbound_bind_ip,
             )
+            tun_settings = config["inbounds"][0]["settings"]
+            active_tun_name = str(tun_settings.get("name") or TUN_NAME)
             self.token = uuid.uuid4().hex
             self.config_path = RUNTIME_DIR / f"tun-{self.token}.json"
             self.config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -841,10 +1019,19 @@ class XrayManager:
             self.stop()
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
         validation_text = (validation.stderr or validation.stdout or "").strip()
-        if validation.returncode != 0 and any(token in validation_text.lower() for token in ("tun", "autosystemroutingtable", "unknown protocol")):
+        if validation.returncode != 0 and any(
+            token in validation_text.lower()
+            for token in ("tun", "autosystemroutingtable", "unknown protocol", "failed to load")
+        ):
             try:
-                executable = ensure_xray(progress, force_download=True, language=language)
-                ensure_wintun(executable, progress=progress, language=language)
+                executable = ensure_xray(
+                    progress,
+                    force_download=True,
+                    language=language,
+                    require_wintun=is_windows(),
+                )
+                if is_windows():
+                    ensure_wintun(executable, progress=progress, language=language, force_download=True)
                 validation = self._validate(executable, self.config_path)
                 validation_text = (validation.stderr or validation.stdout or "").strip()
             except Exception:
@@ -852,9 +1039,13 @@ class XrayManager:
         _emit_progress_value(progress_value, 52)
         if validation.returncode != 0:
             error = (validation_text or "کانفیگ Xray نامعتبر است")[-1200:]
-            LOGGER.error("Connection configuration validation failed: %s", error)
+            LOGGER.error("TUN configuration validation failed: %s", error)
             self.stop()
-            raise RuntimeError("تنظیمات این سرور برای اتصال قابل استفاده نیست" if language != "en" else "This server cannot be used for a connection")
+            raise RuntimeError(
+                "تنظیمات TUN یا کانفیگ این سرور معتبر نیست"
+                if language != "en"
+                else "The TUN or server configuration is invalid"
+            )
 
         self._retain_log = diagnostics_enabled()
         self._active_log_file = LOG_FILE if self._retain_log else RUNTIME_DIR / "connection-session.log"
@@ -887,7 +1078,8 @@ class XrayManager:
         if cancel_start.is_set():
             self.stop()
             raise RuntimeError("راه‌اندازی اتصال لغو شد" if language != "en" else "Connection startup was cancelled")
-        _emit_progress_value(progress_value, 66)
+        _emit_progress_value(progress_value, 64)
+        self.route_mode = f"tun-starting:{active_tun_name}"
         PID_FILE.write_text(
             json.dumps(
                 {
@@ -895,12 +1087,14 @@ class XrayManager:
                     "config_path": str(self.config_path),
                     "token": self.token,
                     "direct_routes": list(self._direct_routes),
+                    "route_mode": self.route_mode,
+                    "tun_name": active_tun_name,
+                    "socks_port": self.validation_socks_port,
                 }
             ),
             encoding="utf-8",
         )
-        deadline = time.monotonic() + 6.0
-        stable_since = time.monotonic()
+        deadline = time.monotonic() + 7.0
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 break
@@ -913,52 +1107,81 @@ class XrayManager:
                 recent = ""
             if "started" in recent or "starting core successfully" in recent:
                 break
-            if time.monotonic() - stable_since >= 1.4:
-                break
-            time.sleep(0.1)
+            time.sleep(0.12)
 
         if self.process.poll() is not None:
             code = self.process.returncode
             tail = self._read_log_tail()
-            LOGGER.error("Connection process stopped with code %s: %s", code, tail[-1100:])
+            LOGGER.error("TUN process stopped with code %s: %s", code, tail[-1400:])
             self.stop()
-            raise RuntimeError("بخش اتصال آماده نشد؛ در صورت تکرار، گزارش عیب‌یابی را فعال کنید" if language != "en" else "The connection could not start; enable diagnostic logging if this repeats")
+            raise RuntimeError(
+                "هسته Xray نتوانست رابط TUN را ایجاد کند؛ گزارش عیب‌یابی را بررسی کنید"
+                if language != "en"
+                else "Xray could not create the TUN interface; inspect diagnostic logs"
+            )
 
-        _emit_progress_value(progress_value, 74)
-        # Validate the exact credentials/transport through a private SOCKS
-        # inbound first. This makes a dead server distinguishable from delayed
-        # Windows/Linux TUN route propagation.
-        proxy_started = time.monotonic()
-        proxy_deadline = proxy_started + 8.0
-        proxy_ready = False
+        # First verify the chosen outbound through the private SOCKS inbound.
+        # This separates a dead server from an OS routing problem.
+        _emit_progress_value(progress_value, 70)
+        proxy_deadline = time.monotonic() + 12.0
+        outbound_ready = False
         while time.monotonic() < proxy_deadline and self.process.poll() is None:
             if cancel_start.is_set():
                 self.stop()
                 raise RuntimeError("Connection startup was cancelled")
             for host in ("www.gstatic.com", "cp.cloudflare.com"):
-                if _socks_http_probe(
-                    self.validation_socks_port,
-                    host,
-                    "/generate_204",
-                    1.25,
-                ) is not None:
-                    proxy_ready = True
+                if _socks_http_probe(self.validation_socks_port, host, "/generate_204", 1.5) is not None:
+                    outbound_ready = True
                     break
-            if proxy_ready:
+            if outbound_ready:
                 break
-            elapsed = time.monotonic() - proxy_started
-            _emit_progress_value(progress_value, 74 + min(14, round((elapsed / 8.0) * 14)))
-            time.sleep(0.12)
-        _emit_progress_value(progress_value, 90)
-        if not proxy_ready:
+            time.sleep(0.18)
+        if not outbound_ready:
             tail = self._read_log_tail()
-            LOGGER.error("Xray outbound validation failed: %s", tail[-1100:])
+            LOGGER.error("Xray outbound validation failed before TUN verification: %s", tail[-1400:])
             self.stop()
             raise RuntimeError(
-                "سرور انتخاب‌شده از داخل Xray ترافیک HTTP معتبر عبور نداد"
+                "سرور انتخاب‌شده از داخل Xray ترافیک معتبر عبور نداد"
                 if language != "en"
-                else "The selected server did not carry verified HTTP traffic through Xray"
+                else "The selected server did not carry verified traffic through Xray"
             )
+
+        # Now verify ordinary process traffic with all proxy handlers disabled.
+        # Success here means the system default route actually traverses TUN.
+        if progress:
+            progress("در حال فعال‌سازی مسیر کامل TUN…" if language != "en" else "Activating the full TUN route…")
+        tun_started = time.monotonic()
+        tun_deadline = tun_started + 22.0
+        tun_ping: int | None = None
+        while time.monotonic() < tun_deadline and self.process.poll() is None:
+            if cancel_start.is_set():
+                self.stop()
+                raise RuntimeError("Connection startup was cancelled")
+            tun_ping = _direct_tun_http_probe(timeout=2.6)
+            if tun_ping is not None:
+                break
+            elapsed = time.monotonic() - tun_started
+            _emit_progress_value(progress_value, 82 + min(12, round((elapsed / 22.0) * 12)))
+            time.sleep(0.25)
+        if tun_ping is None:
+            tail = self._read_log_tail()
+            LOGGER.error("System TUN route validation failed: %s", tail[-1600:])
+            self.stop()
+            raise RuntimeError(
+                "هسته وصل شد اما مسیر سراسری TUN روی سیستم فعال نشد؛ دسترسی مدیر و Wintun/Network Extension را بررسی کنید"
+                if language != "en"
+                else "Xray connected, but the system-wide TUN route did not become active"
+            )
+
+        self.route_mode = f"tun:{active_tun_name}"
+        try:
+            payload = json.loads(PID_FILE.read_text(encoding="utf-8"))
+            payload["route_mode"] = self.route_mode
+            payload["verified_ping_ms"] = tun_ping
+            PID_FILE.write_text(json.dumps(payload), encoding="utf-8")
+        except Exception:
+            pass
+        _emit_progress_value(progress_value, 96)
 
     def traffic_stats(self) -> tuple[int | None, int | None]:
         if not self.connected or not self.executable or not self.api_port:
@@ -973,7 +1196,7 @@ class XrayManager:
                     "-timeout",
                     "1",
                     "-pattern",
-                    "inbound>>>tun-in>>>traffic>>>",
+                    "inbound>>>",
                 ],
                 capture_output=True,
                 text=True,
@@ -992,7 +1215,10 @@ class XrayManager:
             download = 0
             for item in payload.get("stat", []) if isinstance(payload, dict) else []:
                 name = str(item.get("name") or "")
-                if not name.startswith("inbound>>>tun-in>>>traffic>>>"):
+                if not any(
+                    name.startswith(f"inbound>>>{tag}>>>traffic>>>")
+                    for tag in ("tun-in",)
+                ):
                     continue
                 try:
                     value = int(item.get("value") or 0)
@@ -1007,33 +1233,25 @@ class XrayManager:
             return None, None
 
     def connected_ping(self, timeout: float = 1.0) -> int | None:
-        """Measure a real HTTP round trip through the active TUN.
-
-        The previous implementation timed a direct TCP handshake to the proxy
-        endpoint, which bypassed the TUN route and was not the user's actual
-        connected latency.
-        """
-        if not self.connected:
+        """Measure an ordinary HTTP request through the system-wide TUN route."""
+        if not self.connected or not self.route_mode.startswith("tun:"):
             return None
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        for url in ("http://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204"):
-            started = time.perf_counter()
-            try:
-                request = urllib.request.Request(url, headers={"User-Agent": f"{APP_NAME}/{VERSION}"})
-                with opener.open(request, timeout=timeout) as response:
-                    if 200 <= int(response.status) < 400:
-                        return max(1, int(round((time.perf_counter() - started) * 1000)))
-            except (OSError, ValueError, urllib.error.URLError):
-                continue
-        return None
+        return _direct_tun_http_probe(timeout=max(0.6, float(timeout)))
 
     def stop(self) -> None:
         with self._stop_lock:
             needs_tun_cleanup = bool(
-                self.process or self.config_path or self._direct_routes or self.connected_host
+                self.process or self.config_path or self._direct_routes or self.route_mode.startswith("tun")
             )
             try:
                 self._cancel_start.set()
+                # Restore only a stale RC18 system-proxy snapshot, if one exists.
+                # RC18 TUN mode itself never enables an operating-system proxy.
+                try:
+                    self._system_proxy.restore()
+                except Exception:
+                    LOGGER.debug("No stale system proxy state could be restored", exc_info=True)
+                self.route_mode = "disconnected"
                 process = self.process
                 self.process = None
                 PROCESS_REGISTRY.stop(process, timeout=2.5)
@@ -1074,8 +1292,11 @@ class XrayManager:
                     PORT_REGISTRY.release(self.api_port)
                 if self.validation_socks_port:
                     PORT_REGISTRY.release(self.validation_socks_port)
+                if self.http_proxy_port:
+                    PORT_REGISTRY.release(self.http_proxy_port)
                 self.api_port = 0
                 self.validation_socks_port = 0
+                self.http_proxy_port = 0
                 self.connected_host = ""
                 self.connected_ip = ""
                 self.connected_port = 0

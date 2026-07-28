@@ -303,7 +303,7 @@ class AlternativeCoreManager:
         language: str = "fa",
         **_kwargs,
     ) -> None:
-        # Cancellation must never wait behind the startup lock. RC17 held this
+        # Cancellation must never wait behind the startup lock. RC18 held this
         # lock for the whole scan/validation window, so Stop could block for up
         # to three minutes. Detach old resources first, then only lock short
         # state transitions and process assignments.

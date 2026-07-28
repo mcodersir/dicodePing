@@ -1,13 +1,17 @@
 # Changelog
 
-## 1.9.0-rc.17
+## 1.9.0-rc.18
 
-- Scanner results now resolve and permanently store IP, country, city, ISP and ASN before publishing the local SUB.
-- Added a conservative 0–100 security estimate to every server card. It is explicitly a configuration estimate, not a server audit.
-- Added optimized resource mode (default) and an opt-in professional mode on Android, Windows, Linux and macOS.
-- Android Aether is built through the QW-AI-Code/Aether mobile native pipeline.
-- Desktop Aether lifecycle now follows Aether-GUI style cancellation, fallback and process ownership patterns.
-- Updated core provenance and third-party notices; defyxVPN is used only as an architecture reference.
+- Fixed one-click deployment from folders previously used for RC16/RC17 by removing all stale RC10+ test modules by filename and verifying the staged tree again before push.
+- Restored mandatory full-device Xray TUN routing on Windows, Linux and macOS; System Proxy is no longer used as a substitute.
+- Added platform-correct TUN settings, including Windows Wintun/DNS, Linux routing and dynamic macOS `utunN` selection.
+- Added IPv4 and IPv6 default-route installation with automatic outbound-interface selection.
+- Prevented Xray routing loops with source binding and temporary direct host routes for the selected upstream server.
+- Added two-stage connection verification: private Xray SOCKS validation followed by an ordinary no-proxy HTTP request through the active TUN route.
+- Restored Windows UAC packaging, Linux PolicyKit relaunch and native macOS administrator authorization.
+- Made Disconnect remove Xray, temporary routes, runtime state and the named TUN interface without blocking the UI.
+- Kept one-time stale System Proxy recovery only for users upgrading from the earlier incorrect RC18 package.
+- Retained scanner persistence, location enrichment, security ratings, resource tuning and external-core improvements from RC17.
 
 ## 1.9.0-rc.16
 

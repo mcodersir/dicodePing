@@ -314,6 +314,8 @@ def main() -> int:
         settings = {}
     configure_logging(bool(settings.get("diagnostic_logging", False)), str(settings.get("log_level", "INFO")))
     LOGGER.info("Application startup requested")
+    # Full-device Xray TUN requires administrator/CAP_NET_ADMIN privileges.
+    # Relaunch once through the native OS prompt and keep the user's profile.
     if not smoke_mode and not is_admin():
         if relaunch_as_admin():
             return 0
@@ -323,14 +325,14 @@ def main() -> int:
 
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    "برای ساخت رابط TUN باید برنامه با دسترسی Administrator اجرا شود.",
-                    "دسترسی مدیر",
+                    "برای ساخت اتصال سراسری TUN باید برنامه با دسترسی Administrator اجرا شود.",
+                    "دسترسی لازم برای TUN",
                     0x10,
                 )
             except Exception:
-                print("Administrator access is required.")
+                pass
         else:
-            print("Root access is required to create the Linux TUN interface. Run with sudo or install PolicyKit.")
+            print("Administrator/root access is required for Xray TUN mode.")
         return 1
 
     if not smoke_mode and not acquire_single_instance():

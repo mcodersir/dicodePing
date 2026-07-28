@@ -11,7 +11,7 @@ def main() -> int:
     errors: list[str] = []
     source = SCANNER.read_text(encoding="utf-8")
 
-    # ScannerCoordinator owns the repository as `repo`. RC17 accidentally used
+    # ScannerCoordinator owns the repository as `repo`. RC18 accidentally used
     # `repository` here, which passed text-only tests but failed Kotlin CI.
     if "repository.settings.resourceMode" in source:
         errors.append(

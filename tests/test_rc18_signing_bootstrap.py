@@ -3,8 +3,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_rc17_deployer_bootstraps_missing_android_signing_secrets() -> None:
-    deployer = (ROOT / "DEPLOY_PRERELEASE_RC17.bat").read_text("utf-8")
+def test_rc18_deployer_bootstraps_missing_android_signing_secrets() -> None:
+    deployer = (ROOT / "DEPLOY_PRERELEASE_RC18.bat").read_text("utf-8")
     helper = (ROOT / "tools/bootstrap_android_signing.ps1").read_text("utf-8")
 
     assert "call :ensure_android_signing" in deployer

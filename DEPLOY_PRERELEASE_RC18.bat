@@ -1,18 +1,18 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing RC17 Hotfix One-Click Release + Pages Deploy
+title dicodePing RC18 Desktop Xray Recovery + One-Click Release
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
-set "TAG=v1.9.0-rc.17"
+set "TAG=v1.9.0-rc.18"
 set "WORKFLOW=release.yml"
 set "DOCS_WORKFLOW=docs.yml"
-set "COMMIT_MESSAGE=fix: RC17 Android compile and resilient GitHub Pages deploy"
+set "COMMIT_MESSAGE=fix: publish RC18 desktop Xray connection recovery"
 set "SOURCE_DIR=%CD%"
-set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc17-%RANDOM%%RANDOM%"
+set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc18-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
 set "PAGES_SCRIPT=%SOURCE_DIR%\tools\configure_github_pages.ps1"
 set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
@@ -25,15 +25,15 @@ set "PAGES_CODE=0"
 
 cls
 echo ================================================================
-echo  dicodePing RC17 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY HOTFIX
+echo  dicodePing RC18 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY + XRAY FIX
 echo ================================================================
 echo.
 echo This deployer will:
 echo   1. Clone the current GitHub repository into a temporary folder.
-echo   2. Replace it with a clean RC17 snapshot.
+echo   2. Replace it with a clean RC18 snapshot.
 echo   3. Remove stale RC tests and old release files.
 echo   4. Validate the complete project before any push.
-echo   5. Push main and recreate the v1.9.0-rc.17 tag.
+echo   5. Push main and recreate the v1.9.0-rc.18 tag.
 echo   6. Publish the GitHub pre-release and all platform assets.
 echo   7. Repair and deploy the GitHub Pages website.
 echo.
@@ -70,8 +70,8 @@ if not exist ".github\workflows\%DOCS_WORKFLOW%" (
     echo [ERROR] Missing workflow: .github\workflows\%DOCS_WORKFLOW%
     goto :failed
 )
-if not exist "docs\releases\v1.9.0-rc.17.md" (
-    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.17.md
+if not exist "docs\releases\v1.9.0-rc.18.md" (
+    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.18.md
     goto :failed
 )
 if not exist "%WAIT_SCRIPT%" (
@@ -138,7 +138,7 @@ if errorlevel 1 (
 popd
 
 echo.
-echo [4/10] Copying the clean RC17 source snapshot...
+echo [4/10] Copying the clean RC18 source snapshot...
 robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
  /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
  /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log" "*.bak"
@@ -172,7 +172,7 @@ if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
 )
 
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*.bat" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC17.bat" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC18.bat" (
         echo [INFO] Removing stale deploy script: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -190,7 +190,7 @@ for /f "delims=" %%F in ('dir /b /a-d "RUN_SOURCE_RC*.bat" 2^>nul') do (
     del /f /q "%%F" >nul 2>&1
 )
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*_README_FA.txt" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC17_README_FA.txt" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC18_README_FA.txt" (
         echo [INFO] Removing stale deploy readme: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -210,9 +210,9 @@ if exist "tests\test_v*.py" (
     popd
     goto :failed
 )
-if exist "tests\test_rc15*.py" (
-    echo [ERROR] RC15 tests survived cleanup and would block RC17.
-    dir /b "tests\test_rc15*.py"
+call %PYTHON_CMD% tools\purge_stale_release_tests.py --check
+if errorlevel 1 (
+    echo [ERROR] Stale release tests survived cleanup and would block RC18.
     popd
     goto :failed
 )
@@ -237,31 +237,31 @@ if not exist ".github\workflows\docs.yml" (
     popd
     goto :failed
 )
-if not exist "tests\test_rc17_regressions.py" (
-    echo [ERROR] Current RC17 tests were not copied.
+if not exist "tests\test_rc18_regressions.py" (
+    echo [ERROR] Current RC18 tests were not copied.
     popd
     goto :failed
 )
-if not exist "app_v190_rc17.py" (
-    echo [ERROR] RC17 runtime wrapper app_v190_rc17.py was not copied.
+if not exist "app_v190_rc18.py" (
+    echo [ERROR] RC18 runtime wrapper app_v190_rc18.py was not copied.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc17.py" "tools\build_windows.py" >nul
+findstr /C:"app_v190_rc18.py" "tools\build_windows.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Windows builder is not using app_v190_rc17.py.
+    echo [ERROR] Windows builder is not using app_v190_rc18.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc17.py" "tools\build_linux.py" >nul
+findstr /C:"app_v190_rc18.py" "tools\build_linux.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Linux builder is not using app_v190_rc17.py.
+    echo [ERROR] Linux builder is not using app_v190_rc18.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc17.py" "tools\build_macos.py" >nul
+findstr /C:"app_v190_rc18.py" "tools\build_macos.py" >nul
 if errorlevel 1 (
-    echo [ERROR] macOS builder is not using app_v190_rc17.py.
+    echo [ERROR] macOS builder is not using app_v190_rc18.py.
     popd
     goto :failed
 )
@@ -301,9 +301,9 @@ if errorlevel 1 (
     popd
     goto :failed
 )
-findstr /C:"versionCode = 52" "dicodePing_android\app\build.gradle.kts" >nul
+findstr /C:"versionCode = 53" "dicodePing_android\app\build.gradle.kts" >nul
 if errorlevel 1 (
-    echo [ERROR] Android versionCode 52 is missing.
+    echo [ERROR] Android versionCode 53 is missing.
     popd
     goto :failed
 )
@@ -342,7 +342,73 @@ if errorlevel 1 (
     popd
     goto :failed
 )
-echo [OK] Stale files were removed and the RC17 staged tree is clean.
+findstr /C:"def build_tun_config" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Xray TUN configuration builder is missing.
+    popd
+    goto :failed
+)
+findstr /C:"\"protocol\": \"tun\"" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Desktop Xray is not configured with a TUN inbound.
+    popd
+    goto :failed
+)
+findstr /C:"autoSystemRoutingTable" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] System-wide TUN routing is missing.
+    popd
+    goto :failed
+)
+findstr /C:"autoOutboundsInterface" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Xray outbound loop protection is missing.
+    popd
+    goto :failed
+)
+findstr /C:"_direct_tun_http_probe" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Real system TUN verification is missing.
+    popd
+    goto :failed
+)
+findstr /C:"install_direct_host_routes" "dicodeping\xray.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Xray endpoint loop-prevention route is missing.
+    popd
+    goto :failed
+)
+findstr /C:"require_wintun=is_windows()" "tools\prepare_core.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Windows core preparation does not require Wintun.
+    popd
+    goto :failed
+)
+findstr /C:"manager.connected_ping(timeout=3.2)" "dicodeping\workers.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Post-start verification is not checking the active TUN route.
+    popd
+    goto :failed
+)
+findstr /C:"relaunch_as_admin()" "app.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Desktop TUN privilege elevation is missing.
+    popd
+    goto :failed
+)
+findstr /C:"--uac-admin" "tools\build_windows.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Windows package does not request the privileges required by TUN.
+    popd
+    goto :failed
+)
+findstr /C:"wintun.dll" "tools\build_windows.py" >nul
+if errorlevel 1 (
+    echo [ERROR] Windows package does not bundle Wintun.
+    popd
+    goto :failed
+)
+echo [OK] Stale files were removed and the RC18 staged tree is clean.
 
 echo.
 echo [6/10] Running full local preflight before any push...
@@ -367,7 +433,7 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\quality_gate.py
 if errorlevel 1 goto :validation_failed
 
-echo [OK] RC17 preflight passed.
+echo [OK] RC18 preflight passed.
 
 git config --get user.name >nul 2>&1
 if errorlevel 1 git config user.name "mcodersir"
@@ -448,7 +514,7 @@ if defined REMOTE_TAG_EXISTS (
 
 if not defined TAG_PUSHED (
     popd
-    echo [ERROR] The RC17 tag could not be published.
+    echo [ERROR] The RC18 tag could not be published.
     echo [ERROR] Check GitHub tag-protection rules and repository permissions.
     goto :failed
 )
@@ -486,7 +552,7 @@ set "WAIT_CODE=%ERRORLEVEL%"
 if "%WAIT_CODE%"=="0" (
     echo.
     echo ================================================================
-    echo          RC17 PRE-RELEASE AND DEPLOY FINISHED
+    echo          RC18 PRE-RELEASE AND DEPLOY FINISHED
     echo ================================================================
     echo Commit:  %HEAD_SHA%
     echo Release: https://github.com/%REPO%/releases/tag/%TAG%

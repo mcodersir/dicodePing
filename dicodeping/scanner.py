@@ -624,7 +624,7 @@ def run_scan(
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
     started = time.monotonic()
-    # RC17 resource profile: optimized is always the default; professional is
+    # RC18 resource profile: optimized is always the default; professional is
     # an explicit setting and only raises bounded concurrency.
     selected_profile = current_resource_profile(resource_mode_from_settings(store.load_settings()))
     global SCAN_CRAWL_WORKERS, SCAN_PROBE_WORKERS, SCAN_PROBE_RETRY_WORKERS, SCAN_PROBE_QUEUE_LIMIT

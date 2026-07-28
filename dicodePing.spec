@@ -11,7 +11,7 @@ root = Path(SPECPATH)
 assets = root / "assets"
 
 a = Analysis(
-    [str(root / "app_v190_rc17.py")],
+    [str(root / "app_v190_rc18.py")],
     pathex=[str(root)],
     binaries=[],
     datas=[(str(assets), "assets")],
@@ -41,7 +41,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    uac_admin=False,
+    uac_admin=True,
     icon=str(assets / "app.ico"),
     version=str(root / "tools" / "windows_version_info.txt"),
 )

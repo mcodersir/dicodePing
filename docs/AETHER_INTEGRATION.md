@@ -1,4 +1,4 @@
-# Aether integration in RC17
+# Aether integration in RC18
 
 - **Android:** native Aether engine is built from the pinned vendored engine snapshot in
   `QW-AI-Code/Aether` for arm64-v8a and x86_64. The engine remains a separate executable (`libaether.so`)

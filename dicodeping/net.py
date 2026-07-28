@@ -6,10 +6,13 @@ import json
 import ipaddress
 import os
 import random
+import re
 import select
+import shutil
 import socket
 import struct
 import subprocess
+import sys
 import time
 import urllib.request
 from dataclasses import dataclass
@@ -39,34 +42,75 @@ def _powershell_route_script(script: str, timeout: float = 15.0) -> subprocess.C
         return None
 
 
+def _valid_ipv4_hosts(ips: Iterable[str]) -> list[str]:
+    result: list[str] = []
+    for value in ips:
+        try:
+            ip = str(ipaddress.ip_address(str(value).strip()))
+            if ":" not in ip and ip not in result:
+                result.append(ip)
+        except ValueError:
+            continue
+    return result
+
+
+def _linux_default_route() -> tuple[str, str]:
+    if not shutil.which("ip"):
+        return "", ""
+    try:
+        result = subprocess.run(
+            ["ip", "-4", "route", "show", "default"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return "", ""
+    line = next((row.strip() for row in (result.stdout or "").splitlines() if row.strip()), "")
+    gateway = re.search(r"\bvia\s+(\S+)", line)
+    device = re.search(r"\bdev\s+(\S+)", line)
+    return (gateway.group(1) if gateway else "", device.group(1) if device else "")
+
+
+def _darwin_default_route() -> tuple[str, str]:
+    if not shutil.which("route"):
+        return "", ""
+    try:
+        result = subprocess.run(
+            ["route", "-n", "get", "default"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return "", ""
+    gateway = re.search(r"(?m)^\s*gateway:\s*(\S+)", result.stdout or "")
+    interface = re.search(r"(?m)^\s*interface:\s*(\S+)", result.stdout or "")
+    return (gateway.group(1) if gateway else "", interface.group(1) if interface else "")
+
+
 def install_direct_host_routes(
     ips: Iterable[str],
     tun_name: str = "dicodePing-TUN",
     *,
     only_if_tun: bool = True,
 ) -> list[str]:
-    # Route selected IPv4 hosts outside the active TUN interface. Only routes
-    # created here are returned so callers can remove exactly those later.
-    if os.name != "nt":
-        return []
-    valid: list[str] = []
-    for value in ips:
-        try:
-            ip = str(ipaddress.ip_address(str(value).strip()))
-            if ":" not in ip and ip not in valid:
-                valid.append(ip)
-        except ValueError:
-            continue
+    # Pin Xray upstream IPs to the pre-TUN physical route.
+    valid = _valid_ipv4_hosts(ips)
     if not valid:
         return []
-    quoted = ",".join("'%s'" % item.replace("'", "''") for item in valid)
-    safe_tun = tun_name.replace("'", "''")
-    tun_guard = f"$tun = Get-NetAdapter -Name '{safe_tun}' -ErrorAction SilentlyContinue\nif (-not $tun) {{ exit 0 }}" if only_if_tun else ""
-    script = f'''
+
+    if os.name == "nt":
+        quoted = ",".join("'%s'" % item.replace("'", "''") for item in valid)
+        safe_tun = tun_name.replace("'", "''")
+        tun_guard = f"$tun = Get-NetAdapter -Name '{safe_tun}' -ErrorAction SilentlyContinue\nif (-not $tun) {{ exit 0 }}" if only_if_tun else ""
+        script = f'''
 $ErrorActionPreference='SilentlyContinue'
 {tun_guard}
 $route = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' |
-  Where-Object {{ $_.InterfaceAlias -ne '{safe_tun}' -and $_.State -ne 'Invalid' }} |
+  Where-Object {{ $_.InterfaceAlias -notlike '*dicodePing*' -and $_.State -ne 'Invalid' }} |
   Sort-Object RouteMetric, InterfaceMetric | Select-Object -First 1
 if (-not $route) {{ exit 0 }}
 $ips = @({quoted})
@@ -83,42 +127,84 @@ foreach ($ip in $ips) {{
   }}
 }}
 '''
-    result = _powershell_route_script(script, timeout=20.0)
-    if not result:
-        return []
-    created: list[str] = []
-    for line in (result.stdout or "").splitlines():
-        value = line.strip()
-        try:
-            if str(ipaddress.ip_address(value)) == value and ":" not in value:
-                created.append(value)
-        except ValueError:
-            pass
-    return created
+        result = _powershell_route_script(script, timeout=20.0)
+        if not result:
+            return []
+        return [line.strip() for line in (result.stdout or "").splitlines() if line.strip() in valid]
+
+    if sys.platform.startswith("linux"):
+        gateway, device = _linux_default_route()
+        if not device:
+            return []
+        created: list[str] = []
+        for ip in valid:
+            check = subprocess.run(
+                ["ip", "-4", "route", "show", f"{ip}/32"],
+                capture_output=True,
+                text=True,
+                timeout=4,
+                check=False,
+            )
+            if (check.stdout or "").strip():
+                continue
+            command = ["ip", "-4", "route", "add", f"{ip}/32"]
+            if gateway:
+                command += ["via", gateway]
+            command += ["dev", device, "metric", "1"]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)
+            if result.returncode == 0:
+                created.append(ip)
+        return created
+
+    if sys.platform == "darwin":
+        gateway, interface = _darwin_default_route()
+        if not gateway and not interface:
+            return []
+        created: list[str] = []
+        for ip in valid:
+            command = ["route", "-n", "add", "-host", ip]
+            command += [gateway] if gateway else ["-interface", interface]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)
+            if result.returncode == 0:
+                created.append(ip)
+        return created
+    return []
 
 
 def remove_direct_host_routes(ips: Iterable[str]) -> None:
-    if os.name != "nt":
-        return
-    valid: list[str] = []
-    for value in ips:
-        try:
-            ip = str(ipaddress.ip_address(str(value).strip()))
-            if ":" not in ip and ip not in valid:
-                valid.append(ip)
-        except ValueError:
-            continue
+    valid = _valid_ipv4_hosts(ips)
     if not valid:
         return
-    quoted = ",".join("'%s'" % item.replace("'", "''") for item in valid)
-    script = f'''
+    if os.name == "nt":
+        quoted = ",".join("'%s'" % item.replace("'", "''") for item in valid)
+        script = f'''
 $ErrorActionPreference='SilentlyContinue'
 $ips = @({quoted})
 foreach ($ip in $ips) {{
   Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "$ip/32" -PolicyStore ActiveStore -ErrorAction SilentlyContinue | Remove-NetRoute -Confirm:$false
 }}
 '''
-    _powershell_route_script(script, timeout=15.0)
+        _powershell_route_script(script, timeout=15.0)
+        return
+    if sys.platform.startswith("linux") and shutil.which("ip"):
+        for ip in valid:
+            subprocess.run(
+                ["ip", "-4", "route", "del", f"{ip}/32"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=4,
+                check=False,
+            )
+        return
+    if sys.platform == "darwin" and shutil.which("route"):
+        for ip in valid:
+            subprocess.run(
+                ["route", "-n", "delete", "-host", ip],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=4,
+                check=False,
+            )
 
 
 def fetch_text(

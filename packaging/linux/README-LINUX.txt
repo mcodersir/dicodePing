@@ -1,74 +1,56 @@
-dicodePing v1.6.0-rc.1 for Linux x86_64
+dicodePing v1.9.0-rc.18 for Linux x86_64
 
 روش اجرا / How to run
 ======================
 
-ساده‌ترین راه / Easiest way
+در پوشه استخراج‌شده اجرا کنید:
+
+    ./run-dicodePing.sh
+
+برنامه را عادی اجرا کنید. هنگام شروع اتصال Xray، پنجره PolicyKit برای
+دسترسی لازم TUN نمایش داده می‌شود. برنامه سپس با حفظ HOME، DISPLAY،
+Wayland/X11 و نشست کاربر دوباره اجرا می‌شود.
+
+Run the launcher normally. When an Xray connection starts, PolicyKit asks
+for the privileges required to create and route a TUN interface. The app
+preserves the user's HOME, display and desktop-session environment.
+
+اتصال Xray / Xray connection
 ----------------------------
-در پوشه استخراج‌شده روی فایل `run-dicodePing.sh` دوبار کلیک کنید،
-یا در ترمینال بنویسید:
+مسیر اتصال RC18 یک VPN کامل مبتنی بر TUN است:
 
-    ./run-dicodePing.sh
+    System traffic -> Xray TUN -> selected Xray server -> Internet
 
-برنامه از شما رمز مدیر (root) را می‌خواهد، چون ساخت رابط TUN
-به دسترسی مدیر نیاز دارد. اگر `pkexec` نصب باشد، یک پنجره گرافیکی
-نمایش داده می‌شود؛ در غیر این صورت از `sudo` در ترمینال استفاده
-می‌شود.
+System Proxy جایگزین TUN نیست. قبل از نمایش وضعیت Connected، برنامه هم
+خود سرور و هم عبور یک درخواست مستقیم بدون Proxy از Route سراسری TUN را
+بررسی می‌کند.
 
-Double-click `run-dicodePing.sh` in the extracted folder, or run:
-
-    ./run-dicodePing.sh
-
-The launcher requests administrator permission because creating and
-routing a TUN interface requires root/CAP_NET_ADMIN.  PolicyKit is
-preferred; sudo is the fallback.
-
-اجرای مستقیم / Direct run
---------------------------
-    sudo ./dicodePing
-
-نصب در منوی برنامه‌ها / Install application menu entry
--------------------------------------------------------
-فایل `dicodePing.desktop` را در مسیر زیر کپی کنید:
-
-    mkdir -p ~/.local/share/applications
-    cp dicodePing.desktop ~/.local/share/applications/
-    # Edit the Exec/Icon paths to point to this folder.
-
-روی اکثر توزیع‌ها بعد از کپی، dicodePing در منوی برنامه‌ها ظاهر
-می‌شود و با کلیک اجرا می‌گردد.
-
-On most distributions, copying `dicodePing.desktop` to
-`~/.local/share/applications/` (and editing the Exec/Icon paths)
-makes dicodePing appear in the application menu.
+RC18 uses full-device TUN routing, not desktop proxy settings. Before it
+reports Connected, it verifies both the chosen server and an ordinary
+no-proxy HTTP request through the system TUN route.
 
 نیازمندی‌های سیستم / System requirements
 -----------------------------------------
-- توزیع ۶۴ بیتی مدرن گنو/لینوکس با glibc و جلسه دسکتاپ (X11 یا Wayland/XWayland)
-- Modern 64-bit Linux distribution with glibc and a desktop session
-  (X11 or Wayland/XWayland).
+- توزیع ۶۴ بیتی مدرن GNU/Linux با glibc
+- PolicyKit و ابزار `pkexec`
+- پشتیبانی kernel از TUN (`/dev/net/tun`)
+- ابزار `ip` از بسته iproute2
 
-کتابخانه‌های دسکتاپ مورد نیاز روی Debian/Ubuntu:
-  libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0
-  libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1
-  libxkbcommon-x11-0
+- Modern 64-bit GNU/Linux distribution with glibc
+- PolicyKit and `pkexec`
+- Kernel TUN support (`/dev/net/tun`)
+- `ip` from iproute2
 
-نصب با apt:
-  sudo apt-get install -y --no-install-recommends \
-    libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
-    libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 \
-    libxkbcommon-x11-0 policykit-1
+کتابخانه‌های رابط روی Debian/Ubuntu:
 
-فونت‌ها / Fonts
----------------
-فونت Vazirmatn به‌صورت داخلی در بسته قرار داده شده است، پس نیازی
-به نصب جداگانه فونت فارسی نیست.  Vazirmatn is bundled inside the
-archive; no separate Persian font installation is required.
+    sudo apt-get install -y --no-install-recommends \
+      policykit-1 iproute2 libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 \
+      libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 \
+      libxcb-xkb1 libxkbcommon-x11-0
 
 عیب‌یابی / Troubleshooting
 --------------------------
-- اگر برنامه اجرا نشد، در ترمینال اجرا کنید تا خطا نمایش داده شود:
-  `./dicodePing`
-- اگر پنجره گرافیکی برای رمز مدیر ظاهر نشد، `policykit-1` را نصب کنید.
-- If the GUI does not launch, run from terminal to see the error.
-- If no graphical password prompt appears, install `policykit-1`.
+- وجود TUN را بررسی کنید: `test -c /dev/net/tun && echo OK`
+- وجود PolicyKit را بررسی کنید: `command -v pkexec`
+- اگر پنجره مجوز را لغو کنید، اتصال TUN آغاز نمی‌شود.
+- برای دیدن خطای اولیه، `./dicodePing` را از ترمینال اجرا کنید.

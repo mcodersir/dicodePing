@@ -26,7 +26,7 @@ def test_pages_workflow_uses_current_artifact_and_required_permissions() -> None
 
 
 def test_one_click_deployer_repairs_pages_and_purges_stale_tests() -> None:
-    deploy = read("DEPLOY_PRERELEASE_RC17.bat")
+    deploy = read("DEPLOY_PRERELEASE_RC18.bat")
     assert "tools\\purge_stale_release_tests.py" in deploy
     assert "tools\\configure_github_pages.ps1" in deploy
     assert "gh release delete" in deploy
@@ -65,3 +65,43 @@ def test_stale_rc15_tests_are_removed_without_deleting_generic_tests(tmp_path: P
     assert result.returncode == 0, result.stdout + result.stderr
     assert not stale.exists()
     assert generic.exists()
+
+
+def test_stale_rc16_generic_named_modules_are_removed_after_overlay(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    shutil.copytree(ROOT, workspace)
+
+    stale_names = (
+        "test_rc16_real_core_persistence_scanner.py",
+        "test_rc16_runtime_commands.py",
+    )
+    for name in stale_names:
+        (workspace / "tests" / name).write_text(
+            "def test_old_generic_regression():\n    assert True\n",
+            encoding="utf-8",
+        )
+
+    generic = workspace / "tests" / "test_rc2_generic_leftover.py"
+    generic.write_text("def test_generic():\n    assert True\n", encoding="utf-8")
+
+    script = workspace / "tools" / "purge_stale_release_tests.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=workspace,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    for name in stale_names:
+        assert not (workspace / "tests" / name).exists()
+    assert generic.exists()
+
+    check = subprocess.run(
+        [sys.executable, str(script), "--check"],
+        cwd=workspace,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert check.returncode == 0, check.stdout + check.stderr

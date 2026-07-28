@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from dicodeping.xray import ensure_wintun, ensure_xray
+from dicodeping.xray import ensure_xray, is_windows
 
 
 def _configure_utf8_console() -> None:
@@ -26,8 +26,7 @@ def prepare_core() -> Path:
     target = ROOT / "core"
     target.mkdir(parents=True, exist_ok=True)
 
-    executable = ensure_xray(print)
-    ensure_wintun(executable, progress=print)
+    executable = ensure_xray(print, require_wintun=is_windows())
     for name in (executable.name, "geoip.dat", "geosite.dat", "wintun.dll"):
         source = executable.parent / name
         if source.exists():
@@ -36,7 +35,7 @@ def prepare_core() -> Path:
                 shutil.copy2(source, destination)
 
     required = [target / ("xray.exe" if sys.platform.startswith("win") else "xray")]
-    if sys.platform.startswith("win"):
+    if is_windows():
         required.append(target / "wintun.dll")
     missing = [str(path) for path in required if not path.exists()]
     if missing:
