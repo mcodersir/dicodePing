@@ -362,7 +362,9 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                     .show()
                 return
             }
-            val synthetic = server ?: ServerRecord(
+            // Aether and WARP are independent tunnels. A server card selected for
+            // Xray must never be mislabeled as the target of an external core.
+            val synthetic = ServerRecord(
                 id = "core:$selectedCore",
                 raw = "",
                 name = if (selectedCore == "warp") "WARP / Usque" else "Aether",
@@ -422,7 +424,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     private fun prepareAndStart(candidate: ServerRecord) {
-        vm.repo.selectServer(candidate.id, userInitiated = false)
+        // Synthetic external-core targets are not saved as an Xray server choice.
+        // Otherwise switching back to manual Xray mode leaves a non-existent server selected.
+        if (!candidate.id.startsWith("core:")) {
+            vm.repo.selectServer(candidate.id, userInitiated = false)
+        }
         VpnStateStore.state.value = VpnState(
             status = VpnStatus.CONNECTING,
             serverId = candidate.id,
@@ -541,6 +547,11 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             AppLog.e("Main", "VPN stop request failed", error)
             VpnStateStore.state.value = VpnState()
         }
+    }
+
+
+    fun openHomePage() {
+        showPage(R.id.nav_home)
     }
 
     fun applyCoreMode() {

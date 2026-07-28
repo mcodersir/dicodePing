@@ -59,3 +59,19 @@ Thumbs.db
 *.swp
 *.tmp
 *.log
+
+# Generated release/build output
+release/
+artifacts/
+*.apk
+*.aab
+*.exe
+*.dmg
+*.tar.gz
+*.zip
+*.jks
+*.keystore
+**/build/
+**/.gradle/
+__pycache__/
+.pytest_cache/

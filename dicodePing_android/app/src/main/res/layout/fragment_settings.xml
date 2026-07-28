@@ -170,13 +170,20 @@
                                 android:textColor="@color/text_secondary"
                                 android:textSize="12sp" />
 
-                            <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/cdnDomainLayout"
-                                style="@style/Widget.DicodePing.TextInput"
+                            <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="12dp"
-                                android:hint="@string/conn_method_title"
+                                android:text="@string/conn_method_title"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.DicodePing.TextInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                app:hintEnabled="false"
                                 app:endIconMode="dropdown_menu">
 
                                 <AutoCompleteTextView
@@ -295,6 +302,7 @@
                                 android:textColor="@color/text_primary" />
 
                             <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/cdnDomainLayout"
                                 style="@style/Widget.DicodePing.TextInput"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -340,12 +348,20 @@
                                 android:textSize="16sp"
                                 android:textStyle="bold" />
 
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:text="@string/per_app_vpn_mode"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/Widget.DicodePing.TextInput"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="12dp"
-                                android:hint="@string/per_app_vpn_mode"
+                                android:layout_marginTop="6dp"
+                                app:hintEnabled="false"
                                 app:endIconMode="dropdown_menu">
 
                                 <AutoCompleteTextView
@@ -431,53 +447,7 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <com.google.android.material.card.MaterialCardView
-                        style="@style/Widget.DicodePing.Card"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp">
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="16dp">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:text="@string/bypass_apps_title"
-                                android:textColor="@color/text_primary"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:text="@string/bypass_apps_help"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:id="@+id/bypassAppsCount"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="12dp"
-                                android:textColor="@color/brand"
-                                android:textSize="12sp"
-                                android:textStyle="bold" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/chooseBypassApps"
-                                style="@style/Widget.DicodePing.Button.Secondary"
-                                android:layout_width="match_parent"
-                                android:layout_height="48dp"
-                                android:layout_marginTop="10dp"
-                                android:text="@string/choose_bypass_apps"
-                                app:cornerRadius="14dp" />
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
 
                 </LinearLayout>
 
@@ -541,11 +511,20 @@
                             android:orientation="vertical"
                             android:padding="16dp">
 
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="0dp"
+                                android:text="@string/language"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/Widget.DicodePing.TextInput"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:hint="@string/language"
+                                android:layout_marginTop="6dp"
+                                app:hintEnabled="false"
                                 app:endIconMode="dropdown_menu">
 
                                 <AutoCompleteTextView
@@ -558,12 +537,20 @@
                                     android:paddingEnd="16dp" />
                             </com.google.android.material.textfield.TextInputLayout>
 
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="@string/theme"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+
                             <com.google.android.material.textfield.TextInputLayout
                                 style="@style/Widget.DicodePing.TextInput"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="10dp"
-                                android:hint="@string/theme"
+                                android:layout_marginTop="6dp"
+                                app:hintEnabled="false"
                                 app:endIconMode="dropdown_menu">
 
                                 <AutoCompleteTextView

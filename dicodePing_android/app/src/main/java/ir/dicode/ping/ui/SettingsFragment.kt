@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.core.widget.doAfterTextChanged
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -27,6 +28,8 @@ import ir.dicode.ping.databinding.DialogAppBypassBinding
 import ir.dicode.ping.databinding.DialogSourceBinding
 import ir.dicode.ping.databinding.FragmentSettingsBinding
 import ir.dicode.ping.util.AppLog
+import ir.dicode.ping.vpn.VpnStateStore
+import ir.dicode.ping.vpn.VpnStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,17 +69,6 @@ class SettingsFragment : Fragment() {
         }
 
         binding.bypassDomains.setText(store.bypassDomains)
-        updateBypassAppsSummary()
-        binding.chooseBypassApps.setOnClickListener {
-            showAppsDialog(
-                vm.repo.settings.bypassApps,
-                R.string.bypass_apps_title,
-                R.string.bypass_apps_dialog_help,
-            ) {
-                vm.repo.settings.bypassApps = it
-                updateBypassAppsSummary()
-            }
-        }
         binding.saveBypass.setOnClickListener {
             store.bypassDomains = normalizeDomains(binding.bypassDomains.text?.toString().orEmpty())
             binding.bypassDomains.setText(store.bypassDomains)
@@ -100,6 +92,12 @@ class SettingsFragment : Fragment() {
 
     private fun setupConnectionFeatures() {
         val store = vm.repo.settings
+        // RC14 migration: the old “apps outside connection” list duplicated denylist mode.
+        if (store.bypassApps.isNotEmpty()) {
+            if (store.perAppVpnPackages.isEmpty()) store.perAppVpnPackages = store.bypassApps
+            if (store.perAppVpnMode == "disabled") store.perAppVpnMode = "denylist"
+            store.bypassApps = emptySet()
+        }
         val coreIds = listOf("xray", "psiphon", "aether", "warp")
         val coreLabels = listOf(
             getString(R.string.conn_method_xray),
@@ -124,9 +122,11 @@ class SettingsFragment : Fragment() {
                     else -> R.string.core_unsupported_build
                 }
             )
-            binding.downloadCore.isEnabled = coreManager.capability(core).canDownload
-            binding.activateCore.isEnabled = coreManager.capability(core).canConnect
-            if (core != "xray") binding.coreStatus.text = coreManager.capability(core).reason
+            val capability = coreManager.capability(core)
+            binding.downloadCore.isVisible = capability.canDownload
+            binding.downloadCore.isEnabled = capability.canDownload
+            binding.activateCore.isEnabled = capability.canConnect
+            binding.coreStatus.text = capability.reason
         }
         binding.connectionCore.setOnItemClickListener { _, _, _, _ -> renderCoreStatus() }
         binding.downloadCore.setOnClickListener {
@@ -144,12 +144,34 @@ class SettingsFragment : Fragment() {
                 renderCoreStatus()
             }
         }
+        fun showCoreActivationGuide(core: String) {
+            if (core !in setOf("aether", "warp")) {
+                Snackbar.make(binding.root, R.string.core_activation_done, Snackbar.LENGTH_SHORT).show()
+                return
+            }
+            val message = if (core == "warp") {
+                getString(R.string.core_activation_guide_warp)
+            } else {
+                getString(R.string.core_activation_guide_aether)
+            }
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.core_activation_guide_title)
+                .setMessage(message)
+                .setNegativeButton(R.string.later, null)
+                .setPositiveButton(R.string.go_to_home) { _, _ ->
+                    (activity as? MainActivity)?.openHomePage()
+                }
+                .show()
+        }
         fun commitCoreActivation(core: String) {
+            if (VpnStateStore.state.value.status != VpnStatus.DISCONNECTED) {
+                (activity as? MainActivity)?.disconnect()
+            }
             store.activeCore = core
             (activity as? MainActivity)?.applyCoreMode()
             binding.coreStatus.text = getString(R.string.conn_method_active) + ": " +
                 coreLabels[coreIds.indexOf(core)]
-            Snackbar.make(binding.root, R.string.core_activation_done, Snackbar.LENGTH_SHORT).show()
+            showCoreActivationGuide(core)
         }
         binding.activateCore.setOnClickListener {
             val core = selectedCore()
@@ -163,19 +185,11 @@ class SettingsFragment : Fragment() {
                     .setMessage(R.string.warp_terms_message)
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(R.string.accept_and_activate) { _, _ ->
+                        // Registration is intentionally deferred to the Connect button.
+                        // It is a network operation and belongs to the foreground VPN flow,
+                        // where the user can see progress and cancel safely.
                         store.warpTermsAccepted = true
-                        binding.activateCore.isEnabled = false
-                        binding.coreStatus.setText(R.string.conn_method_preparing)
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            val result = runCatching { coreManager.initializeWarp() }
-                            if (_binding == null) return@launch
-                            binding.activateCore.isEnabled = true
-                            result.onSuccess { commitCoreActivation(core) }
-                                .onFailure { error ->
-                                    store.warpTermsAccepted = false
-                                    binding.coreStatus.text = getString(R.string.warp_registration_failed) + ": " + error.message
-                                }
-                        }
+                        commitCoreActivation(core)
                     }
                     .show()
             } else {
@@ -322,17 +336,6 @@ class SettingsFragment : Fragment() {
             )
         }
     }
-
-
-    private fun updateBypassAppsSummary() {
-        val count = vm.repo.settings.bypassApps.size
-        binding.bypassAppsCount.text = resources.getQuantityString(
-            R.plurals.bypass_apps_count,
-            count,
-            count,
-        )
-    }
-
     private fun updatePerAppAppsSummary() {
         val count = vm.repo.settings.perAppVpnPackages.size
         binding.perAppAppsCount.text = getString(R.string.per_app_apps_count, count)

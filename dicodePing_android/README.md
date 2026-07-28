@@ -1,34 +1,49 @@
-# dicodePing Android v0.1.2
+# dicodePing Android — v1.9.0-rc.14
 
-نسخهٔ بومی Android با Kotlin، Material و `VpnService`؛ نام و هویت محصول در رابط فارسی و انگلیسی **dicodePing** است.
+کلاینت بومی Android با Kotlin، Material 3، `VpnService` و AndroidLibXrayLite.
 
-## ویژگی‌های اصلی
+## هسته‌ها
 
-- اجرای Xray در مسیر VPN/TUN اندروید
-- سنجش واقعی outbound با AndroidLibXrayLite به‌جای انتخاب بر اساس ICMP
-- پیش‌آزمون TCP محدود فقط برای حذف خطاهای واضح
-- مسیر پیش‌فرض IPv4 و IPv6 داخل VPN و رفتار fail-closed برای جلوگیری از bypass
-- دریافت و مدیریت subscriptionهای متعدد
-- انتخاب خودکار یا دستی سرور
-- مسیر مستقیم دامنه‌ها و bypass برنامه‌های انتخاب‌شده
-- رابط فارسی RTL و انگلیسی LTR، تم روشن/تیره و فهرست‌های بهینه‌شده
-- مدیریت تغییر شبکه، lifecycle سرویس، مجوز VPN و پاک‌سازی interface
+## روش اتصال با Aether یا WARP
 
-## پیش‌نیاز ساخت
+1. در تنظیمات، هسته را انتخاب و **فعال** کنید.
+2. در پیام نمایش‌داده‌شده، **رفتن به صفحه اصلی** را بزنید.
+3. در Home دکمه **اتصال** را بزنید و تا پایان مراحل زنده صبر کنید.
+4. برنامه فقط بعد از تست واقعی ترافیک، وضعیت «متصل» را نشان می‌دهد.
+
+در اولین اتصال WARP، ثبت دستگاه در همین جریان foreground انجام می‌شود. اگر مسیر اصلی پاسخ ندهد، برنامه به‌صورت خودکار HTTP/2 را امتحان می‌کند.
+
+### معماری اتصال خارجی
+
+```text
+Android VpnService / TUN
+        ↓
+Xray local SOCKS bridge
+        ↓
+Aether :1819 یا Usque/WARP :1820
+        ↓
+Internet
+```
+
+Xray در این حالت مقصد یا سرور اتصال نیست؛ فقط بسته‌های TUN اندروید را به SOCKS هسته انتخاب‌شده تحویل می‌دهد.
+
+- **Xray:** داخل مسیر اصلی VPN/TUN.
+- **Aether 1.4.0:** به‌صورت باینری ELF برای `arm64-v8a` و `x86_64` در APK قرار می‌گیرد و یک SOCKS محلی می‌سازد.
+- **WARP / Usque 4.2.1:** داخل APK قرار می‌گیرد؛ پس از پذیرش شرایط، ثبت‌نام انجام می‌شود و SOCKS محلی می‌سازد.
+- **Psiphon:** بدون `client.config` مجاز قابل توزیع نیست و رابط برنامه دلیل غیرفعال‌بودن را نمایش می‌دهد.
+
+## پیش‌نیاز
 
 - JDK 17
-- Android SDK 35
-- Gradle Wrapper پروژه
-- AndroidLibXrayLite `26.7.11` در مسیر زیر:
+- Android SDK / compileSdk 36
+- Android NDK برای ساخت Usque
+- Go برای cross-compile کردن Usque
+- AndroidLibXrayLite `26.7.11`
+
+AAR باید در این مسیر قرار بگیرد:
 
 ```text
 local-maven/ir/dicode/local/libv2ray/26.7.11/libv2ray-26.7.11.aar
-```
-
-دارایی رسمی:
-
-```text
-https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar
 ```
 
 SHA-256 مورد انتظار:
@@ -37,31 +52,24 @@ SHA-256 مورد انتظار:
 0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352
 ```
 
-workflow اصلی مخزن فایل را دریافت و پیش از Gradle هش آن را کنترل می‌کند.
-
-## ساخت محلی
-
-Linux/macOS:
+## آماده‌سازی هسته‌های bundled
 
 ```bash
-./tools/prepare_core.sh /path/to/libv2ray.aar
-./gradlew --no-daemon lint test assembleDebug assembleRelease
+python tools/prepare_bundled_cores.py
 ```
 
-Windows:
+## ساخت Debug
 
-```bat
-prepare_core.bat "C:\path\to\libv2ray.aar"
-gradlew.bat --no-daemon lint test assembleDebug assembleRelease
+```bash
+./gradlew --no-daemon assembleStandardDebug
 ```
 
-خروجی debug با کلید عمومی debug قابل نصب است. خروجی release تا زمانی که با keystore خصوصی مالک امضا نشود، unsigned باقی می‌ماند؛ هیچ کلید خصوصی در مخزن یا GitHub Actions نگه‌داری نمی‌شود.
+## ساخت Release
 
-## Release رسمی
+متغیرهای `ANDROID_KEYSTORE_PATH`، `ANDROID_KEYSTORE_PASSWORD`، `ANDROID_KEY_ALIAS` و `ANDROID_KEY_PASSWORD` را تنظیم کنید و سپس:
 
-workflow ریشهٔ `.github/workflows/release.yml` تنها مرجع انتشار است. با tag نسخه، Android lint/tests اجرا و دو فایل زیر ساخته می‌شوند:
+```bash
+./build_apk.sh
+```
 
-- `dicodePing-v0.1.2-android-debug-signed.apk`
-- `dicodePing-v0.1.2-android-release-unsigned.apk`
-
-مجوزها و منشأ هسته در [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) ثبت شده‌اند.
+در Windows از `build_apk.bat` استفاده کنید. فقط همین اسکریپت عمومی و `gradlew.bat` نگه‌داری شده‌اند؛ اسکریپت‌های نسخه‌ای قدیمی حذف شده‌اند.

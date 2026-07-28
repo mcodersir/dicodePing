@@ -260,4 +260,34 @@
     <string name="scanner_disconnecting">در حال قطع VPN اولیه…</string>
     <string name="scanner_saving">در حال ذخیره SUB تاییدشده…</string>
     <string name="scanner_telegram_unreachable">دسترسی به تلگرام از طریق VPN فعال ممکن نشد. کانفیگ سرور انتخابی، اینترنت و مجوز VPN را بررسی کنید و دوباره تلاش کنید.</string>
+    <string name="core_aether_bundled">هسته Aether برای معماری این دستگاه داخل برنامه قرار دارد.</string>
+    <string name="core_aether_missing">هسته Aether برای معماری این دستگاه داخل برنامه موجود نیست.</string>
+    <string name="core_warp_bundled">هسته WARP / Usque برای معماری این دستگاه داخل برنامه قرار دارد.</string>
+    <string name="core_warp_missing">هسته WARP / Usque برای معماری این دستگاه داخل برنامه موجود نیست.</string>
+    <string name="core_psiphon_authorization_missing">Psiphon به پیکربندی توزیع مجاز نیاز دارد و در این بیلد غیرفعال است.</string>
+    <string name="core_unknown">هسته اتصال ناشناخته است.</string>
+    <string name="scanner_fetch_progress">دریافت کانفیگ‌ها</string>
+    <string name="scanner_test_progress">آزمایش سرورها</string>
+    <string name="scanner_fetch_progress_value">دریافت کانفیگ‌ها • %1$d٪</string>
+    <string name="scanner_test_progress_value">آزمایش سرورها • %1$d از %2$d • %3$d سالم</string>
+    <string name="scanner_alive_short">سالم</string>
+
+    <string name="core_activation_guide_title">هسته فعال شد؛ اتصال از صفحه اصلی انجام می‌شود</string>
+    <string name="core_activation_guide_aether">Aether فعال شد. به صفحه اصلی بروید، دکمه «اتصال» را بزنید و تا نمایش وضعیت «متصل» صبر کنید. Aether ابتدا مسیر قابل‌دسترسی را پیدا می‌کند؛ اتصال اول ممکن است چند دقیقه زمان ببرد و در صورت نیاز برنامه خودکار مسیر HTTP/2 را امتحان می‌کند.</string>
+    <string name="core_activation_guide_warp">WARP / Usque فعال شد. به صفحه اصلی بروید، دکمه «اتصال» را بزنید و تا نمایش وضعیت «متصل» صبر کنید. در اولین اتصال، دستگاه WARP ثبت می‌شود و سپس تونل واقعی ساخته می‌شود؛ در صورت اختلال QUIC، برنامه خودکار HTTP/2 را امتحان می‌کند.</string>
+    <string name="go_to_home">رفتن به صفحه اصلی</string>
+    <string name="connected_core">هسته متصل</string>
+    <string name="connecting_core">هسته در حال اتصال</string>
+    <string name="selected_connection_core">هسته اتصال انتخاب‌شده</string>
+    <string name="aether_core_home_description">تونل مستقل Aether • بدون استفاده از سرورهای Xray</string>
+    <string name="warp_core_home_description">تونل Cloudflare WARP با Usque • بدون استفاده از سرورهای Xray</string>
+    <string name="core_stage_preparing">در حال آماده‌سازی %1$s…</string>
+    <string name="core_stage_registering_warp">در حال ثبت دستگاه WARP برای اولین اتصال…</string>
+    <string name="core_stage_starting_primary">در حال اجرای %1$s با مسیر اصلی…</string>
+    <string name="core_stage_starting_http2">در حال اجرای %1$s با مسیر جایگزین HTTP/2…</string>
+    <string name="core_stage_waiting">%1$s در حال ساخت تونل است؛ کمی صبر کنید…</string>
+    <string name="core_stage_proxy_ready">تونل محلی %1$s آماده شد؛ در حال هدایت ترافیک دستگاه…</string>
+    <string name="core_stage_switching_http2">مسیر اصلی پاسخ نداد؛ تلاش خودکار با HTTP/2…</string>
+    <string name="core_stage_verifying_real_traffic">در حال بررسی عبور واقعی اینترنت از هسته انتخاب‌شده…</string>
+    <string name="external_core_connection_failed">هسته انتخاب‌شده اجرا شد اما عبور واقعی اینترنت تأیید نشد. شبکه را بررسی کنید و دوباره اتصال را بزنید.</string>
 </resources>

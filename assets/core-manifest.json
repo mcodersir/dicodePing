@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "release": "1.9.0-rc.13",
+  "release": "1.9.0-rc.14",
   "integrity": "SHA-256 verified",
   "signature": {
     "windows": "legacy-style portable EXE; unsigned debug/test desktop build",
@@ -57,7 +57,12 @@
         "publishedAsset": true
       },
       "android": {
-        "state": "unsupportedInThisBuild"
+        "state": "bundled",
+        "abis": [
+          "arm64-v8a",
+          "x86_64"
+        ],
+        "delivery": "apk-native-library"
       }
     },
     "warp": {
@@ -83,7 +88,12 @@
         "publishedAsset": true
       },
       "android": {
-        "state": "unsupportedInThisBuild"
+        "state": "bundled",
+        "abis": [
+          "arm64-v8a",
+          "x86_64"
+        ],
+        "delivery": "apk-native-library"
       }
     },
     "psiphon": {

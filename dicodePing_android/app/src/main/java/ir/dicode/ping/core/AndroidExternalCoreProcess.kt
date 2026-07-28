@@ -10,6 +10,7 @@ import java.net.Socket
 import java.util.ArrayDeque
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -25,7 +26,17 @@ import kotlinx.coroutines.withContext
 class AndroidExternalCoreProcess(
     private val context: Context,
     val coreId: String,
+    private val onStage: (Stage) -> Unit = {},
 ) {
+    enum class Stage {
+        PREPARING,
+        REGISTERING_WARP,
+        STARTING_PRIMARY,
+        STARTING_HTTP2_FALLBACK,
+        WAITING_FOR_PROXY,
+        PROXY_READY,
+    }
+
     val socksPort: Int = when (coreId) {
         "aether" -> 1819
         "warp" -> 1820
@@ -33,7 +44,9 @@ class AndroidExternalCoreProcess(
     }
 
     private var process: Process? = null
+    @Volatile private var proxyReadyAnnounced = false
     private val runtimeDir = File(context.filesDir, "core-state/$coreId").apply { mkdirs() }
+    private val tempDir = File(runtimeDir, "tmp").apply { mkdirs() }
     private val outputTail = ArrayDeque<String>()
 
     private fun libraryName(): String = when (coreId) {
@@ -57,10 +70,7 @@ class AndroidExternalCoreProcess(
         }
     }
 
-    /**
-     * API-24-safe timed wait. Process.waitFor(timeout, unit) only exists from
-     * API 26, so Android 7.x uses the documented exitValue polling contract.
-     */
+    /** API-24-safe timed wait. */
     private fun Process.waitForCompat(timeoutMillis: Long): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             return waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
@@ -99,29 +109,54 @@ class AndroidExternalCoreProcess(
         if (line.isBlank()) return
         synchronized(outputTail) {
             outputTail.addLast(line.take(900))
-            while (outputTail.size > 18) outputTail.removeFirst()
+            while (outputTail.size > 30) outputTail.removeFirst()
+        }
+        val normalized = line.lowercase()
+        // Registration has its own explicit stage. Only runtime output may move
+        // the UI through proxy-startup stages, and never regress after ready.
+        if (process?.isAliveCompat() == true) {
+            if (normalized.contains("listening") || normalized.contains("socks5 proxy")) {
+                proxyReadyAnnounced = true
+                onStage(Stage.PROXY_READY)
+            } else if (!proxyReadyAnnounced && (
+                normalized.contains("scan") || normalized.contains("gateway") ||
+                    normalized.contains("endpoint") || normalized.contains("connect")
+            )) {
+                onStage(Stage.WAITING_FOR_PROXY)
+            }
         }
         AppLog.i("Core/$coreId", line.take(900))
     }
 
     private fun recentOutput(): String = synchronized(outputTail) {
-        outputTail.joinToString("\n").takeLast(1800)
+        outputTail.joinToString("\n").takeLast(3000)
     }
+
+    private fun processBuilder(command: List<String>): ProcessBuilder = ProcessBuilder(command)
+        .directory(runtimeDir)
+        .redirectErrorStream(true)
+        .also { builder ->
+            val env = builder.environment()
+            env["HOME"] = runtimeDir.absolutePath
+            env["TMPDIR"] = tempDir.absolutePath
+            env["XDG_CONFIG_HOME"] = runtimeDir.absolutePath
+            env["XDG_CACHE_HOME"] = File(runtimeDir, "cache").apply { mkdirs() }.absolutePath
+            env["RUST_BACKTRACE"] = "1"
+            val nativeDir = context.applicationInfo.nativeLibraryDir
+            env["LD_LIBRARY_PATH"] = listOf(nativeDir, env["LD_LIBRARY_PATH"].orEmpty())
+                .filter(String::isNotBlank)
+                .joinToString(":")
+        }
 
     suspend fun registerWarpIfNeeded(accepted: Boolean) = withContext(Dispatchers.IO) {
         if (coreId != "warp" || warpConfig().isFile) return@withContext
+        onStage(Stage.REGISTERING_WARP)
         require(accepted) { "Cloudflare WARP terms must be accepted before registration." }
         val binary = executable()
         require(isBundled()) { "Bundled Usque core is missing from the installed APK." }
-        val command = listOf(
-            binary.absolutePath,
-            "--config", warpConfig().absolutePath,
-            "register", "--accept-tos", "--name", "dicodePing-Android",
-        )
-        val registration = ProcessBuilder(command)
-            .directory(runtimeDir)
-            .redirectErrorStream(true)
-            .start()
+        val registration = processBuilder(
+            ExternalCoreCommandBuilder.registration(binary.absolutePath, warpConfig().absolutePath)
+        ).start()
         val output = StringBuilder()
         val outputReader = thread(name = "dicodePing-warp-register-log", isDaemon = true) {
             runCatching {
@@ -131,55 +166,62 @@ class AndroidExternalCoreProcess(
                 }
             }
         }
-        if (!registration.waitForCompat(75_000L)) {
+        val registrationDeadline = SystemClock.elapsedRealtime() + WARP_REGISTRATION_TIMEOUT_MS
+        try {
+            while (registration.isAliveCompat() && SystemClock.elapsedRealtime() < registrationDeadline) {
+                delay(250L)
+            }
+            if (registration.isAliveCompat()) {
+                registration.stopCompat()
+                error("WARP registration timed out.")
+            }
+        } catch (cancelled: CancellationException) {
             registration.stopCompat()
-            error("WARP registration timed out.")
+            throw cancelled
         }
         outputReader.join(1_000L)
         val registrationOutput = synchronized(output) { output.toString() }
-        check(registration.exitValue() == 0 && warpConfig().isFile) {
-            registrationOutput.takeLast(1600).ifBlank { "WARP registration failed." }
+        check(registration.exitValue() == 0 && warpConfig().isFile && warpConfig().length() > 64L) {
+            registrationOutput.takeLast(2400).ifBlank { "WARP registration failed." }
         }
         AppLog.i("Core", "WARP registration completed")
     }
 
-    suspend fun start(warpTermsAccepted: Boolean = false) = withContext(Dispatchers.IO) {
+    suspend fun start(
+        warpTermsAccepted: Boolean = false,
+        http2Fallback: Boolean = false,
+    ) = withContext(Dispatchers.IO) {
         stop()
         synchronized(outputTail) { outputTail.clear() }
+        proxyReadyAnnounced = false
+        onStage(Stage.PREPARING)
         val binary = executable()
         require(isBundled()) {
             "Bundled $coreId core is missing from nativeLibraryDir for this device ABI."
         }
         if (coreId == "warp") registerWarpIfNeeded(warpTermsAccepted)
 
-        val command = if (coreId == "aether") {
-            listOf(
-                binary.absolutePath,
-                "--bind", "127.0.0.1:$socksPort",
-                "--masque", "--balanced", "--quick-reconnect",
-                "--noize", "firewall", "--log-level", "info",
-            )
-        } else {
-            listOf(
-                binary.absolutePath,
-                "--config", warpConfig().absolutePath,
-                "socks", "-b", "127.0.0.1", "-p", socksPort.toString(),
-            )
+        onStage(if (http2Fallback) Stage.STARTING_HTTP2_FALLBACK else Stage.STARTING_PRIMARY)
+        val command = ExternalCoreCommandBuilder.runtime(
+            coreId = coreId,
+            binary = binary.absolutePath,
+            config = warpConfig().absolutePath,
+            socksPort = socksPort,
+            http2Fallback = http2Fallback,
+        )
+        AppLog.i("Core/$coreId", "Starting bundled core; transport=${if (http2Fallback) "http2" else "primary"}")
+        val child = processBuilder(command).start()
+        process = child
+        thread(name = "dicodePing-$coreId-log", isDaemon = true) {
+            runCatching {
+                child.inputStream.bufferedReader().forEachLine(::appendOutput)
+            }
         }
 
-        process = ProcessBuilder(command)
-            .directory(runtimeDir)
-            .redirectErrorStream(true)
-            .start()
-            .also { child ->
-                thread(name = "dicodePing-$coreId-log", isDaemon = true) {
-                    runCatching {
-                        child.inputStream.bufferedReader().forEachLine(::appendOutput)
-                    }
-                }
-            }
-
-        repeat(120) {
+        onStage(Stage.WAITING_FOR_PROXY)
+        val timeoutMs = if (coreId == "aether") AETHER_START_TIMEOUT_MS else WARP_START_TIMEOUT_MS
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        while (SystemClock.elapsedRealtime() < deadline) {
             val child = process
             if (child?.isAliveCompat() != true) {
                 error(
@@ -188,16 +230,20 @@ class AndroidExternalCoreProcess(
                     }
                 )
             }
-            if (portReady()) return@withContext
-            delay(250)
+            if (portReady()) {
+                proxyReadyAnnounced = true
+                onStage(Stage.PROXY_READY)
+                return@withContext
+            }
+            delay(300L)
         }
         stop()
-        error(recentOutput().ifBlank { "$coreId local SOCKS port did not become ready." })
+        error(recentOutput().ifBlank { "$coreId local SOCKS port did not become ready before timeout." })
     }
 
     private fun portReady(): Boolean = runCatching {
         Socket().use { socket ->
-            socket.connect(InetSocketAddress("127.0.0.1", socksPort), 250)
+            socket.connect(InetSocketAddress("127.0.0.1", socksPort), 350)
         }
         true
     }.getOrDefault(false)
@@ -207,5 +253,11 @@ class AndroidExternalCoreProcess(
         val child = process ?: return
         process = null
         child.stopCompat()
+    }
+
+    private companion object {
+        const val WARP_REGISTRATION_TIMEOUT_MS = 120_000L
+        const val AETHER_START_TIMEOUT_MS = 180_000L
+        const val WARP_START_TIMEOUT_MS = 45_000L
     }
 }

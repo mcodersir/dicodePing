@@ -14,15 +14,14 @@ concurrency:
   cancel-in-progress: false
 
 # Source-quality only.  Build and release are handled by per-release
-# workflows (e.g. .github/workflows/v1.6.0-rc.1-release.yml) that run
-# only when a release note is added or when triggered manually.
+# workflow in .github/workflows/release.yml, triggered by the current release tag.
 jobs:
   source-quality:
     name: Python and security checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -34,14 +33,14 @@ jobs:
       - name: Verify synchronized version
         run: python tools/verify_version.py
       - name: Compile Python
-        run: python -m compileall -q app.py app_rc2.py app_rc3.py dicodeping shared tools tests
+        run: python -m compileall -q app.py dicodeping shared tools tests
       - name: Unit tests
         run: python -m pytest -q
       - name: Security quality gate
         run: python tools/quality_gate.py
       - name: Generate SBOM
         run: python tools/generate_sbom.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: source-sbom
           path: artifacts/SBOM.spdx.json

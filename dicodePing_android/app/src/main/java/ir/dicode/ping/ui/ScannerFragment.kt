@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.LayoutInflater
@@ -80,9 +81,14 @@ class ScannerFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { coordinator.state.collect { state ->
                     val b = _binding ?: return@collect
-                    b.scannerProgressBar.isVisible = state.running || state.progress > 0
-                    b.scannerProgressBar.isIndeterminate = state.total == 0 && state.running
-                    b.scannerProgressBar.setProgress(state.progress, true)
+                    val fetchProgress = fetchProgress(state.stage, state.progress)
+                    val testProgress = testProgress(state.stage, state.done, state.total, state.progress)
+                    b.scannerFetchProgress.isIndeterminate = state.stage == ScannerStage.CRAWLING && state.total == 0
+                    b.scannerFetchProgress.setProgress(fetchProgress, true)
+                    b.scannerTestProgress.isIndeterminate = state.stage == ScannerStage.PROBING && state.total == 0
+                    b.scannerTestProgress.setProgress(testProgress, true)
+                    b.scannerFetchLabel.text = getString(R.string.scanner_fetch_progress_value, fetchProgress)
+                    b.scannerTestLabel.text = getString(R.string.scanner_test_progress_value, state.done, state.total.coerceAtLeast(state.done), state.alive)
                     b.scannerStageLabel.text = stageText(state.stage, state.done, state.total, state.alive, state.progress)
                     b.scannerResultLabel.text = state.result
                     b.scannerRunButton.isEnabled = !state.stopRequested
@@ -112,6 +118,19 @@ class ScannerFragment : Fragment() {
         binding.scannerLogTabs.getTabAt(selectedLogTab)?.select()
     }
 
+    private fun fetchProgress(stage: ScannerStage, global: Int): Int = when (stage) {
+        ScannerStage.IDLE, ScannerStage.CONNECTING -> 0
+        ScannerStage.CRAWLING -> (((global.coerceIn(5, 45) - 5) / 40f) * 100).toInt()
+        else -> 100
+    }
+
+    private fun testProgress(stage: ScannerStage, done: Int, total: Int, global: Int): Int = when {
+        stage.ordinal < ScannerStage.PROBING.ordinal -> 0
+        stage == ScannerStage.PROBING && total > 0 -> ((done.coerceAtMost(total) * 100f) / total).toInt()
+        stage == ScannerStage.PROBING -> (((global.coerceIn(50, 95) - 50) / 45f) * 100).toInt()
+        else -> 100
+    }
+
     private fun stageText(stage: ScannerStage, done: Int, total: Int, alive: Int, progress: Int): String = buildString {
         append(when (stage) {
             ScannerStage.IDLE -> getString(R.string.ready_to_connect)
@@ -126,7 +145,7 @@ class ScannerFragment : Fragment() {
         })
         if (progress > 0) append(" • ${progress.coerceIn(0, 100)}%")
         if (total > 0) append(" • $done/$total")
-        if (alive > 0) append(" • $alive healthy")
+        if (alive > 0) append(" • $alive ${getString(R.string.scanner_alive_short)}")
     }
 
     private fun renderLog(review: List<String>, output: List<String>) {
@@ -142,7 +161,7 @@ class ScannerFragment : Fragment() {
         val error = ContextCompat.getColor(requireContext(), R.color.danger)
         val brand = ContextCompat.getColor(requireContext(), R.color.brand)
         val muted = ContextCompat.getColor(requireContext(), R.color.text_secondary)
-        lines.takeLast(140).forEachIndexed { index, line ->
+        lines.takeLast(240).forEachIndexed { index, line ->
             val start = builder.length
             builder.append(line)
             val color = when {
@@ -152,6 +171,9 @@ class ScannerFragment : Fragment() {
                 else -> muted
             }
             builder.setSpan(ForegroundColorSpan(color), start, builder.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if ("[ERR]" in line || "[DONE]" in line || "[FOUND]" in line || "[STAGE]" in line) {
+                builder.setSpan(BackgroundColorSpan(color and 0x22FFFFFF), start, builder.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
             if (line.startsWith("[")) builder.setSpan(StyleSpan(Typeface.BOLD), start, minOf(builder.length, start + line.indexOf(']').coerceAtLeast(0) + 1), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             if (index != lines.lastIndex) builder.append('\n')
         }

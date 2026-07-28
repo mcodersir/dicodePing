@@ -7,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MaintenanceTests(unittest.TestCase):
-    def test_android_rc13_release_sequence_and_pipeline(self) -> None:
+    def test_android_rc14_release_sequence_and_pipeline(self) -> None:
         gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text(encoding="utf-8")
         repository = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
         adapter = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ServerAdapter.kt").read_text(encoding="utf-8")
-        self.assertIn("versionCode = 48", gradle)
+        self.assertIn("versionCode = 49", gradle)
         self.assertIn('versionName = "1.8.0"', gradle)
         refresh = repository.split("fun refreshAll()", 1)[1].split("private suspend fun refreshServersInternal", 1)[0]
         self.assertLess(refresh.index("refreshServersInternal()"), refresh.index("locateServers("))
@@ -83,9 +83,9 @@ class MaintenanceTests(unittest.TestCase):
         self.assertNotIn("QApplication.instance().installEventFilter(self)", runtime)
         self.assertIn("obj is not self", runtime)
 
-    def test_rc13_packaged_desktop_smoke_tests_require_success(self) -> None:
-        windows = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
-        linux = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
+    def test_rc14_packaged_desktop_smoke_tests_require_success(self) -> None:
+        windows = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        linux = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         self.assertIn("--startup-smoke-test", windows)
         self.assertIn("--startup-smoke-test", linux)
         self.assertIn("DICODEPING_STARTUP_SMOKE_REPORT", windows)
@@ -106,13 +106,13 @@ class MaintenanceTests(unittest.TestCase):
 
     def test_rc2_release_tests_packaged_discovery_and_rendering(self) -> None:
         app = (ROOT / "app.py").read_text(encoding="utf-8")
-        workflow = (ROOT / ".github/workflows/v1.6.0-rc.1-release.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
         self.assertIn("DICODEPING_DISCOVERY_SMOKE", app)
         self.assertIn("preview_only=True", app)
         self.assertIn("rendered_rows", app)
         self.assertEqual(workflow.count("DICODEPING_DISCOVERY_SMOKE"), 2)
-        self.assertIn("dicodePing-v1.6.0-rc.1-windows.exe", workflow)
-        self.assertIn("dicodePing-v1.6.0-rc.1-linux-x86_64.tar.gz", workflow)
+        self.assertIn("dicodePing-v1.9.0-rc.14-windows-x64.exe", workflow)
+        self.assertIn("dicodePing-v1.9.0-rc.14-linux-x86_64.tar.gz", workflow)
 
     def test_windows_protocol_is_not_rendered(self) -> None:
         ui = (ROOT / "dicodeping/ui.py").read_text(encoding="utf-8")

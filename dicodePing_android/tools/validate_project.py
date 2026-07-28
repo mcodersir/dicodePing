@@ -65,21 +65,21 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "1.9.0-rc.13"' not in build_file:
-    errors.append("versionName must be 1.9.0-rc.13 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.13\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 1.9.0-rc.13 for this release")
+if 'versionName = "1.9.0-rc.14"' not in build_file:
+    errors.append("versionName must be 1.9.0-rc.14 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"1.9.0-rc.14\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 1.9.0-rc.14 for this release")
 
 if "compileSdk = 36" not in build_file or "targetSdk = 36" not in build_file:
-    errors.append("Android RC13 must compile and target API 36")
+    errors.append("Android RC14 must compile and target API 36")
 root_build = (ROOT / "build.gradle.kts").read_text(encoding="utf-8")
 wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
 if "com.android.tools.build:gradle:8.10.1" not in root_build:
     errors.append("AGP 8.10.1 is required for supported API 36 builds")
 if "gradle-8.11.1-bin.zip" not in wrapper:
     errors.append("Gradle 8.11.1 is required by AGP 8.10.x")
-if not re.search(r"^\s*versionCode\s*=\s*48\s*$", build_file, re.MULTILINE):
-    errors.append("Android RC13 versionCode must be 48")
+if not re.search(r"^\s*versionCode\s*=\s*49\s*$", build_file, re.MULTILINE):
+    errors.append("Android RC14 versionCode must be 49")
 if 'setOf("arm64-v8a", "x86_64")' not in build_file:
     errors.append("Android public packages must be limited to 64-bit ABIs")
 if "jniLibs.useLegacyPackaging = true" not in build_file:
@@ -157,6 +157,25 @@ for required in (
 if list(ROOT.rglob("*.ttf")) or list(ROOT.rglob("*.otf")):
     errors.append("Do not bundle font binaries; this project uses the Android downloadable font provider")
 
+
+external_core_source = (ROOT / "app/src/main/java/ir/dicode/ping/core/AndroidExternalCoreProcess.kt").read_text(encoding="utf-8")
+external_command_source = (ROOT / "app/src/main/java/ir/dicode/ping/core/ExternalCoreCommandBuilder.kt").read_text(encoding="utf-8")
+vpn_service_source = (ROOT / "app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt").read_text(encoding="utf-8")
+settings_source = (ROOT / "app/src/main/java/ir/dicode/ping/ui/SettingsFragment.kt").read_text(encoding="utf-8")
+home_source = (ROOT / "app/src/main/java/ir/dicode/ping/ui/HomeFragment.kt").read_text(encoding="utf-8")
+manifest_source = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+if 'android:extractNativeLibs="true"' not in manifest_source:
+    errors.append("Bundled Aether/Usque executables must be extracted by PackageManager")
+for token in ("--quick-reconnect", "--h2", "--fragment", "--always-reconnect", "--http2"):
+    if token not in external_command_source:
+        errors.append(f"External-core runtime lost required transport option: {token}")
+if "startExternalCoreWithFallback" not in vpn_service_source or "EXTERNAL_VERIFY_TIMEOUT_MS" not in vpn_service_source:
+    errors.append("External cores must use real-traffic verification with automatic fallback")
+if "core_activation_guide_aether" not in settings_source or "openHomePage" not in settings_source:
+    errors.append("Aether/WARP activation must guide the user to Home and the Connect button")
+if "renderExternalCoreTarget" not in home_source:
+    errors.append("Home must show the active external core instead of an unrelated Xray server")
+
 if errors:
     print("Validation failed:")
     for item in errors:
@@ -165,5 +184,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 1.9.0-rc.13")
+print("Version is 1.9.0-rc.14")
 print("Project structure is ready for Android build")

@@ -1,6 +1,7 @@
 package ir.dicode.ping.core
 
 import android.content.Context
+import ir.dicode.ping.R
 import ir.dicode.ping.data.SettingsStore
 
 /** Capability registry for signed cores bundled inside the APK. */
@@ -19,19 +20,19 @@ class AndroidCoreManager(private val context: Context) {
     }
 
     fun capability(coreId: String): Capability = when (coreId) {
-        "xray" -> Capability(coreId, CapabilityState.installed, "Xray is embedded in dicodePing.")
+        "xray" -> Capability(coreId, CapabilityState.installed, context.getString(R.string.core_xray_builtin))
         "aether" -> if (bundled(coreId)) {
-            Capability(coreId, CapabilityState.installed, "Aether is bundled for this device ABI.")
-        } else Capability(coreId, CapabilityState.unsupportedInThisBuild, "Aether binary is missing for this ABI.")
+            Capability(coreId, CapabilityState.installed, context.getString(R.string.core_aether_bundled))
+        } else Capability(coreId, CapabilityState.unsupportedInThisBuild, context.getString(R.string.core_aether_missing))
         "warp" -> if (bundled(coreId)) {
-            Capability(coreId, CapabilityState.installed, "Usque/WARP is bundled for this device ABI.")
-        } else Capability(coreId, CapabilityState.unsupportedInThisBuild, "Usque binary is missing for this ABI.")
+            Capability(coreId, CapabilityState.installed, context.getString(R.string.core_warp_bundled))
+        } else Capability(coreId, CapabilityState.unsupportedInThisBuild, context.getString(R.string.core_warp_missing))
         "psiphon" -> Capability(
             coreId,
             CapabilityState.missingAuthorizedConfig,
-            "Authorized Psiphon distribution configuration is unavailable in this build.",
+            context.getString(R.string.core_psiphon_authorization_missing),
         )
-        else -> Capability(coreId, CapabilityState.unsupportedInThisBuild, "Unknown connection core.")
+        else -> Capability(coreId, CapabilityState.unsupportedInThisBuild, context.getString(R.string.core_unknown))
     }
 
     fun isInstalled(coreId: String): Boolean = capability(coreId).canConnect

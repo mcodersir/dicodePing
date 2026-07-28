@@ -57,7 +57,7 @@ def register_warp(*, accept_terms: bool) -> Path:
     result = subprocess.run(
         [
             str(executable),
-            "--config",
+            "-c",
             str(temporary),
             "register",
             "--accept-tos",
@@ -454,7 +454,7 @@ class AlternativeCoreManager:
             config = core_dir("warp") / "config.json"
             if not config.is_file():
                 raise RuntimeError("WARP registration is required; activate it from Settings first")
-            command = [str(executable), "--config", str(config)]
+            command = [str(executable), "-c", str(config)]
             if transport == "http2":
                 command.append("--http2")
             command.extend(

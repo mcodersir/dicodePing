@@ -232,7 +232,9 @@ class DicodeVpnService : VpnService() {
 
             tun = builder.establish() ?: error(getString(R.string.vpn_establish_failed))
             core = CoreBridge(applicationContext) { _ ->
-                if (generation == startGeneration.get() && VpnStateStore.state.value.status == VpnStatus.CONNECTING) {
+                if (coreId == "xray" && generation == startGeneration.get() &&
+                    VpnStateStore.state.value.status == VpnStatus.CONNECTING
+                ) {
                     VpnStateStore.state.value = VpnState(
                         VpnStatus.CONNECTING,
                         serverId,
@@ -245,36 +247,29 @@ class DicodeVpnService : VpnService() {
 
             val resources = ir.dicode.ping.util.RuntimeTuning.detect(applicationContext)
             val settings = SettingsStore(applicationContext)
-            val xrayConfig = if (coreId == "xray") {
-                XrayConfigBuilder.build(
+            val verifiedPing = if (coreId == "xray") {
+                val xrayConfig = XrayConfigBuilder.build(
                     raw,
                     bypassDomains,
                     resources.bufferSizeKiB,
                     settings.cdnFormattingDomain.takeIf { settings.cdnFormattingEnabled }.orEmpty(),
                     settings.secureDnsDoh,
                 )
+                core!!.start(xrayConfig, tun!!.fd)
+                if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
+                publishConnectingState(serverId, name, getString(R.string.verifying_connection), generation)
+                verifyProxyConnection(coreId) ?: error(PROXY_VALIDATION_ERROR)
             } else {
                 check(coreId == "aether" || coreId == "warp") { "Unsupported bundled core: $coreId" }
-                val helper = AndroidExternalCoreProcess(applicationContext, coreId)
-                helper.start(settings.warpTermsAccepted)
-                externalCore = helper
-                XrayConfigBuilder.buildSocksBridge(
-                    helper.socksPort,
-                    resources.bufferSizeKiB,
-                    settings.secureDnsDoh,
+                startExternalCoreWithFallback(
+                    coreId = coreId,
+                    serverId = serverId,
+                    name = name,
+                    settings = settings,
+                    bufferSizeKiB = resources.bufferSizeKiB,
+                    generation = generation,
                 )
             }
-            core!!.start(xrayConfig, tun!!.fd)
-            if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
-            VpnStateStore.state.value = VpnState(
-                VpnStatus.CONNECTING,
-                serverId,
-                name,
-                getString(R.string.verifying_connection),
-            )
-
-            // A running core only proves that the config parsed. Confirm real traffic through it.
-            val verifiedPing = verifyProxyConnection() ?: error(PROXY_VALIDATION_ERROR)
             if (core?.isRunning() != true) error("Xray stopped immediately after connection verification")
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             AppLog.i("VPN", "Connection verified for $name in ${verifiedPing}ms")
@@ -313,13 +308,120 @@ class DicodeVpnService : VpnService() {
         }
     }
 
-    private suspend fun verifyProxyConnection(): Long? {
-        val waits = longArrayOf(0L, 250L, 650L, 1_200L)
-        for (waitMs in waits) {
-            if (waitMs > 0) delay(waitMs)
+    private suspend fun startExternalCoreWithFallback(
+        coreId: String,
+        serverId: String,
+        name: String,
+        settings: SettingsStore,
+        bufferSizeKiB: Int,
+        generation: Long,
+    ): Long {
+        var lastError: Throwable? = null
+        for (http2Fallback in listOf(false, true)) {
+            if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
+            if (http2Fallback) {
+                publishConnectingState(
+                    serverId,
+                    name,
+                    getString(R.string.core_stage_switching_http2),
+                    generation,
+                )
+            }
+
+            val helper = AndroidExternalCoreProcess(applicationContext, coreId) { stage ->
+                publishConnectingState(
+                    serverId,
+                    name,
+                    externalCoreStageMessage(coreId, stage),
+                    generation,
+                )
+            }
+            try {
+                helper.start(
+                    warpTermsAccepted = settings.warpTermsAccepted,
+                    http2Fallback = http2Fallback,
+                )
+                externalCore = helper
+                val bridgeConfig = XrayConfigBuilder.buildSocksBridge(
+                    helper.socksPort,
+                    bufferSizeKiB,
+                    settings.secureDnsDoh,
+                )
+                core!!.start(bridgeConfig, tun!!.fd)
+                publishConnectingState(
+                    serverId,
+                    name,
+                    getString(R.string.core_stage_verifying_real_traffic),
+                    generation,
+                )
+                val measured = verifyProxyConnection(coreId)
+                if (measured != null) return measured
+                error(EXTERNAL_PROXY_VALIDATION_ERROR)
+            } catch (cancelled: CancellationException) {
+                helper.stop()
+                throw cancelled
+            } catch (error: Throwable) {
+                lastError = error
+                AppLog.w(
+                    "VPN",
+                    "$coreId ${if (http2Fallback) "HTTP/2" else "primary"} attempt failed: ${error.message}",
+                )
+                runCatching { core?.stop() }
+                helper.stop()
+                if (externalCore === helper) externalCore = null
+            }
+        }
+        throw lastError ?: IllegalStateException(EXTERNAL_PROXY_VALIDATION_ERROR)
+    }
+
+    private fun publishConnectingState(
+        serverId: String,
+        name: String,
+        message: String,
+        generation: Long,
+    ) {
+        if (generation != startGeneration.get()) return
+        if (VpnStateStore.state.value.status != VpnStatus.CONNECTING) return
+        VpnStateStore.state.value = VpnState(
+            VpnStatus.CONNECTING,
+            serverId,
+            name,
+            message,
+        )
+    }
+
+    private fun externalCoreStageMessage(
+        coreId: String,
+        stage: AndroidExternalCoreProcess.Stage,
+    ): String {
+        val coreName = if (coreId == "warp") "WARP / Usque" else "Aether"
+        return when (stage) {
+            AndroidExternalCoreProcess.Stage.PREPARING ->
+                getString(R.string.core_stage_preparing, coreName)
+            AndroidExternalCoreProcess.Stage.REGISTERING_WARP ->
+                getString(R.string.core_stage_registering_warp)
+            AndroidExternalCoreProcess.Stage.STARTING_PRIMARY ->
+                getString(R.string.core_stage_starting_primary, coreName)
+            AndroidExternalCoreProcess.Stage.STARTING_HTTP2_FALLBACK ->
+                getString(R.string.core_stage_starting_http2, coreName)
+            AndroidExternalCoreProcess.Stage.WAITING_FOR_PROXY ->
+                getString(R.string.core_stage_waiting, coreName)
+            AndroidExternalCoreProcess.Stage.PROXY_READY ->
+                getString(R.string.core_stage_proxy_ready, coreName)
+        }
+    }
+
+    private suspend fun verifyProxyConnection(coreId: String): Long? {
+        val timeoutMs = if (coreId == "xray") XRAY_VERIFY_TIMEOUT_MS else EXTERNAL_VERIFY_TIMEOUT_MS
+        val intervalMs = if (coreId == "xray") 350L else 1_500L
+        val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs
+        do {
             val measured = core?.measureDelay()
             if (measured != null && measured >= 0) return measured
-        }
+            if (core?.isRunning() != true) return null
+            if (externalCore?.let { !it.isRunning() } == true) return null
+            delay(intervalMs)
+        } while (android.os.SystemClock.elapsedRealtime() < deadline)
         return null
     }
 
@@ -507,7 +609,15 @@ class DicodeVpnService : VpnService() {
     private fun publicErrorMessage(error: Throwable): String {
         val raw = unwrapMessage(error)
         return when {
+            raw.contains(EXTERNAL_PROXY_VALIDATION_ERROR, ignoreCase = true) -> getString(R.string.external_core_connection_failed)
             raw.contains(PROXY_VALIDATION_ERROR, ignoreCase = true) -> getString(R.string.server_unreachable)
+            raw.contains("WARP registration", ignoreCase = true) ||
+                raw.contains("register", ignoreCase = true) && raw.contains("warp", ignoreCase = true) ->
+                getString(R.string.warp_registration_failed)
+            raw.contains("SOCKS", ignoreCase = true) ||
+                raw.contains("tunnel", ignoreCase = true) ||
+                raw.contains("timed out", ignoreCase = true) ->
+                getString(R.string.external_core_connection_failed)
             raw.contains("permission", ignoreCase = true) -> getString(R.string.vpn_permission_required)
             raw.contains("establish", ignoreCase = true) -> getString(R.string.vpn_establish_failed)
             raw.contains("core", ignoreCase = true) ||
@@ -570,6 +680,9 @@ class DicodeVpnService : VpnService() {
         private const val CHANNEL_ID = "dicodeping_vpn"
         private const val NOTIFICATION_ID = 7101
         private const val PROXY_VALIDATION_ERROR = "proxy validation failed"
+        private const val EXTERNAL_PROXY_VALIDATION_ERROR = "external proxy validation failed"
+        private const val XRAY_VERIFY_TIMEOUT_MS = 6_000L
+        private const val EXTERNAL_VERIFY_TIMEOUT_MS = 90_000L
         private const val VPN_MTU = 1400
         private const val VPN_IPV4_ADDRESS = "172.19.0.1"
         private const val VPN_IPV4_PREFIX_LENGTH = 30

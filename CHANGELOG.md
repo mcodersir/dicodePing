@@ -1,3 +1,17 @@
+## 1.9.0-rc.14
+
+- Made Android Aether and WARP activation a complete user flow: activate, return Home, press Connect, and follow live stages until verified.
+- Deferred first-time WARP registration to the foreground Connect flow so it is visible, cancellable and retryable.
+- Routed Android traffic through the selected native Aether/Usque SOCKS tunnel, then through the app-owned Xray TUN bridge.
+- Added primary transport plus automatic HTTP/2 fallback and required real HTTP traffic before reporting Connected.
+- Kept external-core targets independent from Xray server cards and exposed accurate core-specific state on Home.
+- Unified Android per-app routing and migrated legacy bypass-app settings.
+- Fixed RTL dropdown hint overlap and CDN field validation target.
+- Added separate scanner fetch/probe progress and richer live-log highlighting.
+- Split server quality, profile and volume metadata into independent badges.
+- Corrected Usque CLI configuration flag on desktop and Android.
+- Repaired GitHub Pages workflow and cleaned release-era repository clutter.
+
 ## 1.9.0-rc.13
 
 - Routed Android Telegram preview requests through a dedicated loopback SOCKS5 inbound inside the verified Xray instance.

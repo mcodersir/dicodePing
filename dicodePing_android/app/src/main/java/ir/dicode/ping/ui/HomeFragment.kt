@@ -80,6 +80,12 @@ class HomeFragment : Fragment() {
     private fun renderConnectionTarget() {
         if (_binding == null) return
         val vpnState = VpnStateStore.state.value
+        val activeCore = vm.repo.settings.activeCore
+        if (activeCore in setOf("aether", "warp") || vpnState.serverId.startsWith("core:")) {
+            renderExternalCoreTarget(activeCore.takeIf { it in setOf("aether", "warp") }
+                ?: vpnState.serverId.removePrefix("core:"))
+            return
+        }
         val target = if (vpnState.status in setOf(VpnStatus.CONNECTED, VpnStatus.CONNECTING) && vpnState.serverId.isNotBlank()) {
             vm.repo.serverById(vpnState.serverId) ?: vm.repo.connectionTarget()
         } else {
@@ -92,6 +98,23 @@ class HomeFragment : Fragment() {
             else -> getString(R.string.automatic_connection_server)
         }
         bindTarget(target)
+    }
+
+    private fun renderExternalCoreTarget(coreId: String) {
+        val state = VpnStateStore.state.value
+        val isWarp = coreId == "warp"
+        binding.recommendedLabel.text = when (state.status) {
+            VpnStatus.CONNECTED -> getString(R.string.connected_core)
+            VpnStatus.CONNECTING -> getString(R.string.connecting_core)
+            else -> getString(R.string.selected_connection_core)
+        }
+        binding.bestFlag.text = if (isWarp) "☁️" else "⚡"
+        binding.bestServer.text = if (isWarp) "WARP / Usque" else "Aether"
+        binding.bestServerMeta.text = if (isWarp) {
+            getString(R.string.warp_core_home_description)
+        } else {
+            getString(R.string.aether_core_home_description)
+        }
     }
 
     private fun bindTarget(server: ServerRecord?) {
@@ -179,6 +202,12 @@ class HomeFragment : Fragment() {
         return code.uppercase(Locale.US).map { character ->
             String(Character.toChars(0x1F1E6 + character.code - 'A'.code))
         }.joinToString("")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderConnectionTarget()
+        renderVpnState(VpnStateStore.state.value)
     }
 
     override fun onDestroyView() {

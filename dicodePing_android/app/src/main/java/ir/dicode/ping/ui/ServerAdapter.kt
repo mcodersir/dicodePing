@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.DiffUtil
@@ -67,7 +68,7 @@ class ServerAdapter(
             network.visibility = View.GONE
 
             bindPing(this, server)
-            bindQualityVolume(this, server)
+            bindServerBadges(this, server)
             selectedBadge.visibility = if (isSelected) View.VISIBLE else View.INVISIBLE
             root.strokeWidth = dp(root, if (isSelected) 2 else 1)
             root.strokeColor = ContextCompat.getColor(
@@ -152,20 +153,21 @@ class ServerAdapter(
         }
     }
 
-    /**
-     * Bind the inline quality + volume badge (v1.6.0-rc.3).
-     *
-     * Shows the quality bucket word ("عالی"/"خوب"/"متوسط"/"ضعیف") and,
-     * if a volume label is available, the volume label below it.  The
-     * badge background matches the quality bucket colour so the row
-     * reads as a unit.
-     */
-    private fun bindQualityVolume(binding: ItemServerBinding, server: ServerRecord) {
+    private fun bindServerBadges(binding: ItemServerBinding, server: ServerRecord) {
         val context = binding.root.context
         val rating = QualityRating.rate(server.pingMs)
-        val volumeInfo = VolumeDetector.detectFromServer(server)
-        val parts = mutableListOf<String>()
-        parts.add(rating.bucket.labelFa)
+        val hasQuality = server.pingMs != null
+        binding.qualityBadge.visibility = if (hasQuality) View.VISIBLE else View.GONE
+        if (hasQuality) {
+            binding.qualityBadge.text = rating.bucket.labelFa
+            val colorRes = when (rating.bucket) {
+                QualityRating.Bucket.EXCELLENT, QualityRating.Bucket.GOOD -> R.color.success
+                QualityRating.Bucket.FAIR -> R.color.warning
+                QualityRating.Bucket.POOR -> R.color.danger
+            }
+            styleBadge(binding.qualityBadge, ContextCompat.getColor(context, colorRes))
+        }
+
         val profileLabel = when (
             runCatching { ConfigProfileClassifier.Tag.valueOf(server.profileTag.uppercase()) }
                 .getOrDefault(ConfigProfileClassifier.Tag.UNKNOWN)
@@ -175,28 +177,23 @@ class ServerAdapter(
             ConfigProfileClassifier.Tag.PERSISTENT -> context.getString(R.string.config_profile_persistent)
             ConfigProfileClassifier.Tag.UNKNOWN -> ""
         }
-        if (profileLabel.isNotBlank()) parts.add(profileLabel)
-        val volumeLabel = volumeInfo.label
-        if (volumeLabel.isNotBlank() && volumeLabel != "—") {
-            parts.add(volumeLabel)
-        }
-        if (parts.size == 1 && rating.bucket == QualityRating.Bucket.POOR && server.pingMs == null) {
-            // No ping yet — hide the badge entirely.
-            binding.qualityVolume.visibility = View.GONE
-            return
-        }
-        binding.qualityVolume.visibility = View.VISIBLE
-        binding.qualityVolume.text = parts.joinToString("\n")
-        val colorRes = when (rating.bucket) {
-            QualityRating.Bucket.EXCELLENT -> R.color.success
-            QualityRating.Bucket.GOOD -> R.color.success
-            QualityRating.Bucket.FAIR -> R.color.warning
-            QualityRating.Bucket.POOR -> R.color.danger
-        }
-        val color = ContextCompat.getColor(context, colorRes)
-        binding.qualityVolume.setTextColor(color)
-        binding.qualityVolume.background = GradientDrawable().apply {
-            cornerRadius = dp(binding.qualityVolume, 12).toFloat()
+        binding.profileBadge.visibility = if (profileLabel.isBlank()) View.GONE else View.VISIBLE
+        binding.profileBadge.text = profileLabel
+        if (profileLabel.isNotBlank()) styleBadge(binding.profileBadge, ContextCompat.getColor(context, R.color.brand))
+
+        val volume = VolumeDetector.detectFromServer(server)
+        val volumeLabel = volume.label.takeUnless { it.isBlank() || it == "—" }.orEmpty()
+        binding.volumeBadge.visibility = if (volumeLabel.isBlank()) View.GONE else View.VISIBLE
+        binding.volumeBadge.text = volumeLabel
+        if (volumeLabel.isNotBlank()) styleBadge(binding.volumeBadge, ContextCompat.getColor(context, R.color.warning))
+
+        binding.serverBadges.visibility = if (hasQuality || profileLabel.isNotBlank() || volumeLabel.isNotBlank()) View.VISIBLE else View.GONE
+    }
+
+    private fun styleBadge(view: TextView, color: Int) {
+        view.setTextColor(color)
+        view.background = GradientDrawable().apply {
+            cornerRadius = dp(view, 12).toFloat()
             setColor(ColorUtils.setAlphaComponent(color, 28))
         }
     }

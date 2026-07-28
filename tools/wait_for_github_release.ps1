@@ -5,7 +5,7 @@ param(
     [string]$Repository,
 
     [Parameter(Mandatory = $true)]
-    [ValidateNotNullOrEmpty()]
+    [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$')]
     [string]$Tag,
 
     [Parameter(Mandatory = $true)]
@@ -16,9 +16,6 @@ param(
     [ValidatePattern('^[0-9a-fA-F]{40}$')]
     [string]$CommitSha,
 
-    [ValidateNotNullOrEmpty()]
-    [string]$Branch = 'main',
-
     [ValidateRange(1, 240)]
     [int]$TimeoutMinutes = 90
 )
@@ -26,24 +23,29 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+$version = $Tag.Substring(1)
 $releaseUrl = "https://github.com/$Repository/releases/tag/$Tag"
 $actionsUrl = "https://github.com/$Repository/actions/workflows/$WorkflowFile"
 $encodedWorkflow = [Uri]::EscapeDataString($WorkflowFile)
-$encodedBranch = [Uri]::EscapeDataString($Branch)
-$runsApiUrl = "https://api.github.com/repos/$Repository/actions/workflows/$encodedWorkflow/runs?branch=$encodedBranch&event=push&per_page=20"
+$runsApiUrl = "https://api.github.com/repos/$Repository/actions/workflows/$encodedWorkflow/runs?event=push&per_page=50"
 $releaseApiUrl = "https://api.github.com/repos/$Repository/releases/tags/$([Uri]::EscapeDataString($Tag))"
 $headers = @{
-    'User-Agent' = 'dicodePing-release-recovery-waiter'
+    'User-Agent' = 'dicodePing-release-waiter'
     'Accept' = 'application/vnd.github+json'
     'X-GitHub-Api-Version' = '2022-11-28'
 }
 
+$apiToken = if ($env:GH_TOKEN) { $env:GH_TOKEN } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } else { $null }
+if ($apiToken) {
+    $headers['Authorization'] = "Bearer $apiToken"
+}
+
 $requiredAssets = @(
-    'dicodePing-v1.9.0-rc.4-windows-x64.exe',
-    'dicodePing-v1.9.0-rc.4-linux-x86_64.tar.gz',
-    'dicodePing-v1.9.0-rc.4-macos-arm64.dmg',
-    'dicodePing-v1.9.0-rc.4-macos-x86_64.dmg',
-    'dicodePing-v1.9.0-rc.4-android.apk'
+    "dicodePing-$version-windows-x64.exe",
+    "dicodePing-$version-linux-x86_64.tar.gz",
+    "dicodePing-$version-macos-arm64.dmg",
+    "dicodePing-$version-macos-x86_64.dmg",
+    "dicodePing-$version-android.apk"
 )
 
 $startedAt = Get-Date
@@ -53,7 +55,7 @@ $lastStatus = $null
 $successfulRunSeenAt = $null
 
 Write-Host "[WAIT] Looking for workflow '$WorkflowFile' at commit $CommitSha"
-Write-Host "[WAIT] Existing release pages are ignored until this exact run succeeds."
+Write-Host "[WAIT] Required release assets are derived from tag $Tag."
 
 while ((Get-Date) -lt $deadline) {
     try {
@@ -65,8 +67,8 @@ while ((Get-Date) -lt $deadline) {
 
         if ($null -eq $run) {
             $elapsed = [Math]::Floor(((Get-Date) - $startedAt).TotalMinutes)
-            Write-Host "[WAIT] Exact workflow run is not visible yet - elapsed $elapsed min"
-            Start-Sleep -Seconds 75
+            Write-Host "[WAIT] Exact tag workflow run is not visible yet - elapsed $elapsed min"
+            Start-Sleep -Seconds 45
             continue
         }
 
@@ -84,7 +86,7 @@ while ((Get-Date) -lt $deadline) {
         if ($run.status -eq 'completed' -and $run.conclusion -eq 'success') {
             if ($null -eq $successfulRunSeenAt) {
                 $successfulRunSeenAt = Get-Date
-                Write-Host "[OK] Exact workflow run completed successfully. Verifying release assets..."
+                Write-Host '[OK] Exact release workflow succeeded. Verifying published assets...'
             }
 
             try {
@@ -93,24 +95,24 @@ while ((Get-Date) -lt $deadline) {
                 $missing = @($requiredAssets | Where-Object { $_ -notin $assetNames })
 
                 if ($release.prerelease -eq $true -and $missing.Count -eq 0) {
-                    Write-Host "[OK] GitHub pre-release contains all required platform packages."
+                    Write-Host '[OK] GitHub pre-release contains every required platform package.'
                     Write-Host "[OK] $releaseUrl"
                     exit 0
                 }
 
                 if ($release.prerelease -ne $true) {
-                    Write-Warning "The release exists but is not marked as a prerelease yet."
+                    Write-Warning 'The release exists but is not marked as a prerelease yet.'
                 }
                 if ($missing.Count -gt 0) {
-                    Write-Host "[WAIT] Release update is still propagating. Missing assets: $($missing -join ', ')"
+                    Write-Host "[WAIT] Release update is still propagating. Missing: $($missing -join ', ')"
                 }
             }
             catch {
-                Write-Host "[WAIT] The successful workflow is visible, but the updated release API is not ready yet."
+                Write-Host '[WAIT] Workflow succeeded, but the updated release API is not ready yet.'
             }
 
-            if (((Get-Date) - $successfulRunSeenAt).TotalMinutes -ge 5) {
-                Write-Error "The workflow succeeded, but the release did not contain all required assets after five minutes. Open: $releaseUrl"
+            if (((Get-Date) - $successfulRunSeenAt).TotalMinutes -ge 7) {
+                Write-Error "The workflow succeeded, but required assets were still missing after seven minutes. Open: $releaseUrl"
                 exit 3
             }
         }
@@ -121,14 +123,13 @@ while ((Get-Date) -lt $deadline) {
 
     $elapsed = [Math]::Floor(((Get-Date) - $startedAt).TotalMinutes)
     Write-Host "[WAIT] Build or release update is still in progress - elapsed $elapsed min"
-    Start-Sleep -Seconds 75
+    Start-Sleep -Seconds 60
 }
 
-Write-Warning "Timed out waiting for the exact release workflow and assets."
+Write-Warning 'Timed out waiting for the exact release workflow and assets.'
 if ($null -ne $run) {
     Write-Host "Last workflow run: $($run.html_url)"
-}
-else {
+} else {
     Write-Host "Actions: $actionsUrl"
 }
 exit 2

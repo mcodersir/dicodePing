@@ -260,4 +260,34 @@ Details: %1$s</string>
     <string name="scanner_disconnecting">Stopping bootstrap VPN…</string>
     <string name="scanner_saving">Saving verified SUB…</string>
     <string name="scanner_telegram_unreachable">Telegram could not be reached through the active VPN. Check the selected server configuration, internet access, and VPN permission, then try again.</string>
+    <string name="core_aether_bundled">Aether is bundled for this device architecture.</string>
+    <string name="core_aether_missing">Aether is not available for this device architecture.</string>
+    <string name="core_warp_bundled">WARP / Usque is bundled for this device architecture.</string>
+    <string name="core_warp_missing">WARP / Usque is not available for this device architecture.</string>
+    <string name="core_psiphon_authorization_missing">Psiphon needs an authorized distribution configuration and is disabled in this build.</string>
+    <string name="core_unknown">Unknown connection core.</string>
+    <string name="scanner_fetch_progress">Receiving configurations</string>
+    <string name="scanner_test_progress">Testing servers</string>
+    <string name="scanner_fetch_progress_value">Receiving configurations • %1$d%%</string>
+    <string name="scanner_test_progress_value">Testing servers • %1$d/%2$d • %3$d live</string>
+    <string name="scanner_alive_short">live</string>
+
+    <string name="core_activation_guide_title">Core activated; connect from Home</string>
+    <string name="core_activation_guide_aether">Aether is active. Go to Home, tap Connect, and wait until the status becomes Connected. Aether first discovers a reachable route; the first connection can take a few minutes, and the app automatically tries HTTP/2 when needed.</string>
+    <string name="core_activation_guide_warp">WARP / Usque is active. Go to Home, tap Connect, and wait until the status becomes Connected. On the first connection the app registers a WARP device and then establishes the real tunnel; if QUIC fails, HTTP/2 is tried automatically.</string>
+    <string name="go_to_home">Go to Home</string>
+    <string name="connected_core">Connected core</string>
+    <string name="connecting_core">Connecting core</string>
+    <string name="selected_connection_core">Selected connection core</string>
+    <string name="aether_core_home_description">Independent Aether tunnel • does not use Xray servers</string>
+    <string name="warp_core_home_description">Cloudflare WARP tunnel through Usque • does not use Xray servers</string>
+    <string name="core_stage_preparing">Preparing %1$s…</string>
+    <string name="core_stage_registering_warp">Registering the WARP device for the first connection…</string>
+    <string name="core_stage_starting_primary">Starting %1$s with the primary transport…</string>
+    <string name="core_stage_starting_http2">Starting %1$s with HTTP/2 fallback…</string>
+    <string name="core_stage_waiting">%1$s is establishing the tunnel; please wait…</string>
+    <string name="core_stage_proxy_ready">The %1$s local tunnel is ready; routing device traffic…</string>
+    <string name="core_stage_switching_http2">The primary transport did not pass traffic; trying HTTP/2 automatically…</string>
+    <string name="core_stage_verifying_real_traffic">Verifying real internet traffic through the selected core…</string>
+    <string name="external_core_connection_failed">The selected core started, but real internet traffic could not be verified. Check the network and try Connect again.</string>
 </resources>
