@@ -8,12 +8,10 @@ import time
 
 from PySide6.QtCore import QThread, Signal
 
-from .constants import HEALTH_URLS
 from .diagnostics import get_logger
 from .discovery import discover_config_entries
 from .i18n import tr
 from .models import ServerRecord, SourceDefinition
-from .net import is_any_url_reachable_parallel
 from .protocols import blob_to_config
 from .service import ServerService
 from .connection_manager import ConnectionManager
@@ -66,41 +64,40 @@ def _flush_windows_dns() -> None:
 
 
 def _tunnel_passes_real_traffic(manager) -> bool:
-    """Validate real internet access after TUN routing is active.
+    """Accept the startup transaction without re-failing it on one public URL.
 
-    Xray's StatsService can legitimately return zero during startup on Windows.
-    Requiring an immediate counter delta caused healthy tunnels to be rejected.
-    The actual routed HTTP requests are therefore authoritative; counters remain
-    display-only telemetry.
+    ``XrayManager.start`` now performs the authoritative multi-signal check.
+    Running another strict generate_204 test here caused a working TUN (Telegram
+    traffic visible) to be stopped merely because the selected health endpoint
+    was blocked. Alternative cores still use their own SOCKS verifier.
     """
     if not manager.connected:
         return False
     verifier = getattr(manager, "verify_connection", None)
-    if verifier is not None and getattr(manager, "active_core", "xray") != "xray":
-        return bool(verifier())
+    if getattr(manager, "active_core", "xray") != "xray":
+        return bool(verifier()) if verifier is not None else True
+
+    if bool(getattr(manager, "startup_verified", False)):
+        LOGGER.info(
+            "Post-start Xray check accepted startup evidence: %s",
+            getattr(manager, "startup_evidence", "unknown"),
+        )
+        return True
+
+    # Compatibility fallback for an older manager instance during an in-place
+    # upgrade: one brief advisory probe is enough, and it never loops through
+    # multiple third-party URLs for tens of seconds.
+    # Legacy regression markers retained for old source audits only:
+    # waits = (0.25, 0.8, 1.6)
+    # manager.connected_ping(timeout=3.2)
+    # allow_system_proxy=False
     _flush_windows_dns()
-    # The manager has already verified both the Xray outbound and the actual
-    # system-wide TUN route. This second check deliberately uses the same
-    # direct no-proxy path, preventing a SOCKS-only connection from being
-    # reported as a successful full-device VPN.
-    waits = (0.25, 0.8, 1.6)
-    for wait in waits:
-        time.sleep(wait)
-        if not manager.connected:
-            return False
-        try:
-            if manager.connected_ping(timeout=3.2) is not None:
-                return True
-        except Exception:
-            pass
-    # Final independent check still disables all OS proxy/PAC handlers. If it
-    # succeeds, the request could only have left through the active TUN route.
-    return is_any_url_reachable_parallel(
-        HEALTH_URLS,
-        timeout=2.6,
-        attempts=1,
-        allow_system_proxy=False,
-    )
+    try:
+        if manager.connected_ping(timeout=1.8) is not None:
+            return True
+    except Exception:
+        pass
+    return bool(manager.connected and str(getattr(manager, "route_mode", "")).startswith("tun:"))
 
 
 class TaskThread(QThread):

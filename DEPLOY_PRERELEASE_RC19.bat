@@ -422,6 +422,8 @@ call %PYTHON_CMD% tools\validate_android_source_references.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_rc19_dual_latency.py
 if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_rc19_connection_stability.py
+if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% -c "import pytest" >nul 2>&1

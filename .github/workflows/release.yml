@@ -31,6 +31,7 @@ jobs:
           python tools/validate_android_gradle_kts.py
           python tools/validate_android_source_references.py
           python tools/validate_rc19_dual_latency.py
+          python tools/validate_rc19_connection_stability.py
           python -m pytest -q
           python tools/quality_gate.py
           python dicodePing_android/tools/validate_project.py

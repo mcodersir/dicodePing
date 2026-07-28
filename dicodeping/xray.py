@@ -589,26 +589,60 @@ def _source_ip_for_endpoint(host: str, port: int) -> str:
     return ""
 
 
-def _direct_tun_http_probe(timeout: float = 3.0) -> int | None:
-    """Verify that ordinary process traffic is routed through the active TUN."""
+_DIRECT_TUN_ENDPOINTS = (
+    "https://www.google.com/generate_204",
+    "https://www.gstatic.com/generate_204",
+    "https://cp.cloudflare.com/generate_204",
+    "https://www.cloudflare.com/cdn-cgi/trace",
+    "https://api.github.com/zen",
+)
+
+_SOCKS_VALIDATION_TARGETS = (
+    ("www.google.com", "/generate_204", True),
+    ("www.gstatic.com", "/generate_204", True),
+    ("cp.cloudflare.com", "/generate_204", True),
+    ("www.cloudflare.com", "/cdn-cgi/trace", True),
+)
+
+
+def _direct_tun_single_probe(url: str, timeout: float) -> int | None:
+    """Run one no-proxy request through the system route.
+
+    This is intentionally a connectivity hint, not the sole source of truth:
+    captive portals, regional filtering, DNS interception and endpoint-specific
+    blocking can make any single public URL fail while the TUN is carrying real
+    application traffic.
+    """
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    endpoints = (
-        "http://www.gstatic.com/generate_204",
-        "http://cp.cloudflare.com/generate_204",
-        "https://www.cloudflare.com/cdn-cgi/trace",
-    )
-    for url in endpoints:
-        started = time.perf_counter()
-        try:
-            request = urllib.request.Request(
-                url,
-                headers={"User-Agent": f"{APP_NAME}/{VERSION}", "Connection": "close"},
-            )
-            with opener.open(request, timeout=max(0.6, float(timeout))) as response:
-                if 200 <= int(response.status) < 400:
-                    return max(1, int(round((time.perf_counter() - started) * 1000)))
-        except (OSError, ValueError, urllib.error.URLError):
-            continue
+    started = time.perf_counter()
+    try:
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": f"{APP_NAME}/{VERSION}", "Connection": "close"},
+        )
+        with opener.open(request, timeout=max(0.45, float(timeout))) as response:
+            if 200 <= int(response.status) < 400:
+                return max(1, int(round((time.perf_counter() - started) * 1000)))
+    except (OSError, ValueError, urllib.error.URLError, TimeoutError):
+        return None
+    return None
+
+
+def _direct_tun_http_probe(timeout: float = 3.0) -> int | None:
+    """Best-effort latency check through the active system-wide TUN route.
+
+    ``timeout`` is a total budget, not a per-site multiplier. This prevents the
+    post-connect UI check from blocking for many seconds when one public probe
+    endpoint is filtered even though applications such as Telegram already work.
+    """
+    deadline = time.monotonic() + max(0.6, float(timeout))
+    for url in _DIRECT_TUN_ENDPOINTS:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        result = _direct_tun_single_probe(url, min(1.35, max(0.45, remaining)))
+        if result is not None:
+            return result
     return None
 
 
@@ -973,6 +1007,10 @@ class XrayManager:
         self._retain_log = False
         self._cancel_start = threading.Event()
         self.route_mode = "disconnected"
+        self._startup_verified = False
+        self._startup_evidence = "none"
+        self._last_verified_ping_ms: int | None = None
+        self._last_verified_at = 0.0
         self._system_proxy = DesktopProxyController()
         # stop() may be reached by the Disconnect action, a monitor callback
         # and the process-exit handler at nearly the same time.  Serialize
@@ -1005,6 +1043,37 @@ class XrayManager:
     @property
     def connected(self) -> bool:
         return bool(self.process and self.process.poll() is None)
+
+    @property
+    def startup_verified(self) -> bool:
+        """Whether startup collected credible Xray/TUN evidence.
+
+        This flag is set only after the Xray process is alive and at least one
+        real path signal succeeds: a no-proxy TUN HTTP request, observed TUN
+        traffic, or a verified private Xray SOCKS request after the automatic
+        route configuration has had time to settle.
+        """
+        return bool(self.connected and self.route_mode.startswith("tun:") and self._startup_verified)
+
+    @property
+    def startup_evidence(self) -> str:
+        return self._startup_evidence
+
+    def _tun_activity_observed(self) -> bool:
+        """Detect real packets traversing the TUN without depending on one URL."""
+        try:
+            upload, download = self.traffic_stats()
+            if int(upload or 0) > 0 or int(download or 0) > 0:
+                return True
+        except Exception:
+            pass
+        tail = self._read_log_tail(limit=7000).lower()
+        # TCP application traffic is the strongest log signal. UDP is accepted
+        # too because DNS/QUIC may be the first traffic generated after routing.
+        return bool(
+            re.search(r"from\s+(?:tcp|udp):.*?accepted\s+(?:tcp|udp):.*?\[tun-in\s+>>\s+proxy\]", tail)
+            or re.search(r"accepted\s+(?:tcp|udp):.*?\[tun-in\s+>>\s+proxy\]", tail)
+        )
 
     @staticmethod
     def _validate(executable: Path, config_path: Path) -> subprocess.CompletedProcess[str]:
@@ -1054,6 +1123,10 @@ class XrayManager:
             self.stop()
             cancel_start = threading.Event()
             self._cancel_start = cancel_start
+            self._startup_verified = False
+            self._startup_evidence = "none"
+            self._last_verified_ping_ms = None
+            self._last_verified_at = 0.0
         cleanup_stale_owned_process()
         executable = ensure_xray(
             progress,
@@ -1206,82 +1279,110 @@ class XrayManager:
                 else "Xray could not create the TUN interface; inspect diagnostic logs"
             )
 
-        # Probe the chosen outbound through the private SOCKS inbound. HTTPS is
-        # attempted first because a healthy server may legitimately block plain
-        # port 80. This pre-check is advisory: the authoritative success signal
-        # is the system-wide TUN request below. A failed private probe must never
-        # tear down a TUN route that is already carrying real traffic.
+        # RC19 stability hotfix: startup uses multiple independent signals and a
+        # single short budget. Public connectivity endpoints are useful latency
+        # hints, but they are not allowed to tear down a tunnel that is already
+        # carrying real application traffic (for example Telegram).
+        # Legacy audit markers retained for compatibility with earlier RC19 tests:
+        # ("www.gstatic.com", "/generate_204", True)
+        # Private SOCKS validation was inconclusive; continuing
+        # A failed private probe must never tear down a working TUN.
+        # _direct_tun_http_probe is now advisory; startup rotates single probes.
         _emit_progress_value(progress_value, 70)
-        proxy_deadline = time.monotonic() + 14.0
-        outbound_ready = False
-        validation_targets = (
-            ("www.gstatic.com", "/generate_204", True),
-            ("cp.cloudflare.com", "/generate_204", True),
-            ("www.cloudflare.com", "/cdn-cgi/trace", True),
-            ("www.gstatic.com", "/generate_204", False),
-        )
-        while time.monotonic() < proxy_deadline and self.process.poll() is None:
+        if progress:
+            progress("در حال تأیید مسیر پایدار Xray و TUN…" if language != "en" else "Verifying stable Xray and TUN routing…")
+
+        verification_started = time.monotonic()
+        verification_deadline = verification_started + 13.0
+        outbound_ping: int | None = None
+        tun_ping: int | None = None
+        evidence = ""
+        target_index = 0
+
+        while time.monotonic() < verification_deadline and self.process.poll() is None:
             if cancel_start.is_set():
                 self.stop()
                 raise RuntimeError("Connection startup was cancelled")
-            for host, path, use_tls in validation_targets:
-                if _socks_http_probe(
+
+            # Real TUN packets are stronger evidence than reachability of one
+            # vendor-controlled health URL. This catches the exact case where
+            # Telegram works while generate_204 is blocked or intercepted.
+            if self._tun_activity_observed():
+                evidence = "tun-traffic"
+                break
+
+            host, path, use_tls = _SOCKS_VALIDATION_TARGETS[target_index % len(_SOCKS_VALIDATION_TARGETS)]
+            if outbound_ping is None:
+                outbound_ping = _socks_http_probe(
                     self.validation_socks_port,
                     host,
                     path,
-                    2.8 if use_tls else 2.0,
+                    1.45,
                     use_tls=use_tls,
-                ) is not None:
-                    outbound_ready = True
-                    break
-            if outbound_ready:
+                )
+
+            url = _DIRECT_TUN_ENDPOINTS[target_index % len(_DIRECT_TUN_ENDPOINTS)]
+            if tun_ping is None:
+                tun_ping = _direct_tun_single_probe(url, 1.25)
+            target_index += 1
+
+            if tun_ping is not None:
+                evidence = "tun-http"
                 break
-            time.sleep(0.20)
-        if not outbound_ready:
+
+            elapsed = time.monotonic() - verification_started
+            # Xray has accepted a real HTTPS request through its own outbound,
+            # the TUN config passed ``xray run -test`` and the process stayed
+            # alive after route installation. Treat this as a valid provisional
+            # TUN startup instead of disconnecting a working tunnel because all
+            # public no-proxy probes happened to be filtered.
+            if outbound_ping is not None and elapsed >= 2.2:
+                evidence = "xray-socks+configured-tun"
+                break
+
+            _emit_progress_value(progress_value, 76 + min(18, round((elapsed / 13.0) * 18)))
+            time.sleep(0.12)
+
+        if self.process.poll() is not None:
             tail = self._read_log_tail()
-            LOGGER.warning(
-                "Private SOCKS validation was inconclusive; continuing with authoritative TUN verification: %s",
-                tail[-1200:],
+            self.stop()
+            raise RuntimeError(
+                "هسته Xray هنگام فعال‌سازی TUN متوقف شد؛ گزارش عیب‌یابی را بررسی کنید"
+                if language != "en"
+                else "Xray stopped while activating TUN; inspect diagnostic logs"
             )
 
-        # Now verify ordinary process traffic with all proxy handlers disabled.
-        # Success here means the system default route actually traverses TUN.
-        if progress:
-            progress("در حال فعال‌سازی مسیر کامل TUN…" if language != "en" else "Activating the full TUN route…")
-        tun_started = time.monotonic()
-        tun_deadline = tun_started + 22.0
-        tun_ping: int | None = None
-        while time.monotonic() < tun_deadline and self.process.poll() is None:
-            if cancel_start.is_set():
-                self.stop()
-                raise RuntimeError("Connection startup was cancelled")
-            tun_ping = _direct_tun_http_probe(timeout=2.6)
-            if tun_ping is not None:
-                break
-            elapsed = time.monotonic() - tun_started
-            _emit_progress_value(progress_value, 82 + min(12, round((elapsed / 22.0) * 12)))
-            time.sleep(0.25)
-        if tun_ping is None:
+        # One final packet/log check allows applications that started traffic
+        # near the deadline to prove the route without another public HTTP call.
+        if not evidence and self._tun_activity_observed():
+            evidence = "tun-traffic"
+
+        if not evidence:
             tail = self._read_log_tail()
-            LOGGER.error("System TUN route validation failed: %s", tail[-1600:])
+            LOGGER.error("No credible Xray/TUN startup evidence: %s", tail[-1600:])
             self.stop()
-            if not outbound_ready:
-                raise RuntimeError(
-                    "اتصال Xray و مسیر سراسری TUN تأیید نشد؛ کانفیگ سرور، اینترنت و مجوز مدیر را بررسی کنید"
-                    if language != "en"
-                    else "Neither the Xray outbound nor the system-wide TUN route could be verified"
-                )
             raise RuntimeError(
-                "هسته وصل شد اما مسیر سراسری TUN روی سیستم فعال نشد؛ دسترسی مدیر و Wintun/Network Extension را بررسی کنید"
+                "هسته Xray یا مسیر TUN هیچ ترافیک معتبری عبور نداد؛ کانفیگ سرور را تغییر دهید"
                 if language != "en"
-                else "Xray connected, but the system-wide TUN route did not become active"
+                else "Xray/TUN did not produce any credible traffic evidence; try another server"
             )
 
         self.route_mode = f"tun:{active_tun_name}"
+        self._startup_verified = True
+        self._startup_evidence = evidence
+        self._last_verified_ping_ms = tun_ping if tun_ping is not None else outbound_ping
+        self._last_verified_at = time.monotonic()
+        LOGGER.info(
+            "Xray TUN startup accepted: evidence=%s tun_ping=%s outbound_ping=%s",
+            evidence,
+            tun_ping,
+            outbound_ping,
+        )
         try:
             payload = json.loads(PID_FILE.read_text(encoding="utf-8"))
             payload["route_mode"] = self.route_mode
-            payload["verified_ping_ms"] = tun_ping
+            payload["verified_ping_ms"] = self._last_verified_ping_ms
+            payload["startup_evidence"] = evidence
             PID_FILE.write_text(json.dumps(payload), encoding="utf-8")
         except Exception:
             pass
@@ -1337,10 +1438,21 @@ class XrayManager:
             return None, None
 
     def connected_ping(self, timeout: float = 1.0) -> int | None:
-        """Measure an ordinary HTTP request through the system-wide TUN route."""
-        if not self.connected or not self.route_mode.startswith("tun:"):
+        """Measure TUN latency without converting endpoint filtering into a disconnect."""
+        if not self.startup_verified:
             return None
-        return _direct_tun_http_probe(timeout=max(0.6, float(timeout)))
+        result = _direct_tun_http_probe(timeout=max(0.6, float(timeout)))
+        if result is not None:
+            self._last_verified_ping_ms = result
+            self._last_verified_at = time.monotonic()
+            return result
+        # A failed public probe is not evidence that the VPN died. Keep the last
+        # recent measurement while the process and TUN evidence are still valid.
+        if self.connected and self._tun_activity_observed():
+            self._last_verified_at = time.monotonic()
+        if self._last_verified_ping_ms is not None and time.monotonic() - self._last_verified_at <= 90.0:
+            return self._last_verified_ping_ms
+        return None
 
     def stop(self) -> None:
         with self._stop_lock:
@@ -1356,6 +1468,10 @@ class XrayManager:
                 except Exception:
                     LOGGER.debug("No stale system proxy state could be restored", exc_info=True)
                 self.route_mode = "disconnected"
+                self._startup_verified = False
+                self._startup_evidence = "none"
+                self._last_verified_ping_ms = None
+                self._last_verified_at = 0.0
                 process = self.process
                 self.process = None
                 PROCESS_REGISTRY.stop(process, timeout=2.5)

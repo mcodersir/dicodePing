@@ -1,3 +1,10 @@
+
+## 1.9.0-rc.19 connection stability hotfix
+
+- Prevented healthy desktop Xray TUN sessions from being disconnected by a redundant public health-URL check.
+- Added multi-signal startup evidence and a bounded validation budget.
+- Preserved recent latency during temporary connectivity-check endpoint failures.
+
 # Changelog
 
 ## 1.9.0-rc.19

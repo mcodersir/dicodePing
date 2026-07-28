@@ -571,6 +571,22 @@ class ConnectionManager:
         return int(getattr(self._manager, "socks_port", 0) or 0)
 
     @property
+    def startup_verified(self) -> bool:
+        if isinstance(self._manager, XrayManager):
+            return bool(getattr(self._manager, "startup_verified", False))
+        return self.connected
+
+    @property
+    def startup_evidence(self) -> str:
+        if isinstance(self._manager, XrayManager):
+            return str(getattr(self._manager, "startup_evidence", "none"))
+        return "core-socks" if self.connected else "none"
+
+    @property
+    def route_mode(self) -> str:
+        return str(getattr(self._manager, "route_mode", ""))
+
+    @property
     def state(self) -> CoreState:
         if isinstance(self._manager, AlternativeCoreManager):
             return self._manager.state
@@ -603,6 +619,8 @@ class ConnectionManager:
                 self._manager = self._new_manager()
 
     def verify_connection(self) -> bool:
+        if isinstance(self._manager, XrayManager):
+            return self.startup_verified
         verifier = getattr(self._manager, "verify_connection", None)
         return bool(verifier()) if verifier else self.connected
 
