@@ -65,9 +65,9 @@ SCAN_CRAWL_WORKERS = min(18, max(8, RESOURCE_PROFILE.crawl_workers + 2))
 SCAN_CRAWL_TIMEOUT_S = 5.0
 SCAN_PROBE_WORKERS = min(16, max(6, RESOURCE_PROFILE.probe_workers))
 SCAN_PROBE_TIMEOUT_S = 2.6
-SCAN_PROBE_ATTEMPTS = 2
+SCAN_PROBE_ATTEMPTS = 1
 SCAN_PROBE_MIN_SUCCESS = 1
-SCAN_PROBE_RETRY_LIMIT = 1
+SCAN_PROBE_RETRY_LIMIT = 0
 SCAN_PROBE_RETRY_WORKERS = min(8, max(3, RESOURCE_PROFILE.retry_workers))
 SCAN_PROBE_QUEUE_LIMIT = min(
     24,
@@ -484,15 +484,17 @@ def _probe_only(
                 sample_text = ",".join(str(value) for value in result.samples_ms) or "-"
                 if result.ok and result.ping_ms is not None:
                     _log(
-                        f"[TEST][OK] {done}/{state.total} {host} | median={result.ping_ms} ms "
-                        f"min={result.min_ms} avg={result.avg_ms} | samples=[{sample_text}] "
+                        f"[TEST][OK] {done}/{state.total} {host} | "
+                        f"TCP={result.tcp_ms if result.tcp_ms is not None else '-'} ms "
+                        f"XRAY={result.ping_ms} ms | samples=[{sample_text}] "
                         f"success={result.success_count}/{result.attempts} tester={result.tester} | "
                         f"alive={alive_count} speed={tests_per_second:.1f}/s"
                     )
                 else:
                     _log(
                         f"[TEST][ERR] {done}/{state.total} {host} | "
-                        f"success={result.success_count}/{result.attempts} tester={result.tester} "
+                        f"TCP={result.tcp_ms if result.tcp_ms is not None else '-'} ms "
+                        f"XRAY=- | success={result.success_count}/{result.attempts} tester={result.tester} "
                         f"error={result.error or 'failed'} samples=[{sample_text}] | "
                         f"speed={tests_per_second:.1f}/s"
                     )
@@ -624,7 +626,7 @@ def run_scan(
 ) -> ScannerResult:
     """Execute the staged scan and persist the result."""
     started = time.monotonic()
-    # RC18 resource profile: optimized is always the default; professional is
+    # RC19 resource profile: optimized is always the default; professional is
     # an explicit setting and only raises bounded concurrency.
     selected_profile = current_resource_profile(resource_mode_from_settings(store.load_settings()))
     global SCAN_CRAWL_WORKERS, SCAN_PROBE_WORKERS, SCAN_PROBE_RETRY_WORKERS, SCAN_PROBE_QUEUE_LIMIT
@@ -812,6 +814,7 @@ def run_scan(
                     host=endpoint.host,
                     port=endpoint.port,
                     config_blob=config_to_blob(clean_raw),
+                    tcp_ms=quality.tcp_ms,
                     ping_ms=quality.ping_ms,
                     ip="",
                     country="نامشخص",
@@ -867,6 +870,8 @@ def run_scan(
             "quality": [
                 {
                     "raw": raw,
+                    "tcp_ms": quality.tcp_ms,
+                    "xray_ms": quality.ping_ms,
                     "ping_ms": quality.ping_ms,
                     "min_ms": quality.min_ms,
                     "avg_ms": quality.avg_ms,

@@ -1,18 +1,18 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing RC18 Desktop Xray Recovery + One-Click Release
+title dicodePing RC19 Dual TCP + Xray Scanner Release
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
-set "TAG=v1.9.0-rc.18"
+set "TAG=v1.9.0-rc.19"
 set "WORKFLOW=release.yml"
 set "DOCS_WORKFLOW=docs.yml"
-set "COMMIT_MESSAGE=fix: publish RC18 desktop Xray connection recovery"
+set "COMMIT_MESSAGE=feat: publish RC19 real TCP and Xray latency"
 set "SOURCE_DIR=%CD%"
-set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc18-%RANDOM%%RANDOM%"
+set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc19-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
 set "PAGES_SCRIPT=%SOURCE_DIR%\tools\configure_github_pages.ps1"
 set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
@@ -25,15 +25,15 @@ set "PAGES_CODE=0"
 
 cls
 echo ================================================================
-echo  dicodePing RC18 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY + TUN HOTFIX
+echo  dicodePing RC19 ONE-CLICK: CLONE + PRE-RELEASE + PAGES DEPLOY + TUN HOTFIX
 echo ================================================================
 echo.
 echo This deployer will:
 echo   1. Clone the current GitHub repository into a temporary folder.
-echo   2. Replace it with a clean RC18 snapshot.
+echo   2. Replace it with a clean RC19 snapshot.
 echo   3. Remove stale RC tests and old release files.
 echo   4. Validate the complete project before any push.
-echo   5. Push main and recreate the v1.9.0-rc.18 tag.
+echo   5. Push main and recreate the v1.9.0-rc.19 tag.
 echo   6. Publish the GitHub pre-release and all platform assets.
 echo   7. Repair and deploy the GitHub Pages website.
 echo.
@@ -70,8 +70,8 @@ if not exist ".github\workflows\%DOCS_WORKFLOW%" (
     echo [ERROR] Missing workflow: .github\workflows\%DOCS_WORKFLOW%
     goto :failed
 )
-if not exist "docs\releases\v1.9.0-rc.18.md" (
-    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.18.md
+if not exist "docs\releases\v1.9.0-rc.19.md" (
+    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.19.md
     goto :failed
 )
 if not exist "%WAIT_SCRIPT%" (
@@ -138,7 +138,7 @@ if errorlevel 1 (
 popd
 
 echo.
-echo [4/10] Copying the clean RC18 source snapshot...
+echo [4/10] Copying the clean RC19 source snapshot...
 robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
  /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
  /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log" "*.bak"
@@ -172,7 +172,7 @@ if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
 )
 
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*.bat" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC18.bat" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC19.bat" (
         echo [INFO] Removing stale deploy script: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -190,7 +190,7 @@ for /f "delims=" %%F in ('dir /b /a-d "RUN_SOURCE_RC*.bat" 2^>nul') do (
     del /f /q "%%F" >nul 2>&1
 )
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*_README_FA.txt" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC18_README_FA.txt" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC19_README_FA.txt" (
         echo [INFO] Removing stale deploy readme: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -212,7 +212,7 @@ if exist "tests\test_v*.py" (
 )
 call %PYTHON_CMD% tools\purge_stale_release_tests.py --check
 if errorlevel 1 (
-    echo [ERROR] Stale release tests survived cleanup and would block RC18.
+    echo [ERROR] Stale release tests survived cleanup and would block RC19.
     popd
     goto :failed
 )
@@ -237,31 +237,31 @@ if not exist ".github\workflows\docs.yml" (
     popd
     goto :failed
 )
-if not exist "tests\test_rc18_regressions.py" (
-    echo [ERROR] Current RC18 tests were not copied.
+if not exist "tests\test_rc19_regressions.py" (
+    echo [ERROR] Current RC19 tests were not copied.
     popd
     goto :failed
 )
-if not exist "app_v190_rc18.py" (
-    echo [ERROR] RC18 runtime wrapper app_v190_rc18.py was not copied.
+if not exist "app_v190_rc19.py" (
+    echo [ERROR] RC19 runtime wrapper app_v190_rc19.py was not copied.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc18.py" "tools\build_windows.py" >nul
+findstr /C:"app_v190_rc19.py" "tools\build_windows.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Windows builder is not using app_v190_rc18.py.
+    echo [ERROR] Windows builder is not using app_v190_rc19.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc18.py" "tools\build_linux.py" >nul
+findstr /C:"app_v190_rc19.py" "tools\build_linux.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Linux builder is not using app_v190_rc18.py.
+    echo [ERROR] Linux builder is not using app_v190_rc19.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc18.py" "tools\build_macos.py" >nul
+findstr /C:"app_v190_rc19.py" "tools\build_macos.py" >nul
 if errorlevel 1 (
-    echo [ERROR] macOS builder is not using app_v190_rc18.py.
+    echo [ERROR] macOS builder is not using app_v190_rc19.py.
     popd
     goto :failed
 )
@@ -301,9 +301,9 @@ if errorlevel 1 (
     popd
     goto :failed
 )
-findstr /C:"versionCode = 53" "dicodePing_android\app\build.gradle.kts" >nul
+findstr /C:"versionCode = 54" "dicodePing_android\app\build.gradle.kts" >nul
 if errorlevel 1 (
-    echo [ERROR] Android versionCode 53 is missing.
+    echo [ERROR] Android versionCode 54 is missing.
     popd
     goto :failed
 )
@@ -408,7 +408,7 @@ if errorlevel 1 (
     popd
     goto :failed
 )
-echo [OK] Stale files were removed and the RC18 staged tree is clean.
+echo [OK] Stale files were removed and the RC19 staged tree is clean.
 
 echo.
 echo [6/10] Running full local preflight before any push...
@@ -420,7 +420,7 @@ call %PYTHON_CMD% tools\validate_android_gradle_kts.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_source_references.py
 if errorlevel 1 goto :validation_failed
-call %PYTHON_CMD% tools\validate_rc18_tun_runtime_hotfix.py
+call %PYTHON_CMD% tools\validate_rc19_dual_latency.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed
@@ -435,7 +435,7 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\quality_gate.py
 if errorlevel 1 goto :validation_failed
 
-echo [OK] RC18 preflight passed.
+echo [OK] RC19 preflight passed.
 
 git config --get user.name >nul 2>&1
 if errorlevel 1 git config user.name "mcodersir"
@@ -516,7 +516,7 @@ if defined REMOTE_TAG_EXISTS (
 
 if not defined TAG_PUSHED (
     popd
-    echo [ERROR] The RC18 tag could not be published.
+    echo [ERROR] The RC19 tag could not be published.
     echo [ERROR] Check GitHub tag-protection rules and repository permissions.
     goto :failed
 )
@@ -554,7 +554,7 @@ set "WAIT_CODE=%ERRORLEVEL%"
 if "%WAIT_CODE%"=="0" (
     echo.
     echo ================================================================
-    echo          RC18 PRE-RELEASE AND DEPLOY FINISHED
+    echo          RC19 PRE-RELEASE AND DEPLOY FINISHED
     echo ================================================================
     echo Commit:  %HEAD_SHA%
     echo Release: https://github.com/%REPO%/releases/tag/%TAG%

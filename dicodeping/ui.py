@@ -320,6 +320,50 @@ def tinted_icon(name: str, color: str = "#FFFFFF", size: int = 24) -> QIcon:
     painter.end()
     return QIcon(source)
 
+def latency_badge_widget(
+    value_ms: int | None,
+    label: str,
+    *,
+    colors: dict[str, str],
+    kind: str,
+    quality_bucket: str = "",
+) -> QFrame:
+    """Create a compact Android-like latency badge for a table/card cell."""
+    frame = QFrame()
+    frame.setObjectName("latencyBadge")
+    layout = QVBoxLayout(frame)
+    layout.setContentsMargins(9, 5, 9, 5)
+    layout.setSpacing(0)
+    caption = QLabel(label)
+    caption.setAlignment(Qt.AlignCenter)
+    value = QLabel(f"{value_ms} ms" if value_ms is not None else "—")
+    value.setObjectName("latencyValue")
+    value.setAlignment(Qt.AlignCenter)
+
+    if value_ms is None:
+        background, foreground, border = colors["surface3"], colors["muted"], colors["border2"]
+    elif kind == "tcp":
+        background, foreground, border = colors["accentSoft"], colors["accent"], colors["accent"]
+    else:
+        palette = {
+            "excellent": (colors["successSoft"], colors["success"], colors["success"]),
+            "good": (colors["successSoft"], colors["success"], colors["success"]),
+            "fair": (colors["surface3"], colors["warning"], colors["warning"]),
+            "poor": (colors["dangerSoft"], colors["danger"], colors["danger"]),
+        }
+        background, foreground, border = palette.get(
+            quality_bucket, (colors["surface3"], colors["text"], colors["border2"])
+        )
+    frame.setStyleSheet(
+        f"QFrame#latencyBadge{{background:{background};border:1px solid {border};border-radius:10px;}}"
+        f"QLabel{{color:{colors['muted']};font-size:10px;background:transparent;}}"
+        f"QLabel#latencyValue{{color:{foreground};font-size:12px;font-weight:800;}}"
+    )
+    layout.addWidget(caption)
+    layout.addWidget(value)
+    return frame
+
+
 def country_flag_pixmap(code: str, width: int = 34, height: int = 24) -> QPixmap:
     """Render a crisp offline flag badge without relying on emoji fonts."""
     code = (code or "").strip().upper()
@@ -1321,14 +1365,15 @@ class MainWindow(QMainWindow):
         table_page = QWidget()
         table_layout = QVBoxLayout(table_page)
         table_layout.setContentsMargins(0, 0, 0, 0)
-        # 8 columns: country | server | location | ip | ping | quality | pin | action
-        self.table = QTableWidget(0, 8)
+        # 9 columns: country | server | location | ip | TCP | Xray | quality | pin | action
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
             self.t("country"),
             self.t("server"),
             self.t("location"),
             self.t("ip"),
-            self.t("latency_columns"),
+            self.t("tcp_ping"),
+            self.t("xray_ping"),
             self.t("quality_label"),
             self.t("pin"),
             self.t("action"),
@@ -1347,6 +1392,7 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)
         self.table.cellDoubleClicked.connect(self._server_double_clicked)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_server_menu)
@@ -3047,7 +3093,7 @@ class MainWindow(QMainWindow):
             self.server_toolbar_layout.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
             if hasattr(self, "table"):
                 self.table.setColumnHidden(3, width < 900)
-                self.table.setColumnHidden(5, width < 780)
+                self.table.setColumnHidden(6, width < 780)
                 self.table.setColumnHidden(0, width < 720)
         if hasattr(self, "scanner_action_layout"):
             direction = QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight
@@ -3235,14 +3281,18 @@ class MainWindow(QMainWindow):
                 for row in range(self.table.rowCount()):
                     name_item = self.table.item(row, 1)
                     if name_item and name_item.data(Qt.UserRole) == self.connected_id:
-                        ping_item = self.table.item(row, 4)
-                        if ping_item:
-                            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
-                            ping_item.setText(
-                                f"{self.t('icmp_short')} {icmp_text}\n"
-                                f"{self.t('xray_short')} {ping} ms"
+                        xray_item = self.table.item(row, 5)
+                        if xray_item:
+                            xray_item.setData(Qt.UserRole, ping)
+                            from .volume import rate_quality
+                            theme = str(self.settings.get("theme", "dark"))
+                            if theme == "system":
+                                theme = "dark" if QApplication.instance().palette().window().color().lightness() < 128 else "light"
+                            colors = DARK if theme == "dark" else LIGHT
+                            self.table.setCellWidget(
+                                row, 5,
+                                latency_badge_widget(ping, self.t("xray_short"), colors=colors, kind="xray", quality_bucket=rate_quality(ping).bucket),
                             )
-                            ping_item.setData(Qt.UserRole, ping)
                         break
 
     def _set_scan_labels(self, scanning: bool) -> None:
@@ -3338,15 +3388,19 @@ class MainWindow(QMainWindow):
             item = self.table.item(row, 1)
             if not item or item.data(Qt.UserRole) != server.id:
                 continue
-            ping = self.table.item(row, 4)
-            if ping:
-                icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
-                xray_text = f"{server.ping_ms} ms" if server.ping_ms is not None else "—"
-                ping.setText(
-                    f"{self.t('icmp_short')} {icmp_text}\n"
-                    f"{self.t('xray_short')} {xray_text}"
-                )
-                ping.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+            from .volume import rate_quality
+            theme = str(self.settings.get("theme", "dark"))
+            if theme == "system":
+                theme = "dark" if QApplication.instance().palette().window().color().lightness() < 128 else "light"
+            colors = DARK if theme == "dark" else LIGHT
+            tcp_item = self.table.item(row, 4)
+            if tcp_item:
+                tcp_item.setData(Qt.UserRole, server.tcp_ms if server.tcp_ms is not None else 999999)
+                self.table.setCellWidget(row, 4, latency_badge_widget(server.tcp_ms, self.t("tcp_short"), colors=colors, kind="tcp"))
+            xray_item = self.table.item(row, 5)
+            if xray_item:
+                xray_item.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+                self.table.setCellWidget(row, 5, latency_badge_widget(server.ping_ms, self.t("xray_short"), colors=colors, kind="xray", quality_bucket=rate_quality(server.ping_ms).bucket))
             location = self.table.item(row, 2)
             if location:
                 location.setText(self._server_location_text(server))
@@ -3521,38 +3575,45 @@ class MainWindow(QMainWindow):
             )
             self.table.setItem(row, 2, location_item)
             self.table.setItem(row, 3, QTableWidgetItem(server.ip or server.host or "—"))
-            # Quality detection (v1.6.0): rate the ping latency into one of
-            # four buckets and render the cell background accordingly.  The
-            # bucket label is also exposed via the tooltip so screen readers
-            # and hover-inspection still work.
+            # RC19: TCP reachability and real Xray HTTP latency are separate
+            # measurements and separate columns.  A TCP handshake never marks
+            # the configuration online; only the Xray result does.
             from .volume import rate_quality, humanize_limit_label
             rating = rate_quality(server.ping_ms)
-            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+            tcp_ms = getattr(server, "tcp_ms", None)
+            tcp_text = f"{tcp_ms} ms" if tcp_ms is not None else "—"
             xray_text = f"{server.ping_ms} ms" if server.ping_ms is not None else "—"
-            ping_text = (
-                f"{self.t('icmp_short')} {icmp_text}\n"
-                f"{self.t('xray_short')} {xray_text}"
+            theme = str(self.settings.get("theme", "dark"))
+            if theme == "system":
+                theme = "dark" if QApplication.instance().palette().window().color().lightness() < 128 else "light"
+            colors = DARK if theme == "dark" else LIGHT
+
+            tcp_item = QTableWidgetItem()
+            tcp_item.setData(Qt.UserRole, tcp_ms if tcp_ms is not None else 999999)
+            tcp_item.setToolTip(self.t("latency_details", icmp=tcp_text, xray=xray_text))
+            self.table.setItem(row, 4, tcp_item)
+            tcp_badge = latency_badge_widget(tcp_ms, self.t("tcp_short"), colors=colors, kind="tcp")
+            tcp_badge.setToolTip(tcp_item.toolTip())
+            self.table.setCellWidget(row, 4, tcp_badge)
+
+            xray_item = QTableWidgetItem()
+            xray_item.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
+            xray_item.setToolTip(self.t("latency_details", icmp=tcp_text, xray=xray_text))
+            self.table.setItem(row, 5, xray_item)
+            xray_badge = latency_badge_widget(
+                server.ping_ms, self.t("xray_short"), colors=colors, kind="xray", quality_bucket=rating.bucket
             )
-            ping_item = QTableWidgetItem(ping_text)
-            ping_item.setTextAlignment(Qt.AlignCenter)
-            ping_item.setData(Qt.UserRole, server.ping_ms if server.ping_ms is not None else 999999)
-            # Color the ping cell based on the quality bucket.
+            xray_badge.setToolTip(xray_item.toolTip())
+            self.table.setCellWidget(row, 5, xray_badge)
+
             quality_color_map = {
-                "excellent": DARK["successSoft"],
-                "good": "#10271D",
-                "fair": DARK["warning"] + "33",  # 20% alpha overlay tint
-                "poor": DARK["dangerSoft"],
+                "excellent": colors["successSoft"],
+                "good": colors["successSoft"],
+                "fair": colors["surface3"],
+                "poor": colors["dangerSoft"],
             }
-            ping_brush = QBrush(QColor(quality_color_map.get(rating.bucket, "#1B2430")))
-            ping_item.setBackground(ping_brush)
+            ping_brush = QBrush(QColor(quality_color_map.get(rating.bucket, colors["surface3"])))
             volume_label = humanize_limit_label(getattr(server, "_volume_label", None), self.language) or "—"
-            ping_item.setToolTip(
-                self.t("latency_details", icmp=icmp_text, xray=xray_text)
-                + "\n"
-                f"{self.t('scanner_quality_title')}: {rating.label_fa}\n"
-                f"{self.t('scanner_volume_title')}: {volume_label}"
-            )
-            self.table.setItem(row, 4, ping_item)
 
             # Quality + volume info cell (v1.6.0-rc.3): show the bucket
             # word and the volume label inline, so the user does not need
@@ -3575,7 +3636,7 @@ class MainWindow(QMainWindow):
                 f"{self.t('config_profile_title')}: {profile_label}\n"
                 f"{self.t('security_estimate')}: {getattr(server, 'security_summary', '—')} {getattr(server, 'security_score', 0)}/100"
             )
-            self.table.setItem(row, 5, info_item)
+            self.table.setItem(row, 6, info_item)
 
             pin_button = QPushButton()
             pin_button.setIcon(icon("pin-filled.svg" if server.favorite else "pin.svg"))
@@ -3583,13 +3644,15 @@ class MainWindow(QMainWindow):
             pin_button.setObjectName("pinButton")
             pin_button.setToolTip(self.t("unpin_server") if server.favorite else self.t("pin_server"))
             pin_button.clicked.connect(lambda _=False, sid=server.id: self.toggle_favorite(sid))
-            self.table.setCellWidget(row, 6, pin_button)
+            self.table.setCellWidget(row, 7, pin_button)
 
             restricted = self.service.is_restricted_location(server)
             if restricted:
-                for disabled_item in (name_item, location_item, ping_item, info_item):
+                for disabled_item in (name_item, location_item, tcp_item, xray_item, info_item):
                     disabled_item.setFlags(disabled_item.flags() & ~Qt.ItemIsEnabled)
                 flag.setEnabled(False)
+                tcp_badge.setEnabled(False)
+                xray_badge.setEnabled(False)
                 pin_button.setEnabled(False)
             connect = QPushButton(
                 self.t("connected") if server.id == self.connected_id else
@@ -3603,8 +3666,8 @@ class MainWindow(QMainWindow):
             if restricted:
                 connect.setToolTip(self.t("restricted_location_hint"))
             connect.clicked.connect(lambda _=False, sid=server.id: self.connect_by_id(sid))
-            self.table.setCellWidget(row, 7, connect)
-            self.table.setRowHeight(row, 64)
+            self.table.setCellWidget(row, 8, connect)
+            self.table.setRowHeight(row, 70)
         if selected_id:
             self._restoring_server_selection = True
             try:
@@ -3618,7 +3681,6 @@ class MainWindow(QMainWindow):
         self.server_count_label.setText(self.t("shown_count", shown=len(rows), total=len(self.servers), online=online))
         self.server_card_list.clear()
         for server in rows:
-            latency = f"{server.ping_ms} ms" if server.ping_ms is not None else self.t("icmp_unavailable")
             item = QListWidgetItem()
             item.setData(Qt.UserRole, server.id)
             item.setToolTip(f"{server.host}:{server.port}")
@@ -3669,15 +3731,19 @@ class MainWindow(QMainWindow):
                 security_badge.setToolTip(self.t("security_estimate"))
                 card_layout.addWidget(security_badge)
 
-            ping_badge = QLabel(latency)
-            ping_badge.setAlignment(Qt.AlignCenter)
-            ping_badge.setMinimumWidth(72)
-            ping_badge.setStyleSheet(
-                "background:#10271D;color:#4FD08A;border-radius:9px;padding:6px 8px;font-weight:700;"
-                if server.ping_ms is not None else
-                "background:#1B2430;color:#8F9CAD;border-radius:9px;padding:6px 8px;"
+            compact_theme = str(self.settings.get("theme", "dark"))
+            if compact_theme == "system":
+                compact_theme = "dark" if QApplication.instance().palette().window().color().lightness() < 128 else "light"
+            compact_colors = DARK if compact_theme == "dark" else LIGHT
+            compact_rating = rate_quality(server.ping_ms)
+            tcp_badge = latency_badge_widget(
+                getattr(server, "tcp_ms", None), self.t("tcp_short"), colors=compact_colors, kind="tcp"
             )
-            card_layout.addWidget(ping_badge)
+            xray_badge = latency_badge_widget(
+                server.ping_ms, self.t("xray_short"), colors=compact_colors, kind="xray", quality_bucket=compact_rating.bucket
+            )
+            card_layout.addWidget(tcp_badge)
+            card_layout.addWidget(xray_badge)
 
             connect_button = QPushButton(
                 self.t("connected") if server.id == self.connected_id else self.t("connect")
@@ -3736,9 +3802,9 @@ class MainWindow(QMainWindow):
             name_item.setToolTip(f"{server.host}:{server.port}")
             self.home_table.setItem(row, 0, name_item)
             self.home_table.setCellWidget(row, 1, self._home_location_widget(server))
-            icmp_text = f"{server.icmp_ms} ms" if server.icmp_ms is not None else "—"
+            icmp_text = f"{server.tcp_ms} ms" if server.tcp_ms is not None else "—"
             ping = QTableWidgetItem(
-                f"{self.t('icmp_short')} {icmp_text}\n"
+                f"{self.t('tcp_short')} {icmp_text}\n"
                 f"{self.t('xray_short')} {server.ping_ms} ms"
             )
             ping.setTextAlignment(Qt.AlignCenter)

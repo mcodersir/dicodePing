@@ -19,7 +19,7 @@ def test_scanner_runtime_tuning_uses_the_declared_repository_field() -> None:
 def test_android_source_reference_validator_runs_everywhere() -> None:
     validator = read("tools/validate_android_source_references.py")
     workflow = read(".github/workflows/release.yml")
-    deploy = read("DEPLOY_PRERELEASE_RC18.bat")
+    deploy = read("DEPLOY_PRERELEASE_RC19.bat")
     build_sh = read("dicodePing_android/build_apk.sh")
     build_bat = read("dicodePing_android/build_apk.bat")
 
@@ -32,7 +32,7 @@ def test_android_source_reference_validator_runs_everywhere() -> None:
 
 def test_pages_helper_retries_transient_github_cli_failures() -> None:
     pages = read("tools/configure_github_pages.ps1")
-    deploy = read("DEPLOY_PRERELEASE_RC18.bat")
+    deploy = read("DEPLOY_PRERELEASE_RC19.bat")
 
     assert "Test-TransientGhFailure" in pages
     assert "TLS handshake timeout" in pages

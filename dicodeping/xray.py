@@ -1349,8 +1349,8 @@ class XrayManager:
             )
             try:
                 self._cancel_start.set()
-                # Restore only a stale RC18 system-proxy snapshot, if one exists.
-                # RC18 TUN mode itself never enables an operating-system proxy.
+                # Restore only a stale RC19 system-proxy snapshot, if one exists.
+                # RC19 TUN mode itself never enables an operating-system proxy.
                 try:
                     self._system_proxy.restore()
                 except Exception:

@@ -57,11 +57,13 @@ class ServerRecord:
     host: str
     port: int
     config_blob: str
-    # End-point ICMP and end-to-end Xray HTTP latency are deliberately kept
-    # separate. ``ping_ms`` remains the verified Xray delay used for health and
-    # automatic selection; ``icmp_ms`` is display-only network RTT.
-    icmp_ms: int | None = None
+    # RC19 stores two honest measurements for every desktop test:
+    # ``tcp_ms`` is one TCP handshake to the server endpoint and ``ping_ms`` is
+    # one end-to-end HTTP request through that exact Xray outbound.  The old
+    # ``icmp_ms`` field is retained only for backward-compatible JSON loading.
+    tcp_ms: int | None = None
     ping_ms: int | None = None
+    icmp_ms: int | None = None
     ip: str = ""
     country: str = "نامشخص"
     country_code: str = ""
@@ -96,8 +98,11 @@ class ServerRecord:
             host=str(data.get("host") or ""),
             port=int(data.get("port") or 0),
             config_blob=str(data.get("config_blob") or ""),
-            icmp_ms=int(data["icmp_ms"]) if data.get("icmp_ms") is not None else None,
+            tcp_ms=int(data["tcp_ms"]) if data.get("tcp_ms") is not None else (
+                int(data["icmp_ms"]) if data.get("icmp_ms") is not None else None
+            ),
             ping_ms=int(data["ping_ms"]) if data.get("ping_ms") is not None else None,
+            icmp_ms=int(data["icmp_ms"]) if data.get("icmp_ms") is not None else None,
             ip=str(data.get("ip") or ""),
             country=str(data.get("country") or "نامشخص"),
             country_code=str(data.get("country_code") or ""),

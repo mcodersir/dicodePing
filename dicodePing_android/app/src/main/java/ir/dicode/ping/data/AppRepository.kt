@@ -352,7 +352,7 @@ class AppRepository private constructor(context: Context) {
                 if (parsed.isEmpty()) return@withLock emptyList()
                 // Fast parallel TCP filtering removes dead endpoints before the
                 // process-global native Xray probe. Native probes remain serial
-                // for JNI safety, but RC18 tests far fewer dead candidates.
+                // for JNI safety, but RC19 tests far fewer dead candidates.
                 progress.value = ProgressState(true, "prefilter", 0, parsed.size, "Filtering reachable candidates")
                 val prefilterDone = AtomicInteger(0)
                 val prefilterSem = Semaphore(SCANNER_TCP_PREFILTER_WORKERS)
@@ -455,7 +455,7 @@ class AppRepository private constructor(context: Context) {
                 )
                 val nextSources = (sources.value.filterNot { it.id.startsWith("scanner-") } + source)
                     .mapIndexed { index, item -> item.apply { order = index } }
-                // RC18: resolve and persist locations before publishing the scanner SUB.
+                // RC19: resolve and persist locations before publishing the scanner SUB.
                 // This uses the shared cache and bounded workers, so flags survive app restarts.
                 progress.value = ProgressState(true, "geo", 0, healthy.size, "Resolving scanner locations")
                 val locatedHealthy = locateServerSnapshot(healthy)

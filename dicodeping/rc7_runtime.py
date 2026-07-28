@@ -42,140 +42,82 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
 
 
 def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
-    # Host latency cannot prove that a config's protocol, credentials and
-    # transport work. Only publish a number after real HTTP traffic traverses
-    # that exact Xray outbound, matching the useful-delay semantics of v2rayNG.
-    rows = [row for row in records if row.host]
+    """Measure each saved configuration exactly once over TCP and Xray.
+
+    TCP is endpoint reachability only.  ``ping_ms`` is the end-to-end HTTP
+    latency through the exact Xray outbound and is the sole health/selection
+    signal.  Keeping these values separate prevents a responsive but unusable
+    port from being shown as a working proxy.
+    """
+    rows = [row for row in records if row.host and row.port]
+    if not rows:
+        return records
+
+    # Resolve once for display/location and for a deterministic TCP target.
     hosts = list(dict.fromkeys(row.host for row in rows))
-    # Resolve addresses for location lookup, but do not run a separate ICMP
-    # measurement. It was both redundant and misleading because a reachable
-    # host does not mean that this particular config is usable.
-    resolver = concurrent.futures.ThreadPoolExecutor(max_workers=min(32, max(1, len(hosts))))
-    resolution_futures = {resolver.submit(net_module.resolve_ipv4, host): host for host in hosts}
     address_results: dict[str, str] = {}
-    done_futures, pending_futures = concurrent.futures.wait(
-        resolution_futures,
-        timeout=6.0,
-        return_when=concurrent.futures.ALL_COMPLETED,
-    )
-    for future in done_futures:
-        host = resolution_futures[future]
-        try:
-            address_results[host] = future.result()
-        except Exception:
-            address_results[host] = ""
-    for future in pending_futures:
-        future.cancel()
-    resolver.shutdown(wait=False, cancel_futures=True)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(32, max(1, len(hosts)))) as resolver:
+        futures = {resolver.submit(net_module.resolve_ipv4, host): host for host in hosts}
+        for future in concurrent.futures.as_completed(futures):
+            host = futures[future]
+            try:
+                address_results[host] = future.result()
+            except Exception:
+                address_results[host] = ""
     for row in rows:
         address = address_results.get(row.host, "")
         if address:
             row.ip = address
 
-    # ICMP answers a different question from the Xray HTTP probe.  Collect it
-    # once per endpoint for an honest UI comparison, but never use it to mark a
-    # configuration healthy or to select the best server.
-    endpoint_rows: dict[tuple[str, str], list[ServerRecord]] = defaultdict(list)
-    for row in rows:
-        endpoint_rows[(row.host, row.ip)].append(row)
-
-    def endpoint_icmp(endpoint: tuple[str, str]) -> tuple[tuple[str, str], int | None]:
-        host, resolved_ip = endpoint
-        try:
-            latency, _ip = net_module.icmp_ping(
-                host,
-                attempts=1,
-                timeout=1.2,
-                resolved_ip=resolved_ip,
-            )
-            return endpoint, latency
-        except Exception:
-            return endpoint, None
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, max(1, len(endpoint_rows)))) as pool:
-        for endpoint, latency in pool.map(endpoint_icmp, endpoint_rows):
-            for row in endpoint_rows[endpoint]:
-                row.icmp_ms = latency
-
-    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3000, 1500, 5000)
-    timeout = max(2.5, timeout_ms / 1000.0)
-    # v2rayNG tests a batch concurrently (16 by default). The previous cap of
-    # eight made large subscriptions unnecessarily slow even when the UI asked
-    # for more workers.
+    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3400, 1500, 7000)
+    xray_timeout = max(2.5, timeout_ms / 1000.0)
+    tcp_timeout = min(2.2, max(0.8, xray_timeout * 0.55))
     concurrency = bounded_int(settings.get("test_concurrency"), 16, 4, 32)
 
-    def needs_tcp_precheck(row: ServerRecord) -> bool:
-        try:
-            outbound = xray_module.build_xray_outbound(blob_to_config(row.config_blob)) or {}
-            protocol = str(outbound.get("protocol", "")).lower()
-            stream = outbound.get("streamSettings", {})
-            network = str(stream.get("network", "tcp")).lower() if isinstance(stream, dict) else "tcp"
-            return protocol not in {"hysteria2", "wireguard", "tuic"} and network not in {
-                "kcp", "quic", "hysteria2", "wireguard"
-            }
-        except Exception:
-            return False
-
-    def tcp_reachable(row: ServerRecord) -> bool:
+    def measure(row: ServerRecord) -> tuple[int | None, int | None]:
         target = row.ip or row.host
+        started = time.perf_counter()
         try:
-            with socket.create_connection((target, row.port), timeout=1.0):
-                return True
+            with socket.create_connection((target, int(row.port)), timeout=tcp_timeout):
+                tcp_ms = max(1, int(round((time.perf_counter() - started) * 1000)))
         except OSError:
-            return False
-
-    def probe(row: ServerRecord, probe_timeout: float) -> int | None:
+            tcp_ms = None
         try:
-            # Fast rejection mirrors v2rayNG's ordinary-config TCP pre-check;
-            # this number is never shown as the server ping.
-            if needs_tcp_precheck(row) and not tcp_reachable(row):
-                return None
-            return xray_module.probe_outbound_delay(blob_to_config(row.config_blob), timeout=probe_timeout)
+            xray_ms = xray_module.probe_outbound_delay(
+                blob_to_config(row.config_blob),
+                timeout=xray_timeout,
+            )
+            xray_ms = int(xray_ms) if trusted_latency(xray_ms) else None
         except Exception:
-            return None
+            xray_ms = None
+        return tcp_ms, xray_ms
 
-    def apply_row(row: ServerRecord, latency: int | None) -> None:
-        now = service_module.utc_now()
-        row.last_checked = now
-        if trusted_latency(latency):
-            row.ping_ms, row.status, row.failures = latency, "online", 0
+    def apply_row(row: ServerRecord, tcp_ms: int | None, xray_ms: int | None) -> None:
+        row.last_checked = service_module.utc_now()
+        row.tcp_ms = tcp_ms
+        # Remove misleading legacy ICMP data from newly tested rows.
+        row.icmp_ms = None
+        if trusted_latency(xray_ms):
+            row.ping_ms, row.status, row.failures = int(xray_ms), "online", 0
         else:
             row.ping_ms, row.status, row.failures = None, "unverified", row.failures + 1
         if record_callback:
             record_callback(row)
 
-    failed: list[ServerRecord] = []
     done = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures = {pool.submit(probe, row, timeout): row for row in rows}
+        futures = {pool.submit(measure, row): row for row in rows}
         for future in concurrent.futures.as_completed(futures):
             row = futures[future]
             try:
-                latency = future.result()
+                tcp_ms, xray_ms = future.result()
             except Exception:
-                latency = None
-            apply_row(row, latency)
-            if latency is None:
-                failed.append(row)
+                tcp_ms, xray_ms = None, None
+            apply_row(row, tcp_ms, xray_ms)
             done += 1
             if callback:
                 callback(done, len(rows))
-
-    if settings.get("retry_failed_tests", True) and failed:
-        retry_rows = failed[:6]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(retry_rows))) as pool:
-            futures = {pool.submit(probe, row, max(3.5, timeout)): row for row in retry_rows}
-            for future in concurrent.futures.as_completed(futures):
-                row = futures[future]
-                try:
-                    latency = future.result()
-                except Exception:
-                    latency = None
-                if latency is not None:
-                    apply_row(row, latency)
-
     return records
-
 
 def _sample_records_by_source(records: list[ServerRecord], ratio: float = 0.30) -> list[ServerRecord]:
     """Return a deterministic per-subscription sample for splash probing.
@@ -237,8 +179,9 @@ def _install_service_patch() -> None:
                 source_name=entry.source_name, source_order=entry.source_order,
                 favorite=previous.favorite if previous else False,
                 last_connected=previous.last_connected if previous else "",
-                icmp_ms=previous.icmp_ms if previous else None,
+                tcp_ms=previous.tcp_ms if previous else None,
                 ping_ms=previous.ping_ms if previous else None,
+                icmp_ms=previous.icmp_ms if previous else None,
                 ip=previous.ip if previous else "",
                 country=previous.country if previous else ("Unknown" if kwargs.get("language") == "en" else "نامشخص"),
                 country_code=previous.country_code if previous else "",
@@ -377,8 +320,8 @@ def _install_ui_patch() -> None:
         self.installEventFilter(self)
         self.table.setTextElideMode(Qt.ElideRight)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(7, QHeaderView.Fixed)
-        self.table.setColumnWidth(7, 124)
+        header.setSectionResizeMode(8, QHeaderView.Fixed)
+        self.table.setColumnWidth(8, 124)
         header.setMinimumSectionSize(72)
         # Keep Persian settings tabs visible instead of collapsing the first
         # tab into the right-side overflow button.

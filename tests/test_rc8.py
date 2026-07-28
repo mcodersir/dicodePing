@@ -33,9 +33,9 @@ class Rc8Tests(unittest.TestCase):
         self.assertEqual(automatic, "refresh_ping")
 
     def test_responsive_columns_use_actual_viewport_thresholds(self) -> None:
-        self.assertEqual(responsive_server_columns(500), {2: False, 3: False, 5: False})
-        self.assertEqual(responsive_server_columns(750), {2: True, 3: False, 5: True})
-        self.assertEqual(responsive_server_columns(950), {2: True, 3: True, 5: True})
+        self.assertEqual(responsive_server_columns(500), {2: False, 3: False, 4: False, 5: True, 6: False, 7: False, 8: True})
+        self.assertEqual(responsive_server_columns(750), {2: False, 3: False, 4: True, 5: True, 6: True, 7: True, 8: True})
+        self.assertEqual(responsive_server_columns(950), {2: True, 3: False, 4: True, 5: True, 6: True, 7: True, 8: True})
 
     def test_geo_skips_unresponsive_servers_and_deduplicates(self) -> None:
         rows = [

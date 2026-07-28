@@ -106,7 +106,7 @@ def test_traffic_stats_counts_tun_inbound() -> None:
     manager.process = None
 
 
-def test_rc18_desktop_launchers_require_tun_privileges_and_wintun() -> None:
+def test_rc19_desktop_launchers_require_tun_privileges_and_wintun() -> None:
     app = read("app.py")
     windows_builder = read("tools/build_windows.py")
     prepare_core = read("tools/prepare_core.py")
@@ -119,7 +119,7 @@ def test_rc18_desktop_launchers_require_tun_privileges_and_wintun() -> None:
     assert "manager.connected_ping(timeout=3.2)" in workers
 
 
-def test_rc18_runtime_uses_tun_not_system_proxy() -> None:
+def test_rc19_runtime_uses_tun_not_system_proxy() -> None:
     xray = read("dicodeping/xray.py")
     start = xray[xray.index("    def start("):xray.index("    def traffic_stats(")]
     assert "config = build_tun_config(" in start

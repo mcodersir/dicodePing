@@ -2,11 +2,15 @@
 
 یک کلاینت چندسکویی برای دریافت، ارزیابی و اتصال به کانفیگ‌های پروکسی با رابط فارسی و انگلیسی.
 
+## تست واقعی دوگانه دسکتاپ در RC19
+
+در Windows، Linux و macOS هر کانفیگ یک‌بار با TCP و یک‌بار با درخواست واقعی از داخل Xray تست می‌شود. این دو عدد جداگانه در دو ستون رنگی نمایش داده می‌شوند و فقط نتیجه Xray وضعیت سالم/آنلاین را تعیین می‌کند.
+
 ## وضعیت نسخه
 
-**v1.9.0-rc.18** — بازگردانی اتصال سراسری و واقعی Xray TUN در Windows، Linux و macOS.
+**v1.9.0-rc.19** — بازگردانی اتصال سراسری و واقعی Xray TUN در Windows، Linux و macOS.
 
-## امکانات تازه RC18
+## امکانات تازه RC19
 
 - ترافیک کل سیستم از مسیر `Xray TUN → سرور انتخاب‌شده → اینترنت` عبور می‌کند؛ System Proxy جایگزین TUN نیست.
 - برنامه ابتدا خود سرور را با SOCKS خصوصی داخل Xray بررسی می‌کند و سپس یک درخواست مستقیم بدون Proxy را از Route سراسری TUN عبور می‌دهد.
@@ -80,10 +84,10 @@ python dicodePing_android/tools/validate_project.py
 
 ## انتشار
 
-برای انتشار کامل RC18 در ویندوز، ZIP را Extract و فایل `DEPLOY_PRERELEASE_RC18.bat` را اجرا کنید. این اسکریپت سورس تمیز را روی `main` می‌فرستد، تگ `v1.9.0-rc.18` را ایجاد یا جایگزین می‌کند و تا انتشار خروجی‌های Windows، Linux، macOS و Android منتظر می‌ماند. راهنمای کوتاه در `DEPLOY_PRERELEASE_RC18_README_FA.txt` قرار دارد.
+برای انتشار کامل RC19 در ویندوز، ZIP را Extract و فایل `DEPLOY_PRERELEASE_RC19.bat` را اجرا کنید. این اسکریپت سورس تمیز را روی `main` می‌فرستد، تگ `v1.9.0-rc.19` را ایجاد یا جایگزین می‌کند و تا انتشار خروجی‌های Windows، Linux، macOS و Android منتظر می‌ماند. راهنمای کوتاه در `DEPLOY_PRERELEASE_RC19_README_FA.txt` قرار دارد.
 
-Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.yml` هستند. انتشار RC18 با تگ `v1.9.0-rc.18` آغاز می‌شود.
+Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.yml` هستند. انتشار RC19 با تگ `v1.9.0-rc.19` آغاز می‌شود.
 
-## انتشار یک‌کلیکی RC18
+## انتشار یک‌کلیکی RC19
 
-پس از Extract کامل بسته در یک پوشه جدید، `DEPLOY_PRERELEASE_RC18.bat` را اجرا کنید. این ابزار Clone، پاک‌سازی فایل‌های RC قبلی، اعتبارسنجی، Push، ساخت مجدد Tag، انتشار Pre-release و بازیابی GitHub Pages را یکجا انجام می‌دهد. جزئیات در `RC18_RELEASE_DEPLOY_FIX_FA.md` آمده است.
+پس از Extract کامل بسته در یک پوشه جدید، `DEPLOY_PRERELEASE_RC19.bat` را اجرا کنید. این ابزار Clone، پاک‌سازی فایل‌های RC قبلی، اعتبارسنجی، Push، ساخت مجدد Tag، انتشار Pre-release و بازیابی GitHub Pages را یکجا انجام می‌دهد. جزئیات در `RC19_RELEASE_DEPLOY_FIX_FA.md` آمده است.

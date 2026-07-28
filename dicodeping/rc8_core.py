@@ -27,9 +27,13 @@ def responsive_server_columns(viewport_width: int) -> dict[int, bool]:
     """Return column visibility using the table viewport, not window width."""
     width = max(0, int(viewport_width))
     return {
-        2: width >= 720,  # location
-        3: width >= 900,  # address
-        5: width >= 620,  # favorite
+        2: width >= 760,   # location
+        3: width >= 980,   # address
+        4: width >= 620,   # TCP
+        5: True,           # Xray is the primary latency
+        6: width >= 700,   # quality
+        7: width >= 560,   # favorite
+        8: True,           # action
     }
 
 

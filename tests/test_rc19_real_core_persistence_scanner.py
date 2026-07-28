@@ -23,12 +23,12 @@ def test_scanner_local_source_and_servers_survive_refresh():
     assert "unique + localServers" in repository
     assert "local_scanner = [row for row in old.values()" in desktop
 
-def test_scanner_prefilters_and_uses_two_fast_attempts():
+def test_scanner_uses_one_tcp_and_one_xray_attempt():
     repository = read("dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt")
     scanner = read("dicodeping/scanner.py")
     assert "SCANNER_TCP_PREFILTER_WORKERS = 16" in repository
     assert "SCANNER_TEST_ATTEMPTS = 2" in repository
-    assert "SCAN_PROBE_ATTEMPTS = 2" in scanner
+    assert "SCAN_PROBE_ATTEMPTS = 1" in scanner
     assert "SCAN_PROBE_MIN_SUCCESS = 1" in scanner
 
 def test_server_duration_badges_are_human_readable():

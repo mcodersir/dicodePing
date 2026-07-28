@@ -12,8 +12,8 @@ VERSION = "1.9.0"
 # candidates discover the next candidate without changing stable user-facing
 # version formatting.
 # Previous RC metadata retained for migration tests: RELEASE_VERSION = "1.8.0-rc.2"
-# Legacy RC13 static-test marker only: RELEASE_VERSION = "1.9.0-rc.18"
-RELEASE_VERSION = "1.9.0-rc.18"
+# Legacy RC13 static-test marker only: RELEASE_VERSION = "1.9.0-rc.19"
+RELEASE_VERSION = "1.9.0-rc.19"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 DEFAULT_SUBSCRIPTION_MIRRORS = (

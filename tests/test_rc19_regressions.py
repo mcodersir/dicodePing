@@ -4,10 +4,10 @@ ROOT=Path(__file__).resolve().parents[1]
 def text(path): return (ROOT/path).read_text(encoding="utf-8")
 
 def test_version_and_android_code():
-    assert 'RELEASE_VERSION = "1.9.0-rc.18"' in text('dicodeping/constants.py')
+    assert 'RELEASE_VERSION = "1.9.0-rc.19"' in text('dicodeping/constants.py')
     gradle=text('dicodePing_android/app/build.gradle.kts')
-    assert 'versionCode = 53' in gradle
-    assert 'versionName = "1.9.0-rc.18"' in gradle
+    assert 'versionCode = 54' in gradle
+    assert 'versionName = "1.9.0-rc.19"' in gradle
 
 def test_settings_no_duplicate_app_bypass_and_no_wrong_cdn_id():
     layout=text('dicodePing_android/app/src/main/res/layout/fragment_settings.xml')

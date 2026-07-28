@@ -118,18 +118,18 @@ class _SelectedPingThread(QThread):
     def run(self):
         try:
             ip = net_module.resolve_ipv4(self.server.host)
-            icmp_ms, _resolved = net_module.icmp_ping(
-                self.server.host,
-                attempts=1,
-                timeout=1.2,
-                resolved_ip=ip,
-            )
+            started = time.perf_counter()
+            try:
+                with socket.create_connection((ip or self.server.host, int(self.server.port)), timeout=1.8):
+                    tcp_ms = max(1, int(round((time.perf_counter() - started) * 1000)))
+            except OSError:
+                tcp_ms = None
             proxy_ms = probe_outbound_delay(
                 blob_to_config(self.server.config_blob),
                 timeout=4.5,
             )
             result = net_module.PingResult(self.server.id, proxy_ms, ip)
-            result.icmp_ms = icmp_ms
+            result.tcp_ms = tcp_ms
         except Exception:
             # Always emit completion so the UI cannot leave the button disabled
             # forever after an unexpected resolver/platform error.
@@ -176,7 +176,7 @@ def _install_ui_patch() -> None:
         def finished(result):
             server.last_checked = service_module.utc_now()
             if result and result.ping_ms is not None:
-                server.icmp_ms = getattr(result, "icmp_ms", server.icmp_ms)
+                server.tcp_ms = getattr(result, "tcp_ms", server.tcp_ms)
                 server.ping_ms = result.ping_ms
                 server.ip = result.ip or server.ip
                 server.status = "online" if trusted_latency(result.ping_ms) else "unverified"
@@ -210,7 +210,7 @@ def _install_ui_patch() -> None:
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeToContents)
         for row in range(self.table.rowCount()):
-            button = self.table.cellWidget(row, 6)
+            button = self.table.cellWidget(row, 8)
             if button:
                 # Keep the Persian label intact; on small windows the table
                 # scrolls horizontally instead of clipping the action.

@@ -32,7 +32,7 @@ def test_scanner_enriches_geo_before_atomic_save():
     assert scanner.index("_enrich_scanner_records(records") < scanner.index("save_scanner_transaction(")
 
 
-def test_android_rc18_security_location_resource_and_aether_pipeline():
+def test_android_rc19_security_location_resource_and_aether_pipeline():
     models = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/Models.kt").read_text("utf-8")
     repo = (ROOT / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text("utf-8")
     prepare = (ROOT / "dicodePing_android/tools/prepare_bundled_cores.py").read_text("utf-8")
@@ -44,16 +44,16 @@ def test_android_rc18_security_location_resource_and_aether_pipeline():
     assert '("x86_64", "x86_64-linux-android")' in prepare
 
 
-def test_rc18_versions_and_deployer():
+def test_rc19_versions_and_deployer():
     constants = (ROOT / "dicodeping/constants.py").read_text("utf-8")
     gradle = (ROOT / "dicodePing_android/app/build.gradle.kts").read_text("utf-8")
     workflow = (ROOT / ".github/workflows/release.yml").read_text("utf-8")
-    deploy = (ROOT / "DEPLOY_PRERELEASE_RC18.bat").read_text("utf-8")
-    assert 'RELEASE_VERSION = "1.9.0-rc.18"' in constants
-    assert 'versionName = "1.9.0-rc.18"' in gradle
-    assert 'versionCode = 53' in gradle
-    assert 'v1.9.0-rc.18' in workflow
-    assert 'v1.9.0-rc.18' in deploy
+    deploy = (ROOT / "DEPLOY_PRERELEASE_RC19.bat").read_text("utf-8")
+    assert 'RELEASE_VERSION = "1.9.0-rc.19"' in constants
+    assert 'versionName = "1.9.0-rc.19"' in gradle
+    assert 'versionCode = 54' in gradle
+    assert 'v1.9.0-rc.19' in workflow
+    assert 'v1.9.0-rc.19' in deploy
 
 
 def test_remote_discovery_assigns_security_rating():

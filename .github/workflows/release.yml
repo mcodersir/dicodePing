@@ -1,16 +1,16 @@
-name: Release dicodePing v1.9.0-rc.18
+name: Release dicodePing v1.9.0-rc.19
 
 on:
   push:
     tags:
-      - "v1.9.0-rc.18"
+      - "v1.9.0-rc.19"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-v1.9.0-rc.18
+  group: release-v1.9.0-rc.19
   cancel-in-progress: true
 
 jobs:
@@ -27,10 +27,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/prepare_build_workspace.py
-          python tools/verify_version.py --tag v1.9.0-rc.18
+          python tools/verify_version.py --tag v1.9.0-rc.19
           python tools/validate_android_gradle_kts.py
           python tools/validate_android_source_references.py
-          python tools/validate_rc18_tun_runtime_hotfix.py
+          python tools/validate_rc19_dual_latency.py
           python -m pytest -q
           python tools/quality_gate.py
           python dicodePing_android/tools/validate_project.py
@@ -50,7 +50,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_windows.py --skip-install
-          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-v190-rc18-smoke"
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-v190-rc19-smoke"
           $env:LOCALAPPDATA = $env:APPDATA
           $env:DICODEPING_DISCOVERY_SMOKE = "1"
           $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP "windows-smoke.txt"
@@ -59,7 +59,7 @@ jobs:
             "--discovery-smoke",
             "--startup-smoke-report=$env:DICODEPING_STARTUP_SMOKE_REPORT"
           )
-          $process = Start-Process -FilePath "release/dicodePing-v1.9.0-rc.18-windows-x64.exe" -ArgumentList $arguments -Wait -PassThru
+          $process = Start-Process -FilePath "release/dicodePing-v1.9.0-rc.19-windows-x64.exe" -ArgumentList $arguments -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
             throw "Packaged Windows smoke test failed: $($process.ExitCode)"
@@ -68,7 +68,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: release/dicodePing-v1.9.0-rc.18-windows-x64.exe
+          path: release/dicodePing-v1.9.0-rc.19-windows-x64.exe
           if-no-files-found: error
 
   linux:
@@ -87,16 +87,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_linux.py --skip-install
-          mkdir -p "$RUNNER_TEMP/dicodeping-v190-rc18-smoke"
-          tar -xzf release/dicodePing-v1.9.0-rc.18-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-v190-rc18-smoke"
-          binary="$RUNNER_TEMP/dicodeping-v190-rc18-smoke/dicodePing-v1.9.0-rc.18-linux-x86_64/dicodePing"
+          mkdir -p "$RUNNER_TEMP/dicodeping-v190-rc19-smoke"
+          tar -xzf release/dicodePing-v1.9.0-rc.19-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-v190-rc19-smoke"
+          binary="$RUNNER_TEMP/dicodeping-v190-rc19-smoke/dicodePing-v1.9.0-rc.19-linux-x86_64/dicodePing"
           report="$RUNNER_TEMP/linux-smoke.txt"
           env QT_QPA_PLATFORM=offscreen XDG_CONFIG_HOME="$RUNNER_TEMP/dicodeping-config" DICODEPING_DISCOVERY_SMOKE=1 DICODEPING_STARTUP_SMOKE_REPORT="$report" timeout 45s "$binary" --startup-smoke-test --discovery-smoke "--startup-smoke-report=$report"
           cat "$report"
       - uses: actions/upload-artifact@v7
         with:
           name: linux
-          path: release/dicodePing-v1.9.0-rc.18-linux-x86_64.tar.gz
+          path: release/dicodePing-v1.9.0-rc.19-linux-x86_64.tar.gz
           if-no-files-found: error
 
   macos:
@@ -125,7 +125,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.architecture }}
-          path: release/dicodePing-v1.9.0-rc.18-macos-${{ matrix.architecture }}.dmg
+          path: release/dicodePing-v1.9.0-rc.19-macos-${{ matrix.architecture }}.dmg
           if-no-files-found: error
 
   android:
@@ -194,12 +194,12 @@ jobs:
           chmod +x gradlew build_apk.sh
           ./build_apk.sh
 
-          apk="release/dicodePing-v1.9.0-rc.18-android.apk"
+          apk="release/dicodePing-v1.9.0-rc.19-android.apk"
           zipalign_bin="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -1)"
           test -x "$zipalign_bin"
           "$zipalign_bin" -c -P 16 -v 4 "$apk"
           if unzip -Z1 "$apk" | grep -Eq '^lib/(armeabi-v7a|x86)/'; then
-            echo "32-bit native libraries are not allowed in the RC18 public APK" >&2
+            echo "32-bit native libraries are not allowed in the RC19 public APK" >&2
             exit 1
           fi
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/.*\.so$'
@@ -223,7 +223,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: android
-          path: dicodePing_android/release/dicodePing-v1.9.0-rc.18-android.apk
+          path: dicodePing_android/release/dicodePing-v1.9.0-rc.19-android.apk
           if-no-files-found: error
 
   publish:
@@ -248,13 +248,13 @@ jobs:
           cp artifacts/windows/* artifacts/linux/* artifacts/android/* release-assets/
           cp artifacts/macos-arm64/* artifacts/macos-x86_64/* release-assets/
           cp assets/core-manifest.json release-assets/core-manifest.json
-          cp docs/releases/v1.9.0-rc.18.md release-assets/RELEASE_NOTES.md
+          cp docs/releases/v1.9.0-rc.19.md release-assets/RELEASE_NOTES.md
           cp CHANGELOG.md THIRD_PARTY_NOTICES.md release-assets/
           python tools/generate_sbom.py
           cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
           git archive --format=zip --output=release-assets/source.zip HEAD
 
-          # RC18 bundles Xray, Aether and Usque inside each platform artifact.
+          # RC19 bundles Xray, Aether and Usque inside each platform artifact.
           # No separate core archives are published.
 
           # Psiphon remains disabled unless a future same-package authorized build is available.
@@ -263,10 +263,10 @@ jobs:
           (cd release-assets && sha256sum * > SHA256SUMS)
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v1.9.0-rc.18
+          tag_name: v1.9.0-rc.19
           target_commitish: ${{ github.sha }}
-          name: dicodePing v1.9.0-rc.18
-          body_path: docs/releases/v1.9.0-rc.18.md
+          name: dicodePing v1.9.0-rc.19
+          body_path: docs/releases/v1.9.0-rc.19.md
           prerelease: true
           overwrite_files: true
           fail_on_unmatched_files: true

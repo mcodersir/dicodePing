@@ -46,8 +46,8 @@ def install_rc9_patches() -> None:
                 self.table.setColumnHidden(column, not visible)
             header = self.table.horizontalHeader()
             header.setSectionResizeMode(1, QHeaderView.Stretch)
-            header.setSectionResizeMode(7, QHeaderView.Fixed)
-            self.table.setColumnWidth(7, 124)
+            header.setSectionResizeMode(8, QHeaderView.Fixed)
+            self.table.setColumnWidth(8, 124)
             if not self._busy_list_task:
                 rows = self.server_card_list.count()
                 self.server_stack.setCurrentIndex(

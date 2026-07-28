@@ -1,12 +1,12 @@
 # Changelog
 
-## 1.9.0-rc.18
+## 1.9.0-rc.19
 
 - Fixed a Windows TUN false negative where Xray was visibly carrying DNS/TCP traffic but the private liveness probe used only plain HTTP/80 and tore the working tunnel down.
 - Reworked the private SOCKS probe with exact fragmented-read handling, HTTPS-first targets and full HTTP status-line parsing.
 - Made the private SOCKS pre-check advisory; the authoritative connection result is now the ordinary system-wide request through the active TUN route.
 - Fixed `NameError: old is not defined` in connection-failure, favorite and saved-server refresh paths while preserving scanner-created servers.
-- Added a dedicated RC18 TUN runtime validator to local deployment and GitHub Actions.
+- Added a dedicated RC19 TUN runtime validator to local deployment and GitHub Actions.
 - Fixed one-click deployment from folders previously used for RC16/RC17 by removing all stale RC10+ test modules by filename and verifying the staged tree again before push.
 - Restored mandatory full-device Xray TUN routing on Windows, Linux and macOS; System Proxy is no longer used as a substitute.
 - Added platform-correct TUN settings, including Windows Wintun/DNS, Linux routing and dynamic macOS `utunN` selection.
@@ -15,7 +15,7 @@
 - Added two-stage connection verification: private Xray SOCKS validation followed by an ordinary no-proxy HTTP request through the active TUN route.
 - Restored Windows UAC packaging, Linux PolicyKit relaunch and native macOS administrator authorization.
 - Made Disconnect remove Xray, temporary routes, runtime state and the named TUN interface without blocking the UI.
-- Kept one-time stale System Proxy recovery only for users upgrading from the earlier incorrect RC18 package.
+- Kept one-time stale System Proxy recovery only for users upgrading from the earlier incorrect RC19 package.
 - Retained scanner persistence, location enrichment, security ratings, resource tuning and external-core improvements from RC17.
 
 ## 1.9.0-rc.16

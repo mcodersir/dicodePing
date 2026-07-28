@@ -40,10 +40,10 @@ def window_class(width: int) -> WindowClass:
 
 
 def desktop_server_columns(width: int) -> dict[int, bool]:
-    """Visibility for country/name/location/ip/ping/quality/pin/action."""
+    """Visibility for country/name/location/ip/TCP/Xray/quality/pin/action."""
     mode = window_class(width)
     if mode is WindowClass.COMPACT:
-        return {index: False for index in range(8)}
+        return {index: False for index in range(9)}
     if mode is WindowClass.MEDIUM:
-        return {0: True, 1: True, 2: False, 3: False, 4: True, 5: True, 6: True, 7: True}
-    return {index: True for index in range(8)}
+        return {0: True, 1: True, 2: False, 3: False, 4: True, 5: True, 6: True, 7: True, 8: True}
+    return {index: True for index in range(9)}
