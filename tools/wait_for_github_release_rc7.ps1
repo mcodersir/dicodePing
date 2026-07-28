@@ -39,11 +39,11 @@ $headers = @{
 }
 
 $requiredAssets = @(
-    'dicodePing-v1.9.0-rc.13-windows-x64.exe',
-    'dicodePing-v1.9.0-rc.13-linux-x86_64.tar.gz',
-    'dicodePing-v1.9.0-rc.13-macos-arm64.dmg',
-    'dicodePing-v1.9.0-rc.13-macos-x86_64.dmg',
-    'dicodePing-v1.9.0-rc.13-android.apk'
+    'dicodePing-v1.9.0-rc.7-windows-x64.exe',
+    'dicodePing-v1.9.0-rc.7-linux-x86_64.tar.gz',
+    'dicodePing-v1.9.0-rc.7-macos-arm64.dmg',
+    'dicodePing-v1.9.0-rc.7-macos-x86_64.dmg',
+    'dicodePing-v1.9.0-rc.7-android.apk'
 )
 
 $startedAt = Get-Date

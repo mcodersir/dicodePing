@@ -1,4 +1,4 @@
-گزارش اصلاح دیپلوی RC14
+گزارش اصلاح دیپلوی RC15
 ========================
 
 علت خطای GitHub Actions:
@@ -9,7 +9,7 @@
 
 اصلاح انجام‌شده:
 - قبل از کپی سورس، تمام فایل‌های Track شده Clone با git rm حذف می‌شوند.
-- فقط Snapshot تمیز RC14 از ZIP وارد Stage می‌شود.
+- فقط Snapshot تمیز RC15 از ZIP وارد Stage می‌شود.
 - اسکریپت وجود تست‌ها، Workflowها و BATهای تاریخی را قبل از Push بررسی می‌کند.
 - pytest، Version Validator، Android Validator و Quality Gate قبل از Push اجرا می‌شوند.
 - فلگ پیکربندی Usque در دسکتاپ به فرم رسمی --config تغییر کرد.
@@ -24,5 +24,10 @@ FIX v3 - packaged discovery crash
 - Windows/Linux CI failed because desktop builders packaged app.py directly.
 - app.py does not install the RC runtime chain, so DiscoverThread called the old
   ServerService signature and crashed on preview_progress/preview_only.
-- Added app_v190_rc14.py and made Windows, Linux, macOS and the local spec use it.
+- Added app_v190_rc15.py and made Windows, Linux, macOS and the local spec use it.
 - Added a regression test that prevents builders from returning to app.py.
+
+اصلاح تکميلي ديپلوي:
+- اگر ZIP روي پوشه نسخه قديمي Extract شده باشد، کپي قديمي AndroidTetheringController از source-set اصلي پيش از اعتبارسنجي حذف مي شود.
+- پياده سازي هاي standard و rooted دست نخورده باقي مي مانند.
+- build_apk.bat و build_apk.sh نيز همين پاک سازي را اجرا مي کنند.

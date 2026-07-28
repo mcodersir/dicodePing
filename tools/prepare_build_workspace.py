@@ -13,6 +13,16 @@ GENERATED_NATIVE_FILES = {
     "core/geosite.dat",
 }
 
+ANDROID_TETHERING_MAIN = Path(
+    "dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+)
+ANDROID_TETHERING_STANDARD = Path(
+    "dicodePing_android/app/src/standard/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+)
+ANDROID_TETHERING_ROOTED = Path(
+    "dicodePing_android/app/src/rooted/java/ir/dicode/ping/vpn/AndroidTetheringController.kt"
+)
+
 
 def clean(root: Path, *, clean_outputs: bool = True) -> list[Path]:
     removed: list[Path] = []
@@ -29,6 +39,21 @@ def clean(root: Path, *, clean_outputs: bool = True) -> list[Path]:
         if path.is_file():
             path.unlink(missing_ok=True)
             removed.append(path)
+
+    # Old RC folders may leave the same Kotlin class under src/main after a
+    # newer ZIP is extracted over them. Product-flavor sources are compiled
+    # together with main, so that stale copy causes a redeclaration. Delete it
+    # only when both intended flavor implementations are present.
+    main_controller = root / ANDROID_TETHERING_MAIN
+    standard_controller = root / ANDROID_TETHERING_STANDARD
+    rooted_controller = root / ANDROID_TETHERING_ROOTED
+    if (
+        main_controller.is_file()
+        and standard_controller.is_file()
+        and rooted_controller.is_file()
+    ):
+        main_controller.unlink()
+        removed.append(main_controller)
 
     if clean_outputs:
         for relative in ("build", "dist"):

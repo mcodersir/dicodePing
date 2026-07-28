@@ -16,7 +16,7 @@ done
 chmod +x gradlew
 ./gradlew --no-daemon clean lintStandardRelease testStandardReleaseUnitTest assembleStandardRelease
 mkdir -p release
-APK="release/dicodePing-v1.9.0-rc.13-android.apk"
+APK="release/dicodePing-v1.9.0-rc.7-android.apk"
 cp app/build/outputs/apk/standard/release/app-standard-release.apk "$APK"
 if [[ -n "${ANDROID_HOME:-}" ]]; then
   APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" 2>/dev/null | sort -V | tail -1)/apksigner"

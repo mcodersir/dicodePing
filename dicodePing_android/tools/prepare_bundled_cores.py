@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -19,7 +20,7 @@ ANDROID_API = 24
 
 def download(url: str, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.14-hotfix3"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/1.9.0-rc.15"})
     with urllib.request.urlopen(request, timeout=90) as response, target.open("wb") as output:
         shutil.copyfileobj(response, output)
 
@@ -189,16 +190,55 @@ def main() -> int:
         work = Path(temp)
         prepare_aether(work, jni)
         prepare_usque(work, jni)
+    manifest_entries = []
     for abi in ("arm64-v8a", "x86_64"):
+        expected_machine = 183 if abi == "arm64-v8a" else 62
         for name in ("libaether.so", "libusque.so"):
             path = jni / abi / name
             if not path.is_file():
                 raise RuntimeError(f"Missing bundled helper: {path}")
             if path.stat().st_size < 500_000:
                 raise RuntimeError(f"Bundled helper is unexpectedly small: {path}")
-            if path.read_bytes()[:4] != b"\x7fELF":
+            with path.open("rb") as stream:
+                header = stream.read(20)
+            if header[:4] != b"\x7fELF":
                 raise RuntimeError(f"Bundled helper is not an Android ELF executable: {path}")
-            print(f"Prepared {path.relative_to(project)} sha256={sha256(path)}")
+            machine = int.from_bytes(header[18:20], "little")
+            if machine != expected_machine:
+                raise RuntimeError(
+                    f"Bundled helper ABI mismatch for {path}: expected ELF machine {expected_machine}, got {machine}"
+                )
+            digest = sha256(path)
+            manifest_entries.append(
+                {
+                    "abi": abi,
+                    "file": name,
+                    "bytes": path.stat().st_size,
+                    "sha256": digest,
+                    "elfMachine": machine,
+                }
+            )
+            print(f"Prepared {path.relative_to(project)} sha256={digest}")
+
+    assets_dir = project / "app" / "src" / "main" / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = assets_dir / "bundled_cores.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "release": "1.9.0-rc.15",
+                "aether": AETHER_VERSION,
+                "usque": USQUE_VERSION,
+                "abis": ["arm64-v8a", "x86_64"],
+                "entries": manifest_entries,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n",
+        encoding="utf-8",
+    )
+    print(f"Wrote {manifest_path.relative_to(project)}")
     return 0
 
 

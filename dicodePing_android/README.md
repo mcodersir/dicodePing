@@ -1,4 +1,4 @@
-# dicodePing Android — v1.9.0-rc.14
+# dicodePing Android — v1.9.0-rc.15
 
 کلاینت بومی Android با Kotlin، Material 3، `VpnService` و AndroidLibXrayLite.
 
@@ -54,9 +54,7 @@ SHA-256 مورد انتظار:
 
 ## آماده‌سازی هسته‌های bundled
 
-```bash
-python tools/prepare_bundled_cores.py
-```
+نیازی به اجرای دستی مرحله جداگانه نیست. `build_apk.sh` و `build_apk.bat` قبل از Gradle، Aether و Usque را برای هر دو ABI می‌سازند/دریافت می‌کنند و بعد از ساخت نیز خود APK را بررسی می‌کنند. اجرای مستقیم Gradle بدون هسته‌ها با خطا متوقف می‌شود.
 
 ## ساخت Debug
 

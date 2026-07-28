@@ -11,7 +11,7 @@ root = Path(SPECPATH)
 assets = root / "assets"
 
 a = Analysis(
-    [str(root / "app_v190_rc14.py")],
+    [str(root / "app_v190_rc15.py")],
     pathex=[str(root)],
     binaries=[],
     datas=[(str(assets), "assets")],

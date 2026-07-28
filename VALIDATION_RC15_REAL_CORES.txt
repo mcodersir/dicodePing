@@ -1,0 +1,26 @@
+dicodePing v1.9.0-rc.15 validation
+==================================
+
+Local source validation completed:
+- Python compileall: passed
+- Python regression tests: 100 passed
+- Version synchronization: passed (1.9.0-rc.15)
+- Android Gradle Kotlin DSL static validation: passed
+- Android project validation: 55 XML files and 265 localized strings passed
+- Security quality gate: 0 errors, 0 warnings
+- GitHub workflow YAML parsing: passed
+- APK core-verifier logic: passed against a generated two-ABI fixture APK
+
+Release safeguards:
+- Android versionCode: 50
+- Subscription URLs are normalized before OkHttp Request construction
+- Corrupted RC14 source settings are migrated
+- build_apk.sh prepares Aether and Usque before Gradle
+- build_apk.sh runs Android unit tests
+- Final APK must contain libgojni.so, libaether.so and libusque.so for arm64-v8a and x86_64
+- Final APK verification checks ELF architecture, size and SHA-256 manifest data
+
+A physical Android APK was not built inside this offline workspace because the
+Android SDK/NDK and upstream release downloads are provided by GitHub Actions.
+The release workflow performs the real signed build and rejects the artifact if
+any native core is absent from the final APK.

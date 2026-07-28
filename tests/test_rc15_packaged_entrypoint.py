@@ -7,22 +7,22 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_all_desktop_builders_package_the_rc14_runtime_wrapper() -> None:
+def test_all_desktop_builders_package_the_rc15_runtime_wrapper() -> None:
     for relative in (
         "tools/build_windows.py",
         "tools/build_linux.py",
         "tools/build_macos.py",
     ):
         builder = read(relative)
-        assert 'entrypoint = root / "app_v190_rc14.py"' in builder
+        assert 'entrypoint = root / "app_v190_rc15.py"' in builder
         assert 'entrypoint = root / "app.py"' not in builder
 
     spec = read("dicodePing.spec")
-    assert '[str(root / "app_v190_rc14.py")]' in spec
+    assert '[str(root / "app_v190_rc15.py")]' in spec
 
 
-def test_rc14_wrapper_installs_discovery_runtime_before_importing_app() -> None:
-    wrapper = read("app_v190_rc14.py")
+def test_rc15_wrapper_installs_discovery_runtime_before_importing_app() -> None:
+    wrapper = read("app_v190_rc15.py")
     assert "from dicodeping.rc7_runtime import install_rc7_patches" in wrapper
     assert "install_rc7_patches," in wrapper
     assert wrapper.index("install_rc7_patches,") < wrapper.index("from app import main")

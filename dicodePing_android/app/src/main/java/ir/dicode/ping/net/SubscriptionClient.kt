@@ -2,10 +2,35 @@ package ir.dicode.ping.net
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
+
+/**
+ * Converts a user/source supplied subscription address into a safe HTTP URL.
+ *
+ * Old settings may contain an empty value, surrounding whitespace, or a host
+ * without an explicit scheme. OkHttp deliberately throws when Request.url()
+ * receives such a string, so URL parsing must happen before building a request.
+ */
+internal fun normalizedSubscriptionHttpUrl(raw: String): HttpUrl? {
+    val value = raw.trim()
+    if (value.isEmpty()) return null
+
+    val candidate = when {
+        value.startsWith("http://", ignoreCase = true) -> value
+        value.startsWith("https://", ignoreCase = true) -> value
+        "://" in value -> return null
+        else -> "https://$value"
+    }
+
+    return candidate.toHttpUrlOrNull()?.takeIf { parsed ->
+        parsed.host.isNotBlank() && (parsed.scheme == "http" || parsed.scheme == "https")
+    }
+}
 
 class SubscriptionClient {
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -17,15 +42,25 @@ class SubscriptionClient {
         .build()
 
     suspend fun download(url: String, progress: (Long, Long) -> Unit): String = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).header("User-Agent", "dicodePing-Android/1.6").build()
+        val httpUrl = requireNotNull(normalizedSubscriptionHttpUrl(url)) {
+            "Subscription URL is empty or invalid. Use an http:// or https:// address."
+        }
+        val request = Request.Builder()
+            .url(httpUrl)
+            .header("User-Agent", "dicodePing-Android/1.9.0-rc.15")
+            .build()
+
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val body = response.body ?: error("Empty response")
             val total = body.contentLength()
-            val input = body.byteStream(); val out = ByteArrayOutputStream(); val buffer = ByteArray(16 * 1024)
+            val input = body.byteStream()
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(16 * 1024)
             var readTotal = 0L
             while (true) {
-                val n = input.read(buffer); if (n < 0) break
+                val n = input.read(buffer)
+                if (n < 0) break
                 readTotal += n
                 if (readTotal > MAX_SUBSCRIPTION_BYTES) error("Subscription is larger than 16 MiB")
                 out.write(buffer, 0, n)
@@ -36,33 +71,34 @@ class SubscriptionClient {
     }
 
     suspend fun revision(url: String): String = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).head().header("User-Agent", "dicodePing-Android").build()
+        val httpUrl = normalizedSubscriptionHttpUrl(url) ?: return@withContext ""
         runCatching {
+            val request = Request.Builder()
+                .url(httpUrl)
+                .head()
+                .header("User-Agent", "dicodePing-Android/1.9.0-rc.15")
+                .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use ""
-                listOf(response.header("ETag"), response.header("Last-Modified"), response.header("Content-Length"))
-                    .joinToString("|") { it.orEmpty() }
+                listOf(
+                    response.header("ETag"),
+                    response.header("Last-Modified"),
+                    response.header("Content-Length"),
+                ).joinToString("|") { it.orEmpty() }
             }
         }.getOrDefault("")
     }
 
     /**
-     * Fetch the ``Subscription-Userinfo`` header for a subscription URL.
-     *
-     * Returns the raw header value (e.g.
-     * ``"upload=4567; download=1234567; total=10737418240; expire=1712345678"``)
-     * or ``null`` when the provider does not expose one.  This is the
-     * standard v2rayN / Nekoray header for advertising the user's traffic
-     * quota and is the source of the *real* remaining-volume number that
-     * the user asked for in v1.6.0-rc.2.
+     * Fetches the standard Subscription-Userinfo quota header when available.
      */
     suspend fun fetchUserinfoHeader(url: String): String? = withContext(Dispatchers.IO) {
-        if (!url.startsWith("http://") && !url.startsWith("https://")) return@withContext null
+        val httpUrl = normalizedSubscriptionHttpUrl(url) ?: return@withContext null
         runCatching {
             val request = Request.Builder()
-                .url(url)
+                .url(httpUrl)
                 .head()
-                .header("User-Agent", "dicodePing-Scanner/1.6")
+                .header("User-Agent", "dicodePing-Scanner/1.9.0-rc.15")
                 .build()
             client.newCall(request).execute().use { response ->
                 response.header("Subscription-Userinfo")?.takeIf { it.isNotBlank() }

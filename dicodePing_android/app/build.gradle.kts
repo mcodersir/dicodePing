@@ -73,7 +73,8 @@ val verifyCore by tasks.registering {
                 throw GradleException("Android core is missing required 64-bit ABI: $abi")
             }
         }
-        for (abi in listOf("arm64-v8a", "x86_64")) {
+        val expectedMachines = mapOf("arm64-v8a" to 183, "x86_64" to 62)
+        for ((abi, expectedMachine) in expectedMachines) {
             val helperDir = project.file("src/main/jniLibs/$abi")
             for (helper in listOf("libaether.so", "libusque.so")) {
                 val file = File(helperDir, helper)
@@ -81,12 +82,26 @@ val verifyCore by tasks.registering {
                     throw GradleException("Bundled Android helper is missing or incomplete: ${file.absolutePath}")
                 }
                 file.inputStream().use { input ->
-                    val elf = ByteArray(4)
-                    if (input.read(elf) != 4 || !elf.contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))) {
+                    val header = ByteArray(20)
+                    val bytesRead = input.read(header)
+                    val isElf = bytesRead == header.size &&
+                        header.copyOfRange(0, 4).contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))
+                    if (!isElf) {
                         throw GradleException("Bundled Android helper is not an ELF binary: ${file.absolutePath}")
+                    }
+                    val machine = (header[18].toInt() and 0xff) or ((header[19].toInt() and 0xff) shl 8)
+                    if (machine != expectedMachine) {
+                        throw GradleException(
+                            "Bundled Android helper has the wrong ABI: ${file.absolutePath}; " +
+                                "expected ELF machine $expectedMachine, got $machine"
+                        )
                     }
                 }
             }
+        }
+        val bundledManifest = project.file("src/main/assets/bundled_cores.json")
+        if (!bundledManifest.isFile || !bundledManifest.readText().contains("1.9.0-rc.15")) {
+            throw GradleException("Bundled core manifest is missing or stale: ${bundledManifest.absolutePath}")
         }
 
         logger.lifecycle("Using Android core: ${coreAar.absolutePath}")
@@ -102,11 +117,11 @@ android {
         minSdk = 24
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
-        // RC10 used versionCode = 45; RC14 must be strictly greater.
-        versionCode = 49
+        // RC10 used versionCode = 45; RC15 must be strictly greater.
+        versionCode = 50
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "1.9.0-rc.14"
-        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.14\"")
+        versionName = "1.9.0-rc.15"
+        buildConfigField("String", "RELEASE_VERSION", "\"1.9.0-rc.15\"")
         multiDexEnabled = true
 
     }
@@ -182,6 +197,8 @@ android {
         textReport = true
         sarifReport = true
     }
+
+    sourceSets.getByName("main").jniLibs.srcDir("src/main/jniLibs")
 
     packaging {
         // The bundled Aether/Usque executables are APK-owned native code. Legacy

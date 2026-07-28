@@ -1,16 +1,18 @@
-## 1.9.0-rc.14
+# Changelog
 
-- Made Android Aether and WARP activation a complete user flow: activate, return Home, press Connect, and follow live stages until verified.
-- Deferred first-time WARP registration to the foreground Connect flow so it is visible, cancellable and retryable.
-- Routed Android traffic through the selected native Aether/Usque SOCKS tunnel, then through the app-owned Xray TUN bridge.
-- Added primary transport plus automatic HTTP/2 fallback and required real HTTP traffic before reporting Connected.
-- Kept external-core targets independent from Xray server cards and exposed accurate core-specific state on Home.
-- Unified Android per-app routing and migrated legacy bypass-app settings.
-- Fixed RTL dropdown hint overlap and CDN field validation target.
-- Added separate scanner fetch/probe progress and richer live-log highlighting.
-- Split server quality, profile and volume metadata into independent badges.
-- Corrected Usque CLI configuration flag on desktop and Android.
-- Repaired GitHub Pages workflow and cleaned release-era repository clutter.
+## 1.9.0-rc.15
+
+- Fixed RC15 deployment from folders contaminated by an older `src/main` tethering controller; local and direct APK builds now purge the duplicate class safely.
+- Prevented Android crashes from blank, malformed or scheme-less subscription URLs.
+- Migrated corrupt RC14 source settings and restored the built-in subscription automatically.
+- Incremented Android versionCode to 50 so RC15 is installed as a distinct update.
+- Moved Aether/Usque preparation into the APK build command itself.
+- Added final-APK checks for Xray, Aether and Usque on arm64-v8a and x86_64.
+- Added ELF architecture and SHA-256 manifest validation for bundled native cores.
+
+- Completed the Android Aether/WARP foreground connection flow with real SOCKS readiness and HTTP verification.
+- Added automatic HTTP/2 fallback, per-app routing migration, scanner progress/log improvements and independent server badges.
+- Corrected Usque CLI invocation and retained the RC14 UI/repository cleanup work.
 
 ## 1.9.0-rc.13
 

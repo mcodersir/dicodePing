@@ -1,17 +1,17 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing v1.9.0 RC14 GitHub Pre-release Deploy
+title dicodePing v1.9.0 RC15 GitHub Pre-release Deploy
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
-set "TAG=v1.9.0-rc.14"
+set "TAG=v1.9.0-rc.15"
 set "WORKFLOW=release.yml"
-set "COMMIT_MESSAGE=fix: redeploy v1.9.0-rc.14 packaged runtime entrypoint"
+set "COMMIT_MESSAGE=fix: publish v1.9.0-rc.15 Android URL crash and bundled cores"
 set "SOURCE_DIR=%CD%"
-set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc14-%RANDOM%%RANDOM%"
+set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc15-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
 set "HEAD_SHA="
 set "REMOTE_TAG_EXISTS="
@@ -21,7 +21,7 @@ set "ROBOCOPY_CODE="
 
 cls
 echo ================================================================
-echo      dicodePing v1.9.0 RC14 GitHub Pre-release Deploy FIXED v3
+echo      dicodePing v1.9.0 RC15 GitHub Pre-release Deploy FINAL
 echo ================================================================
 echo.
 echo This script creates a clean repository snapshot and safely removes
@@ -55,8 +55,8 @@ if not exist ".github\workflows\%WORKFLOW%" (
     echo [ERROR] Missing workflow: .github\workflows\%WORKFLOW%
     goto :failed
 )
-if not exist "docs\releases\v1.9.0-rc.14.md" (
-    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.14.md
+if not exist "docs\releases\v1.9.0-rc.15.md" (
+    echo [ERROR] Missing release notes: docs\releases\v1.9.0-rc.15.md
     goto :failed
 )
 if not exist "%WAIT_SCRIPT%" (
@@ -108,7 +108,7 @@ if errorlevel 1 (
 popd
 
 echo.
-echo [4/8] Copying the clean RC14 source snapshot...
+echo [4/8] Copying the clean RC15 source snapshot...
 robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
  /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
  /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "local.properties" "*.log" "*.bak"
@@ -131,13 +131,19 @@ if exist "tests\test_v*.py" (
     del /f /q "tests\test_v*.py" >nul 2>&1
 )
 
+set "STALE_TETHER_CONTROLLER=dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt"
+if exist "%STALE_TETHER_CONTROLLER%" (
+    echo [INFO] Removing stale main-source AndroidTetheringController...
+    del /f /q "%STALE_TETHER_CONTROLLER%" >nul 2>&1
+)
+
 if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
     echo [INFO] Removing obsolete version-specific release workflows...
     del /f /q ".github\workflows\v1.9.0-rc.*-release.yml" >nul 2>&1
 )
 
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*.bat" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC14.bat" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC15.bat" (
         echo [INFO] Removing stale deploy script: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -155,7 +161,7 @@ for /f "delims=" %%F in ('dir /b /a-d "RUN_SOURCE_RC*.bat" 2^>nul') do (
     del /f /q "%%F" >nul 2>&1
 )
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_RC*_README_FA.txt" 2^>nul') do (
-    if /I not "%%F"=="DEPLOY_PRERELEASE_RC14_README_FA.txt" (
+    if /I not "%%F"=="DEPLOY_PRERELEASE_RC15_README_FA.txt" (
         echo [INFO] Removing stale deploy readme: %%F
         del /f /q "%%F" >nul 2>&1
     )
@@ -182,45 +188,74 @@ if exist ".github\workflows\v1.9.0-rc.*-release.yml" (
     popd
     goto :failed
 )
+if exist "%STALE_TETHER_CONTROLLER%" (
+    echo [ERROR] Stale main-source AndroidTetheringController could not be deleted.
+    popd
+    goto :failed
+)
 if not exist ".github\workflows\release.yml" (
     echo [ERROR] Current release.yml was not copied.
     popd
     goto :failed
 )
-if not exist "tests\test_rc14_regressions.py" (
-    echo [ERROR] Current RC14 tests were not copied.
+if not exist "tests\test_rc15_regressions.py" (
+    echo [ERROR] Current RC15 tests were not copied.
     popd
     goto :failed
 )
-if not exist "DEPLOY_PRERELEASE_RC14.bat" (
-    echo [ERROR] Current RC14 deploy script was not copied.
+if not exist "DEPLOY_PRERELEASE_RC15.bat" (
+    echo [ERROR] Current RC15 deploy script was not copied.
     popd
     goto :failed
 )
-if not exist "app_v190_rc14.py" (
-    echo [ERROR] RC14 runtime wrapper app_v190_rc14.py was not copied.
+if not exist "app_v190_rc15.py" (
+    echo [ERROR] RC15 runtime wrapper app_v190_rc15.py was not copied.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc14.py" "tools\build_windows.py" >nul
+findstr /C:"app_v190_rc15.py" "tools\build_windows.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Windows builder is not using app_v190_rc14.py.
+    echo [ERROR] Windows builder is not using app_v190_rc15.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc14.py" "tools\build_linux.py" >nul
+findstr /C:"app_v190_rc15.py" "tools\build_linux.py" >nul
 if errorlevel 1 (
-    echo [ERROR] Linux builder is not using app_v190_rc14.py.
+    echo [ERROR] Linux builder is not using app_v190_rc15.py.
     popd
     goto :failed
 )
-findstr /C:"app_v190_rc14.py" "tools\build_macos.py" >nul
+findstr /C:"app_v190_rc15.py" "tools\build_macos.py" >nul
 if errorlevel 1 (
-    echo [ERROR] macOS builder is not using app_v190_rc14.py.
+    echo [ERROR] macOS builder is not using app_v190_rc15.py.
     popd
     goto :failed
 )
-echo [OK] Stale files were removed and the RC14 staged tree is clean.
+findstr /C:"normalizedSubscriptionHttpUrl" "dicodePing_android\app\src\main\java\ir\dicode\ping\net\SubscriptionClient.kt" >nul
+if errorlevel 1 (
+    echo [ERROR] Android subscription URL crash fix is missing.
+    popd
+    goto :failed
+)
+findstr /C:"python tools/prepare_bundled_cores.py" "dicodePing_android\build_apk.sh" >nul
+if errorlevel 1 (
+    echo [ERROR] Android APK build does not prepare Aether and Usque.
+    popd
+    goto :failed
+)
+findstr /C:"python tools/verify_apk_cores.py" "dicodePing_android\build_apk.sh" >nul
+if errorlevel 1 (
+    echo [ERROR] Android APK core verification is missing.
+    popd
+    goto :failed
+)
+findstr /C:"versionCode = 50" "dicodePing_android\app\build.gradle.kts" >nul
+if errorlevel 1 (
+    echo [ERROR] Android versionCode 50 is missing.
+    popd
+    goto :failed
+)
+echo [OK] Stale files were removed and the RC15 staged tree is clean.
 
 echo.
 echo [6/8] Running full local preflight before any push...
@@ -243,7 +278,7 @@ if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\quality_gate.py
 if errorlevel 1 goto :validation_failed
 
-echo [OK] RC14 preflight passed.
+echo [OK] RC15 preflight passed.
 
 git config --get user.name >nul 2>&1
 if errorlevel 1 git config user.name "mcodersir"
@@ -313,7 +348,7 @@ if defined REMOTE_TAG_EXISTS (
 
 if not defined TAG_PUSHED (
     popd
-    echo [ERROR] The RC14 tag could not be published.
+    echo [ERROR] The RC15 tag could not be published.
     echo [ERROR] Check GitHub tag-protection rules and repository permissions.
     goto :failed
 )
@@ -333,7 +368,7 @@ set "WAIT_CODE=%ERRORLEVEL%"
 if "%WAIT_CODE%"=="0" (
     echo.
     echo ================================================================
-    echo                 RC14 DEPLOYED SUCCESSFULLY
+    echo                 RC15 DEPLOYED SUCCESSFULLY
     echo ================================================================
     echo Commit:  %HEAD_SHA%
     echo Release: https://github.com/%REPO%/releases/tag/%TAG%

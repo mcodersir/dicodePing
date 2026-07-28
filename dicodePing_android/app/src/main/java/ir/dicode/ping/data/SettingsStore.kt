@@ -1,5 +1,7 @@
 package ir.dicode.ping.data
 
+import ir.dicode.ping.net.normalizedSubscriptionHttpUrl
+
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
@@ -97,14 +99,38 @@ class SettingsStore(context: Context) {
             val arr = JSONArray(raw)
             for (i in 0 until arr.length()) list += SourceDefinition.fromJson(arr.getJSONObject(i))
         }
-        val default = list.firstOrNull { it.isDefault || it.id == "default" }
-        if (default == null) list.add(0, defaultSource(language))
-        else {
-            default.enabled = true
-            default.name = default.name.ifBlank { if (language == "en") "Primary source" else "منبع اصلی" }
+
+        var repaired = false
+        // RC14 could persist an empty or malformed source URL. Repair the
+        // built-in source and discard unusable custom rows before any startup
+        // revision request reaches OkHttp.
+        val defaultIndex = list.indexOfFirst { it.isDefault || it.id == "default" }
+        if (defaultIndex < 0) {
+            list.add(0, defaultSource(language))
+            repaired = true
+        } else {
+            val current = list[defaultIndex]
+            if (normalizedSubscriptionHttpUrl(current.url) == null) {
+                list[defaultIndex] = defaultSource(language).copy(
+                    name = current.name.ifBlank { if (language == "en") "Primary source" else "منبع اصلی" },
+                )
+                repaired = true
+            } else {
+                current.enabled = true
+                current.name = current.name.ifBlank { if (language == "en") "Primary source" else "منبع اصلی" }
+            }
         }
+
+        if (list.removeAll { source ->
+                !source.isDefault && source.id != "default" && normalizedSubscriptionHttpUrl(source.url) == null
+            }
+        ) {
+            repaired = true
+        }
+
         list.sortBy { it.order }
-        list.forEachIndexed { i, s -> s.order = i }
+        list.forEachIndexed { i, source -> source.order = i }
+        if (repaired) saveSources(list)
         return list
     }
 

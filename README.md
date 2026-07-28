@@ -4,7 +4,7 @@
 
 ## وضعیت نسخه
 
-**v1.9.0-rc.14** — اتصال واقعی Aether/WARP در Android با جریان فعال‌سازی تا Home، fallback خودکار و اعتبارسنجی ترافیک؛ به‌همراه اصلاحات رابط، اسکنر و GitHub Pages.
+**v1.9.0-rc.15** — اتصال واقعی Aether/WARP در Android با جریان فعال‌سازی تا Home، fallback خودکار و اعتبارسنجی ترافیک؛ به‌همراه اصلاحات رابط، اسکنر و GitHub Pages.
 
 ## سکوها
 
@@ -69,6 +69,6 @@ python dicodePing_android/tools/validate_project.py
 
 ## انتشار
 
-برای انتشار کامل RC14 در ویندوز، ZIP را Extract و فایل `DEPLOY_PRERELEASE_RC14.bat` را اجرا کنید. این اسکریپت سورس تمیز را روی `main` می‌فرستد، تگ `v1.9.0-rc.14` را ایجاد یا جایگزین می‌کند و تا انتشار خروجی‌های Windows، Linux، macOS و Android منتظر می‌ماند. راهنمای کوتاه در `DEPLOY_PRERELEASE_RC14_README_FA.txt` قرار دارد.
+برای انتشار کامل RC15 در ویندوز، ZIP را Extract و فایل `DEPLOY_PRERELEASE_RC15.bat` را اجرا کنید. این اسکریپت سورس تمیز را روی `main` می‌فرستد، تگ `v1.9.0-rc.15` را ایجاد یا جایگزین می‌کند و تا انتشار خروجی‌های Windows، Linux، macOS و Android منتظر می‌ماند. راهنمای کوتاه در `DEPLOY_PRERELEASE_RC15_README_FA.txt` قرار دارد.
 
-Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.yml` هستند. انتشار RC14 با تگ `v1.9.0-rc.14` آغاز می‌شود.
+Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.yml` هستند. انتشار RC15 با تگ `v1.9.0-rc.15` آغاز می‌شود.
