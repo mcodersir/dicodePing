@@ -6,11 +6,11 @@ cd /d "%~dp0"
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/%REPO%.git"
 set "BRANCH=main"
-set "TAG=v2.0.2"
+set "TAG=v2.0.3"
 set "WORKFLOW=release.yml"
 set "DOCS_WORKFLOW=docs.yml"
 set "CURRENT_DEPLOY=DEPLOY_RELEASE_200.bat"
-set "COMMIT_MESSAGE=release: publish dicodePing v2.0.2 stable"
+set "COMMIT_MESSAGE=release: publish dicodePing v2.0.3 stable"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-release-v200-%RANDOM%%RANDOM%"
 set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
@@ -48,11 +48,11 @@ if errorlevel 1 goto :failed
 
 if not exist ".github\workflows\%WORKFLOW%" goto :missing_source
 if not exist ".github\workflows\%DOCS_WORKFLOW%" goto :missing_source
-if not exist "docs\releases\v2.0.2.md" goto :missing_source
+if not exist "docs\releases\v2.0.3.md" goto :missing_source
 if not exist "docs\site\index.html" goto :missing_source
 if not exist "app_v200.py" goto :missing_source
-if not exist "tests\test_v202_stable.py" goto :missing_source
-if not exist "tools\validate_v202_stable.py" goto :missing_source
+if not exist "tests\test_v203_stable.py" goto :missing_source
+if not exist "tools\validate_v203_stable.py" goto :missing_source
 if not exist "tools\validate_android_lint_hotfix.py" goto :missing_source
 if not exist "tools\validate_workflow_yaml.py" goto :missing_source
 if not exist "tools\vendor\pyyaml\yaml\__init__.py" goto :missing_source
@@ -131,9 +131,9 @@ call %PYTHON_CMD% tools\purge_stale_release_tests.py --check
 if errorlevel 1 (popd & goto :cleanup_failed)
 if not exist "%CURRENT_DEPLOY%" (popd & goto :cleanup_failed)
 if not exist "app_v200.py" (popd & goto :cleanup_failed)
-if not exist "tests\test_v202_stable.py" (popd & goto :cleanup_failed)
-if not exist "tools\validate_v202_stable.py" (popd & goto :cleanup_failed)
-findstr /C:"versionCode = 58" "dicodePing_android\app\build.gradle.kts" >nul || (popd & goto :cleanup_failed)
+if not exist "tests\test_v203_stable.py" (popd & goto :cleanup_failed)
+if not exist "tools\validate_v203_stable.py" (popd & goto :cleanup_failed)
+findstr /C:"versionCode = 59" "dicodePing_android\app\build.gradle.kts" >nul || (popd & goto :cleanup_failed)
 findstr /C:"prerelease: false" ".github\workflows\release.yml" >nul || (popd & goto :cleanup_failed)
 findstr /C:"make_latest: true" ".github\workflows\release.yml" >nul || (popd & goto :cleanup_failed)
 echo [OK] Stable staged tree is clean.
@@ -144,7 +144,7 @@ call %PYTHON_CMD% tools\prepare_build_workspace.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
 if errorlevel 1 goto :validation_failed
-call %PYTHON_CMD% tools\validate_v202_stable.py
+call %PYTHON_CMD% tools\validate_v203_stable.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_gradle_kts.py
 if errorlevel 1 goto :validation_failed

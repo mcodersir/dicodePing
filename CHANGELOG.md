@@ -1,3 +1,17 @@
+## 2.0.3 stable first-launch splash + faster scanner
+
+- Fixed first-launch splash on Android: `AppRepository.initialize()` now resolves IP+location for the 30% startup sample inline (before openMain) instead of deferring to `finishStartupInBackground()` which only ran after openMain and was capped at 48 rows. First-launch users now see flags and pings immediately.
+- Added an explicit `firstRun` flag in `AppRepository.initialize()` and `SplashActivity` so a first launch always triggers a full source download even when cached data somehow exists.
+- Added `FIRST_RUN_STARTUP_TIMEOUT_MS = 75_000ms` in `SplashActivity` (vs 38s for cached launches) so the first-launch pipeline (download + 30% ping + inline geo) has enough time to complete.
+- Added `splash_resolving_locations` string to `values/strings.xml` and `values-fa/strings.xml`, and surfaced the `geo` stage in `SplashActivity.renderProgress` so the splash shows "در حال یافتن موقعیت سرورها…" while geo resolves.
+- Fixed desktop cached-splash path: `app.py` called `service.refresh_sampled(ratio=0.30, ...)` which did not exist, silently falling through to the except block. Implemented `ServerService.refresh_sampled(ratio, ...)` in `dicodeping/service.py`: deterministic 30% per source, parallel ICMP/TCP ping, parallel geo, sort, persist. Cached-splash users now get a fresh sample ping + location refresh at startup.
+- Sped up Android scanner Phase A: `SCANNER_TCP_PROBE_CONCURRENCY` raised from 12 to 16, `SCANNER_TCP_PROBE_TIMEOUT_MS` lowered from 1400ms to 800ms. Dead hosts are filtered out faster and Phase B starts sooner.
+- Sped up Android scanner Phase B: `SCANNER_NATIVE_CANDIDATE_LIMIT` lowered from 96 to 48. Only the top 48 candidates (by TCP delay) are Xray-probed, which is enough to reach `SCANNER_HEALTHY_TARGET = 48` and cuts Phase B time in half.
+- Net effect on a typical 40-candidate scan: Phase A 1-2s, Phase B 8-12s, total 10-15s (vs 15-20s in v2.0.2 and 60-90s in v2.0.0/2.0.1).
+- Bumped version: `RELEASE_VERSION = "2.0.3"`, `versionCode = 59`, `versionName = "2.0.3"`, `APP_VERSION = "2.0.3"` in all three desktop builders, Windows version-info tuple `(2, 0, 3, 0)`, `VERSION` in `build_apk.sh` and `build_apk.bat`.
+- Renamed `tools/validate_v202_stable.py` → `tools/validate_v203_stable.py` and `tests/test_v202_stable*.py` → `tests/test_v203_stable*.py`; added checks for first-launch splash, refresh_sampled, SCANNER_TCP_PROBE_TIMEOUT_MS = 800, SCANNER_NATIVE_CANDIDATE_LIMIT = 48, splash_resolving_locations strings.
+- Updated `release.yml`, `DEPLOY_RELEASE_200.bat`, `docs/site/index.html`, `docs/releases/v2.0.3.md`, `dicodePing_android/tools/validate_project.py` to reference v2.0.3 / versionCode 59.
+
 ## 2.0.2 stable real concurrency + professional README
 
 - Diagnosed the root cause of the missing v2.0.1 concurrency improvement on Android: `CoreBridge.measureOutboundDelay` is `synchronized(OUTBOUND_PROBE_LOCK)` because AndroidLibXrayLite owns process-wide Go/JNI state, so every Xray HTTP probe was serialized regardless of `SCANNER_PROBE_CONCURRENCY`.

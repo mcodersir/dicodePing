@@ -382,6 +382,87 @@ class ServerService:
             LOGGER.exception("ping_cache: update failed after refresh_saved_with_cache")
         return all_records
 
+    def refresh_sampled(
+        self,
+        ratio: float = 0.30,
+        stage: StageCallback | None = None,
+        progress: ProgressCallback | None = None,
+        language: str = "fa",
+        ping_progress: ProgressCallback | None = None,
+        geo_progress: ProgressCallback | None = None,
+    ) -> list[ServerRecord]:
+        """Re-ping a deterministic sample from every source, then resolve geo.
+
+        v2.0.3: previously this method did not exist and the cached-splash
+        path in app.py silently fell through to the except block, so users
+        with cached servers never got a fresh sample ping or location
+        refresh at startup. Now it mirrors the first-run build_and_save
+        path: 30% per source, parallel ICMP/TCP ping, parallel geo, sort,
+        persist.
+        """
+        import math
+        records = self.store.load_servers()
+        if not records:
+            return []
+        if stage:
+            stage(tr(language, "refreshing_saved"))
+        # Deterministic 30% per source, at least 1 per source.
+        by_source: dict[str, list[ServerRecord]] = {}
+        for server in records:
+            by_source.setdefault(server.source_id, []).append(server)
+        sample: list[ServerRecord] = []
+        for rows in by_source.values():
+            count = max(1, math.ceil(len(rows) * max(0.01, min(1.0, ratio))))
+            step = max(1, len(rows) // count)
+            sample.extend(rows[i] for i in range(0, len(rows), step)[:count])
+        # Deduplicate by id while preserving order.
+        seen_ids: set[str] = set()
+        unique_sample: list[ServerRecord] = []
+        for server in sample:
+            if server.id in seen_ids:
+                continue
+            seen_ids.add(server.id)
+            unique_sample.append(server)
+        if not unique_sample:
+            return records
+        unique_hosts = list(dict.fromkeys(server.host for server in unique_sample if server.host))
+        results = ping_many([(host, host) for host in unique_hosts], workers=self.resources.ping_workers, callback=ping_progress or progress)
+        result_map = {result.key: result for result in results}
+        for server in records:
+            result = result_map.get(server.host)
+            server.last_checked = utc_now()
+            if result:
+                server.ip = result.ip or server.ip
+            if result and result.ping_ms is not None:
+                server.ping_ms = result.ping_ms
+                server.status = "online"
+                server.failures = 0
+            # Servers not in the sample keep their previous ping/status.
+        all_ips = [server.ip for server in unique_sample if server.ip and server.ip != "dns"]
+        if stage:
+            stage(tr(language, "resolving_location"))
+        geo_map = self.geo.resolve_many(all_ips, callback=geo_progress or progress)
+        for server in records:
+            geo = geo_map.get(server.ip, {})
+            if not geo:
+                continue
+            server.country = str(geo.get("country") or server.country)
+            server.country_code = str(geo.get("country_code") or server.country_code)
+            server.region = str(geo.get("region") or server.region)
+            server.city = str(geo.get("city") or server.city)
+            server.isp = str(geo.get("isp") or server.isp)
+            server.asn = str(geo.get("asn") or server.asn)
+            server.geo_provider = str(geo.get("geo_provider") or server.geo_provider)
+            server.geo_confidence = str(geo.get("geo_confidence") or server.geo_confidence)
+        records.sort(key=_sort_key)
+        self.store.save_servers(records)
+        try:
+            from . import ping_cache
+            ping_cache.update_cache(records)
+        except Exception:
+            LOGGER.exception("ping_cache: update failed after refresh_sampled")
+        return records
+
     def refresh_subset(
         self,
         server_ids: Iterable[str],

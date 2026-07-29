@@ -257,6 +257,7 @@
     <string name="conn_method_preparing">در حال آماده‌سازی هسته داخلی…</string>
     <string name="warp_registration_failed">ثبت WARP ناموفق بود</string>
     <string name="splash_testing_sample">در حال بررسی نمونه ۳۰ درصدی سرورها…</string>
+    <string name="splash_resolving_locations">در حال یافتن موقعیت سرورها…</string>
     <string name="splash_checking_updates">در حال بررسی به‌روزرسانی‌ها…</string>
     <string name="splash_checking_cores">در حال بررسی هسته‌های داخلی اتصال…</string>
     <string name="scanner_tab_review">بررسی</string>

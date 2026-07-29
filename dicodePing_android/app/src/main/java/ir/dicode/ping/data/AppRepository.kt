@@ -68,17 +68,23 @@ class AppRepository private constructor(context: Context) {
 
     /**
      * Bounded Android startup pipeline: refresh sources when needed, then test a
-     * deterministic 30 percent sample from every source with a fast TCP probe.
-     * Full native Xray probing is deliberately left to user actions because the
-     * JNI implementation is process-serialized and can keep a splash visible for
-     * several minutes on large subscriptions.
+     * deterministic 30 percent sample from every source with a fast TCP probe,
+     * then resolve IP+location for the SAME sample so the main UI opens with
+     * flags and pings visible. Full native Xray probing is deliberately left
+     * to user actions because the JNI implementation is process-serialized
+     * and can keep a splash visible for several minutes on large subs.
+     *
+     * v2.0.3: the sample is now geo-resolved inline (before openMain) instead
+     * of being deferred to finishStartupInBackground, so first-launch users
+     * see flags immediately.
      */
     suspend fun initialize() = withContext(Dispatchers.IO) {
         refreshMutex.withLock {
             progress.value = ProgressState(true, "cores", 0, 1, "Checking bundled cores")
             delay(40)
-            if (servers.value.isEmpty() || settings.isServerRefreshDue()) {
-                AppLog.i("Repository", "Splash: refreshing server sources")
+            val firstRun = settings.lastServerRefreshAt <= 0L && servers.value.isEmpty()
+            if (firstRun || servers.value.isEmpty() || settings.isServerRefreshDue()) {
+                AppLog.i("Repository", "Splash: refreshing server sources (firstRun=$firstRun)")
                 refreshServersInternal()
             }
             val snapshot = servers.value
@@ -86,6 +92,12 @@ class AppRepository private constructor(context: Context) {
                 val sample = startupSample(snapshot)
                 AppLog.i("Repository", "Splash: quick-testing ${sample.size}/${snapshot.size} servers (30% per source)")
                 quickStartupProbe(sample)
+                // v2.0.3: resolve IP+location for the SAME sample inline so
+                // the main UI opens with flags visible. Previously this was
+                // deferred to finishStartupInBackground which only ran after
+                // openMain and was capped at 48 rows.
+                runCatching { locateServers(sample, mergeWithExisting = true) }
+                    .onFailure { AppLog.w("Repository", "Splash: inline geo failed", it) }
             }
         }
     }
@@ -1075,7 +1087,7 @@ class AppRepository private constructor(context: Context) {
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 160
-        private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 96
+        private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 48
         private const val SCANNER_TCP_PREFILTER_WORKERS = 16
         private const val SCANNER_TCP_PREFILTER_TIMEOUT_MS = 650
         private const val SCANNER_HEALTHY_TARGET = 48
@@ -1093,10 +1105,11 @@ class AppRepository private constructor(context: Context) {
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.
         // 12 is a sweet spot for both low-end (4-core) and high-end (8-core)
         // devices without saturating the file-descriptor table.
-        private const val SCANNER_TCP_PROBE_CONCURRENCY = 12
-        // v2.0.2: per-socket TCP probe timeout. Lower than the legacy 650ms
-        // prefilter so dead hosts are filtered out faster.
-        private const val SCANNER_TCP_PROBE_TIMEOUT_MS = 1_400
+        private const val SCANNER_TCP_PROBE_CONCURRENCY = 16
+        // v2.0.3: lowered from 1400ms to 800ms so dead hosts are filtered
+        // out faster and Phase B starts sooner. 800ms is still enough for
+        // cross-border TCP handshakes on real proxies.
+        private const val SCANNER_TCP_PROBE_TIMEOUT_MS = 800
 
         @Volatile
         private var instance: AppRepository? = null
