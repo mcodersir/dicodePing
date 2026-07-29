@@ -86,6 +86,16 @@ def main() -> int:
     for marker in ("actions/configure-pages@v5", "actions/upload-pages-artifact@v4", "actions/deploy-pages@v4"):
         require(marker in docs, f"GitHub Pages workflow marker missing: {marker}", errors)
 
+    deployer = read("DEPLOY_PRERELEASE_200_RC1.bat")
+    trigger = read("tools/publish_release_trigger.ps1")
+    require("call :push_main_with_retry" in deployer, "Main push has no network retry", errors)
+    require("publish_release_trigger.ps1" in deployer, "Release trigger helper is not used", errors)
+    require("MaxAttempts 8" in deployer, "Release trigger retry budget is missing", errors)
+    require("repos/$Repository/git/refs" in trigger, "Server-side tag creation is missing", errors)
+    require('"workflow", "run", $WorkflowFile' in trigger, "Explicit workflow dispatch fallback is missing", errors)
+    require("Verifying pushed commit" in trigger, "Remote commit verification is missing", errors)
+    require("Remote tag verification failed" in trigger, "Remote tag SHA verification is missing", errors)
+
     binary_fonts = list(ROOT.glob("assets/fonts/*.ttf")) + list(ROOT.glob("dicodePing_android/app/src/main/res/font/vazirmatn_*.ttf"))
     require(not binary_fonts, "Source snapshot contains generated font binaries", errors)
 

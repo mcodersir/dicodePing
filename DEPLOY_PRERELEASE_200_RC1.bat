@@ -17,6 +17,7 @@ set "STAGE_DIR=%TEMP%\dicodePing-deploy-v200-rc1-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
 set "PAGES_SCRIPT=%SOURCE_DIR%\tools\configure_github_pages.ps1"
 set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
+set "RELEASE_TRIGGER_SCRIPT=%SOURCE_DIR%\tools\publish_release_trigger.ps1"
 set "HEAD_SHA="
 set "PYTHON_CMD="
 set "REMOTE_TAG_EXISTS="
@@ -61,6 +62,7 @@ if not exist "tools\validate_v200_rc1.py" goto :missing_source
 if not exist "%WAIT_SCRIPT%" goto :missing_source
 if not exist "%PAGES_SCRIPT%" goto :missing_source
 if not exist "%SIGNING_SCRIPT%" goto :missing_source
+if not exist "%RELEASE_TRIGGER_SCRIPT%" goto :missing_source
 
 echo.
 echo [SIGNING] Checking Android release-signing configuration...
@@ -172,22 +174,13 @@ for /f "delims=" %%H in ('git rev-parse HEAD') do set "HEAD_SHA=%%H"
 if not defined HEAD_SHA goto :git_failed
 
 echo.
-echo [7/10] Pushing commit %HEAD_SHA% to %BRANCH%...
-git push origin "HEAD:%BRANCH%"
+echo [7/10] Pushing commit %HEAD_SHA% to %BRANCH% with network retry...
+call :push_main_with_retry
 if errorlevel 1 goto :push_failed
 
 echo.
-echo [8/10] Recreating tag %TAG% and GitHub pre-release...
-gh release view "%TAG%" --repo "%REPO%" >nul 2>&1
-if not errorlevel 1 (
-  gh release delete "%TAG%" --repo "%REPO%" --yes
-  if errorlevel 1 goto :release_failed
-)
-git tag -d "%TAG%" >nul 2>&1
-if defined REMOTE_TAG_EXISTS git push origin ":refs/tags/%TAG%" >nul 2>&1
-git tag -a "%TAG%" -m "dicodePing %TAG% pre-release" "%HEAD_SHA%"
-if errorlevel 1 goto :release_failed
-git push origin "refs/tags/%TAG%:refs/tags/%TAG%"
+echo [8/10] Creating tag %TAG% and triggering the pre-release through GitHub API...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%RELEASE_TRIGGER_SCRIPT%" -Repository "%REPO%" -Tag "%TAG%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%WORKFLOW%" -MaxAttempts 8
 if errorlevel 1 goto :release_failed
 popd
 
@@ -211,6 +204,20 @@ echo https://github.com/%REPO%/actions
 start "" "https://github.com/%REPO%/releases/tag/%TAG%"
 pause
 exit /b 0
+
+
+:push_main_with_retry
+for /L %%A in (1,1,8) do (
+  git push origin "HEAD:%BRANCH%"
+  if not errorlevel 1 exit /b 0
+  echo [WARNING] Push to main failed on attempt %%A/8.
+  gh auth setup-git >nul 2>&1
+  if %%A LSS 8 (
+    echo [RETRY] Waiting 8 seconds before retrying...
+    timeout /t 8 /nobreak >nul
+  )
+)
+exit /b 1
 
 :require_command
 where %~1 >nul 2>&1
@@ -282,7 +289,7 @@ echo [ERROR] Push to main failed.
 goto :failed
 :release_failed
 popd
-echo [ERROR] Tag or pre-release trigger failed.
+echo [ERROR] Tag or pre-release trigger failed after automatic retries.
 goto :failed
 :wait_failed
 echo [ERROR] GitHub Actions failed or required release assets were not published.

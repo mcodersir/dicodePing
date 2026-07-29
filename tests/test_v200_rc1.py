@@ -121,3 +121,18 @@ def test_ui_minimalization_is_shared_across_desktop_and_android() -> None:
     assert "cardCornerRadius\">20dp" in android
     assert "strokeWidth\">0dp" in android
     assert "android:minHeight\">46dp" in android
+
+
+def test_release_deployer_survives_transient_github_https_failure() -> None:
+    deployer = text("DEPLOY_PRERELEASE_200_RC1.bat")
+    trigger = text("tools/publish_release_trigger.ps1")
+    assert "call :push_main_with_retry" in deployer
+    assert "for /L %%A in (1,1,8)" in deployer
+    assert "publish_release_trigger.ps1" in deployer
+    assert "MaxAttempts 8" in deployer
+    assert "Invoke-GhRetry" in trigger
+    assert "repos/$Repository/commits/$CommitSha" in trigger
+    assert "repos/$Repository/git/refs" in trigger
+    assert '"workflow", "run", $WorkflowFile' in trigger
+    assert '"--ref", $Tag' in trigger
+    assert "Remote tag verification failed" in trigger
