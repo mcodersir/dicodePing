@@ -6,17 +6,141 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 APP_VERSION = "1.9.0"
 RC_VERSION = "rc.19"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
+DMG_CREATE_ATTEMPTS = 6
+DMG_RETRY_DELAYS = (2, 4, 7, 11, 16, 24)
 
 
 def run(command: list[str], cwd: Path) -> None:
     print(f"> {subprocess.list2cmdline(command)}", flush=True)
     subprocess.run(command, cwd=cwd, check=True)
+
+
+def _run_captured(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    print(f"> {subprocess.list2cmdline(command)}", flush=True)
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.stdout:
+        print(result.stdout.rstrip(), flush=True)
+    if result.stderr:
+        print(result.stderr.rstrip(), file=sys.stderr, flush=True)
+    return result
+
+
+def _retryable_hdiutil_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    message = f"{result.stdout}\n{result.stderr}".lower()
+    retryable_markers = (
+        "resource busy",
+        "temporarily unavailable",
+        "operation timed out",
+        "couldn't unmount",
+        "could not unmount",
+        "device busy",
+        "eagain",
+        "ebusy",
+    )
+    return any(marker in message for marker in retryable_markers)
+
+
+def _sync_filesystem() -> None:
+    try:
+        os.sync()
+    except AttributeError:
+        subprocess.run(["sync"], check=False)
+
+
+def _verify_dmg(path: Path, root: Path) -> bool:
+    result = _run_captured(["hdiutil", "verify", str(path)], root)
+    return result.returncode == 0
+
+
+def _create_dmg_with_retry(
+    *,
+    source_root: Path,
+    output: Path,
+    volume_name: str,
+    root: Path,
+) -> None:
+    """Create and verify a DMG while tolerating transient DiskImages EBUSY failures.
+
+    GitHub's Intel macOS runners can briefly keep a freshly copied/signed app
+    bundle busy.  Each attempt therefore uses a brand-new staging directory and
+    output path.  A completed image is verified before it replaces the public
+    release path, so an interrupted attempt can never leave a corrupt asset.
+    """
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.unlink(missing_ok=True)
+    build_root = root / "build"
+    build_root.mkdir(parents=True, exist_ok=True)
+    failures: list[str] = []
+
+    for attempt in range(1, DMG_CREATE_ATTEMPTS + 1):
+        with tempfile.TemporaryDirectory(prefix="dicodeping-dmg-", dir=build_root) as temp_name:
+            attempt_root = Path(temp_name)
+            clean_source = attempt_root / "payload"
+            temporary_output = attempt_root / "candidate.dmg"
+            shutil.copytree(source_root, clean_source, symlinks=True)
+            _sync_filesystem()
+            time.sleep(DMG_RETRY_DELAYS[attempt - 1] if attempt == 1 else 1)
+
+            result = _run_captured(
+                [
+                    "hdiutil",
+                    "create",
+                    "-quiet",
+                    "-volname",
+                    volume_name,
+                    "-srcfolder",
+                    str(clean_source),
+                    "-ov",
+                    "-format",
+                    "UDZO",
+                    str(temporary_output),
+                ],
+                root,
+            )
+            if result.returncode == 0 and temporary_output.is_file():
+                if _verify_dmg(temporary_output, root):
+                    shutil.move(str(temporary_output), str(output))
+                    print(f"DMG created and verified on attempt {attempt}: {output}", flush=True)
+                    return
+                failures.append(f"attempt {attempt}: hdiutil verify failed")
+            else:
+                detail = (result.stderr or result.stdout or "unknown hdiutil failure").strip()
+                failures.append(f"attempt {attempt}: {detail[-500:]}")
+                if not _retryable_hdiutil_failure(result):
+                    raise RuntimeError(
+                        "hdiutil create failed with a non-retryable error:\n" + detail
+                    )
+
+        if attempt < DMG_CREATE_ATTEMPTS:
+            delay = DMG_RETRY_DELAYS[attempt - 1]
+            print(
+                f"[DMG][RETRY] transient DiskImages failure; retrying in {delay}s "
+                f"({attempt}/{DMG_CREATE_ATTEMPTS})",
+                flush=True,
+            )
+            _sync_filesystem()
+            time.sleep(delay)
+
+    raise RuntimeError(
+        "Unable to create a verified DMG after transient hdiutil failures:\n- "
+        + "\n- ".join(failures)
+    )
 
 
 def _build_icon(root: Path) -> Path:
@@ -40,7 +164,7 @@ def _build_icon(root: Path) -> Path:
 
 
 def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
-    """Build an unsigned portable macOS app and place it in a DMG."""
+    """Build an unsigned portable macOS app and place it in a verified DMG."""
     if sys.platform != "darwin":
         raise RuntimeError("The macOS builder must run on macOS.")
 
@@ -111,15 +235,17 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     dmg_root.mkdir(parents=True)
     shutil.copytree(app, dmg_root / f"{APP_NAME}.app", symlinks=True)
     (dmg_root / "Applications").symlink_to("/Applications")
+    _sync_filesystem()
 
     release = root / "release"
     release.mkdir(parents=True, exist_ok=True)
     output = release / f"{bundle_name}.dmg"
-    output.unlink(missing_ok=True)
-    run([
-        "hdiutil", "create", "-volname", APP_NAME, "-srcfolder", str(dmg_root),
-        "-ov", "-format", "UDZO", str(output),
-    ], root)
+    _create_dmg_with_retry(
+        source_root=dmg_root,
+        output=output,
+        volume_name=f"{APP_NAME} {RC_VERSION} {architecture}",
+        root=root,
+    )
     print(f"macOS build completed: {output}", flush=True)
     return output
 

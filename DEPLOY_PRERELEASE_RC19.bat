@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-title dicodePing RC19 Dual TCP + Xray Scanner Release
+title dicodePing RC19 macOS DMG + Connection Stability Hotfix
 cd /d "%~dp0"
 
 set "REPO=mcodersir/dicodePing"
@@ -10,7 +10,7 @@ set "BRANCH=main"
 set "TAG=v1.9.0-rc.19"
 set "WORKFLOW=release.yml"
 set "DOCS_WORKFLOW=docs.yml"
-set "COMMIT_MESSAGE=feat: publish RC19 real TCP and Xray latency"
+set "COMMIT_MESSAGE=fix: stabilize RC19 macOS DMG packaging and release"
 set "SOURCE_DIR=%CD%"
 set "STAGE_DIR=%TEMP%\dicodePing-deploy-v190-rc19-%RANDOM%%RANDOM%"
 set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
@@ -262,6 +262,18 @@ if errorlevel 1 (
 findstr /C:"app_v190_rc19.py" "tools\build_macos.py" >nul
 if errorlevel 1 (
     echo [ERROR] macOS builder is not using app_v190_rc19.py.
+    popd
+    goto :failed
+)
+findstr /C:"DMG_CREATE_ATTEMPTS = 6" "tools\build_macos.py" >nul
+if errorlevel 1 (
+    echo [ERROR] macOS DMG retry hotfix is missing.
+    popd
+    goto :failed
+)
+findstr /C:"hdiutil verify" ".github\workflows\release.yml" >nul
+if errorlevel 1 (
+    echo [ERROR] macOS DMG verification is missing from release workflow.
     popd
     goto :failed
 )

@@ -120,9 +120,28 @@ jobs:
           cache-dependency-path: requirements-build.txt
       - shell: bash
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
-          python tools/build_macos.py --skip-install
+          # The builder retries transient DiskImages EBUSY failures internally.
+          # This outer retry also recovers if the runner-level hdiutil service
+          # remains temporarily wedged after a complete build attempt.
+          for attempt in 1 2 3; do
+            if python tools/build_macos.py --skip-install; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "macOS build failed after three complete attempts" >&2
+              exit 1
+            fi
+            echo "Transient macOS packaging failure; rebuilding in $((attempt * 15)) seconds"
+            rm -rf build/dicodePing-v1.9.0-rc.19-macos-*-dmg build/dicodeping-dmg-* dist/dicodePing.app
+            rm -f release/dicodePing-v1.9.0-rc.19-macos-*.dmg
+            sync || true
+            sleep $((attempt * 15))
+          done
+          test -s "release/dicodePing-v1.9.0-rc.19-macos-${{ matrix.architecture }}.dmg"
+          hdiutil verify "release/dicodePing-v1.9.0-rc.19-macos-${{ matrix.architecture }}.dmg"
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.architecture }}

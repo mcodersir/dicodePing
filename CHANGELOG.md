@@ -1,3 +1,9 @@
+## RC19 macOS DMG hotfix
+
+- Fixed transient `hdiutil: create failed - Resource busy` on Intel macOS GitHub runners.
+- Added fresh staging directories, bounded retry/backoff, atomic DMG publication and `hdiutil verify`.
+- Added a workflow-level macOS rebuild retry and final DMG verification before artifact upload.
+
 
 ## 1.9.0-rc.19 connection stability hotfix
 

@@ -91,3 +91,7 @@ Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.
 ## انتشار یک‌کلیکی RC19
 
 پس از Extract کامل بسته در یک پوشه جدید، `DEPLOY_PRERELEASE_RC19.bat` را اجرا کنید. این ابزار Clone، پاک‌سازی فایل‌های RC قبلی، اعتبارسنجی، Push، ساخت مجدد Tag، انتشار Pre-release و بازیابی GitHub Pages را یکجا انجام می‌دهد. جزئیات در `RC19_RELEASE_DEPLOY_FIX_FA.md` آمده است.
+
+### RC19 macOS packaging hotfix
+
+The macOS builder now retries transient DiskImages `Resource busy` failures using fresh staging directories and publishes a DMG only after `hdiutil verify` succeeds.
