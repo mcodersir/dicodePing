@@ -1,6 +1,7 @@
 package ir.dicode.ping.net
 
 import ir.dicode.ping.data.ServerRecord
+import java.util.Locale
 import java.util.regex.Pattern
 
 /**
@@ -96,7 +97,7 @@ object VolumeDetector {
 
     private fun gbStr(bytes: Long): String {
         val gb = bytes.toFloat() / (1024f * 1024f * 1024f)
-        return if (gb >= 1f) String.format("%.1f GB", gb)
+        return if (gb >= 1f) String.format(Locale.US, "%.1f GB", gb)
         else "${bytes / (1024L * 1024L)} MB"
     }
 
@@ -121,12 +122,12 @@ object VolumeDetector {
         val label = when {
             totalBytes != null -> {
                 val gbValue = totalBytes.toFloat() / (1024f * 1024f * 1024f)
-                if (gbValue >= 1f) String.format("%.1f GB", gbValue)
+                if (gbValue >= 1f) String.format(Locale.US, "%.1f GB", gbValue)
                 else "${totalBytes / (1024L * 1024L)} MB"
             }
             time != null -> {
                 val amount = time.groupValues[1].toInt()
-                val unit = time.groupValues[2].lowercase()
+                val unit = time.groupValues[2].lowercase(Locale.ROOT)
                 when {
                     unit.startsWith("w") -> "$amount weeks validity"
                     unit.startsWith("d") -> "$amount days validity"
@@ -137,7 +138,7 @@ object VolumeDetector {
         }
 
         val durationAmount = time?.groupValues?.getOrNull(1)?.toIntOrNull()
-        val durationUnit = time?.groupValues?.getOrNull(2)?.lowercase()?.let { unit ->
+        val durationUnit = time?.groupValues?.getOrNull(2)?.lowercase(Locale.ROOT)?.let { unit ->
             when {
                 unit.startsWith("w") -> "week"
                 unit.startsWith("d") -> "day"

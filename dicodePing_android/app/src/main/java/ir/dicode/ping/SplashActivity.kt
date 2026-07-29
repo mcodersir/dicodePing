@@ -1,5 +1,6 @@
 package ir.dicode.ping
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 // Legacy full-refresh hook retained as background-only policy: repo.refreshAllAndWait()
+@SuppressLint("CustomSplashScreen")
 class SplashActivity : ComponentActivity() {
     private lateinit var binding: ActivitySplashBinding
     private var routed = false

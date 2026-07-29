@@ -2,8 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/app_background">
+    android:layout_height="match_parent">
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/homeScroll"
@@ -79,7 +78,7 @@
                         android:gravity="center"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
-                        android:text="dicodeping"
+                        android:text="@string/brand_handle"
                         android:textColor="@color/brand"
                         android:textDirection="ltr"
                         android:textSize="12sp"
@@ -162,9 +161,9 @@
                                 android:layout_width="18dp"
                                 android:layout_height="24dp"
                                 android:gravity="center"
-                                android:text="●"
+                                android:text="@string/status_dot_symbol"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="11sp" />
 
                             <TextView
                                 android:id="@+id/statusBadge"
@@ -222,7 +221,7 @@
                                     android:layout_height="50dp"
                                     android:background="@drawable/bg_flag"
                                     android:gravity="center"
-                                    android:text="🌐"
+                                    android:text="@string/world_symbol"
                                     android:textSize="24sp"
                                     app:layout_constraintBottom_toBottomOf="parent"
                                     app:layout_constraintStart_toStartOf="parent"
@@ -235,7 +234,7 @@
                                     android:layout_marginStart="12dp"
                                     android:text="@string/recommended_server"
                                     android:textColor="@color/text_secondary"
-                                    android:textSize="10sp"
+                                    android:textSize="11sp"
                                     app:layout_constraintEnd_toEndOf="parent"
                                     app:layout_constraintStart_toEndOf="@id/bestFlag"
                                     app:layout_constraintTop_toTopOf="parent" />
@@ -350,7 +349,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="0 B"
+                                android:text="@string/zero_bytes"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="16sp"
@@ -362,7 +361,7 @@
                                 android:gravity="center"
                                 android:text="@string/session_download"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <View
@@ -384,7 +383,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="0 B"
+                                android:text="@string/zero_bytes"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="16sp"
@@ -396,7 +395,7 @@
                                 android:gravity="center"
                                 android:text="@string/session_upload"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <View
@@ -418,7 +417,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="—"
+                                android:text="@string/dash_placeholder"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="16sp"
@@ -430,7 +429,7 @@
                                 android:gravity="center"
                                 android:text="@string/connected_ping"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="10sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -470,7 +469,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="0"
+                                android:text="@string/zero_value"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="18sp"
@@ -483,7 +482,7 @@
                                 android:maxLines="1"
                                 android:text="@string/saved_servers"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="9sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <View
@@ -505,7 +504,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="0"
+                                android:text="@string/zero_value"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="18sp"
@@ -518,7 +517,7 @@
                                 android:maxLines="1"
                                 android:text="@string/healthy_servers"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="9sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <View
@@ -540,7 +539,7 @@
                                 android:layout_height="wrap_content"
                                 android:gravity="center"
                                 android:maxLines="1"
-                                android:text="—"
+                                android:text="@string/dash_placeholder"
                                 android:textColor="@color/text_primary"
                                 android:textDirection="ltr"
                                 android:textSize="18sp"
@@ -553,7 +552,7 @@
                                 android:maxLines="1"
                                 android:text="@string/best_ping"
                                 android:textColor="@color/text_secondary"
-                                android:textSize="9sp" />
+                                android:textSize="11sp" />
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

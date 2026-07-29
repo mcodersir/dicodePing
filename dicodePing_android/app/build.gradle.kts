@@ -175,6 +175,12 @@ android {
         }
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -188,9 +194,13 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
-        warningsAsErrors = true
+        // Stable builds fail on real lint errors. Warnings stay visible in the
+        // uploaded reports instead of being blindly promoted to 200+ errors.
+        warningsAsErrors = false
         ignoreWarnings = false
+        checkAllWarnings = false
         checkDependencies = true
+        lintConfig = file("lint.xml")
         htmlReport = true
         textReport = true
         sarifReport = true

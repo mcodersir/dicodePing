@@ -70,8 +70,8 @@ class HomeFragment : Fragment() {
     private fun renderServerSummary() {
         val rows = vm.repo.servers.value
         val best = vm.repo.bestServer()
-        binding.savedValue.text = rows.size.toString()
-        binding.healthyValue.text = rows.count { it.healthy }.toString()
+        binding.savedValue.text = getString(R.string.integer_value, rows.size)
+        binding.healthyValue.text = getString(R.string.integer_value, rows.count { it.healthy })
         binding.bestValue.text = best?.pingMs?.let { "$it ms" }
             ?: getString(R.string.server_temporarily_unavailable_short)
         renderConnectionTarget()
@@ -135,7 +135,7 @@ class HomeFragment : Fragment() {
             .ifBlank { getString(R.string.server_details) }
         val latency = server.pingMs?.let { " • $it ms" }
             ?: " • ${getString(R.string.server_temporarily_unavailable)}"
-        binding.bestServerMeta.text = "$location$latency"
+        binding.bestServerMeta.text = getString(R.string.location_latency_value, location, latency)
     }
 
     private fun renderVpnState(state: VpnState) {

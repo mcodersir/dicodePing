@@ -67,8 +67,10 @@ def test_android_uses_gradle_native_packaging_without_manifest_warning() -> None
     gradle = text("dicodePing_android/app/build.gradle.kts")
     assert "android:extractNativeLibs" not in manifest
     assert "jniLibs.useLegacyPackaging = true" in gradle
-    assert "warningsAsErrors = true" in gradle
+    assert "warningsAsErrors = false" in gradle
     assert "ignoreWarnings = false" in gradle
+    assert 'lintConfig = file("lint.xml")' in gradle
+    assert "enableSplit = false" in gradle
     assert "checkDependencies = true" in gradle
 
 

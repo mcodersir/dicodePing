@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:fillViewport="true" android:background="@color/app_background">
+    android:fillViewport="true">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="vertical" android:padding="16dp">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -24,9 +25,9 @@
                     android:layout_marginTop="14dp" android:text="@string/scanner_start" android:textSize="16sp" android:textStyle="bold"
                     app:icon="@drawable/ic_bolt" app:iconGravity="textStart" app:iconSize="22dp" />
                 <com.google.android.material.textfield.TextInputLayout style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="SUB">
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="@string/scanner_sub_name">
                     <com.google.android.material.textfield.TextInputEditText android:id="@+id/scannerNameEdit" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:cursorVisible="false" android:focusable="false" android:inputType="none" android:text="SUB" />
+                        android:cursorVisible="false" android:focusable="false" android:inputType="none" android:text="@string/scanner_sub_name" />
                 </com.google.android.material.textfield.TextInputLayout>
                 <TextView android:id="@+id/scannerStageLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
                     android:text="@string/ready_to_connect" android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
@@ -43,7 +44,8 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <com.google.android.material.tabs.TabLayout android:id="@+id/scannerLogTabs" android:layout_width="match_parent" android:layout_height="48dp"
                     app:tabIndicatorFullWidth="false" app:tabMode="fixed" />
-                <ScrollView android:id="@+id/scannerLogScroll" android:layout_width="match_parent" android:layout_height="250dp"
+                <ScrollView android:id="@+id/scannerLogScroll"
+                    tools:ignore="NestedScrolling" android:layout_width="match_parent" android:layout_height="250dp"
                     android:fillViewport="true" android:padding="12dp">
                     <TextView android:id="@+id/scannerLogText" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:fontFamily="monospace" android:lineSpacingExtra="4dp" android:textColor="@color/text_secondary"

@@ -25,6 +25,8 @@ py -3 ..\tools\prepare_build_workspace.py --keep-outputs
 if errorlevel 1 exit /b 1
 py -3 ..\tools\validate_android_source_references.py
 if errorlevel 1 exit /b 1
+py -3 ..\tools\validate_android_lint_hotfix.py
+if errorlevel 1 exit /b 1
 py -3 ..\tools\prepare_vazirmatn.py --android
 if errorlevel 1 exit /b 1
 

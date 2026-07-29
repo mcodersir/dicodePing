@@ -14,6 +14,7 @@ command -v curl >/dev/null 2>&1 || { echo "curl is required." >&2; exit 1; }
 # Remove stale files left when this ZIP was extracted over an older RC.
 python ../tools/prepare_build_workspace.py --keep-outputs
 python ../tools/validate_android_source_references.py
+python ../tools/validate_android_lint_hotfix.py
 python ../tools/prepare_vazirmatn.py --android
 
 # This is intentionally part of the build command itself. A release APK can no

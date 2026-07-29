@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="64dp"
     android:background="?attr/selectableItemBackground"
+    tools:ignore="Overdraw"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="8dp"
@@ -40,7 +42,7 @@
             android:maxLines="1"
             android:textColor="@color/text_tertiary"
             android:textDirection="ltr"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <com.google.android.material.checkbox.MaterialCheckBox

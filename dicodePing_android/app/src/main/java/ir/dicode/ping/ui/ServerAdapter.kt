@@ -187,7 +187,7 @@ class ServerAdapter(
         } else ConfigSecurityRating.assess(server.raw, server.host)
         val securityLabel = if (Locale.getDefault().language == "fa") security.labelFa else security.labelEn
         binding.securityBadge.visibility = View.VISIBLE
-        binding.securityBadge.text = "$securityLabel • ${security.score}/100"
+        binding.securityBadge.text = context.getString(R.string.security_score_value, securityLabel, security.score)
         val securityColor = when (security.level) {
             "high" -> ContextCompat.getColor(context, R.color.success)
             "standard" -> ContextCompat.getColor(context, R.color.info)

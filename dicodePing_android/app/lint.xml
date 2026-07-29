@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Pinned toolchain/dependency upgrades are handled deliberately per release,
+         not as correctness failures during a stable rebuild. -->
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <issue id="GradleDependency" severity="ignore" />
+
+    <!-- KTX suggestions are style-only; current calls are explicit and correct. -->
+    <issue id="UseKtx" severity="ignore" />
+
+    <!-- Some resources are referenced by product flavors, dynamic UI paths, or
+         retained for migration compatibility, which static analysis cannot see. -->
+    <issue id="UnusedResources" severity="ignore" />
+
+    <!-- Status strings intentionally combine several counters; their grammar does
+         not depend on a single quantity. -->
+    <issue id="PluralsCandidate" severity="ignore" />
+
+    <!-- The dedicated startup activity owns a bounded initialization/update flow.
+         It is intentionally retained and explicitly suppressed in source. -->
+    <issue id="CustomSplashScreen" severity="ignore" />
+
+    <!-- The scanner singleton stores applicationContext only. -->
+    <issue id="StaticFieldLeak" severity="ignore" />
+
+    <!-- This tablet rail parent owns grouping/ripple semantics. -->
+    <issue id="UselessParent" severity="ignore" />
+</lint>

@@ -2,8 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/app_background">
+    android:layout_height="match_parent">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
@@ -47,7 +46,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="dicodePing"
+                    android:text="@string/brand_name"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
@@ -68,7 +67,7 @@
                             android:layout_height="56dp"
                             android:background="@drawable/bg_brand_pill"
                             android:gravity="center"
-                            android:text="D"
+                            android:text="@string/brand_initial"
                             android:textColor="@color/brand"
                             android:textSize="24sp"
                             android:textStyle="bold" />

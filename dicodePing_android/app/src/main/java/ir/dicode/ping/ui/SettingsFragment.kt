@@ -183,8 +183,11 @@ class SettingsFragment : Fragment() {
             }
             store.activeCore = core
             (activity as? MainActivity)?.applyCoreMode()
-            binding.coreStatus.text = getString(R.string.conn_method_active) + ": " +
-                coreLabels[coreIds.indexOf(core)]
+            binding.coreStatus.text = getString(
+                R.string.label_value,
+                getString(R.string.conn_method_active),
+                coreLabels[coreIds.indexOf(core)],
+            )
             showCoreActivationGuide(core)
         }
         binding.activateCore.setOnClickListener {

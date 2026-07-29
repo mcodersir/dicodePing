@@ -13,7 +13,7 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
-        <Switch
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/enabled"
             android:layout_width="wrap_content"
             android:layout_height="48dp" />

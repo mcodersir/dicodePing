@@ -132,9 +132,9 @@
     <string name="server_details">Server details</string>
     <string name="server_temporarily_unavailable">Temporarily unavailable</string>
     <string name="testing_server">Testing…</string>
-    <string name="stage_downloading">1/3 Downloading sources · %1$d/%2$d</string>
-    <string name="stage_location">2/3 Finding locations · %1$d/%2$d</string>
-    <string name="stage_ping">3/3 Testing concurrently · %1$d/%2$d</string>
+    <string name="stage_downloading">Step 1 of 3 · Downloading sources · %1$d/%2$d</string>
+    <string name="stage_location">Step 2 of 3 · Finding locations · %1$d/%2$d</string>
+    <string name="stage_ping">Step 3 of 3 · Testing concurrently · %1$d/%2$d</string>
     <string name="server_temporarily_unavailable_short">Unavailable</string>
     <string name="connect_target_server">Connect to this server</string>
     <string name="search_server">Search by server name or location</string>
@@ -296,4 +296,19 @@ Details: %1$s</string>
     <string name="resource_mode_help">Optimized mode adapts CPU, memory and network use to the phone. Professional mode enables higher scanner and test concurrency.</string>
     <string name="resource_mode_applies_next_run">Resource mode applies on the next run</string>
     <string name="security_estimate">Security estimate</string>
+
+    <string name="brand_name" translatable="false">dicodePing</string>
+    <string name="brand_handle" translatable="false">dicodeping</string>
+    <string name="brand_initial" translatable="false">D</string>
+    <string name="status_dot_symbol" translatable="false">●</string>
+    <string name="world_symbol" translatable="false">🌐</string>
+    <string name="zero_bytes">0 B</string>
+    <string name="dash_placeholder">—</string>
+    <string name="zero_value">0</string>
+    <string name="scanner_sub_name" translatable="false">SUB</string>
+    <string name="local_scanner_output">Local scanner output</string>
+    <string name="integer_value">%1$d</string>
+    <string name="location_latency_value">%1$s%2$s</string>
+    <string name="security_score_value">%1$s • %2$d/100</string>
+    <string name="label_value">%1$s: %2$s</string>
 </resources>

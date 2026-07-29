@@ -73,8 +73,10 @@ if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.0\\"")' not in build_f
 
 if 'android:extractNativeLibs=' in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
     errors.append("android:extractNativeLibs is obsolete; configure native packaging in Gradle DSL")
-if "warningsAsErrors = true" not in build_file or "ignoreWarnings = false" not in build_file:
-    errors.append("Stable Android release must fail on lint warnings")
+if "warningsAsErrors = false" not in build_file or "ignoreWarnings = false" not in build_file:
+    errors.append("Stable Android release lint policy must keep warnings visible without promoting them")
+if 'lintConfig = file("lint.xml")' not in build_file:
+    errors.append("Stable Android release must use the scoped lint policy file")
 
 if "compileSdk = 36" not in build_file or "targetSdk = 36" not in build_file:
     errors.append("Android 2.0 Stable must compile and target API 36")

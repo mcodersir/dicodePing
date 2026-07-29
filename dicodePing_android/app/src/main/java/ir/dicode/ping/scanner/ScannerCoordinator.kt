@@ -1,5 +1,6 @@
 package ir.dicode.ping.scanner
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import ir.dicode.ping.data.AppRepository
@@ -417,6 +418,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         private const val MAX_CACHED_CANDIDATES = 180
         private const val MAX_LOG_LINES = 220
         private const val MAX_OUTPUT_LINES = 140
+        @SuppressLint("StaticFieldLeak")
         @Volatile private var instance: ScannerCoordinator? = null
 
         fun get(context: Context): ScannerCoordinator = instance ?: synchronized(this) {

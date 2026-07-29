@@ -132,9 +132,9 @@
     <string name="server_details">جزئیات سرور</string>
     <string name="server_temporarily_unavailable">فعلا در دسترس نیست</string>
     <string name="testing_server">در حال تست…</string>
-    <string name="stage_downloading">۱/۳ دریافت منابع · %1$d/%2$d</string>
-    <string name="stage_location">۲/۳ تشخیص لوکیشن · %1$d/%2$d</string>
-    <string name="stage_ping">۳/۳ تست هم‌زمان · %1$d/%2$d</string>
+    <string name="stage_downloading">مرحله ۱ از ۳ · دریافت منابع · %1$d/%2$d</string>
+    <string name="stage_location">مرحله ۲ از ۳ · تشخیص لوکیشن · %1$d/%2$d</string>
+    <string name="stage_ping">مرحله ۳ از ۳ · تست هم‌زمان · %1$d/%2$d</string>
     <string name="server_temporarily_unavailable_short">دردسترس نیست</string>
     <string name="connect_target_server">اتصال به این سرور</string>
     <string name="search_server">جستجوی نام یا موقعیت سرور</string>
@@ -296,4 +296,19 @@
     <string name="resource_mode_help">حالت بهینه متناسب با توان گوشی CPU، رم و شبکه را تنظیم می‌کند. حالت حرفه‌ای هم‌زمانی بیشتری برای اسکن و تست دارد.</string>
     <string name="resource_mode_applies_next_run">حالت منابع از اجرای بعدی اعمال می‌شود</string>
     <string name="security_estimate">برآورد امنیت</string>
+
+    <string name="brand_name" translatable="false">dicodePing</string>
+    <string name="brand_handle" translatable="false">dicodeping</string>
+    <string name="brand_initial" translatable="false">D</string>
+    <string name="status_dot_symbol" translatable="false">●</string>
+    <string name="world_symbol" translatable="false">🌐</string>
+    <string name="zero_bytes">۰ بایت</string>
+    <string name="dash_placeholder">—</string>
+    <string name="zero_value">۰</string>
+    <string name="scanner_sub_name" translatable="false">SUB</string>
+    <string name="local_scanner_output">خروجی محلی اسکنر</string>
+    <string name="integer_value">%1$d</string>
+    <string name="location_latency_value">%1$s%2$s</string>
+    <string name="security_score_value">%1$s • %2$d از ۱۰۰</string>
+    <string name="label_value">%1$s: %2$s</string>
 </resources>

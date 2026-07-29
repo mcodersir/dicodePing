@@ -41,8 +41,10 @@ def main() -> int:
 
     require('android:extractNativeLibs' not in manifest, "Obsolete android:extractNativeLibs still causes AGP warnings", errors)
     require('jniLibs.useLegacyPackaging = true' in gradle, "Native extraction is not configured through Gradle DSL", errors)
-    require('warningsAsErrors = true' in gradle, "Android lint warnings are not fatal", errors)
-    require('ignoreWarnings = false' in gradle, "Android lint warnings are being ignored", errors)
+    require('warningsAsErrors = false' in gradle, "Android lint advisories are still promoted to build errors", errors)
+    require('ignoreWarnings = false' in gradle, "Android lint reports are being hidden", errors)
+    require('lintConfig = file("lint.xml")' in gradle, "Android lint policy file is not configured", errors)
+    require('enableSplit = false' in gradle, "Android language resources can be split despite runtime locale switching", errors)
     require('checkDependencies = true' in gradle, "Dependency lint is disabled", errors)
 
     apk_font_verifier = read("dicodePing_android/tools/verify_apk_fonts.py")

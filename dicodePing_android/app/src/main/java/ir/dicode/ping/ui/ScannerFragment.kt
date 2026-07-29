@@ -1,5 +1,6 @@
 package ir.dicode.ping.ui
 
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -205,6 +206,7 @@ class ScannerFragment : Fragment() {
         return builder
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun addPressFeedback(view: View) {
         view.setOnTouchListener { target, event ->
             when (event.actionMasked) {

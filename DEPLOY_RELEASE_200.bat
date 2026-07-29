@@ -53,6 +53,7 @@ if not exist "docs\site\index.html" goto :missing_source
 if not exist "app_v200.py" goto :missing_source
 if not exist "tests\test_v200_stable.py" goto :missing_source
 if not exist "tools\validate_v200_stable.py" goto :missing_source
+if not exist "tools\validate_android_lint_hotfix.py" goto :missing_source
 if not exist "tools\validate_workflow_yaml.py" goto :missing_source
 if not exist "tools\vendor\pyyaml\yaml\__init__.py" goto :missing_source
 if not exist "tools\vendor\pyyaml\LICENSE" goto :missing_source
@@ -97,7 +98,32 @@ if errorlevel 1 (popd & goto :cleanup_failed)
 
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY*.bat" 2^>nul') do if /I not "%%F"=="%CURRENT_DEPLOY%" del /f /q "%%F" >nul 2>&1
 for /f "delims=" %%F in ('dir /b /a-d "DEPLOY*_README_FA.txt" 2^>nul') do if /I not "%%F"=="DEPLOY_RELEASE_200_README_FA.txt" del /f /q "%%F" >nul 2>&1
-for %%P in ("BUILD_RELEASE_RC*.bat" "BUILD_SIGNED_APK_RC*.bat" "RUN_SOURCE_RC*.bat" "START_HERE_RC*.txt" "VALIDATION_RESULTS_RC*.txt") do del /f /q %%P >nul 2>&1
+for %%P in (
+  "BUILD_RELEASE_RC*.bat"
+  "BUILD_SIGNED_APK_RC*.bat"
+  "RUN_SOURCE_RC*.bat"
+  "START_HERE_RC*.txt"
+  "VALIDATION_RESULTS_RC*.txt"
+  "app_v190_rc*.py"
+  "app_v200_rc*.py"
+  "RC4_*.txt"
+  "RC14_*.md"
+  "RC14_*.txt"
+  "RC19_*.md"
+  "RC19_*.txt"
+  "V200_RC*_*.md"
+  "V200_RC*_*.txt"
+  "V200_STABLE_*_FA.md"
+  "V200_STABLE_*_FA.txt"
+  "DEPLOY_RC*_*.txt"
+  "DEPLOY_RC*_*.md"
+  "LOCAL_VALIDATION_RC*.txt"
+  "VALIDATION_RC*.txt"
+  "build_exe.bat"
+  "cleanup_network.bat"
+  "run_dev.bat"
+  ".source-files.txt"
+) do del /f /q "%%~P" >nul 2>&1
 if exist ".github\workflows\v1.9.0-rc.*-release.yml" del /f /q ".github\workflows\v1.9.0-rc.*-release.yml" >nul 2>&1
 if exist "dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt" del /f /q "dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt" >nul 2>&1
 
@@ -124,6 +150,8 @@ call %PYTHON_CMD% tools\validate_android_gradle_kts.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_android_source_references.py
 if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_android_lint_hotfix.py
+if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% -m compileall -q app.py app_v200.py dicodeping tools tests
@@ -140,7 +168,7 @@ call %PYTHON_CMD% tools\quality_gate.py
 if errorlevel 1 goto :validation_failed
 call %PYTHON_CMD% tools\validate_workflow_yaml.py
 if errorlevel 1 goto :validation_failed
-echo [OK] Stable preflight passed with no accepted warnings.
+echo [OK] Stable preflight passed with no blocking errors.
 
 echo.
 echo [6/10] Committing the stable snapshot...

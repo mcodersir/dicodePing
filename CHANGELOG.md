@@ -1,3 +1,9 @@
+## 2.0.0 stable Android lint/build hotfix
+
+- Corrected the release lint policy so correctness errors remain fatal while advisory warnings are not promoted into 206 false build errors.
+- Fixed runtime locale packaging, bundled Vazirmatn XML compatibility, package visibility, backup rules, accessibility labels, density-correct launcher icons, locale-safe formatting, RecyclerView diff updates, and scoped intentional lint suppressions.
+- Kept full `lintStandardRelease`, unit tests, signed APK assembly, native-core verification, and font hash verification in the stable workflow.
+
 # Changelog
 
 ## 2.0.0 stable release preflight hotfix
@@ -26,7 +32,7 @@
 - Preserved the macOS DMG retry and verification path for transient DiskImages failures.
 
 ### Release quality
-- Android lint warnings are fatal in release builds.
+- Android lint correctness errors are fatal; advisory warnings remain reported and scoped instead of being promoted blindly.
 - Gradle runs with `--warning-mode=fail`.
 - Pages deployment is mandatory for the one-click stable release.
 - Windows, Linux, macOS ARM64, macOS x86_64 and Android assets are all required before success is reported.
