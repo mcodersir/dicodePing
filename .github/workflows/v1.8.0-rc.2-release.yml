@@ -1,4 +1,4 @@
-﻿name: Release v1.8.0-rc.2
+name: Release v1.8.0-rc.2
 
 on:
   push:
@@ -145,7 +145,7 @@ jobs:
           git archive --format=zip --output=release-assets/dicodePing-v1.8.0-rc.2-source.zip HEAD
           (cd artifacts/ui-screenshots && zip -r ../../release-assets/dicodePing-v1.8.0-rc.2-screenshots.zip .)
           (cd release-assets && sha256sum * > SHA256SUMS)
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: v1.8.0-rc.2
           target_commitish: main

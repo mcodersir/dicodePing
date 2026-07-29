@@ -176,7 +176,7 @@ jobs:
 
           printf '{"repository":"%s","commit":"%s","runId":"%s","workflow":"%s"}\n' "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_WORKFLOW" > release-assets/provenance.json
           (cd release-assets && sha256sum * > SHA256SUMS)
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: v1.8.0-rc.4
           target_commitish: main
