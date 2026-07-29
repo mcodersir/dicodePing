@@ -71,10 +71,10 @@
 
     <style name="Widget.DicodePing.Card" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/surface_card</item>
-        <item name="cardCornerRadius">18dp</item>
+        <item name="cardCornerRadius">20dp</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/outline_soft</item>
-        <item name="strokeWidth">1dp</item>
+        <item name="strokeWidth">0dp</item>
     </style>
 
     <style name="Widget.DicodePing.Card.Compact" parent="Widget.DicodePing.Card">
@@ -89,8 +89,8 @@
     </style>
 
     <style name="Widget.DicodePing.Button.Primary" parent="Widget.Material3.Button">
-        <item name="cornerRadius">14dp</item>
-        <item name="android:minHeight">48dp</item>
+        <item name="cornerRadius">13dp</item>
+        <item name="android:minHeight">46dp</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
@@ -100,10 +100,10 @@
     </style>
 
     <style name="Widget.DicodePing.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="cornerRadius">14dp</item>
+        <item name="cornerRadius">13dp</item>
         <item name="strokeColor">@color/outline_soft</item>
         <item name="android:textColor">@color/brand</item>
-        <item name="android:minHeight">48dp</item>
+        <item name="android:minHeight">46dp</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:insetTop">0dp</item>
         <item name="android:insetBottom">0dp</item>
@@ -116,10 +116,10 @@
 
     <style name="Widget.DicodePing.ServerCard" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/surface_card</item>
-        <item name="cardCornerRadius">18dp</item>
+        <item name="cardCornerRadius">20dp</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/outline_soft</item>
-        <item name="strokeWidth">1dp</item>
+        <item name="strokeWidth">0dp</item>
     </style>
 
     <style name="Widget.DicodePing.IconButton" parent="Widget.DicodePing.Button.Secondary">

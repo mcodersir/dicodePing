@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dicodePing RC19 Linux launcher.
+# dicodePing 2.0.0 RC1 Linux launcher.
 # Launch normally. The application requests the TUN privilege through PolicyKit
 # and preserves the current user's HOME, display and desktop-session variables.
 set -eu

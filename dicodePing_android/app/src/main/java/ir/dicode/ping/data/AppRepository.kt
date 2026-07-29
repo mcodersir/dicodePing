@@ -484,12 +484,62 @@ class AppRepository private constructor(context: Context) {
                 )
                 sources.value = nextSources
                 servers.value = sortServers(nextServers)
+
+                // 2.0 RC1: verify the exact persisted SUB once more, then force
+                // a fresh IP-location lookup and atomically commit the final rows.
+                progress.value = ProgressState(
+                    true, "post_save_verify", 0, healthy.size, "Verifying saved SUB",
+                )
+                val rechecked = mutableListOf<ServerRecord>()
+                healthy.forEachIndexed { index, server ->
+                    if (stopRequested()) return@forEachIndexed
+                    val measured = runCatching {
+                        proxyProbe.measureOutboundDelay(
+                            XrayConfigBuilder.build(
+                                server.raw,
+                                bufferSizeKiB = tuning.bufferSizeKiB,
+                            )
+                        )
+                    }.getOrDefault(-1L)
+                    val ping = measured.takeIf { it in 1..SCANNER_MAX_DELAY_MS }?.toInt()
+                    rechecked += server.copy(
+                        pingMs = ping,
+                        pingKind = if (ping != null) REAL_PROXY_PING else "",
+                        healthy = ping != null,
+                        testState = if (ping != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                    )
+                    progress.value = ProgressState(
+                        true, "post_save_verify", index + 1, healthy.size, server.name,
+                    )
+                }
+                val finalRows = locateServerSnapshot(rechecked, forceGeoRefresh = true)
+                val finalServers = servers.value.filterNot { it.sourceId.startsWith("scanner-") } + finalRows
+                val finalRawSubscription = finalRows.joinToString("\n") { it.raw }
+                settings.saveScannerTransaction(
+                    nextSources,
+                    finalServers,
+                    JSONObject()
+                        .put("sourceId", sourceId)
+                        .put("sourceName", sourceName)
+                        .put("candidateCount", parsed.size)
+                        .put("healthyCount", finalRows.count { it.healthy })
+                        .put("postSaveVerified", true)
+                        .put("rawSubscription", finalRawSubscription)
+                        .put(
+                            "base64Subscription",
+                            Base64.encodeToString(
+                                finalRawSubscription.toByteArray(Charsets.UTF_8),
+                                Base64.NO_WRAP,
+                            ),
+                        ),
+                )
+                servers.value = sortServers(finalServers)
                 progress.value = ProgressState()
-                healthy
+                finalRows
             }
         }
 
-    private suspend fun locateServerSnapshot(input: List<ServerRecord>): List<ServerRecord> = coroutineScope {
+    private suspend fun locateServerSnapshot(input: List<ServerRecord>, forceGeoRefresh: Boolean = false): List<ServerRecord> = coroutineScope {
         if (input.isEmpty()) return@coroutineScope emptyList()
         val sem = Semaphore(tuning.geoWorkers.coerceAtLeast(2))
         val done = AtomicInteger(0)
@@ -503,7 +553,7 @@ class AppRepository private constructor(context: Context) {
                         progress.value = ProgressState(true, "geo", done.incrementAndGet(), input.size, server.name)
                         return@withPermit server
                     }
-                    val info = geo.resolveFast(ip)
+                    val info = geo.resolveFast(ip, forceRefresh = forceGeoRefresh)
                     val located = server.copy(
                         ip = ip,
                         country = info.country,

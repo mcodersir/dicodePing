@@ -75,3 +75,7 @@ artifacts/
 **/.gradle/
 __pycache__/
 .pytest_cache/
+
+# Build-time bundled Vazirmatn binaries
+assets/fonts/*.ttf
+dicodePing_android/app/src/main/res/font/vazirmatn_*.ttf

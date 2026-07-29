@@ -3,7 +3,7 @@ setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0"
 
-set "VERSION=1.9.0-rc.19"
+set "VERSION=2.0.0-rc.1"
 set "CORE_VERSION=26.7.11"
 set "CORE_SHA256=0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 set "CORE_AAR=local-maven\ir\dicode\local\libv2ray\%CORE_VERSION%\libv2ray-%CORE_VERSION%.aar"
@@ -24,6 +24,8 @@ rem Remove stale files left when this ZIP was extracted over an older RC.
 py -3 ..\tools\prepare_build_workspace.py --keep-outputs
 if errorlevel 1 exit /b 1
 py -3 ..\tools\validate_android_source_references.py
+if errorlevel 1 exit /b 1
+py -3 ..\tools\prepare_vazirmatn.py --android
 if errorlevel 1 exit /b 1
 
 rem Core preparation is part of the build, so Aether/Usque cannot be forgotten.

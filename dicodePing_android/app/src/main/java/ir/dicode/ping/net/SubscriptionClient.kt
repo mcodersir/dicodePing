@@ -47,7 +47,7 @@ class SubscriptionClient {
         }
         val request = Request.Builder()
             .url(httpUrl)
-            .header("User-Agent", "dicodePing-Android/1.9.0-rc.19")
+            .header("User-Agent", "dicodePing-Android/2.0.0-rc.1")
             .build()
 
         client.newCall(request).execute().use { response ->
@@ -76,7 +76,7 @@ class SubscriptionClient {
             val request = Request.Builder()
                 .url(httpUrl)
                 .head()
-                .header("User-Agent", "dicodePing-Android/1.9.0-rc.19")
+                .header("User-Agent", "dicodePing-Android/2.0.0-rc.1")
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use ""
@@ -98,7 +98,7 @@ class SubscriptionClient {
             val request = Request.Builder()
                 .url(httpUrl)
                 .head()
-                .header("User-Agent", "dicodePing-Scanner/1.9.0-rc.19")
+                .header("User-Agent", "dicodePing-Scanner/2.0.0-rc.1")
                 .build()
             client.newCall(request).execute().use { response ->
                 response.header("Subscription-Userinfo")?.takeIf { it.isNotBlank() }

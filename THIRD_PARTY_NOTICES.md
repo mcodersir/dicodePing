@@ -72,3 +72,10 @@ The RC10 scanner verification flow is adapted from the public `mcodersir/DicodeC
 - Project: UnboundTechCo/defyxVPN
 - License: MIT
 - Use: multi-core orchestration and one-tap UX reference; DXcore is not bundled.
+## Vazirmatn
+
+- Project: `rastikerdar/vazirmatn`
+- Package: `vazirmatn@33.0.3`
+- License: SIL Open Font License 1.1
+- Use: Regular, Medium and Bold weights are fetched during release builds, verified against npm package integrity metadata and bundled inside the platform artifacts. Generated font files are not committed in the source snapshot.
+

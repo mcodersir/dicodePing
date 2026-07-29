@@ -18,8 +18,8 @@ class GeoResolver {
         .build()
     private val cache = ConcurrentHashMap<String, GeoInfo>()
 
-    suspend fun resolveFast(ip: String): GeoInfo = withContext(Dispatchers.IO) {
-        cache[ip]?.let { return@withContext it }
+    suspend fun resolveFast(ip: String, forceRefresh: Boolean = false): GeoInfo = withContext(Dispatchers.IO) {
+        if (!forceRefresh) cache[ip]?.let { return@withContext it }
         val resolved = ipWho(ip)?.copy(confidence = "fast")
             ?: ipApiCo(ip)?.copy(confidence = "fast")
             ?: GeoInfo(confidence = "unknown")
@@ -65,7 +65,7 @@ class GeoResolver {
     }
 
     private fun get(url: String): JSONObject? = runCatching {
-        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/0.1.5").build()).execute().use {
+        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/2.0.0-rc.1").build()).execute().use {
             if (!it.isSuccessful) return null
             JSONObject(it.body?.string().orEmpty())
         }

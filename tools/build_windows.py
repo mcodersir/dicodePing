@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_VERSION = "1.9.0"
-RC_VERSION = "rc.19"
+APP_VERSION = "2.0.0"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -32,6 +32,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     else:
         print("[1/4] Dependency installation skipped.", flush=True)
 
+    run([python, "-m", "tools.prepare_vazirmatn"], root)
+
     if not skip_core:
         print("[2/4] Preparing and verifying the official Xray core...", flush=True)
         run([python, "-m", "tools.prepare_core"], root)
@@ -42,10 +44,11 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app_v190_rc19.py"
+    entrypoint = root / "app_v200_rc1.py"
     generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 
+    font_files = [assets / "fonts" / f"Vazirmatn-{weight}.ttf" for weight in ("Regular", "Medium", "Bold")]
     required = [
         entrypoint,
         assets / "app.ico",
@@ -55,6 +58,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         core / "aether.exe",
         core / "usque.exe",
     ]
+    required.extend(font_files)
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError("Missing required Windows build files:\n- " + "\n- ".join(missing))

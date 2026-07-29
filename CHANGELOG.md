@@ -1,3 +1,20 @@
+# 2.0.0-rc.1 — Bundled Persian font, final scanner recheck and minimal UI
+
+### Added
+- Build-time Vazirmatn 33.0.3 acquisition with npm SHA-512 integrity verification.
+- Packaged desktop font smoke checks on Windows, Linux and both macOS architectures.
+- A second post-save scanner verification transaction with fresh ping and geolocation.
+- Minimal responsive Persian download site without screenshots.
+
+### Fixed
+- Vazirmatn is now registered from bundled bytes in Qt and forced application-wide.
+- Android uses local font resources instead of an asynchronous downloadable-font provider.
+- Saved SUB results are re-tested and refreshed before final persistence.
+
+### Improved
+- Flatter cards, softer spacing and simpler actions across desktop and Android.
+- Release validation now checks font packaging, scanner re-verification and Pages downloads.
+
 ## RC19 macOS DMG hotfix
 
 - Fixed transient `hdiutil: create failed - Resource busy` on Intel macOS GitHub runners.
@@ -5,7 +22,7 @@
 - Added a workflow-level macOS rebuild retry and final DMG verification before artifact upload.
 
 
-## 1.9.0-rc.19 connection stability hotfix
+## 2.0.0-rc.1 connection stability hotfix
 
 - Prevented healthy desktop Xray TUN sessions from being disconnected by a redundant public health-URL check.
 - Added multi-signal startup evidence and a bounded validation budget.
@@ -13,7 +30,7 @@
 
 # Changelog
 
-## 1.9.0-rc.19
+## 2.0.0-rc.1
 
 - Fixed a Windows TUN false negative where Xray was visibly carrying DNS/TCP traffic but the private liveness probe used only plain HTTP/80 and tore the working tunnel down.
 - Reworked the private SOCKS probe with exact fragmented-read handling, HTTPS-first targets and full HTTP status-line parsing.

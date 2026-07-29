@@ -553,6 +553,7 @@ def _enrich_scanner_records(
     *,
     store: JsonStore,
     log: LogCallback | None = None,
+    force_geo: bool = False,
 ) -> None:
     """Resolve IP/location immediately and persist the enriched records.
 
@@ -580,7 +581,7 @@ def _enrich_scanner_records(
     ips = [record.ip for record in records if record.ip]
     if log:
         log(f"[GEO][START] resolving locations for {len(ips)}/{len(records)} saved servers")
-    geo_map = GeoResolver(store).resolve_many(ips, fast=True)
+    geo_map = GeoResolver(store).resolve_many(ips, fast=True, force_refresh=force_geo)
     located = 0
     for record in records:
         value = geo_map.get(record.ip, {})
@@ -598,6 +599,57 @@ def _enrich_scanner_records(
     if log:
         log(f"[GEO][DONE] saved {located} server locations in the permanent scanner SUB")
 
+
+
+def _recheck_saved_scanner_records(
+    records: list[ServerRecord],
+    raw_lines: list[str],
+    *,
+    store: JsonStore,
+    stop_event: threading.Event,
+    log: LogCallback | None = None,
+) -> None:
+    """Re-test the exact persisted SUB and refresh IP/location once more."""
+    if not records:
+        return
+    raw_by_id = {record_id(raw): raw for raw in raw_lines}
+    profile = current_resource_profile(resource_mode_from_settings(store.load_settings()))
+    workers = min(8, max(2, profile.retry_workers))
+    if log:
+        log(f"[VERIFY-SAVED][START] rechecking {len(records)} persisted SUB servers")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers, thread_name_prefix="dicodePing-saved") as pool:
+        future_map = {
+            pool.submit(
+                test_config,
+                raw_by_id.get(record.id, ""),
+                attempts=1,
+                min_success=1,
+                per_attempt_timeout=3.2,
+                stop_event=stop_event,
+            ): record
+            for record in records
+            if raw_by_id.get(record.id)
+        }
+        for index, future in enumerate(concurrent.futures.as_completed(future_map), start=1):
+            record = future_map[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                result = ConfigQualityResult(False, None, None, None, 1, 0, error=exc.__class__.__name__)
+            record.tcp_ms = result.tcp_ms
+            record.ping_ms = result.ping_ms if result.ok else None
+            record.status = "online" if result.ok else "unverified"
+            record.failures = 0 if result.ok else record.failures + 1
+            record.last_checked = utc_now()
+            if log:
+                log(
+                    f"[VERIFY-SAVED][{'OK' if result.ok else 'WARN'}] {index}/{len(future_map)} "
+                    f"{record.host}:{record.port} TCP={result.tcp_ms or '-'} XRAY={result.ping_ms or '-'}"
+                )
+    _enrich_scanner_records(records, store=store, log=log, force_geo=True)
+    records.sort(key=lambda row: (row.ping_ms is None, row.ping_ms or 999999, row.name.casefold()))
+    if log:
+        log("[VERIFY-SAVED][DONE] persisted SUB ping and location refreshed")
 
 def run_scan(
     *,
@@ -905,6 +957,44 @@ def run_scan(
         for stale in SCANNER_EXPORT_DIR.glob("scanner-*.*"):
             if stale.name not in {f"{source_id}.txt", f"{source_id}.base64.txt"}:
                 stale.unlink(missing_ok=True)
+
+        # 2.0 RC1 verifies the exact SUB after its first atomic commit.
+        _recheck_saved_scanner_records(
+            records,
+            raw_lines,
+            store=store,
+            stop_event=state.stop_requested,
+            log=_log,
+        )
+        refreshed_by_id = {
+            server.id: server
+            for server in store.load_servers()
+            if not server.source_id.startswith("scanner-")
+        }
+        for record in records:
+            refreshed_by_id[record.id] = record
+        merged = list(refreshed_by_id.values())
+        history_record["servers"] = [record.to_dict() for record in records]
+        history_record["quality"] = [
+            {
+                "id": record.id,
+                "tcp_ms": record.tcp_ms,
+                "xray_ms": record.ping_ms,
+                "status": record.status,
+            }
+            for record in records
+        ]
+        history_record["post_save_verified_at"] = utc_now()
+        store.save_scanner_transaction(
+            settings=settings,
+            servers=merged,
+            history_path=SCANNER_HISTORY_FILE,
+            history=[history_record],
+            raw_path=SCANNER_EXPORT_DIR / f"{source_id}.txt",
+            raw_payload="\n".join(raw_lines),
+            base64_path=SCANNER_EXPORT_DIR / f"{source_id}.base64.txt",
+            base64_payload=base64_payload,
+        )
 
         duration = time.monotonic() - started
         stopped = state.stop_requested.is_set()

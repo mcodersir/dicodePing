@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="1.9.0-rc.19"
+VERSION="2.0.0-rc.1"
 CORE_VERSION="26.7.11"
 CORE_SHA256="0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 CORE_AAR="local-maven/ir/dicode/local/libv2ray/${CORE_VERSION}/libv2ray-${CORE_VERSION}.aar"
@@ -14,6 +14,7 @@ command -v curl >/dev/null 2>&1 || { echo "curl is required." >&2; exit 1; }
 # Remove stale files left when this ZIP was extracted over an older RC.
 python ../tools/prepare_build_workspace.py --keep-outputs
 python ../tools/validate_android_source_references.py
+python ../tools/prepare_vazirmatn.py --android
 
 # This is intentionally part of the build command itself. A release APK can no
 # longer be assembled unless Aether and Usque have first been prepared for all

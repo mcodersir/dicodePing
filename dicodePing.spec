@@ -1,9 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 """Legacy PyInstaller spec for local, transparent onedir builds.
 
-Public RC4 packages are produced by tools/build_windows.py, build_linux.py,
-or build_macos.py so platform signing can be applied. Third-party tunnel
-executables are intentionally not embedded in the desktop GUI package.
+Public release packages are produced by tools/build_windows.py, build_linux.py,
+or build_macos.py so platform signing can be applied. Required tunnel executables and verified UI assets are prepared by the platform builders before PyInstaller runs.
 """
 from pathlib import Path
 
@@ -11,7 +10,7 @@ root = Path(SPECPATH)
 assets = root / "assets"
 
 a = Analysis(
-    [str(root / "app_v190_rc19.py")],
+    [str(root / "app_v200_rc1.py")],
     pathex=[str(root)],
     binaries=[],
     datas=[(str(assets), "assets")],

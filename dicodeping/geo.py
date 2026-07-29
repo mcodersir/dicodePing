@@ -35,9 +35,9 @@ class GeoResolver:
         self.store = store
         self.cache = store.load_geo_cache()
 
-    def resolve_many(self, ips: list[str], callback: Callable[[int, int], None] | None = None, *, fast: bool = False) -> dict[str, dict[str, str]]:
+    def resolve_many(self, ips: list[str], callback: Callable[[int, int], None] | None = None, *, fast: bool = False, force_refresh: bool = False) -> dict[str, dict[str, str]]:
         unique = list(dict.fromkeys(ip for ip in ips if ip and ip != "dns"))
-        missing = [ip for ip in unique if ip not in self.cache or not _fresh(self.cache.get(ip, {}))]
+        missing = list(unique) if force_refresh else [ip for ip in unique if ip not in self.cache or not _fresh(self.cache.get(ip, {}))]
         total = len(missing)
         done = 0
         if missing:

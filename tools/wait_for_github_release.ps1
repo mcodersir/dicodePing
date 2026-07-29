@@ -41,11 +41,11 @@ if ($apiToken) {
 }
 
 $requiredAssets = @(
-    "dicodePing-$version-windows-x64.exe",
-    "dicodePing-$version-linux-x86_64.tar.gz",
-    "dicodePing-$version-macos-arm64.dmg",
-    "dicodePing-$version-macos-x86_64.dmg",
-    "dicodePing-$version-android.apk"
+    "dicodePing-v$version-windows-x64.exe",
+    "dicodePing-v$version-linux-x86_64.tar.gz",
+    "dicodePing-v$version-macos-arm64.dmg",
+    "dicodePing-v$version-macos-x86_64.dmg",
+    "dicodePing-v$version-android.apk"
 )
 
 $startedAt = Get-Date

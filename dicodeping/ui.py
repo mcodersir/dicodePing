@@ -81,8 +81,8 @@ LOGGER = get_logger("ui")
 
 
 DARK = {
-    "window": "#070A0F",
-    "shell": "#0B0F15",
+    "window": "#080B10",
+    "shell": "#0D1219",
     "sidebar": "#090D13",
     "surface": "#111720",
     "surface2": "#151C26",
@@ -186,7 +186,7 @@ def build_stylesheet(theme: str) -> str:
 
     QFrame#card, QFrame#heroCard, QFrame#statCard, QFrame#toolbarCard,
     QFrame#settingCard, QFrame#aboutCard {{
-        background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 14px;
+        background: {c['surface']}; border: 0; border-radius: 16px;
     }}
     QFrame#heroCard {{ background: {c['surface2']}; }}
     QFrame#activityBar {{
@@ -198,7 +198,7 @@ def build_stylesheet(theme: str) -> str:
     QFrame#softPanel {{ background: {c['surface2']}; border: 1px solid {c['border']}; border-radius: 11px; }}
 
     QPushButton {{
-        min-height: 44px; max-height: 44px; padding: 0 15px; border: 1px solid {c['border2']}; border-radius: 10px;
+        min-height: 42px; max-height: 42px; padding: 0 15px; border: 1px solid {c['border']}; border-radius: 12px;
         background: {c['surface2']}; color: {c['text']}; font-weight: 700;
     }}
     QPushButton:hover {{ background: {c['surface3']}; border-color: {c['muted2']}; }}
@@ -212,7 +212,7 @@ def build_stylesheet(theme: str) -> str:
     QPushButton[kind="ghost"] {{ background: transparent; border-color: transparent; color: {c['muted']}; }}
     QPushButton[kind="ghost"]:hover {{ background: {c['surface3']}; color: {c['text']}; }}
     QPushButton#navButton, QToolButton#navButton {{
-        min-height: 44px; max-height: 44px; padding: 0 14px; background: transparent;
+        min-height: 42px; max-height: 42px; padding: 0 14px; background: transparent;
         border-color: transparent; color: {c['muted']};
     }}
     QPushButton#navButton:hover, QToolButton#navButton:hover {{ background: {c['surface2']}; color: {c['text']}; }}
@@ -233,7 +233,7 @@ def build_stylesheet(theme: str) -> str:
 
     QLineEdit, QComboBox, QPlainTextEdit, QSpinBox {{
         min-height: 44px; padding: 0 13px; background: {c['surface2']}; color: {c['text']};
-        border: 1px solid {c['border2']}; border-radius: 10px; selection-background-color: {c['accent']};
+        border: 1px solid {c['border']}; border-radius: 12px; selection-background-color: {c['accent']};
     }}
     QLineEdit:hover, QComboBox:hover, QPlainTextEdit:hover, QSpinBox:hover {{ border-color: {c['muted2']}; }}
     QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QSpinBox:focus {{ border: 1px solid {c['accent']}; background: {c['surface']}; }}

@@ -1,0 +1,20 @@
+dicodePing v1.9.0-rc.10 Xray/Scanner Assurance Hotfix 2 validation
+
+- Python test suite: 245 passed
+- Quality gate: 0 errors, 0 warnings
+- Android XML validation: 55 files passed
+- Android localization validation: 227 strings passed
+- Android project structure validation: passed
+- Release version consistency: package=1.9.0rc10, release=1.9.0-rc.10
+- Xray startup deadline and running-state regression tests: passed
+- Android VPN non-sticky lifecycle regression tests: passed
+- Scanner Xray preflight, bounded stages and atomic cache regression tests: passed
+- Telegram protocol/parser compatibility regression tests: passed
+- Python compileall: passed
+- Workflow YAML parse: passed
+- Shell-script syntax checks: passed
+- ZIP integrity: checked after packaging
+
+The signed APK and native desktop packages are built by GitHub Actions. They were not
+produced or exercised on a physical device in this local validation environment, so this
+report does not claim universal device/network compatibility.

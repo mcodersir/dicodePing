@@ -10,8 +10,8 @@ import tempfile
 import time
 from pathlib import Path
 
-APP_VERSION = "1.9.0"
-RC_VERSION = "rc.19"
+APP_VERSION = "2.0.0"
+RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
 DMG_CREATE_ATTEMPTS = 6
@@ -173,14 +173,18 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     if not skip_install:
         run([python, "-m", "pip", "install", "--upgrade", "pip"], root)
         run([python, "-m", "pip", "install", "-r", "requirements-build.txt"], root)
+    run([python, "-m", "tools.prepare_vazirmatn"], root)
+
     if not skip_core:
         run([python, "-m", "tools.prepare_core"], root)
         run([python, "-m", "tools.prepare_optional_cores"], root)
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v190_rc19.py"
+    entrypoint = root / "app_v200_rc1.py"
+    font_files = [assets / "fonts" / f"Vazirmatn-{weight}.ttf" for weight in ("Regular", "Medium", "Bold")]
     required = [entrypoint, assets / "app.png", core / "xray", core / "aether", core / "usque"]
+    required.extend(font_files)
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError("Missing macOS build files:\n- " + "\n- ".join(missing))

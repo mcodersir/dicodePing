@@ -1,97 +1,89 @@
 # dicodePing
 
-یک کلاینت چندسکویی برای دریافت، ارزیابی و اتصال به کانفیگ‌های پروکسی با رابط فارسی و انگلیسی.
+کلاینت چندسکویی فارسی/انگلیسی برای دریافت، ارزیابی و اتصال به کانفیگ‌های پروکسی با Xray TUN واقعی.
 
-## تست واقعی دوگانه دسکتاپ در RC19
+## نسخه فعلی
 
-در Windows، Linux و macOS هر کانفیگ یک‌بار با TCP و یک‌بار با درخواست واقعی از داخل Xray تست می‌شود. این دو عدد جداگانه در دو ستون رنگی نمایش داده می‌شوند و فقط نتیجه Xray وضعیت سالم/آنلاین را تعیین می‌کند.
+**2.0.0 RC1** برای Windows، Linux، macOS و Android.
 
-## وضعیت نسخه
+### نکات اصلی 2.0
 
-**v1.9.0-rc.19** — بازگردانی اتصال سراسری و واقعی Xray TUN در Windows، Linux و macOS.
+- فونت **Vazirmatn Regular / Medium / Bold** در زمان Build از بسته رسمی `vazirmatn@33.0.3` دریافت، با SHA-512 منتشرشده در npm اعتبارسنجی و داخل خروجی نهایی بسته‌بندی می‌شود.
+- نسخه دسکتاپ فونت را با `QFontDatabase.addApplicationFontFromData()` ثبت و روی کل برنامه اعمال می‌کند؛ بسته معیوب اجازه fallback خاموش به فونت سیستم را ندارد.
+- Android به‌جای فونت دانلودی Google Fonts از منابع محلی `res/font` استفاده می‌کند.
+- پس از ذخیره اولیه اسکنر در `SUB`، همان سرورها یک بار دیگر آزمایش می‌شوند؛ پینگ واقعی و موقعیت IP تازه‌سازی و تراکنش نهایی دوباره ذخیره می‌شود.
+- در دسکتاپ هر کانفیگ دو سنجش مستقل دارد: TCP endpoint و درخواست واقعی از داخل Xray.
+- رابط مشترک Windows/Linux/macOS و رابط Android تخت‌تر، کم‌حاشیه‌تر و خواناتر شده‌اند.
+- وب‌سایت دانلود، فارسی و ریسپانسیو است و فقط توضیح و دکمه‌های مستقیم پلتفرم‌ها را نشان می‌دهد.
 
-## امکانات تازه RC19
+## هسته‌ها
 
-- ترافیک کل سیستم از مسیر `Xray TUN → سرور انتخاب‌شده → اینترنت` عبور می‌کند؛ System Proxy جایگزین TUN نیست.
-- برنامه ابتدا خود سرور را با SOCKS خصوصی داخل Xray بررسی می‌کند و سپس یک درخواست مستقیم بدون Proxy را از Route سراسری TUN عبور می‌دهد.
-- Windows همراه `wintun.dll` بسته‌بندی می‌شود و مجوز UAC را خودکار درخواست می‌کند.
-- Linux مجوز TUN را با PolicyKit می‌گیرد و HOME و محیط نشست کاربر را حفظ می‌کند.
-- macOS از رابط معتبر `utunN` و پنجره رسمی رمز مدیر استفاده می‌کند.
-- برای جلوگیری از Loop، Interface خروجی، Source IP و Host Route مستقیم سرور قبل از انتقال Default Route تثبیت می‌شوند.
-- قطع اتصال، پردازش Xray، Routeهای موقت، Runtime و رابط TUN را پاک می‌کند.
-- قابلیت‌های RC17 شامل ماندگاری SUB اسکنر، دریافت موقعیت، امتیاز امنیت، حالت بهینه/حرفه‌ای و هسته‌های Aether و WARP حفظ شده‌اند.
-
-## سکوها
-
-| سکو | اجرا/بسته‌بندی |
-|---|---|
-| Windows | Python source و خروجی PyInstaller |
-| Linux | Python source و بسته tar.gz |
-| macOS | Python source و DMG |
-| Android | پروژه Gradle با flavor استاندارد و rooted |
-
-## هسته‌های اتصال
-
-| هسته | Desktop | Android | توضیح |
+| هسته | Desktop | Android | کاربرد |
 |---|---:|---:|---|
-| Xray | ✅ | ✅ | هسته پیش‌فرض |
-| Aether | ✅ | ✅ | در APK برای arm64-v8a و x86_64 قرار می‌گیرد |
-| WARP / Usque | ✅ | ✅ | ثبت‌نام با پذیرش شرایط و اجرای SOCKS محلی |
-| Psiphon | مشروط | مشروط | فقط با client.config مجاز توزیع |
+| Xray | ✅ | ✅ | اتصال پیش‌فرض و TUN سراسری |
+| Aether | ✅ | ✅ | اتصال جایگزین و SOCKS داخلی |
+| WARP / Usque | ✅ | ✅ | WARP با ثبت و اجرای محلی |
 
 ## اجرای سورس دسکتاپ
 
 ```bash
 python -m pip install -r requirements.txt
+python -m tools.prepare_vazirmatn
 python app.py
 ```
 
-## Android
+## ساخت بسته‌های دسکتاپ
+
+```bash
+python tools/build_windows.py   # Windows
+python tools/build_linux.py     # Linux
+python tools/build_macos.py     # macOS
+```
+
+هر Builder فونت و هسته‌های موردنیاز را قبل از PyInstaller آماده می‌کند.
+
+## ساخت Android
 
 ```bash
 cd dicodePing_android
-./gradlew assembleStandardDebug
+./build_apk.sh
 ```
 
-برای بیلد Release باید Xray AAR و باینری‌های امضاشده Aether/Usque طبق اسکریپت‌های `tools/` آماده شوند. اطلاعات کلید امضا نباید در مخزن قرار بگیرد.
+در Windows:
 
-در Android، پس از فعال‌کردن Aether یا WARP، کاربر به Home هدایت می‌شود و با دکمه اتصال همان هسته را اجرا می‌کند. مسیر اصلی و HTTP/2 fallback امتحان می‌شوند و برنامه فقط بعد از عبور ترافیک واقعی وضعیت متصل را ثبت می‌کند.
+```bat
+cd dicodePing_android
+build_apk.bat
+```
 
-## اسکنر
+اسکریپت Build فونت‌های محلی، Xray، Aether و Usque را آماده و محتوای APK نهایی را کنترل می‌کند.
 
-اسکنر دو وضعیت مستقل نشان می‌دهد: **دریافت کانفیگ‌ها** و **آزمایش سرورها**. پیش‌فیلتر موازی، کانفیگ‌های مرده را قبل از تست سنگین حذف می‌کند. خروجی سالم به‌صورت منبع محلی دائمی ذخیره می‌شود و با بستن برنامه یا به‌روزرسانی منابع اینترنتی حذف نمی‌شود. لاگ زنده فقط خطوط جدید را اضافه می‌کند و بدون پرش، آخرین رویداد را نشان می‌دهد.
-
-## تصاویر Android
-
-<p align="center">
-  <img src="docs/screenshots/android-settings-appearance.png" width="260" alt="Android appearance settings">
-  <img src="docs/screenshots/android-settings-routing-before.png" width="260" alt="Android app routing settings">
-</p>
-
-## کیفیت و امنیت
+## اعتبارسنجی
 
 ```bash
-python tools/verify_version.py
-python -m compileall -q app.py dicodeping shared tools tests
+python tools/verify_version.py --tag v2.0.0-rc.1
+python tools/validate_v200_rc1.py
+python tools/validate_android_gradle_kts.py
+python tools/validate_android_source_references.py
+python -m compileall -q app.py app_v200_rc1.py dicodeping tools tests
 python -m pytest -q
 python tools/quality_gate.py
 python dicodePing_android/tools/validate_project.py
 ```
 
-- گزارش آسیب‌پذیری: [SECURITY.md](SECURITY.md)
-- حریم خصوصی: [PRIVACY.md](PRIVACY.md)
-- مجوزها و مؤلفه‌های ثالث: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+## انتشار یک‌کلیکی
 
-## انتشار
+ZIP را در یک پوشه جدید Extract و فایل زیر را اجرا کنید:
 
-برای انتشار کامل RC19 در ویندوز، ZIP را Extract و فایل `DEPLOY_PRERELEASE_RC19.bat` را اجرا کنید. این اسکریپت سورس تمیز را روی `main` می‌فرستد، تگ `v1.9.0-rc.19` را ایجاد یا جایگزین می‌کند و تا انتشار خروجی‌های Windows، Linux، macOS و Android منتظر می‌ماند. راهنمای کوتاه در `DEPLOY_PRERELEASE_RC19_README_FA.txt` قرار دارد.
+```text
+DEPLOY_PRERELEASE_200_RC1.bat
+```
 
-Workflowهای فعال فقط `ci.yml`، `codeql.yml`، `docs.yml` و `release.yml` هستند. انتشار RC19 با تگ `v1.9.0-rc.19` آغاز می‌شود.
+این ابزار ورود GitHub CLI، بررسی/ساخت Secretهای امضای Android، Clone تمیز، پاک‌سازی فایل‌های نسخه‌های قبلی، اعتبارسنجی، Push، ساخت تگ `v2.0.0-rc.1`، انتشار Pre-release و Deploy صفحه GitHub Pages را انجام می‌دهد.
 
-## انتشار یک‌کلیکی RC19
+## اسناد
 
-پس از Extract کامل بسته در یک پوشه جدید، `DEPLOY_PRERELEASE_RC19.bat` را اجرا کنید. این ابزار Clone، پاک‌سازی فایل‌های RC قبلی، اعتبارسنجی، Push، ساخت مجدد Tag، انتشار Pre-release و بازیابی GitHub Pages را یکجا انجام می‌دهد. جزئیات در `RC19_RELEASE_DEPLOY_FIX_FA.md` آمده است.
-
-### RC19 macOS packaging hotfix
-
-The macOS builder now retries transient DiskImages `Resource busy` failures using fresh staging directories and publishes a DMG only after `hdiutil verify` succeeds.
+- [حریم خصوصی](PRIVACY.md)
+- [امنیت](SECURITY.md)
+- [مجوزها و مؤلفه‌های ثالث](THIRD_PARTY_NOTICES.md)
+- [یادداشت انتشار 2.0.0 RC1](docs/releases/v2.0.0-rc.1.md)

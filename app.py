@@ -12,6 +12,7 @@ from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QIcon
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QVBoxLayout, QWidget
 
 from dicodeping.constants import APP_ID, APP_NAME, ASSET_DIR, RELEASE_VERSION, RUNTIME_DIR, VERSION
+from dicodeping.font_loader import application_font, register_vazirmatn
 from dicodeping.core_manager import reverify_installed_cores
 from dicodeping.diagnostics import configure_logging, get_logger
 from dicodeping.rc9_core import StartupGate, server_refresh_due, startup_rows
@@ -286,12 +287,8 @@ def load_application_icon() -> QIcon:
 
 
 def choose_persian_font() -> QFont:
-    """Choose an installed Persian-capable font without shipping font binaries."""
-    available = set(QFontDatabase.families())
-    for family in ("Vazirmatn", "Vazir", "Vazir FD", "Tahoma", "Segoe UI", "Noto Sans Arabic"):
-        if family in available:
-            return QFont(family, 10)
-    return QFont("Sans Serif", 10)
+    """Register and return the bundled Vazirmatn family."""
+    return application_font(register_vazirmatn(), 10)
 
 
 def main() -> int:
@@ -364,6 +361,7 @@ def main() -> int:
     if not application_icon.isNull():
         app.setWindowIcon(application_icon)
     app.setFont(choose_persian_font())
+    app.setStyleSheet('QWidget, QDialog, QMenu, QToolTip { font-family: "Vazirmatn"; }')
     language = "en" if settings.get("language") == "en" else "fa"
     app.setLayoutDirection(Qt.LeftToRight if language == "en" else Qt.RightToLeft)
 
@@ -424,11 +422,11 @@ def main() -> int:
                 if exit_code or not visible or smoke_state["rows"] < 1:
                     exit_code = exit_code or 4
                     write_smoke_report(
-                        f"{message}\nvisible={visible}\nrendered_rows={smoke_state['rows']}\n"
+                        f"{message}\nvisible={visible}\nrendered_rows={smoke_state['rows']}\nfont_family={app.font().family()}\n"
                     )
                 else:
                     write_smoke_report(
-                        f"ok\nvisible={visible}\nrendered_rows={smoke_state['rows']}\n"
+                        f"ok\nvisible={visible}\nrendered_rows={smoke_state['rows']}\nfont_family={app.font().family()}\n"
                     )
                 window._is_closing = True
                 window.close()
@@ -459,6 +457,7 @@ def main() -> int:
                 f"{'ok' if visible else 'window-not-visible'}\n"
                 f"visible={visible}\n"
                 "discovery_smoke=not-requested\n"
+                f"font_family={app.font().family()}\n"
             )
             window._is_closing = True
             window.close()

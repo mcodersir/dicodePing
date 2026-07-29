@@ -1,6 +1,10 @@
-# dicodePing Android — v1.9.0-rc.19
+# dicodePing Android — v2.0.0-rc.1
 
 کلاینت بومی Android با Kotlin، Material 3، `VpnService` و AndroidLibXrayLite.
+
+## فونت و رابط 2.0
+
+Build رسمی، Vazirmatn نسخه 33.0.3 را اعتبارسنجی و Regular، Medium و Bold را به‌صورت منابع محلی `res/font` داخل APK قرار می‌دهد. رابط به Google Fonts یا وجود فونت روی گوشی وابسته نیست. کارت‌ها و دکمه‌ها نیز تخت‌تر و کم‌حاشیه‌تر شده‌اند.
 
 ## هسته‌ها
 

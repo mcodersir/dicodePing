@@ -32,10 +32,10 @@ jobs:
         run: python -m pip install -r requirements-build.txt
       - name: Verify synchronized version
         run: python tools/verify_version.py
-      - name: Validate RC19 dual TCP/Xray latency
-        run: python tools/validate_rc19_dual_latency.py
+      - name: Validate 2.0.0 RC1 release invariants
+        run: python tools/validate_v200_rc1.py
       - name: Compile Python
-        run: python -m compileall -q app.py app_v190_rc19.py dicodeping shared tools tests
+        run: python -m compileall -q app.py app_v200_rc1.py dicodeping shared tools tests
       - name: Unit tests
         run: python -m pytest -q
       - name: Security quality gate
