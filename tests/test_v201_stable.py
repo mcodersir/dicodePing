@@ -16,16 +16,16 @@ def text(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8-sig")
 
 
-def test_release_metadata_is_stable_2_0_0() -> None:
-    assert 'VERSION = "2.0.0"' in text("dicodeping/constants.py")
-    assert 'RELEASE_VERSION = "2.0.0"' in text("dicodeping/constants.py")
-    assert '__version__ = "2.0.0"' in text("dicodeping/__init__.py")
+def test_release_metadata_is_stable_2_0_1() -> None:
+    assert 'VERSION = "2.0.1"' in text("dicodeping/constants.py")
+    assert 'RELEASE_VERSION = "2.0.1"' in text("dicodeping/constants.py")
+    assert '__version__ = "2.0.1"' in text("dicodeping/__init__.py")
     gradle = text("dicodePing_android/app/build.gradle.kts")
-    assert 'versionCode = 56' in gradle
-    assert 'versionName = "2.0.0"' in gradle
+    assert 'versionCode = 57' in gradle
+    assert 'versionName = "2.0.1"' in gradle
     metadata = text("tools/windows_version_info.txt")
-    assert "filevers=(2, 0, 0, 0)" in metadata
-    assert "prodvers=(2, 0, 0, 0)" in metadata
+    assert "filevers=(2, 0, 1, 0)" in metadata
+    assert "prodvers=(2, 0, 1, 0)" in metadata
 
 
 def test_desktop_font_is_bundled_and_registered_from_bytes() -> None:
@@ -41,7 +41,7 @@ def test_desktop_font_is_bundled_and_registered_from_bytes() -> None:
 def test_all_desktop_builders_use_stable_names_and_vazirmatn() -> None:
     for relative in ("tools/build_windows.py", "tools/build_linux.py", "tools/build_macos.py"):
         body = text(relative)
-        assert 'APP_VERSION = "2.0.0"' in body
+        assert 'APP_VERSION = "2.0.1"' in body
         assert "RC_VERSION" not in body
         assert 'entrypoint = root / "app_v200.py"' in body
         assert "tools.prepare_vazirmatn" in body
@@ -87,15 +87,38 @@ def test_android_apk_font_verification_uses_content_hashes() -> None:
         assert "lintStandardRelease" in text(script)
 
 
-def test_scanner_rechecks_saved_sub_ping_and_location() -> None:
+def test_scanner_splits_save_from_optional_enrichment() -> None:
+    """v2.0.1: SUB is committed as soon as stage 2c finishes; ping + location
+    enrichment runs only when the user confirms the post-save modal.
+    """
     scanner = text("dicodeping/scanner.py")
     assert "def _recheck_saved_scanner_records" in scanner
+    assert "def enrich_saved_scanner_records" in scanner
+    assert "enrichment_pending" in scanner
     assert "record.tcp_ms = result.tcp_ms" in scanner
     assert "record.ping_ms = result.ping_ms" in scanner
     assert "force_geo=True" in scanner
+    workers = text("dicodeping/workers.py")
+    assert "class ScannerEnrichThread" in workers
+    ui = text("dicodeping/ui.py")
+    assert "def _scanner_offer_enrichment" in ui
+    assert "def _scanner_enrich_succeeded" in ui
+
+
+def test_android_scanner_runs_probes_concurrently_and_offers_enrichment_modal() -> None:
     repository = text("dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt")
+    assert "SCANNER_PROBE_CONCURRENCY = 3" in repository
+    assert "fun enrichScannerRecords" in repository
     assert '"post_save_verify"' in repository
     assert "forceGeoRefresh = true" in repository
+    coordinator = text("dicodePing_android/app/src/main/java/ir/dicode/ping/scanner/ScannerCoordinator.kt")
+    assert "ScannerStage.ENRICHING" in coordinator
+    assert "ScannerStage.ENRICHED" in coordinator
+    assert "fun enrichSavedRecords" in coordinator
+    assert "enrichmentPending" in coordinator
+    fragment = text("dicodePing_android/app/src/main/java/ir/dicode/ping/ui/ScannerFragment.kt")
+    assert "showEnrichmentModal" in fragment
+    assert "MaterialAlertDialogBuilder" in fragment
 
 
 def test_stable_release_is_latest_not_prerelease() -> None:
@@ -114,14 +137,15 @@ def test_stable_release_is_latest_not_prerelease() -> None:
 def test_minimal_website_targets_stable_downloads() -> None:
     site = text("docs/site/index.html")
     assert not re.search(r"<(?:img|picture|source)\b", site, re.I)
-    assert "2.0.0 پایدار" in site
-    assert "releases/download/v2.0.0/" in site
+    assert "2.0.1 پایدار" in site
+    assert "releases/download/v2.0.1/" in site
     assert site.count('class="card"') == 6
 
 
 def test_stable_deployer_is_deterministic_and_pages_required() -> None:
     deployer = text("DEPLOY_RELEASE_200.bat")
-    assert 'set "TAG=v2.0.0"' in deployer
+    assert 'set "TAG=v2.0.1"' in deployer
     assert "publish_release_trigger.ps1" in deployer
     assert "MaxAttempts 8" in deployer
     assert "goto :pages_failed" in deployer
+    assert "tools\\validate_v201_stable.py" in deployer

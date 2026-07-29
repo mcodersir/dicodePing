@@ -609,7 +609,14 @@ def _recheck_saved_scanner_records(
     stop_event: threading.Event,
     log: LogCallback | None = None,
 ) -> None:
-    """Re-test the exact persisted SUB and refresh IP/location once more."""
+    """Re-test the exact persisted SUB and refresh IP/location once more.
+
+    v2.0.1: this function is no longer called inline from run_scan. The scan
+    now commits the verified SUB as soon as stage 2c finishes, so the user
+    sees the saved records immediately. The UI offers a modal to run this
+    enrichment step explicitly, which keeps long-running geolocation off
+    the critical save path.
+    """
     if not records:
         return
     raw_by_id = {record_id(raw): raw for raw in raw_lines}
@@ -650,6 +657,86 @@ def _recheck_saved_scanner_records(
     records.sort(key=lambda row: (row.ping_ms is None, row.ping_ms or 999999, row.name.casefold()))
     if log:
         log("[VERIFY-SAVED][DONE] persisted SUB ping and location refreshed")
+
+
+def enrich_saved_scanner_records(
+    *,
+    store: JsonStore,
+    stop_event: threading.Event | None = None,
+    log: LogCallback | None = None,
+    progress: ProgressCallback | None = None,
+) -> list[ServerRecord]:
+    """Re-probe the persisted scanner SUB and refresh IP/location.
+
+    v2.0.1 public entry point invoked by the UI after the user confirms the
+    "calculate ping and location" modal. Loads the saved scanner records,
+    runs a bounded parallel re-test, force-refreshes geolocation, persists
+    the enriched rows atomically, and returns the updated records.
+    """
+    event = stop_event or threading.Event()
+    current = store.load_servers()
+    records = [row for row in current if row.source_id.startswith("scanner-")]
+    if not records:
+        if log:
+            log("[ENRICH][SKIP] no scanner records to enrich")
+        return []
+    raw_by_id = {row.id: blob_to_config(row.config_blob) for row in records if row.config_blob}
+    raw_lines = [raw_by_id.get(row.id, "") for row in records]
+    if log:
+        log(f"[ENRICH][START] re-probing {len(records)} scanner servers with fresh ping+geo")
+    total = len(records)
+    if progress:
+        progress(0, total)
+    _recheck_saved_scanner_records(records, raw_lines, store=store, stop_event=event, log=log)
+    if event.is_set():
+        if log:
+            log("[ENRICH][STOP] enrichment stopped by user")
+        if progress:
+            progress(total, total)
+        return records
+    # Persist the enriched rows atomically.
+    settings = store.load_settings()
+    by_id = {row.id: row for row in current}
+    for record in records:
+        by_id[record.id] = record
+    merged = list(by_id.values())
+    # Refresh the matching history record so the UI shows the latest ping.
+    try:
+        history_path = SCANNER_HISTORY_FILE
+        if history_path.is_file():
+            history_data = json.loads(history_path.read_text(encoding="utf-8") or "[]")
+            if isinstance(history_data, list) and history_data:
+                head = dict(history_data[0])
+                head["servers"] = [record.to_dict() for record in records]
+                head["quality"] = [
+                    {
+                        "id": record.id,
+                        "tcp_ms": record.tcp_ms,
+                        "xray_ms": record.ping_ms,
+                        "status": record.status,
+                    }
+                    for record in records
+                ]
+                head["post_save_verified_at"] = utc_now()
+                history_data[0] = head
+                store.save_scanner_transaction(
+                    settings=settings,
+                    servers=merged,
+                    history_path=history_path,
+                    history=history_data,
+                    raw_path=SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.txt",
+                    raw_payload="\n".join(raw_lines),
+                    base64_path=SCANNER_EXPORT_DIR / f"{SCANNER_SOURCE_ID}.base64.txt",
+                    base64_payload=b64_encode_text("\n".join(raw_lines)),
+                )
+    except Exception as exc:
+        if log:
+            log(f"[ENRICH][WARN] history refresh skipped: {exc}")
+    if log:
+        log("[ENRICH][DONE] scanner SUB ping and location refreshed")
+    if progress:
+        progress(total, total)
+    return records
 
 def run_scan(
     *,
@@ -958,43 +1045,11 @@ def run_scan(
             if stale.name not in {f"{source_id}.txt", f"{source_id}.base64.txt"}:
                 stale.unlink(missing_ok=True)
 
-        # 2.0.0 stable verifies the exact SUB after its first atomic commit.
-        _recheck_saved_scanner_records(
-            records,
-            raw_lines,
-            store=store,
-            stop_event=state.stop_requested,
-            log=_log,
-        )
-        refreshed_by_id = {
-            server.id: server
-            for server in store.load_servers()
-            if not server.source_id.startswith("scanner-")
-        }
-        for record in records:
-            refreshed_by_id[record.id] = record
-        merged = list(refreshed_by_id.values())
-        history_record["servers"] = [record.to_dict() for record in records]
-        history_record["quality"] = [
-            {
-                "id": record.id,
-                "tcp_ms": record.tcp_ms,
-                "xray_ms": record.ping_ms,
-                "status": record.status,
-            }
-            for record in records
-        ]
-        history_record["post_save_verified_at"] = utc_now()
-        store.save_scanner_transaction(
-            settings=settings,
-            servers=merged,
-            history_path=SCANNER_HISTORY_FILE,
-            history=[history_record],
-            raw_path=SCANNER_EXPORT_DIR / f"{source_id}.txt",
-            raw_payload="\n".join(raw_lines),
-            base64_path=SCANNER_EXPORT_DIR / f"{source_id}.base64.txt",
-            base64_payload=base64_payload,
-        )
+        # 2.0.1 stable: the SUB is committed as soon as stage 2c finishes.
+        # The optional ping + location enrichment runs only when the user
+        # confirms the post-save modal in the UI (see enrich_saved_scanner_records).
+        history_record["post_save_verified_at"] = ""
+        history_record["enrichment_pending"] = True
 
         duration = time.monotonic() - started
         stopped = state.stop_requested.is_set()

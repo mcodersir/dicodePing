@@ -181,6 +181,11 @@ Details: %1$s</string>
     <string name="scanner_running">Scanning…</string>
     <string name="scanner_crawl">Fetching configs from Telegram channels</string>
     <string name="scanner_done">Scan complete</string>
+    <string name="scanner_enriching">Calculating ping and location…</string>
+    <string name="scanner_enrich_title">Calculate ping and location?</string>
+    <string name="scanner_enrich_message">%1$d servers were saved. Want me to calculate the real ping and location for each one now?</string>
+    <string name="scanner_enrich_accept">Yes, calculate</string>
+    <string name="scanner_enrich_reject">Not now</string>
     <string name="scanner_no_result">No server responded</string>
     <string name="scanner_result">%1$d live servers out of %2$d configs in %3$d s</string>
     <string name="scanner_history">Saved scanner subscriptions</string>

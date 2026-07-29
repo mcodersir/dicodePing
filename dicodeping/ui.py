@@ -2112,6 +2112,12 @@ class MainWindow(QMainWindow):
             self.render_subscription_list()
         except Exception:
             LOGGER.exception("Scanner: failed to refresh server list after scan")
+        # v2.0.1: now that the SUB is committed, offer the optional
+        # ping + location enrichment. The modal blocks until the user
+        # answers; if they accept we start a background ScannerEnrichThread
+        # so the UI stays responsive while the network work runs.
+        if alive > 0:
+            QTimer.singleShot(0, self._scanner_offer_enrichment)
 
     def _scanner_failed(self, message: str) -> None:
         self.scanner_run_button.setVisible(True)
@@ -2135,6 +2141,94 @@ class MainWindow(QMainWindow):
                 str(message),
                 self.t("ok"),
             )
+
+    def _scanner_offer_enrichment(self) -> None:
+        """v2.0.1: prompt the user to run optional ping + location enrichment."""
+        if getattr(self, "scanner_enrich_thread", None) is not None and self.scanner_enrich_thread.isRunning():
+            return
+        alive_count = sum(
+            1 for row in self.servers
+            if row.source_id.startswith("scanner-")
+        )
+        if alive_count == 0:
+            return
+        title = "محاسبه پینگ و لوکیشن؟" if self.language != "en" else "Calculate ping and location?"
+        message = (
+            f"{alive_count} سرور ذخیره شد. آیا می‌خواهید پینگ واقعی و لوکیشن هر سرور را همین‌جا محاسبه کنم؟"
+            if self.language != "en"
+            else f"{alive_count} servers saved. Want me to calculate the real ping and location for each one now?"
+        )
+        accept_text = "بله، محاسبه کن" if self.language != "en" else "Yes, calculate"
+        reject_text = "الان نه" if self.language != "en" else "Not now"
+        accepted = AppDialog.confirm(
+            self,
+            title,
+            message,
+            accept_text=accept_text,
+            reject_text=reject_text,
+        )
+        if not accepted:
+            return
+        from .workers import ScannerEnrichThread
+        self.scanner_enrich_thread = ScannerEnrichThread(self.store, language=self.language)
+        self.scanner_enrich_thread.log_batch.connect(self._scanner_log_batch)
+        self.scanner_enrich_thread.progress.connect(self._scanner_enrich_progress)
+        self.scanner_enrich_thread.success.connect(self._scanner_enrich_succeeded)
+        self.scanner_enrich_thread.failed.connect(self._scanner_enrich_failed)
+        self.scanner_enrich_thread.finished.connect(self.scanner_enrich_thread.deleteLater)
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(0)
+        self.scanner_stage_label.setText(
+            "در حال محاسبه پینگ و لوکیشن…" if self.language != "en" else "Calculating ping + location…"
+        )
+        self.scanner_run_button.setEnabled(False)
+        self.scanner_run_button.setText(self.t("busy_wait"))
+        self.scanner_enrich_thread.start()
+
+    @Slot(int, int)
+    def _scanner_enrich_progress(self, done: int, total: int) -> None:
+        if total <= 0:
+            self.scanner_progress.setRange(0, 0)
+            return
+        self.scanner_progress.setRange(0, 100)
+        ratio = max(0.0, min(1.0, done / total))
+        self.scanner_progress.setValue(int(round(ratio * 100)))
+
+    @Slot(object)
+    def _scanner_enrich_succeeded(self, records: object) -> None:
+        self.scanner_run_button.setEnabled(True)
+        self.scanner_run_button.setText(self.t("scanner_start"))
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(100)
+        count = len(records) if isinstance(records, list) else 0
+        self.scanner_stage_label.setText(self.t("scanner_done"))
+        self.scanner_result_label.setText(
+            f"پینگ و لوکیشن {count} سرور به‌روزرسانی شد."
+            if self.language != "en"
+            else f"Ping and location refreshed for {count} servers."
+        )
+        try:
+            self.servers = self.store.load_servers()
+            self.render_servers()
+            self.render_subscription_list()
+            self._refresh_scanner_history()
+        except Exception:
+            LOGGER.exception("Scanner: failed to refresh after enrichment")
+
+    @Slot(str)
+    def _scanner_enrich_failed(self, message: str) -> None:
+        self.scanner_run_button.setEnabled(True)
+        self.scanner_run_button.setText(self.t("scanner_start"))
+        self.scanner_progress.setRange(0, 100)
+        self.scanner_progress.setValue(0)
+        self.scanner_stage_label.setText(self.t("operation_failed"))
+        self.scanner_result_label.setText(message)
+        AppDialog.error(
+            self,
+            "محاسبه پینگ و لوکیشن ناموفق بود" if self.language != "en" else "Enrichment failed",
+            str(message),
+            self.t("ok"),
+        )
 
     def _refresh_scanner_history(self) -> None:
         from .scanner import list_scanner_subs

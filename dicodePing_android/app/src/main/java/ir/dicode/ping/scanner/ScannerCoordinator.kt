@@ -29,7 +29,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
-enum class ScannerStage { IDLE, CONNECTING, CRAWLING, DISCONNECTING, PROBING, SAVING, DONE, FAILED, STOPPED }
+enum class ScannerStage { IDLE, CONNECTING, CRAWLING, DISCONNECTING, PROBING, SAVING, DONE, ENRICHING, ENRICHED, FAILED, STOPPED }
 
 data class ScannerState(
     val stage: ScannerStage = ScannerStage.IDLE,
@@ -42,6 +42,7 @@ data class ScannerState(
     val outputLog: List<String> = emptyList(),
     val result: String = "",
     val stopRequested: Boolean = false,
+    val enrichmentPending: Boolean = false,
 ) {
     val running: Boolean get() = stage in setOf(
         ScannerStage.CONNECTING,
@@ -49,6 +50,7 @@ data class ScannerState(
         ScannerStage.DISCONNECTING,
         ScannerStage.PROBING,
         ScannerStage.SAVING,
+        ScannerStage.ENRICHING,
     )
 }
 
@@ -114,7 +116,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
     fun requestStop() {
         stop.set(true)
         _state.value = _state.value.copy(stopRequested = true)
-        if (_state.value.stage !in setOf(ScannerStage.PROBING, ScannerStage.SAVING)) {
+        if (_state.value.stage !in setOf(ScannerStage.PROBING, ScannerStage.SAVING, ScannerStage.ENRICHING)) {
             job?.cancel(CancellationException("user requested stop"))
         }
     }
@@ -281,6 +283,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
                     "اسکن متوقف شد و ${healthy.size} سرور سالم ذخیره شد."
                 },
                 log = "Verified partial results committed",
+                enrichmentPending = healthy.isNotEmpty(),
             )
             return
         }
@@ -301,7 +304,72 @@ class ScannerCoordinator private constructor(private val context: Context) {
             result = "${healthy.size} healthy servers were saved in SUB.",
             log = "Scanner transaction completed",
             output = "[DONE] SUB updated with ${healthy.size} healthy servers",
+            enrichmentPending = healthy.isNotEmpty(),
         )
+    }
+
+    /**
+     * v2.0.1: optional post-save ping + location enrichment.
+     *
+     * Called by the UI when the user accepts the post-save modal. Re-probes
+     * the persisted scanner records with a bounded parallel pool, force-
+     * refreshes geolocation, and atomically commits the enriched rows.
+     */
+    @Synchronized
+    fun enrichSavedRecords() {
+        if (job?.isActive == true) return
+        stop.set(false)
+        _state.value = _state.value.copy(
+            stage = ScannerStage.ENRICHING,
+            progress = 0,
+            done = 0,
+            total = 0,
+            stopRequested = false,
+            result = "در حال محاسبه پینگ و لوکیشن سرورهای ذخیره‌شده…",
+            log = listOf("[ENRICH][START] re-probing scanner SUB with fresh ping+geo"),
+        )
+        job = scope.launch {
+            try {
+                val enriched = repo.enrichScannerRecords(
+                    stopRequested = { stop.get() },
+                    onProgress = { done, total ->
+                        update(
+                            stage = ScannerStage.ENRICHING,
+                            progress = if (total > 0) (done * 100 / total) else 0,
+                            done = done,
+                            total = total,
+                        )
+                    },
+                )
+                update(
+                    ScannerStage.ENRICHED,
+                    progress = 100,
+                    done = enriched.size,
+                    total = enriched.size,
+                    alive = enriched.count { it.healthy },
+                    result = "پینگ و لوکیشن ${enriched.size} سرور به‌روزرسانی شد.",
+                    log = "[ENRICH][DONE] scanner SUB ping and location refreshed",
+                    output = "[DONE] enriched ${enriched.size} scanner servers",
+                    enrichmentPending = false,
+                )
+            } catch (cancelled: CancellationException) {
+                update(
+                    ScannerStage.ENRICHED,
+                    result = "محاسبه پینگ و لوکیشن متوقف شد.",
+                    log = "Enrichment cancelled by user",
+                    enrichmentPending = false,
+                )
+            } catch (error: Throwable) {
+                update(
+                    ScannerStage.FAILED,
+                    result = error.message ?: "Enrichment failed",
+                    log = "Enrichment failed: ${error.javaClass.simpleName}",
+                    enrichmentPending = false,
+                )
+            } finally {
+                synchronized(this@ScannerCoordinator) { job = null }
+            }
+        }
     }
 
     private suspend fun requireConnectedBootstrap() {
@@ -388,9 +456,10 @@ class ScannerCoordinator private constructor(private val context: Context) {
         result: String = _state.value.result,
         log: String? = null,
         output: String? = null,
+        enrichmentPending: Boolean = _state.value.enrichmentPending,
     ) {
         val previous = _state.value
-        val safeProgress = if (stage == previous.stage && stage in setOf(ScannerStage.CRAWLING, ScannerStage.PROBING)) {
+        val safeProgress = if (stage == previous.stage && stage in setOf(ScannerStage.CRAWLING, ScannerStage.PROBING, ScannerStage.ENRICHING)) {
             maxOf(previous.progress, progress.coerceIn(0, 100))
         } else {
             progress.coerceIn(0, 100)
@@ -403,6 +472,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
             alive = alive,
             result = result,
             stopRequested = stop.get(),
+            enrichmentPending = enrichmentPending,
             log = if (log == null) _state.value.log else (_state.value.log + log).takeLast(MAX_LOG_LINES),
             outputLog = if (output == null) _state.value.outputLog else (_state.value.outputLog + output).takeLast(MAX_OUTPUT_LINES),
         )

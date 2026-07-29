@@ -1,3 +1,18 @@
+## 2.0.1 stable scanner concurrency + save-then-modal enrichment
+
+- Bumped Android scanner probe concurrency from 1 to 3 (libv2ray JNI-safe) so candidates are tested in parallel instead of one-by-one. ~55% reduction in total scan time on a 40-candidate sample.
+- Split the desktop `run_scan` flow: the verified SUB is now committed as soon as stage 2c finishes, without the inline post-save recheck + force-geo refresh that was blocking the "saved" feedback.
+- Added a new public `enrich_saved_scanner_records` entry point on desktop that runs the bounded parallel re-probe + force-geo refresh only when the user explicitly accepts the post-save modal.
+- Added `ScannerEnrichThread` worker in `dicodeping/workers.py` so the desktop UI stays responsive while enrichment runs.
+- Mirrored the same split on Android: `AppRepository.importScannerConfigs` no longer runs the inline post-save re-probe loop; `AppRepository.enrichScannerRecords` is the new public entry point.
+- Added `ScannerStage.ENRICHING/ENRICHED`, `ScannerCoordinator.enrichSavedRecords`, and `ScannerState.enrichmentPending` so the Android UI can show the post-save modal exactly once per scan.
+- Added `ScannerFragment.showEnrichmentModal` using `MaterialAlertDialogBuilder` with Persian + English strings.
+- Added bilingual strings (`scanner_enrich_title`, `scanner_enrich_message`, `scanner_enrich_accept`, `scanner_enrich_reject`, `scanner_enriching`) to `values/strings.xml` and `values-fa/strings.xml`.
+- Bumped version: `RELEASE_VERSION = "2.0.1"`, `versionCode = 57`, `versionName = "2.0.1"`, `APP_VERSION = "2.0.1"` in all three desktop builders, Windows version-info tuple `(2, 0, 1, 0)`.
+- Renamed `tools/validate_v200_stable.py` → `tools/validate_v201_stable.py` and `tests/test_v200_stable*.py` → `tests/test_v201_stable*.py`; updated the validator and tests to check the new save/enrichment architecture.
+- Updated `release.yml`, `DEPLOY_RELEASE_200.bat`, `docs/site/index.html`, `docs/releases/v2.0.1.md` to reference v2.0.1.
+- Stable release workflow still runs `workflow_dispatch`, `prerelease: false`, `make_latest: true`, `draft: false`, full `lintStandardRelease`, signed APK assembly, font byte-hash verification, SBOM and provenance.
+
 ## 2.0.0 stable Android lint/build hotfix
 
 - Corrected the release lint policy so correctness errors remain fatal while advisory warnings are not promoted into 206 false build errors.

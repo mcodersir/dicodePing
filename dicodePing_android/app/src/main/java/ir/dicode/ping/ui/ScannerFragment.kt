@@ -23,6 +23,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
@@ -41,6 +42,7 @@ class ScannerFragment : Fragment() {
     private var selectedLogTab = 0
     private var renderedLogTab = -1
     private var renderedLogLines: List<String> = emptyList()
+    private var enrichmentOfferedFor: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +99,20 @@ class ScannerFragment : Fragment() {
                     b.scannerRunButton.isEnabled = !state.stopRequested
                     b.scannerRunButton.text = getString(if (state.running) R.string.scanner_stop_save else R.string.scanner_run)
                     renderLog(state.log, state.outputLog)
+                    // v2.0.1: offer optional ping + location enrichment once
+                    // the SUB is committed (DONE or STOPPED with alive > 0).
+                    // Show the modal exactly once per scan by tracking the
+                    // transition token (stage + alive + a salt) so re-collecting
+                    // state on rotation does not re-prompt.
+                    val token = "${state.stage}:${state.alive}:${state.result.hashCode()}"
+                    if (state.enrichmentPending &&
+                        state.stage in setOf(ScannerStage.DONE, ScannerStage.STOPPED) &&
+                        state.alive > 0 &&
+                        enrichmentOfferedFor != token
+                    ) {
+                        enrichmentOfferedFor = token
+                        showEnrichmentModal(coordinator, state.alive)
+                    }
                 }}
                 launch { vm.repo.servers.collect { servers ->
                     val b = _binding ?: return@collect
@@ -143,12 +159,27 @@ class ScannerFragment : Fragment() {
             ScannerStage.PROBING -> getString(R.string.splash_testing_servers)
             ScannerStage.SAVING -> getString(R.string.scanner_saving)
             ScannerStage.DONE -> getString(R.string.scanner_done)
+            ScannerStage.ENRICHING -> getString(R.string.scanner_enriching)
+            ScannerStage.ENRICHED -> getString(R.string.scanner_done)
             ScannerStage.FAILED -> getString(R.string.connection_failed_retry)
             ScannerStage.STOPPED -> getString(R.string.scanner_stop_save)
         })
         if (progress > 0) append(" • ${progress.coerceIn(0, 100)}%")
         if (total > 0) append(" • $done/$total")
         if (alive > 0) append(" • $alive ${getString(R.string.scanner_alive_short)}")
+    }
+
+    private fun showEnrichmentModal(coordinator: ScannerCoordinator, alive: Int) {
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.scanner_enrich_title)
+            .setMessage(getString(R.string.scanner_enrich_message, alive))
+            .setPositiveButton(R.string.scanner_enrich_accept) { _, _ ->
+                coordinator.enrichSavedRecords()
+            }
+            .setNegativeButton(R.string.scanner_enrich_reject) { _, _ -> }
+            .setCancelable(false)
+            .show()
     }
 
     private fun renderLog(review: List<String>, output: List<String>) {

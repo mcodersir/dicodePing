@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
 DMG_CREATE_ATTEMPTS = 6

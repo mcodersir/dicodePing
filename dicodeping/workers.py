@@ -487,6 +487,74 @@ class ScannerThread(QThread):
             self.failed.emit(str(exc))
 
 
+class ScannerEnrichThread(QThread):
+    """v2.0.1: optional post-save ping + location enrichment worker.
+
+    Runs after the user confirms the "calculate ping and location" modal
+    that the main window shows once run_scan has committed the SUB.
+    Re-probes the saved scanner records with a bounded parallel pool,
+    force-refreshes geolocation, persists the enriched rows, and emits
+    the updated record list.
+    """
+
+    progress = Signal(int, int)
+    log_line = Signal(str)
+    log_batch = Signal(object)
+    success = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, store, language: str = "fa") -> None:
+        super().__init__()
+        self.store = store
+        self.language = language
+        self._stop_event = threading.Event()
+        self._log_lock = threading.Lock()
+        self._log_buffer: list[str] = []
+        self._last_log_flush = time.monotonic()
+
+    def requestStop(self) -> None:  # noqa: N802
+        self._stop_event.set()
+        self.requestInterruption()
+
+    def _queue_log(self, line: str) -> None:
+        line = str(line).rstrip()
+        if not line:
+            return
+        now = time.monotonic()
+        with self._log_lock:
+            self._log_buffer.append(line)
+            should_flush = len(self._log_buffer) >= 8 or now - self._last_log_flush >= 0.12
+        if should_flush:
+            self._flush_logs()
+
+    def _flush_logs(self) -> None:
+        with self._log_lock:
+            if not self._log_buffer:
+                return
+            rows = tuple(self._log_buffer)
+            self._log_buffer.clear()
+            self._last_log_flush = time.monotonic()
+        self.log_batch.emit(rows)
+
+    def run(self) -> None:
+        try:
+            from .scanner import enrich_saved_scanner_records
+
+            records = enrich_saved_scanner_records(
+                store=self.store,
+                stop_event=self._stop_event,
+                log=self._queue_log,
+                progress=lambda done, total: self.progress.emit(done, total),
+            )
+            self._flush_logs()
+            self.success.emit(records)
+        except Exception as exc:
+            self._queue_log(f"[ENRICH][FATAL] {exc}")
+            self._flush_logs()
+            LOGGER.exception("Scanner enrichment task failed")
+            self.failed.emit(str(exc))
+
+
 class VolumeFetchThread(QThread):
     """Background worker that refreshes volume info for every saved server.
 

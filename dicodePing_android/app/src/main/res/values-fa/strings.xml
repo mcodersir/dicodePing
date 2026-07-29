@@ -181,6 +181,11 @@
     <string name="scanner_running">در حال اسکن…</string>
     <string name="scanner_crawl">دریافت کانفیگ از کانال‌های تلگرام</string>
     <string name="scanner_done">اسکن کامل شد</string>
+    <string name="scanner_enriching">در حال محاسبه پینگ و لوکیشن…</string>
+    <string name="scanner_enrich_title">محاسبه پینگ و لوکیشن؟</string>
+    <string name="scanner_enrich_message">%1$d سرور ذخیره شد. آیا می‌خواهید پینگ واقعی و لوکیشن هر سرور را همین‌جا محاسبه کنم؟</string>
+    <string name="scanner_enrich_accept">بله، محاسبه کن</string>
+    <string name="scanner_enrich_reject">الان نه</string>
     <string name="scanner_no_result">هیچ سروری پاسخ نداد</string>
     <string name="scanner_result">%1$d سرور سالم از %2$d کانفیگ در %3$d ثانیه</string>
     <string name="scanner_history">ساب‌اسکریپشن‌های ذخیره‌شده</string>
