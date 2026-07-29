@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="2.0.1"
+VERSION="2.0.2"
 CORE_VERSION="26.7.11"
 CORE_SHA256="0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 CORE_AAR="local-maven/ir/dicode/local/libv2ray/${CORE_VERSION}/libv2ray-${CORE_VERSION}.aar"

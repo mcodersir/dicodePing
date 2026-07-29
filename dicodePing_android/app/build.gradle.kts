@@ -118,10 +118,10 @@ android {
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
         // RC10 used versionCode = 45; RC19 must be strictly greater.
-        versionCode = 57
+        versionCode = 58
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "2.0.1"
-        buildConfigField("String", "RELEASE_VERSION", "\"2.0.1\"")
+        versionName = "2.0.2"
+        buildConfigField("String", "RELEASE_VERSION", "\"2.0.2\"")
         multiDexEnabled = true
 
     }

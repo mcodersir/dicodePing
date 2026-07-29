@@ -70,8 +70,8 @@ SCAN_PROBE_MIN_SUCCESS = 1
 SCAN_PROBE_RETRY_LIMIT = 0
 SCAN_PROBE_RETRY_WORKERS = min(8, max(3, RESOURCE_PROFILE.retry_workers))
 SCAN_PROBE_QUEUE_LIMIT = min(
-    24,
-    max(SCAN_PROBE_WORKERS, RESOURCE_PROFILE.internal_queue_limit),
+    48,
+    max(SCAN_PROBE_WORKERS * 2, RESOURCE_PROFILE.internal_queue_limit),
 )
 SCAN_MAX_SERVERS = 80
 SCAN_MAX_PROBE_CONFIGS = 120
@@ -772,7 +772,11 @@ def run_scan(
     SCAN_CRAWL_WORKERS = min(24, max(6, selected_profile.crawl_workers + 2))
     SCAN_PROBE_WORKERS = min(28, max(6, selected_profile.probe_workers))
     SCAN_PROBE_RETRY_WORKERS = min(12, max(3, selected_profile.retry_workers))
-    SCAN_PROBE_QUEUE_LIMIT = min(72, max(SCAN_PROBE_WORKERS, selected_profile.internal_queue_limit))
+    # v2.0.2: raise the queue limit so the probe pool stays fully saturated
+    # even when many candidates are in-flight. The previous cap (72) caused
+    # the pool to drain too quickly on heavy scans and underutilize the
+    # 28-worker capacity, which made the scan feel slow on desktop too.
+    SCAN_PROBE_QUEUE_LIMIT = min(120, max(SCAN_PROBE_WORKERS * 4, selected_profile.internal_queue_limit))
     # Reuse the caller's Event directly.  The old watcher thread waited
     # forever after every successful scan and leaked one thread per run.
     state = _ProbeState(stop_requested=stop_event or threading.Event())
