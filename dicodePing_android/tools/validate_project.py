@@ -65,21 +65,27 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "2.0.0-rc.1"' not in build_file:
-    errors.append("versionName must be 2.0.0-rc.1 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.0-rc.1\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 2.0.0-rc.1 for this release")
+if 'versionName = "2.0.0"' not in build_file:
+    errors.append("versionName must be 2.0.0 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.0\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 2.0.0 for this release")
+
+
+if 'android:extractNativeLibs=' in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
+    errors.append("android:extractNativeLibs is obsolete; configure native packaging in Gradle DSL")
+if "warningsAsErrors = true" not in build_file or "ignoreWarnings = false" not in build_file:
+    errors.append("Stable Android release must fail on lint warnings")
 
 if "compileSdk = 36" not in build_file or "targetSdk = 36" not in build_file:
-    errors.append("Android 2.0 RC1 must compile and target API 36")
+    errors.append("Android 2.0 Stable must compile and target API 36")
 root_build = (ROOT / "build.gradle.kts").read_text(encoding="utf-8")
 wrapper = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
 if "com.android.tools.build:gradle:8.10.1" not in root_build:
     errors.append("AGP 8.10.1 is required for supported API 36 builds")
 if "gradle-8.11.1-bin.zip" not in wrapper:
     errors.append("Gradle 8.11.1 is required by AGP 8.10.x")
-if not re.search(r"^\s*versionCode\s*=\s*55\s*$", build_file, re.MULTILINE):
-    errors.append("Android 2.0 RC1 versionCode must be 55")
+if not re.search(r"^\s*versionCode\s*=\s*56\s*$", build_file, re.MULTILINE):
+    errors.append("Android 2.0 Stable versionCode must be 56")
 if 'setOf("arm64-v8a", "x86_64")' not in build_file:
     errors.append("Android public packages must be limited to 64-bit ABIs")
 if "jniLibs.useLegacyPackaging = true" not in build_file:
@@ -164,8 +170,8 @@ vpn_service_source = (ROOT / "app/src/main/java/ir/dicode/ping/vpn/DicodeVpnServ
 settings_source = (ROOT / "app/src/main/java/ir/dicode/ping/ui/SettingsFragment.kt").read_text(encoding="utf-8")
 home_source = (ROOT / "app/src/main/java/ir/dicode/ping/ui/HomeFragment.kt").read_text(encoding="utf-8")
 manifest_source = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
-if 'android:extractNativeLibs="true"' not in manifest_source:
-    errors.append("Bundled Aether/Usque executables must be extracted by PackageManager")
+if "jniLibs.useLegacyPackaging = true" not in build_file:
+    errors.append("Bundled Aether/Usque executables must be extracted through Gradle packaging DSL")
 for token in ("--quick-reconnect", "--h2", "--fragment", "--always-reconnect", "--http2"):
     if token not in external_command_source:
         errors.append(f"External-core runtime lost required transport option: {token}")
@@ -184,5 +190,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 2.0.0-rc.1")
+print("Version is 2.0.0")
 print("Project structure is ready for Android build")

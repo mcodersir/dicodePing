@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 APP_VERSION = "2.0.0"
-RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -44,7 +43,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app_v200_rc1.py"
+    entrypoint = root / "app_v200.py"
     generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 
@@ -110,7 +109,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     release_dir = root / "release"
     release_dir.mkdir(parents=True, exist_ok=True)
-    output = release_dir / f"{APP_NAME}-v{APP_VERSION}-{RC_VERSION}-windows-x64.exe"
+    output = release_dir / f"{APP_NAME}-v{APP_VERSION}-windows-x64.exe"
     shutil.copy2(built_exe, output)
     print(f"Windows build completed: {output}", flush=True)
     return output

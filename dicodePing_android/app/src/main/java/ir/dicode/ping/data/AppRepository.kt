@@ -485,7 +485,7 @@ class AppRepository private constructor(context: Context) {
                 sources.value = nextSources
                 servers.value = sortServers(nextServers)
 
-                // 2.0 RC1: verify the exact persisted SUB once more, then force
+                // 2.0.0 stable: verify the exact persisted SUB once more, then force
                 // a fresh IP-location lookup and atomically commit the final rows.
                 progress.value = ProgressState(
                     true, "post_save_verify", 0, healthy.size, "Verifying saved SUB",

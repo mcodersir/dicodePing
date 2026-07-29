@@ -10,8 +10,6 @@ import tarfile
 from pathlib import Path
 
 APP_VERSION = "2.0.0"
-# Legacy RC13 static-test marker only: RC_VERSION = "rc.13"
-RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 
 
@@ -38,7 +36,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v200_rc1.py"
+    entrypoint = root / "app_v200.py"
     font_files = [assets / "fonts" / f"Vazirmatn-{weight}.ttf" for weight in ("Regular", "Medium", "Bold")]
     required = [
         entrypoint,
@@ -70,8 +68,6 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         APP_NAME,
         "--specpath",
         str(spec_dir),
-        "--icon",
-        str(assets / "app.png"),
         "--hidden-import",
         "PySide6.QtSvg",
         "--collect-submodules",
@@ -98,7 +94,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     built.chmod(0o755)
 
     architecture = "arm64" if platform.machine().lower() in {"aarch64", "arm64"} else "x86_64"
-    bundle_name = f"{APP_NAME}-v{APP_VERSION}-{RC_VERSION}-linux-{architecture}"
+    bundle_name = f"{APP_NAME}-v{APP_VERSION}-linux-{architecture}"
     staging = root / "build" / bundle_name
     shutil.rmtree(staging, ignore_errors=True)
     staging.mkdir(parents=True)

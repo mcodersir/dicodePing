@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="2.0.0-rc.1"
+VERSION="2.0.0"
 CORE_VERSION="26.7.11"
 CORE_SHA256="0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"
 CORE_AAR="local-maven/ir/dicode/local/libv2ray/${CORE_VERSION}/libv2ray-${CORE_VERSION}.aar"
@@ -29,7 +29,7 @@ fi
 echo "$CORE_SHA256  $CORE_AAR" | sha256sum --check --strict
 
 chmod +x gradlew
-./gradlew --no-daemon clean testStandardDebugUnitTest assembleStandardRelease
+./gradlew --no-daemon --warning-mode=fail clean testStandardDebugUnitTest lintStandardRelease assembleStandardRelease
 
 mkdir -p release
 APK="release/dicodePing-v${VERSION}-android.apk"
@@ -37,5 +37,6 @@ cp app/build/outputs/apk/standard/release/app-standard-release.apk "$APK"
 
 # Fails the build if any connection core was omitted from the actual APK.
 python tools/verify_apk_cores.py "$APK"
+python tools/verify_apk_fonts.py "$APK"
 
 echo "Built $APK"

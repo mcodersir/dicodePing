@@ -79,3 +79,12 @@ The RC10 scanner verification flow is adapted from the public `mcodersir/DicodeC
 - License: SIL Open Font License 1.1
 - Use: Regular, Medium and Bold weights are fetched during release builds, verified against npm package integrity metadata and bundled inside the platform artifacts. Generated font files are not committed in the source snapshot.
 
+
+## PyYAML release-validator runtime
+
+- Project: `yaml/pyyaml`
+- Version: `6.0.3`
+- License: MIT
+- Use: the pure-Python `yaml` package is vendored under `tools/vendor/pyyaml`
+  exclusively for deterministic local validation of GitHub Actions workflow
+  files. No compiled LibYAML extension is included.

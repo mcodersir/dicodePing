@@ -1,4 +1,4 @@
-dicodePing v2.0.0-rc.1 for Linux x86_64
+dicodePing v2.0.0 for Linux x86_64
 
 روش اجرا / How to run
 ======================
@@ -17,7 +17,7 @@ preserves the user's HOME, display and desktop-session environment.
 
 اتصال Xray / Xray connection
 ----------------------------
-مسیر اتصال 2.0 RC1 یک VPN کامل مبتنی بر TUN است:
+مسیر اتصال 2.0 Stable یک VPN کامل مبتنی بر TUN است:
 
     System traffic -> Xray TUN -> selected Xray server -> Internet
 
@@ -25,7 +25,7 @@ System Proxy جایگزین TUN نیست. قبل از نمایش وضعیت Conn
 خود سرور و هم عبور یک درخواست مستقیم بدون Proxy از Route سراسری TUN را
 بررسی می‌کند.
 
-2.0 RC1 uses full-device TUN routing, not desktop proxy settings. Before it
+2.0 Stable uses full-device TUN routing, not desktop proxy settings. Before it
 reports Connected, it verifies both the chosen server and an ordinary
 no-proxy HTTP request through the system TUN route.
 

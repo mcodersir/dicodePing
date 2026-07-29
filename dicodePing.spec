@@ -10,7 +10,7 @@ root = Path(SPECPATH)
 assets = root / "assets"
 
 a = Analysis(
-    [str(root / "app_v200_rc1.py")],
+    [str(root / "app_v200.py")],
     pathex=[str(root)],
     binaries=[],
     datas=[(str(assets), "assets")],

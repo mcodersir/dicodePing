@@ -1,52 +1,35 @@
-# 2.0.0-rc.1 — Bundled Persian font, final scanner recheck and minimal UI
-
-### Added
-- Build-time Vazirmatn 33.0.3 acquisition with npm SHA-512 integrity verification.
-- Packaged desktop font smoke checks on Windows, Linux and both macOS architectures.
-- A second post-save scanner verification transaction with fresh ping and geolocation.
-- Minimal responsive Persian download site without screenshots.
-
-### Fixed
-- Vazirmatn is now registered from bundled bytes in Qt and forced application-wide.
-- Android uses local font resources instead of an asynchronous downloadable-font provider.
-- Saved SUB results are re-tested and refreshed before final persistence.
-
-### Improved
-- Flatter cards, softer spacing and simpler actions across desktop and Android.
-- Release validation now checks font packaging, scanner re-verification and Pages downloads.
-
-## RC19 macOS DMG hotfix
-
-- Fixed transient `hdiutil: create failed - Resource busy` on Intel macOS GitHub runners.
-- Added fresh staging directories, bounded retry/backoff, atomic DMG publication and `hdiutil verify`.
-- Added a workflow-level macOS rebuild retry and final DMG verification before artifact upload.
-
-
-## 2.0.0-rc.1 connection stability hotfix
-
-- Prevented healthy desktop Xray TUN sessions from being disconnected by a redundant public health-URL check.
-- Added multi-signal startup evidence and a bounded validation budget.
-- Preserved recent latency during temporary connectivity-check endpoint failures.
-
 # Changelog
 
-## 2.0.0-rc.1
+## 2.0.0 stable release preflight hotfix
 
-- Fixed a Windows TUN false negative where Xray was visibly carrying DNS/TCP traffic but the private liveness probe used only plain HTTP/80 and tore the working tunnel down.
-- Reworked the private SOCKS probe with exact fragmented-read handling, HTTPS-first targets and full HTTP status-line parsing.
-- Made the private SOCKS pre-check advisory; the authoritative connection result is now the ordinary system-wide request through the active TUN route.
-- Fixed `NameError: old is not defined` in connection-failure, favorite and saved-server refresh paths while preserving scanner-created servers.
-- Added a dedicated RC19 TUN runtime validator to local deployment and GitHub Actions.
-- Fixed one-click deployment from folders previously used for RC16/RC17 by removing all stale RC10+ test modules by filename and verifying the staged tree again before push.
-- Restored mandatory full-device Xray TUN routing on Windows, Linux and macOS; System Proxy is no longer used as a substitute.
-- Added platform-correct TUN settings, including Windows Wintun/DNS, Linux routing and dynamic macOS `utunN` selection.
-- Added IPv4 and IPv6 default-route installation with automatic outbound-interface selection.
-- Prevented Xray routing loops with source binding and temporary direct host routes for the selected upstream server.
-- Added two-stage connection verification: private Xray SOCKS validation followed by an ordinary no-proxy HTTP request through the active TUN route.
-- Restored Windows UAC packaging, Linux PolicyKit relaunch and native macOS administrator authorization.
-- Made Disconnect remove Xray, temporary routes, runtime state and the named TUN interface without blocking the UI.
-- Kept one-time stale System Proxy recovery only for users upgrading from the earlier incorrect RC19 package.
-- Retained scanner persistence, location enrichment, security ratings, resource tuning and external-core improvements from RC17.
+- Removed the undeclared system-PyYAML requirement from the Windows one-click deployer.
+- Vendored the pure-Python PyYAML 6.0.3 parser with its MIT license.
+- Added strict workflow validation for syntax, duplicate keys, tabs and missing jobs.
+- Verified the validator under Python `-S`, with site-packages disabled.
+
+## 2.0.0 — Stable
+
+### Added
+- Stable four-platform release for Windows, Linux, macOS and Android.
+- Vazirmatn 33.0.3 acquisition with npm SHA-512 integrity verification.
+- Packaged desktop startup checks that require `font_family=Vazirmatn`.
+- Final post-save SUB verification with fresh TCP/Xray latency and geolocation.
+- Minimal responsive Persian download page without screenshots.
+- Content-hash verification for optimized Android font resources.
+
+### Fixed
+- Removed the obsolete `android:extractNativeLibs` manifest attribute and retained extraction through `jniLibs.useLegacyPackaging`.
+- Fixed the Android release failure caused by checking optimized APK font filenames.
+- Added the missing Linux `libxcb-shape0` runtime dependency.
+- Removed the unsupported Linux PyInstaller icon option.
+- Made the release waiter detect `workflow_dispatch` runs and require a published, non-prerelease Latest Release.
+- Preserved the macOS DMG retry and verification path for transient DiskImages failures.
+
+### Release quality
+- Android lint warnings are fatal in release builds.
+- Gradle runs with `--warning-mode=fail`.
+- Pages deployment is mandatory for the one-click stable release.
+- Windows, Linux, macOS ARM64, macOS x86_64 and Android assets are all required before success is reported.
 
 ## 1.9.0-rc.16
 
@@ -66,7 +49,7 @@
 - Removed the fragile first-four-channel preflight; every channel is now an independent DicodeConfigChecker-style fetch.
 - Kept the canonical `https://t.me/s/<channel>` endpoint with cross-host redirect rejection.
 - Added bounded parallel collection, proxy-side DNS, monotonic weighted progress and cancellation of in-flight calls.
-- Incremented Android versionCode to 48 and added RC13 release validation for the SOCKS route and full-crawl behavior.
+- Incremented Android versionCode to 48 and added Stable3 release validation for the SOCKS route and full-crawl behavior.
 
 ## 1.9.0-rc.10 Android Lint Hotfix 3
 
@@ -103,7 +86,7 @@
 - Fixed the scanner action remaining on the connecting label after VPN verification.
 - Added independent transport timeout budgets and detailed transport-aware live logs.
 - Bounded Android crawler concurrency and response memory and added lifecycle-safe per-channel reporting.
-- Advanced Android versionCode to 45 and added the RC10 multi-platform pre-release workflow.
+- Advanced Android versionCode to 45 and added the Stable0 multi-platform stable release workflow.
 
 ## 1.9.0-rc.9 Hotfix 4
 
@@ -157,7 +140,7 @@
 - Split scanner logs into All, Telegram and Real tests views with independent live metrics.
 - Corrected Persian right-edge and English left-edge sidebar alignment.
 - Added Android repeated native-core scanner verification and the single atomic `SUB` lifecycle.
-- Added bilingual Persian/English release notes and RC9 multi-platform pre-release automation.
+- Added bilingual Persian/English release notes and RC9 multi-platform stable release automation.
 
 ## 1.9.0 RC5 Android build hotfix
 
@@ -175,7 +158,7 @@
 - Updated Android to API 36, AGP 8.10.1 and Gradle 8.11.1; release packages only 64-bit ABIs and uses modern JNI packaging.
 - Serialized Android native-core lifecycle calls and removed the common-source tethering-controller collision.
 - Added signed-APK 16 KiB zip-alignment and ABI checks to the release workflow.
-- Added one-click RC5 Git deployment and existing-pre-release recovery.
+- Added one-click RC5 Git deployment and existing-stable release recovery.
 
 ## 1.9.0 RC4 Existing Release Recovery Hotfix 7
 
@@ -230,7 +213,7 @@
 - Added background core activation, visible progress, persistent core/profile settings, and a durable Aether identity/last-route config.
 - Added a one-click Windows RC2 release builder and regression tests.
 
-## 1.9.0 RC1
+## 1.9.0 Stable
 
 - Added the first macOS Apple Silicon release artifact.
 - Bundled SHA-256 verified Aether 1.4.0 and Usque 4.2.1 with Desktop builds.
@@ -671,7 +654,7 @@
 - Connection, startup, Android UI, routing, Gradle, and stability maintenance release.
 
 ### RC4 Auto Deploy Hotfix 3
-- Added `DEPLOY_PRERELEASE_RC4.bat` for one-click GitHub authentication, Android secret setup, clean staging, commit/push, workflow dispatch, run monitoring and pre-release opening.
+- Added `DEPLOY_PRERELEASE_RC4.bat` for one-click GitHub authentication, Android secret setup, clean staging, commit/push, workflow dispatch, run monitoring and stable release opening.
 - Changed the RC4 release workflow to `workflow_dispatch` only to prevent duplicate builds after source pushes.
 
 - Hotfix 4: deployment BAT now supports ephemeral classic-token authentication through a hidden prompt, validates repo access, configures Git HTTPS through GitHub CLI, and clears token variables on exit.

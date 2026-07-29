@@ -100,7 +100,7 @@ val verifyCore by tasks.registering {
             }
         }
         val bundledManifest = project.file("src/main/assets/bundled_cores.json")
-        if (!bundledManifest.isFile || !bundledManifest.readText().contains("2.0.0-rc.1")) {
+        if (!bundledManifest.isFile || !bundledManifest.readText().contains("2.0.0")) {
             throw GradleException("Bundled core manifest is missing or stale: ${bundledManifest.absolutePath}")
         }
 
@@ -118,10 +118,10 @@ android {
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
         // RC10 used versionCode = 45; RC19 must be strictly greater.
-        versionCode = 55
+        versionCode = 56
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "2.0.0-rc.1"
-        buildConfigField("String", "RELEASE_VERSION", "\"2.0.0-rc.1\"")
+        versionName = "2.0.0"
+        buildConfigField("String", "RELEASE_VERSION", "\"2.0.0\"")
         multiDexEnabled = true
 
     }
@@ -185,14 +185,12 @@ android {
         viewBinding = true
         buildConfig = true
     }
-
     lint {
-        // Release CI must stay strict for correctness/security errors. The
-        // legacy project still has non-blocking advisory warnings, so report
-        // errors only until those warnings are migrated incrementally.
         abortOnError = true
         checkReleaseBuilds = true
-        ignoreWarnings = true
+        warningsAsErrors = true
+        ignoreWarnings = false
+        checkDependencies = true
         htmlReport = true
         textReport = true
         sarifReport = true

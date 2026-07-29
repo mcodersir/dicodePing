@@ -4,7 +4,7 @@
 
 ## نسخه فعلی
 
-**2.0.0 RC1** برای Windows، Linux، macOS و Android.
+**2.0.0 Stable** برای Windows، Linux، macOS و Android.
 
 ### نکات اصلی 2.0
 
@@ -61,11 +61,11 @@ build_apk.bat
 ## اعتبارسنجی
 
 ```bash
-python tools/verify_version.py --tag v2.0.0-rc.1
-python tools/validate_v200_rc1.py
+python tools/verify_version.py --tag v2.0.0
+python tools/validate_v200_stable.py
 python tools/validate_android_gradle_kts.py
 python tools/validate_android_source_references.py
-python -m compileall -q app.py app_v200_rc1.py dicodeping tools tests
+python -m compileall -q app.py app_v200.py dicodeping tools tests
 python -m pytest -q
 python tools/quality_gate.py
 python dicodePing_android/tools/validate_project.py
@@ -76,14 +76,21 @@ python dicodePing_android/tools/validate_project.py
 ZIP را در یک پوشه جدید Extract و فایل زیر را اجرا کنید:
 
 ```text
-DEPLOY_PRERELEASE_200_RC1.bat
+DEPLOY_RELEASE_200.bat
 ```
 
-این ابزار ورود GitHub CLI، بررسی/ساخت Secretهای امضای Android، Clone تمیز، پاک‌سازی فایل‌های نسخه‌های قبلی، اعتبارسنجی، Push، ساخت تگ `v2.0.0-rc.1`، انتشار Pre-release و Deploy صفحه GitHub Pages را انجام می‌دهد.
+این ابزار ورود GitHub CLI، بررسی/ساخت Secretهای امضای Android، Clone تمیز، پاک‌سازی فایل‌های نسخه‌های قبلی، اعتبارسنجی، Push، ساخت تگ `v2.0.0`، انتشار پایدار و Deploy صفحه GitHub Pages را انجام می‌دهد.
 
 ## اسناد
 
 - [حریم خصوصی](PRIVACY.md)
 - [امنیت](SECURITY.md)
 - [مجوزها و مؤلفه‌های ثالث](THIRD_PARTY_NOTICES.md)
-- [یادداشت انتشار 2.0.0 RC1](docs/releases/v2.0.0-rc.1.md)
+- [یادداشت انتشار 2.0.0 Stable](docs/releases/v2.0.0.md)
+
+
+### پیش‌نیاز اعتبارسنجی انتشار
+
+اسکریپت `DEPLOY_RELEASE_200.bat` اعتبارسنج YAML را به‌صورت داخلی همراه دارد؛
+نیازی به نصب دستی `PyYAML` یا اجرای `pip install yaml` نیست.
+

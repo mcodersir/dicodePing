@@ -958,7 +958,7 @@ def run_scan(
             if stale.name not in {f"{source_id}.txt", f"{source_id}.base64.txt"}:
                 stale.unlink(missing_ok=True)
 
-        # 2.0 RC1 verifies the exact SUB after its first atomic commit.
+        # 2.0.0 stable verifies the exact SUB after its first atomic commit.
         _recheck_saved_scanner_records(
             records,
             raw_lines,

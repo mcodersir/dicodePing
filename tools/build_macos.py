@@ -11,7 +11,6 @@ import time
 from pathlib import Path
 
 APP_VERSION = "2.0.0"
-RC_VERSION = "rc.1"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
 DMG_CREATE_ATTEMPTS = 6
@@ -181,7 +180,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v200_rc1.py"
+    entrypoint = root / "app_v200.py"
     font_files = [assets / "fonts" / f"Vazirmatn-{weight}.ttf" for weight in ("Regular", "Medium", "Bold")]
     required = [entrypoint, assets / "app.png", core / "xray", core / "aether", core / "usque"]
     required.extend(font_files)
@@ -233,7 +232,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         raise FileNotFoundError(f"PyInstaller app bundle was not found: {app}")
 
     architecture = "arm64" if platform.machine().lower() in {"arm64", "aarch64"} else "x86_64"
-    bundle_name = f"{APP_NAME}-v{APP_VERSION}-{RC_VERSION}-macos-{architecture}"
+    bundle_name = f"{APP_NAME}-v{APP_VERSION}-macos-{architecture}"
     dmg_root = root / "build" / f"{bundle_name}-dmg"
     shutil.rmtree(dmg_root, ignore_errors=True)
     dmg_root.mkdir(parents=True)
@@ -247,7 +246,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     _create_dmg_with_retry(
         source_root=dmg_root,
         output=output,
-        volume_name=f"{APP_NAME} {RC_VERSION} {architecture}",
+        volume_name=f"{APP_NAME} {APP_VERSION} {architecture}",
         root=root,
     )
     print(f"macOS build completed: {output}", flush=True)

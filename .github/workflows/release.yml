@@ -1,17 +1,14 @@
-name: Release dicodePing v2.0.0-rc.1
+name: Release dicodePing v2.0.0
 
 on:
-  push:
-    tags:
-      - "v2.0.0-rc.1"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-v2.0.0-rc.1
-  cancel-in-progress: true
+  group: release-v2.0.0
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -27,10 +24,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/prepare_build_workspace.py
-          python tools/verify_version.py --tag v2.0.0-rc.1
+          python tools/verify_version.py --tag v2.0.0
           python tools/validate_android_gradle_kts.py
           python tools/validate_android_source_references.py
-          python tools/validate_v200_rc1.py
+          python tools/validate_v200_stable.py
           python -m pytest -q
           python tools/quality_gate.py
           python dicodePing_android/tools/validate_project.py
@@ -50,7 +47,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_windows.py --skip-install
-          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-v200-rc1-smoke"
+          $env:APPDATA = Join-Path $env:RUNNER_TEMP "dicodeping-v200-smoke"
           $env:LOCALAPPDATA = $env:APPDATA
           $env:DICODEPING_DISCOVERY_SMOKE = "1"
           $env:DICODEPING_STARTUP_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP "windows-smoke.txt"
@@ -59,7 +56,7 @@ jobs:
             "--discovery-smoke",
             "--startup-smoke-report=$env:DICODEPING_STARTUP_SMOKE_REPORT"
           )
-          $process = Start-Process -FilePath "release/dicodePing-v2.0.0-rc.1-windows-x64.exe" -ArgumentList $arguments -Wait -PassThru
+          $process = Start-Process -FilePath "release/dicodePing-v2.0.0-windows-x64.exe" -ArgumentList $arguments -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             if (Test-Path $env:DICODEPING_STARTUP_SMOKE_REPORT) { Get-Content $env:DICODEPING_STARTUP_SMOKE_REPORT }
             throw "Packaged Windows smoke test failed: $($process.ExitCode)"
@@ -72,7 +69,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: release/dicodePing-v2.0.0-rc.1-windows-x64.exe
+          path: release/dicodePing-v2.0.0-windows-x64.exe
           if-no-files-found: error
 
   linux:
@@ -87,13 +84,13 @@ jobs:
           cache-dependency-path: requirements-build.txt
       - run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_linux.py --skip-install
-          mkdir -p "$RUNNER_TEMP/dicodeping-v200-rc1-smoke"
-          tar -xzf release/dicodePing-v2.0.0-rc.1-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-v200-rc1-smoke"
-          binary="$RUNNER_TEMP/dicodeping-v200-rc1-smoke/dicodePing-v2.0.0-rc.1-linux-x86_64/dicodePing"
+          mkdir -p "$RUNNER_TEMP/dicodeping-v200-smoke"
+          tar -xzf release/dicodePing-v2.0.0-linux-x86_64.tar.gz -C "$RUNNER_TEMP/dicodeping-v200-smoke"
+          binary="$RUNNER_TEMP/dicodeping-v200-smoke/dicodePing-v2.0.0-linux-x86_64/dicodePing"
           report="$RUNNER_TEMP/linux-smoke.txt"
           env QT_QPA_PLATFORM=offscreen XDG_CONFIG_HOME="$RUNNER_TEMP/dicodeping-config" DICODEPING_DISCOVERY_SMOKE=1 DICODEPING_STARTUP_SMOKE_REPORT="$report" timeout 45s "$binary" --startup-smoke-test --discovery-smoke "--startup-smoke-report=$report"
           cat "$report"
@@ -101,7 +98,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: linux
-          path: release/dicodePing-v2.0.0-rc.1-linux-x86_64.tar.gz
+          path: release/dicodePing-v2.0.0-linux-x86_64.tar.gz
           if-no-files-found: error
 
   macos:
@@ -139,13 +136,13 @@ jobs:
               exit 1
             fi
             echo "Transient macOS packaging failure; rebuilding in $((attempt * 15)) seconds"
-            rm -rf build/dicodePing-v2.0.0-rc.1-macos-*-dmg build/dicodeping-dmg-* dist/dicodePing.app
-            rm -f release/dicodePing-v2.0.0-rc.1-macos-*.dmg
+            rm -rf build/dicodePing-v2.0.0-macos-*-dmg build/dicodeping-dmg-* dist/dicodePing.app
+            rm -f release/dicodePing-v2.0.0-macos-*.dmg
             sync || true
             sleep $((attempt * 15))
           done
-          test -s "release/dicodePing-v2.0.0-rc.1-macos-${{ matrix.architecture }}.dmg"
-          hdiutil verify "release/dicodePing-v2.0.0-rc.1-macos-${{ matrix.architecture }}.dmg"
+          test -s "release/dicodePing-v2.0.0-macos-${{ matrix.architecture }}.dmg"
+          hdiutil verify "release/dicodePing-v2.0.0-macos-${{ matrix.architecture }}.dmg"
           app_binary="dist/dicodePing.app/Contents/MacOS/dicodePing"
           report="$RUNNER_TEMP/macos-${{ matrix.architecture }}-smoke.txt"
           test -x "$app_binary"
@@ -155,7 +152,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.architecture }}
-          path: release/dicodePing-v2.0.0-rc.1-macos-${{ matrix.architecture }}.dmg
+          path: release/dicodePing-v2.0.0-macos-${{ matrix.architecture }}.dmg
           if-no-files-found: error
 
   android:
@@ -222,14 +219,14 @@ jobs:
           # libv2ray, assembles the signed APK and inspects the final ZIP.
           # This keeps native-core packaging mandatory for every release build.
           chmod +x gradlew build_apk.sh
-          ./build_apk.sh
+          GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.warning.mode=fail" ./build_apk.sh
 
-          apk="release/dicodePing-v2.0.0-rc.1-android.apk"
+          apk="release/dicodePing-v2.0.0-android.apk"
           zipalign_bin="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -1)"
           test -x "$zipalign_bin"
           "$zipalign_bin" -c -P 16 -v 4 "$apk"
           if unzip -Z1 "$apk" | grep -Eq '^lib/(armeabi-v7a|x86)/'; then
-            echo "32-bit native libraries are not allowed in the 2.0 RC1 public APK" >&2
+            echo "32-bit native libraries are not allowed in the 2.0.0 stable public APK" >&2
             exit 1
           fi
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/.*\.so$'
@@ -240,9 +237,7 @@ jobs:
             unzip -Z1 "$apk" | grep -q "^lib/$abi/libusque.so$"
           done
           python tools/verify_apk_cores.py "$apk"
-          for font in regular medium bold; do
-            unzip -Z1 "$apk" | grep -Eq "^res/.*/vazirmatn_${font}\.ttf$"
-          done
+          python tools/verify_apk_fonts.py "$apk"
       - name: Upload Android lint reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -256,7 +251,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: android
-          path: dicodePing_android/release/dicodePing-v2.0.0-rc.1-android.apk
+          path: dicodePing_android/release/dicodePing-v2.0.0-android.apk
           if-no-files-found: error
 
   publish:
@@ -281,13 +276,13 @@ jobs:
           cp artifacts/windows/* artifacts/linux/* artifacts/android/* release-assets/
           cp artifacts/macos-arm64/* artifacts/macos-x86_64/* release-assets/
           cp assets/core-manifest.json release-assets/core-manifest.json
-          cp docs/releases/v2.0.0-rc.1.md release-assets/RELEASE_NOTES.md
+          cp docs/releases/v2.0.0.md release-assets/RELEASE_NOTES.md
           cp CHANGELOG.md THIRD_PARTY_NOTICES.md release-assets/
           python tools/generate_sbom.py
           cp artifacts/SBOM.spdx.json release-assets/SBOM.spdx.json
           git archive --format=zip --output=release-assets/source.zip HEAD
 
-          # 2.0 RC1 bundles Xray, Aether and Usque inside each platform artifact.
+          # 2.0.0 stable bundles Xray, Aether and Usque inside each platform artifact.
           # No separate core archives are published.
 
           # Psiphon remains disabled unless a future same-package authorized build is available.
@@ -296,11 +291,13 @@ jobs:
           (cd release-assets && sha256sum * > SHA256SUMS)
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v2.0.0-rc.1
+          tag_name: v2.0.0
           target_commitish: ${{ github.sha }}
-          name: dicodePing v2.0.0-rc.1
-          body_path: docs/releases/v2.0.0-rc.1.md
-          prerelease: true
+          name: dicodePing v2.0.0
+          body_path: docs/releases/v2.0.0.md
+          prerelease: false
+          draft: false
+          make_latest: true
           overwrite_files: true
           fail_on_unmatched_files: true
           files: release-assets/*
