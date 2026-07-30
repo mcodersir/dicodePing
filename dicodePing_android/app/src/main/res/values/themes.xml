@@ -26,10 +26,6 @@
         <item name="colorErrorContainer">@color/m3_error_container</item>
         <item name="colorOnErrorContainer">@color/m3_on_error_container</item>
         <item name="android:colorBackground">@color/app_background</item>
-        <item name="colorScrim">@color/m3_scrim</item>
-        <item name="colorInverseSurface">@color/m3_inverse_surface</item>
-        <item name="colorInverseOnSurface">@color/m3_inverse_on_surface</item>
-        <item name="colorInversePrimary">@color/m3_inverse_primary</item>
         <item name="android:colorAccent">@color/brand</item>
         <item name="android:fontFamily">@font/vazirmatn</item>
         <item name="fontFamily">@font/vazirmatn</item>
