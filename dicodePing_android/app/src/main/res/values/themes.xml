@@ -11,15 +11,14 @@
         <item name="colorSurfaceContainerHigh">@color/surface_card_alt</item>
         <item name="colorOutline">@color/outline_soft</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
         <!-- v2.0.4: override ALL Material3 surface roles so the default
              warm/purplish dark scheme (which looks brown) never leaks
              through. Each role maps to our blue-based palette. -->
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
         <item name="colorSurfaceVariant">@color/m3_surface_variant</item>
         <item name="colorSurfaceContainerLow">@color/m3_surface_low</item>
         <item name="colorSurfaceContainerLowest">@color/m3_surface_lowest</item>
         <item name="colorSurfaceContainerHighest">@color/m3_surface_highest</item>
-        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
         <item name="colorOutlineVariant">@color/m3_outline_variant</item>
         <item name="colorError">@color/m3_error</item>
         <item name="colorOnError">@color/m3_on_error</item>
