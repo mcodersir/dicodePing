@@ -12,6 +12,24 @@
         <item name="colorOutline">@color/outline_soft</item>
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <!-- v2.0.4: override ALL Material3 surface roles so the default
+             warm/purplish dark scheme (which looks brown) never leaks
+             through. Each role maps to our blue-based palette. -->
+        <item name="colorSurfaceVariant">@color/m3_surface_variant</item>
+        <item name="colorSurfaceContainerLow">@color/m3_surface_low</item>
+        <item name="colorSurfaceContainerLowest">@color/m3_surface_lowest</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_surface_highest</item>
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
+        <item name="colorOutlineVariant">@color/m3_outline_variant</item>
+        <item name="colorError">@color/m3_error</item>
+        <item name="colorOnError">@color/m3_on_error</item>
+        <item name="colorErrorContainer">@color/m3_error_container</item>
+        <item name="colorOnErrorContainer">@color/m3_on_error_container</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="colorScrim">@color/m3_scrim</item>
+        <item name="colorInverseSurface">@color/m3_inverse_surface</item>
+        <item name="colorInverseOnSurface">@color/m3_inverse_on_surface</item>
+        <item name="colorInversePrimary">@color/m3_inverse_primary</item>
         <item name="android:colorAccent">@color/brand</item>
         <item name="android:fontFamily">@font/vazirmatn</item>
         <item name="fontFamily">@font/vazirmatn</item>

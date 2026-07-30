@@ -1882,11 +1882,62 @@ class MainWindow(QMainWindow):
             self._request_scanner_launch()
 
     def stop_scanner(self) -> None:
-        """Ask the running scanner to stop at the next safe point."""
-        if self.scanner_thread is not None and self.scanner_thread.isRunning():
-            self.scanner_thread.requestStop()
+        """Ask the running scanner to stop at the next safe point.
+
+        v2.0.4: show a Telegram-style blocking loading overlay so the user
+        understands the save is in progress. The overlay blocks until the
+        scanner thread finishes (which happens after the SAVING stage
+        completes), then the post-save enrichment modal appears via
+        _scanner_succeeded.
+        """
+        thread = self.scanner_thread
+        if thread is not None and thread.isRunning():
+            thread.requestStop()
             self.scanner_run_button.setEnabled(False)
             self.scanner_run_button.setText(self.t("busy_wait"))
+            self._show_scanner_save_overlay()
+
+    def _show_scanner_save_overlay(self) -> None:
+        """v2.0.4: show a semi-transparent blocking overlay with a spinner."""
+        if getattr(self, "_scanner_save_overlay", None) is not None:
+            return
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        from PySide6.QtCore import Qt, QTimer
+        from PySide6.QtGui import QMovie
+        overlay = QWidget(self)
+        overlay.setObjectName("scannerSaveOverlay")
+        overlay.setWindowFlags(Qt.FramelessWindowHint | Qt.SubWindow)
+        overlay.setAutoFillBackground(True)
+        palette = overlay.palette()
+        palette.setColor(overlay.backgroundRole(), QColor(0, 0, 0, 200))
+        overlay.setPalette(palette)
+        layout = QVBoxLayout(overlay)
+        layout.setAlignment(Qt.AlignCenter)
+        spinner_label = QLabel()
+        # Use an indeterminate progress bar as a spinner (QMovie would need a GIF)
+        from PySide6.QtWidgets import QProgressBar
+        spinner = QProgressBar()
+        spinner.setRange(0, 0)  # indeterminate
+        spinner.setFixedSize(64, 64)
+        spinner.setTextVisible(False)
+        text_label = QLabel(
+            "در حال ذخیره نتایج…" if self.language != "en" else "Saving results…"
+        )
+        text_label.setAlignment(Qt.AlignCenter)
+        text_label.setStyleSheet("color: #F4F7FC; font-size: 14px; font-weight: bold;")
+        layout.addWidget(spinner, alignment=Qt.AlignCenter)
+        layout.addWidget(text_label, alignment=Qt.AlignCenter)
+        overlay.resize(self.size())
+        overlay.show()
+        overlay.raise_()
+        self._scanner_save_overlay = overlay
+
+    def _hide_scanner_save_overlay(self) -> None:
+        """v2.0.4: hide the blocking overlay once the scanner thread finishes."""
+        overlay = getattr(self, "_scanner_save_overlay", None)
+        if overlay is not None:
+            overlay.deleteLater()
+            self._scanner_save_overlay = None
 
     @Slot(str)
     def _scanner_connect_bootstrap(self, server_id: str) -> None:
@@ -2063,6 +2114,8 @@ class MainWindow(QMainWindow):
         thread = self.sender()
         if self.scanner_thread is thread:
             self.scanner_thread = None
+        # v2.0.4: hide the blocking save overlay now that the thread is done.
+        self._hide_scanner_save_overlay()
 
     def _clear_scanner_log(self) -> None:
         for name in ("scanner_log_view", "scanner_connection_log_view", "scanner_tg_log_view", "scanner_test_log_view"):

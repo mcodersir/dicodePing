@@ -187,6 +187,12 @@ class SettingsStore(context: Context) {
 
     companion object {
         const val DEFAULT_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
+        // v2.0.4: jsdelivr CDN mirror so the first-launch splash can still
+        // download the default subscription when raw.githubusercontent.com is
+        // blocked or throttled. refreshServersInternal() tries the primary
+        // URL first and falls back to this automatically.
+        const val DEFAULT_URL_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
+        const val DEFAULT_URL_FALLBACK_2 = "https://fastly.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
         val SERVER_REFRESH_INTERVAL_MS: Long = TimeUnit.DAYS.toMillis(2)
 
         fun defaultSource(language: String = "fa") = SourceDefinition(
@@ -197,6 +203,9 @@ class SettingsStore(context: Context) {
             true,
             true,
         )
+
+        /** v2.0.4: returns all fallback URLs for the default source, in order. */
+        fun defaultSourceUrls(): List<String> = listOf(DEFAULT_URL, DEFAULT_URL_FALLBACK, DEFAULT_URL_FALLBACK_2)
 
         fun isLocalScannerSource(source: SourceDefinition): Boolean =
             source.id.startsWith("scanner-") && source.url.isBlank()

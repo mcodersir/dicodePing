@@ -45,6 +45,7 @@ from .i18n import tr
 from .models import ServerRecord, SourceDefinition, utc_now
 from .protocols import (
     b64_encode_text,
+    blob_to_config,
     config_to_blob,
     normalize_key,
     parse_endpoint,
@@ -1133,8 +1134,6 @@ def _connect_best_server(
     store = JsonStore()
     service = ServerService(store)
     def _best_verified() -> ServerRecord | None:
-        from .protocols import blob_to_config
-
         candidates = [
             item
             for item in service.auto_candidates(store.load_servers())

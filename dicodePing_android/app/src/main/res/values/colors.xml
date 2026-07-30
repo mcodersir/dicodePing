@@ -20,4 +20,22 @@
     <color name="skeleton_base">#E1E7F0</color>
     <color name="skeleton_highlight">#F2F5F9</color>
     <color name="info">#79AFFF</color>
+
+    <!-- v2.0.4: explicit Material3 surface role overrides for light theme. -->
+    <color name="m3_surface_lowest">#FFFFFF</color>
+    <color name="m3_surface_low">#F4F6FA</color>
+    <color name="m3_surface_high">#EEF2F8</color>
+    <color name="m3_surface_highest">#E7EBF2</color>
+    <color name="m3_surface_variant">#D8DFEA</color>
+    <color name="m3_on_surface_variant">#617086</color>
+    <color name="m3_outline">#8793A5</color>
+    <color name="m3_outline_variant">#D8DFEA</color>
+    <color name="m3_error">#C83B4A</color>
+    <color name="m3_on_error">#FFFFFF</color>
+    <color name="m3_error_container">#FDE0E3</color>
+    <color name="m3_on_error_container">#7A1219</color>
+    <color name="m3_scrim">#000000</color>
+    <color name="m3_inverse_surface">#121826</color>
+    <color name="m3_inverse_on_surface">#F4F6FA</color>
+    <color name="m3_inverse_primary">#6C8CFF</color>
 </resources>

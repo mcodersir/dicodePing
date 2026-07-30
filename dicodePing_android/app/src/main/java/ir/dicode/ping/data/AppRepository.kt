@@ -225,25 +225,42 @@ class AppRepository private constructor(context: Context) {
             enabled.mapIndexed { sourceIndex, source ->
                 async(Dispatchers.IO) {
                     downloadSem.withPermit {
-                        val downloadResult = runCatching {
-                            val text = downloader.download(source.url) { _, _ -> Unit }
-                            ConfigParser.decodeSubscription(text).mapNotNull { raw ->
-                                ConfigParser.parse(raw)?.let { parsed ->
-                                    ServerRecord(
-                                        id = idForRaw(raw), raw = raw, name = parsed.name,
-                                        protocol = parsed.protocol.uppercase(), host = parsed.host,
-                                        port = parsed.port, sourceId = source.id, sourceName = source.name,
-                                    )
+                        // v2.0.4: for the default source, try the primary URL
+                        // first, then fall back to the jsdelivr CDN mirrors.
+                        // This makes the first-launch splash robust against
+                        // raw.githubusercontent.com being blocked.
+                        val urlsToTry = if (source.id == "default" || source.isDefault) {
+                            SettingsStore.defaultSourceUrls()
+                        } else {
+                            listOf(source.url)
+                        }
+                        var downloadResult: Result<List<ServerRecord>> = Result.failure(RuntimeException("no URLs"))
+                        for (url in urlsToTry) {
+                            downloadResult = runCatching {
+                                val text = downloader.download(url) { _, _ -> Unit }
+                                ConfigParser.decodeSubscription(text).mapNotNull { raw ->
+                                    ConfigParser.parse(raw)?.let { parsed ->
+                                        ServerRecord(
+                                            id = idForRaw(raw), raw = raw, name = parsed.name,
+                                            protocol = parsed.protocol.uppercase(), host = parsed.host,
+                                            port = parsed.port, sourceId = source.id, sourceName = source.name,
+                                        )
+                                    }
                                 }
                             }
-                        }.onFailure {
-                            AppLog.w("Repository", "Source failed: ${source.name}", it)
+                            if (downloadResult.isSuccess && downloadResult.getOrDefault(emptyList()).isNotEmpty()) break
+                            if (downloadResult.isFailure) {
+                                AppLog.w("Repository", "Source ${source.name} URL failed: $url", downloadResult.exceptionOrNull())
+                            }
+                        }
+                        downloadResult.onFailure {
+                            AppLog.w("Repository", "Source failed (all URLs): ${source.name}", it)
                             error.value = "${source.name}: ${it.message}"
                         }
                         val rows = downloadResult.getOrDefault(emptyList())
                         val done = completed.incrementAndGet()
                         progress.value = ProgressState(true, "download", done, enabled.size, source.name)
-                        Triple(sourceIndex, rows, downloadResult.isSuccess)
+                        Triple(sourceIndex, rows, downloadResult.isSuccess && rows.isNotEmpty())
                     }
                 }
             }.awaitAll()
@@ -1087,14 +1104,14 @@ class AppRepository private constructor(context: Context) {
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
         private const val MAX_SCANNER_SERVERS = 160
-        private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 48
+        private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 32
         private const val SCANNER_TCP_PREFILTER_WORKERS = 16
         private const val SCANNER_TCP_PREFILTER_TIMEOUT_MS = 650
-        private const val SCANNER_HEALTHY_TARGET = 48
-        private const val SCANNER_TEST_ATTEMPTS = 2
+        private const val SCANNER_HEALTHY_TARGET = 32
+        private const val SCANNER_TEST_ATTEMPTS = 1
         private const val SCANNER_MIN_SUCCESS = 1
         private const val SCANNER_MAX_DELAY_MS = 60_000L
-        private const val SCANNER_ATTEMPT_GAP_MS = 40L
+        private const val SCANNER_ATTEMPT_GAP_MS = 0L
         // v2.0.1: bounded parallel Xray HTTP probes. Bumped from 1 to 3 so
         // the scanner tests multiple candidates concurrently instead of one
         // by one. 3 stays below libv2ray's internal JNI lock contention
@@ -1103,13 +1120,13 @@ class AppRepository private constructor(context: Context) {
         private const val SCANNER_PROBE_CONCURRENCY = 3
         // v2.0.2: real concurrency for Android. The TCP handshake delay
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.
-        // 12 is a sweet spot for both low-end (4-core) and high-end (8-core)
-        // devices without saturating the file-descriptor table.
-        private const val SCANNER_TCP_PROBE_CONCURRENCY = 16
+        // v2.0.4: raised from 12 to 20 for even faster Phase A filtering.
+        private const val SCANNER_TCP_PROBE_CONCURRENCY = 20
         // v2.0.3: lowered from 1400ms to 800ms so dead hosts are filtered
-        // out faster and Phase B starts sooner. 800ms is still enough for
-        // cross-border TCP handshakes on real proxies.
-        private const val SCANNER_TCP_PROBE_TIMEOUT_MS = 800
+        // out faster and Phase B starts sooner.
+        // v2.0.4: lowered further to 600ms. 600ms is enough for cross-border
+        // TCP handshakes on real proxies; anything slower is likely dead.
+        private const val SCANNER_TCP_PROBE_TIMEOUT_MS = 600
 
         @Volatile
         private var instance: AppRepository? = null

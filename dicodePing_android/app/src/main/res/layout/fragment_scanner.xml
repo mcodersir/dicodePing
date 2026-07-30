@@ -1,69 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:fillViewport="true">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:padding="16dp">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="@string/scanner_title" android:textAppearance="?attr/textAppearanceHeadlineSmall" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
-            android:text="@string/scanner_subtitle" android:textColor="@color/text_secondary" />
-        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" app:cardCornerRadius="18dp" app:cardElevation="0dp"
-            app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/scanner_preview_title"
-                    android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/scanner_preview_1" android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/scanner_preview_2" android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/scanner_preview_3" android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <TextView android:layout_width="0dp" android:layout_height="0dp" android:text="@string/scanner_preview_4" android:visibility="gone" />
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/scanner_preview_hint" android:textColor="@color/brand" android:textSize="12sp" android:textStyle="bold" />
-                <com.google.android.material.button.MaterialButton android:id="@+id/scannerRunButton" android:layout_width="match_parent" android:layout_height="56dp"
-                    android:layout_marginTop="14dp" android:text="@string/scanner_start" android:textSize="16sp" android:textStyle="bold"
-                    app:icon="@drawable/ic_bolt" app:iconGravity="textStart" app:iconSize="22dp" />
-                <com.google.android.material.textfield.TextInputLayout style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="@string/scanner_sub_name">
-                    <com.google.android.material.textfield.TextInputEditText android:id="@+id/scannerNameEdit" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:cursorVisible="false" android:focusable="false" android:inputType="none" android:text="@string/scanner_sub_name" />
-                </com.google.android.material.textfield.TextInputLayout>
-                <TextView android:id="@+id/scannerStageLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
-                    android:text="@string/ready_to_connect" android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
-                <TextView android:id="@+id/scannerFetchLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/scanner_fetch_progress" android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <ProgressBar android:id="@+id/scannerFetchProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="7dp" android:layout_marginTop="6dp" android:max="100" android:progress="0" />
-                <TextView android:id="@+id/scannerTestLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/scanner_test_progress" android:textColor="@color/text_secondary" android:textSize="12sp" />
-                <ProgressBar android:id="@+id/scannerTestProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="7dp" android:layout_marginTop="6dp" android:max="100" android:progress="0" />
-                <TextView android:id="@+id/scannerResultLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="13sp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+    android:layout_width="match_parent" android:layout_height="match_parent">
 
-        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
-            app:cardCornerRadius="16dp" app:cardElevation="0dp" app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <com.google.android.material.tabs.TabLayout android:id="@+id/scannerLogTabs" android:layout_width="match_parent" android:layout_height="48dp"
-                    app:tabIndicatorFullWidth="false" app:tabMode="fixed" />
-                <ScrollView android:id="@+id/scannerLogScroll"
-                    tools:ignore="NestedScrolling" android:layout_width="match_parent" android:layout_height="250dp"
-                    android:fillViewport="true" android:padding="12dp">
-                    <TextView android:id="@+id/scannerLogText" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:fontFamily="monospace" android:lineSpacingExtra="4dp" android:textColor="@color/text_secondary"
-                        android:textIsSelectable="true" android:textSize="11sp" />
-                </ScrollView>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
-            android:layout_marginBottom="18dp" app:cardCornerRadius="16dp" app:cardElevation="0dp" app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/scanner_history" android:textAppearance="?attr/textAppearanceTitleMedium" android:textStyle="bold" />
-                    <com.google.android.material.button.MaterialButton android:id="@+id/copyAllButton" style="?attr/materialButtonOutlinedStyle" android:layout_width="wrap_content" android:layout_height="40dp" android:text="@string/scanner_copy_all" android:textSize="12sp" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fillViewport="true">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/scanner_title" android:textAppearance="?attr/textAppearanceHeadlineSmall" android:textStyle="bold" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+                android:text="@string/scanner_subtitle" android:textColor="@color/text_secondary" />
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" app:cardCornerRadius="18dp" app:cardElevation="0dp"
+                app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/scanner_preview_title"
+                        android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/scanner_preview_1" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/scanner_preview_2" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/scanner_preview_3" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <TextView android:layout_width="0dp" android:layout_height="0dp" android:text="@string/scanner_preview_4" android:visibility="gone" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/scanner_preview_hint" android:textColor="@color/brand" android:textSize="12sp" android:textStyle="bold" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/scannerRunButton" android:layout_width="match_parent" android:layout_height="56dp"
+                        android:layout_marginTop="14dp" android:text="@string/scanner_start" android:textSize="16sp" android:textStyle="bold"
+                        app:icon="@drawable/ic_bolt" app:iconGravity="textStart" app:iconSize="22dp" />
+                    <com.google.android.material.textfield.TextInputLayout style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="@string/scanner_sub_name">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/scannerNameEdit" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:cursorVisible="false" android:focusable="false" android:inputType="none" android:text="@string/scanner_sub_name" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                    <TextView android:id="@+id/scannerStageLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                        android:text="@string/ready_to_connect" android:textColor="@color/text_secondary" android:textSize="13sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/scannerFetchLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/scanner_fetch_progress" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <ProgressBar android:id="@+id/scannerFetchProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="7dp" android:layout_marginTop="6dp" android:max="100" android:progress="0" />
+                    <TextView android:id="@+id/scannerTestLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/scanner_test_progress" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                    <ProgressBar android:id="@+id/scannerTestProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="7dp" android:layout_marginTop="6dp" android:max="100" android:progress="0" />
+                    <TextView android:id="@+id/scannerResultLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="13sp" />
                 </LinearLayout>
-                <TextView android:id="@+id/scannerHistoryEmpty" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/scanner_empty_history" android:textColor="@color/text_secondary" android:textSize="13sp" />
-                <TextView android:id="@+id/scannerHistoryContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:fontFamily="monospace" android:textColor="@color/text_primary" android:textIsSelectable="true" android:textSize="12sp" android:visibility="gone" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </LinearLayout>
-</ScrollView>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                app:cardCornerRadius="16dp" app:cardElevation="0dp" app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <com.google.android.material.tabs.TabLayout android:id="@+id/scannerLogTabs" android:layout_width="match_parent" android:layout_height="48dp"
+                        app:tabIndicatorFullWidth="false" app:tabMode="fixed" />
+                    <ScrollView android:id="@+id/scannerLogScroll"
+                        tools:ignore="NestedScrolling" android:layout_width="match_parent" android:layout_height="250dp"
+                        android:fillViewport="true" android:padding="12dp">
+                        <TextView android:id="@+id/scannerLogText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:fontFamily="monospace" android:lineSpacingExtra="4dp" android:textColor="@color/text_secondary"
+                            android:textIsSelectable="true" android:textSize="11sp" />
+                    </ScrollView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                android:layout_marginBottom="18dp" app:cardCornerRadius="16dp" app:cardElevation="0dp" app:strokeColor="@color/outline_soft" app:strokeWidth="1dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/scanner_history" android:textAppearance="?attr/textAppearanceTitleMedium" android:textStyle="bold" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/copyAllButton" style="?attr/materialButtonOutlinedStyle" android:layout_width="wrap_content" android:layout_height="40dp" android:text="@string/scanner_copy_all" android:textSize="12sp" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/scannerHistoryEmpty" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/scanner_empty_history" android:textColor="@color/text_secondary" android:textSize="13sp" />
+                    <TextView android:id="@+id/scannerHistoryContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:fontFamily="monospace" android:textColor="@color/text_primary" android:textIsSelectable="true" android:textSize="12sp" android:visibility="gone" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- v2.0.4: Telegram-style loading overlay shown during Stop+Save.
+         Blocks all UI interaction until the save transaction completes,
+         then the ping/location modal appears. -->
+    <FrameLayout android:id="@+id/scannerSaveOverlay"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="#CC000000" android:clickable="true" android:focusable="true"
+        android:visibility="gone">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center" android:gravity="center"
+            android:orientation="vertical" android:padding="32dp">
+            <ProgressBar android:layout_width="48dp" android:layout_height="48dp"
+                android:indeterminateTint="@color/brand" />
+            <TextView android:id="@+id/scannerSaveOverlayText"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" android:textColor="@color/text_primary"
+                android:textSize="14sp" android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+
+</FrameLayout>
