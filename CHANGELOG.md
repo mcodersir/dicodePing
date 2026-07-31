@@ -1,3 +1,17 @@
+## 2.0.5 stable universal Android APK (armeabi-v7a support)
+
+- Fixed Android APK showing as "incompatible" on 32-bit ARM devices (armeabi-v7a). Previously only arm64-v8a and x86_64 were packaged; now the APK is universal and includes armeabi-v7a too.
+- Updated `build.gradle.kts` `abiFilters` in both `standard` and `rooted` flavors to `setOf("arm64-v8a", "armeabi-v7a", "x86_64")`. Added `armeabi-v7a` ELF machine code (40) to the `expectedMachines` map.
+- Updated `prepare_bundled_cores.py` to build Aether (Rust) and Usque (Go) for armeabi-v7a: added `armv7-linux-androideabi` cargo target and `GOARCH=arm` with `armv7a-linux-androideabi` clang prefix.
+- Updated `release.yml` to install the `armv7-linux-androideabi` Rust target and to verify all three ABIs (`arm64-v8a armeabi-v7a x86_64`) in the final APK. Only `x86` (32-bit Intel) remains rejected since it is not built.
+- Updated `verify_apk_cores.py` `ABIS` map to include `armeabi-v7a: 40`.
+- Updated `validate_project.py` ABI check to accept the new three-ABI set.
+- Added v2.0.5 validator and test checks for the universal ABI configuration.
+- APK size grows ~10-15 MiB because native libraries (libgojni, libaether, libusque) are now packaged for three ABIs instead of two. This is the natural trade-off for universal device support.
+- Bumped version: `RELEASE_VERSION = "2.0.5"`, `versionCode = 61`, `versionName = "2.0.5"`, `APP_VERSION = "2.0.5"` in all three desktop builders, Windows version-info tuple `(2, 0, 5, 0)`, `VERSION` in `build_apk.sh` and `build_apk.bat`.
+- Renamed `tools/validate_v204_stable.py` → `tools/validate_v205_stable.py` and `tests/test_v204_stable*.py` → `tests/test_v205_stable*.py`.
+- Updated `release.yml`, `DEPLOY_RELEASE_200.bat`, `docs/site/index.html`, `docs/releases/v2.0.5.md`, `dicodePing_android/tools/validate_project.py` to reference v2.0.5 / versionCode 61.
+
 ## 2.0.4 stable blob_to_config fix + dark theme + splash fallback + save overlay
 
 - Fixed desktop `NameError: name 'blob_to_config' is not defined` in `enrich_saved_scanner_records` (scanner.py). The function was added in v2.0.1 but `blob_to_config` was only imported locally inside another function. Now imported at module level.

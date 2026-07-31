@@ -68,12 +68,12 @@ val verifyCore by tasks.registering {
         if (entries.none { it.matches(Regex("""jni/.+/(libgojni|libv2ray)\.so""")) }) {
             throw GradleException("Android core is invalid: native Android libraries are missing.")
         }
-        for (abi in listOf("arm64-v8a", "x86_64")) {
+        for (abi in listOf("arm64-v8a", "armeabi-v7a", "x86_64")) {
             if (entries.none { it.startsWith("jni/$abi/") && it.endsWith(".so") }) {
-                throw GradleException("Android core is missing required 64-bit ABI: $abi")
+                throw GradleException("Android core is missing required ABI: $abi")
             }
         }
-        val expectedMachines = mapOf("arm64-v8a" to 183, "x86_64" to 62)
+        val expectedMachines = mapOf("arm64-v8a" to 183, "armeabi-v7a" to 40, "x86_64" to 62)
         for ((abi, expectedMachine) in expectedMachines) {
             val helperDir = project.file("src/main/jniLibs/$abi")
             for (helper in listOf("libaether.so", "libusque.so")) {
@@ -118,10 +118,10 @@ android {
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
         // RC10 used versionCode = 45; RC19 must be strictly greater.
-        versionCode = 60
+        versionCode = 61
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "2.0.4"
-        buildConfigField("String", "RELEASE_VERSION", "\"2.0.4\"")
+        versionName = "2.0.5"
+        buildConfigField("String", "RELEASE_VERSION", "\"2.0.5\"")
         multiDexEnabled = true
 
     }
@@ -131,14 +131,14 @@ android {
         create("standard") {
             dimension = "distribution"
             buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "false")
-            ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
+            ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         }
         create("rooted") {
             dimension = "distribution"
             applicationIdSuffix = ".rooted"
             versionNameSuffix = "-rooted"
             buildConfigField("Boolean", "ENABLE_ROOT_TETHERING", "true")
-            ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
+            ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         }
     }
 

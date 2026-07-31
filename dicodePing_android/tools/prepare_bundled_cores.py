@@ -91,6 +91,7 @@ def prepare_aether(work: Path, jni: Path) -> None:
 
     builds = (
         ("arm64-v8a", "aarch64-linux-android"),
+        ("armeabi-v7a", "armv7-linux-androideabi"),
         ("x86_64", "x86_64-linux-android"),
     )
     for abi, triple in builds:
@@ -184,6 +185,7 @@ def prepare_usque(work: Path, jni: Path) -> None:
     llvm_ar = toolchain / ("llvm-ar.exe" if os.name == "nt" else "llvm-ar")
     builds = (
         ("arm64-v8a", "arm64", "aarch64-linux-android"),
+        ("armeabi-v7a", "arm", "armv7a-linux-androideabi"),
         ("x86_64", "amd64", "x86_64-linux-android"),
     )
     for abi, goarch, clang_prefix in builds:
@@ -241,8 +243,8 @@ def main() -> int:
         prepare_aether(work, jni)
         prepare_usque(work, jni)
     manifest_entries = []
-    for abi in ("arm64-v8a", "x86_64"):
-        expected_machine = 183 if abi == "arm64-v8a" else 62
+    for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+        expected_machine = 183 if abi == "arm64-v8a" else (40 if abi == "armeabi-v7a" else 62)
         for name in ("libaether.so", "libusque.so"):
             path = jni / abi / name
             if not path.is_file():
@@ -279,7 +281,7 @@ def main() -> int:
                 "release": "2.0.0",
                 "aether": AETHER_VERSION,
                 "usque": USQUE_VERSION,
-                "abis": ["arm64-v8a", "x86_64"],
+                "abis": ["arm64-v8a", "armeabi-v7a", "x86_64"],
                 "entries": manifest_entries,
             },
             ensure_ascii=False,

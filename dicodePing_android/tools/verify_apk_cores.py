@@ -8,7 +8,9 @@ import zipfile
 from pathlib import Path
 
 REQUIRED = ("libgojni.so", "libaether.so", "libusque.so")
-ABIS = {"arm64-v8a": 183, "x86_64": 62}
+# v2.0.5: universal APK now includes armeabi-v7a so it installs on older
+# 32-bit ARM devices. ELF machine codes: arm64=183, armv7=40, x86_64=62.
+ABIS = {"arm64-v8a": 183, "armeabi-v7a": 40, "x86_64": 62}
 MANIFEST = "assets/bundled_cores.json"
 
 
@@ -65,8 +67,8 @@ def main() -> int:
                     f"elfMachine={machine}"
                 )
 
-        if any(name.startswith("lib/armeabi-v7a/") or name.startswith("lib/x86/") for name in names):
-            raise SystemExit("Unexpected 32-bit native libraries are present in the public APK")
+        if any(name.startswith("lib/x86/") for name in names):
+            raise SystemExit("Unexpected 32-bit Intel (x86) native libraries are present in the public APK")
 
         print(f"Bundled native core payload: {total / 1024 / 1024:.1f} MiB")
         print(f"Verified APK: {apk} ({apk.stat().st_size / 1024 / 1024:.1f} MiB)")

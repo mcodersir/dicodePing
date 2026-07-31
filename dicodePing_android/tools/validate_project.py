@@ -65,10 +65,10 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "2.0.4"' not in build_file:
-    errors.append("versionName must be 2.0.4 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.4\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 2.0.4 for this release")
+if 'versionName = "2.0.5"' not in build_file:
+    errors.append("versionName must be 2.0.5 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.5\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 2.0.5 for this release")
 
 
 if 'android:extractNativeLibs=' in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
@@ -86,10 +86,10 @@ if "com.android.tools.build:gradle:8.10.1" not in root_build:
     errors.append("AGP 8.10.1 is required for supported API 36 builds")
 if "gradle-8.11.1-bin.zip" not in wrapper:
     errors.append("Gradle 8.11.1 is required by AGP 8.10.x")
-if not re.search(r"^\s*versionCode\s*=\s*60\s*$", build_file, re.MULTILINE):
-    errors.append("Android 2.0.4 Stable versionCode must be 60")
-if 'setOf("arm64-v8a", "x86_64")' not in build_file:
-    errors.append("Android public packages must be limited to 64-bit ABIs")
+if not re.search(r"^\s*versionCode\s*=\s*61\s*$", build_file, re.MULTILINE):
+    errors.append("Android 2.0.5 Stable versionCode must be 61")
+if 'setOf("arm64-v8a", "armeabi-v7a", "x86_64")' not in build_file:
+    errors.append("Android public packages must include arm64-v8a, armeabi-v7a and x86_64 ABIs")
 if "jniLibs.useLegacyPackaging = true" not in build_file:
     errors.append("Bundled executable helpers must be extracted into nativeLibraryDir")
 if '"**/libaether.so", "**/libusque.so"' not in build_file:
@@ -192,5 +192,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(base)} localized strings")
-print("Version is 2.0.4")
+print("Version is 2.0.5")
 print("Project structure is ready for Android build")
