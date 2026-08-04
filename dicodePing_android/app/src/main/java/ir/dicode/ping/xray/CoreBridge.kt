@@ -209,10 +209,11 @@ class CoreBridge(private val context: Context, private val status: (String) -> U
         val PROCESS_CORE_LOCK = OUTBOUND_PROBE_LOCK
         @Volatile var environmentReady = false
         val PROBE_URLS = listOf(
+            "http://captive.apple.com/hotspot-detect.html",
             "https://www.gstatic.com/generate_204",
             "https://cp.cloudflare.com/generate_204",
         )
-        const val BATCH_PROBE_URL = "https://www.gstatic.com/generate_204"
+        const val BATCH_PROBE_URL = "http://captive.apple.com/hotspot-detect.html"
         const val CORE_PREFS = "dicodeping_core"
         const val KEY_XUDP_BASE_KEY = "xudp_base_key_v1"
         const val CORE_START_TIMEOUT_MS = 4_000L

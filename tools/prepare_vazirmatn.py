@@ -20,7 +20,7 @@ WEIGHTS = ("Regular", "Medium", "Bold")
 
 
 def _download(url: str, timeout: float = 35.0, attempts: int = 4) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/2.0.0"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/2.0.6"})
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
@@ -98,10 +98,10 @@ def prepare(*, android: bool = False) -> list[Path]:
             weight = path.stem.rsplit("-", 1)[-1].lower()
             shutil.copy2(path, android_dir / f"vazirmatn_{weight}.ttf")
         family_xml = """<?xml version=\"1.0\" encoding=\"utf-8\"?>
-<font-family xmlns:android=\"http://schemas.android.com/apk/res/android\" xmlns:app=\"http://schemas.android.com/apk/res-auto\">
-    <font android:font=\"@font/vazirmatn_regular\" android:fontStyle=\"normal\" android:fontWeight=\"400\" app:font=\"@font/vazirmatn_regular\" app:fontStyle=\"normal\" app:fontWeight=\"400\" />
-    <font android:font=\"@font/vazirmatn_medium\" android:fontStyle=\"normal\" android:fontWeight=\"500\" app:font=\"@font/vazirmatn_medium\" app:fontStyle=\"normal\" app:fontWeight=\"500\" />
-    <font android:font=\"@font/vazirmatn_bold\" android:fontStyle=\"normal\" android:fontWeight=\"700\" app:font=\"@font/vazirmatn_bold\" app:fontStyle=\"normal\" app:fontWeight=\"700\" />
+<font-family xmlns:app=\"http://schemas.android.com/apk/res-auto\">
+    <font app:font=\"@font/vazirmatn_regular\" app:fontStyle=\"normal\" app:fontWeight=\"400\" />
+    <font app:font=\"@font/vazirmatn_medium\" app:fontStyle=\"normal\" app:fontWeight=\"500\" />
+    <font app:font=\"@font/vazirmatn_bold\" app:fontStyle=\"normal\" app:fontWeight=\"700\" />
 </font-family>
 """
         (android_dir / "vazirmatn.xml").write_text(family_xml, encoding="utf-8")

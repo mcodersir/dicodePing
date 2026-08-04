@@ -38,7 +38,13 @@ from .constants import (
 )
 from .diagnostics import diagnostics_enabled, get_logger
 from .i18n import tr
-from .net import install_direct_host_routes, remove_direct_host_routes, resolve_all_ips
+from .net import (
+    build_url_opener,
+    create_tls_context,
+    install_direct_host_routes,
+    remove_direct_host_routes,
+    resolve_all_ips,
+)
 from .protocols import build_xray_outbound, parse_endpoint
 from .resource_tuning import current_resource_profile
 from .core_runtime import PORT_REGISTRY, PROCESS_REGISTRY
@@ -308,7 +314,7 @@ def _download_file(url: str, target: Path, timeout: float = 90.0) -> None:
             "Cache-Control": "no-cache",
         },
     )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    opener = build_url_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(request, timeout=timeout) as response, partial.open("wb") as output:
             shutil.copyfileobj(response, output)
@@ -590,6 +596,7 @@ def _source_ip_for_endpoint(host: str, port: int) -> str:
 
 
 _DIRECT_TUN_ENDPOINTS = (
+    "http://captive.apple.com/hotspot-detect.html",
     "https://www.google.com/generate_204",
     "https://www.gstatic.com/generate_204",
     "https://cp.cloudflare.com/generate_204",
@@ -598,6 +605,7 @@ _DIRECT_TUN_ENDPOINTS = (
 )
 
 _SOCKS_VALIDATION_TARGETS = (
+    ("captive.apple.com", "/hotspot-detect.html", False),
     ("www.google.com", "/generate_204", True),
     ("www.gstatic.com", "/generate_204", True),
     ("cp.cloudflare.com", "/generate_204", True),
@@ -613,7 +621,7 @@ def _direct_tun_single_probe(url: str, timeout: float) -> int | None:
     blocking can make any single public URL fail while the TUN is carrying real
     application traffic.
     """
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    opener = build_url_opener(urllib.request.ProxyHandler({}))
     started = time.perf_counter()
     try:
         request = urllib.request.Request(
@@ -894,9 +902,9 @@ def _socks_http_probe(
 ) -> int | None:
     """Perform a real HTTP request through Xray's private SOCKS inbound.
 
-    HTTPS is preferred because some otherwise healthy servers or upstream
-    networks block plain port 80. Certificate verification is intentionally
-    disabled here: this is only a liveness/path probe, not a trust decision.
+    HTTPS fallbacks use the same verified, portable CA context as the rest of
+    the desktop application. A connectivity probe is still network input, so
+    it must validate both the certificate chain and the requested hostname.
     """
     started = time.perf_counter()
     target_port = 443 if use_tls else 80
@@ -907,9 +915,10 @@ def _socks_http_probe(
                 return None
             stream: socket.socket = raw_sock
             if use_tls:
-                context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
+                context = create_tls_context()
+                # Keep the SOCKS fallback subject to the same explicit TLS
+                # floor as all ordinary HTTPS traffic.
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
                 stream = context.wrap_socket(raw_sock, server_hostname=host)
                 stream.settimeout(timeout)
             request = (
@@ -958,6 +967,7 @@ def probe_outbound_delay(
         )
         ready_until = time.monotonic() + min(3.5, max(2.0, timeout))
         targets = (
+            ("captive.apple.com", "/hotspot-detect.html", False),
             ("www.gstatic.com", "/generate_204", True),
             ("cp.cloudflare.com", "/generate_204", True),
             ("www.cloudflare.com", "/cdn-cgi/trace", True),
@@ -1146,9 +1156,9 @@ class XrayManager:
         self.connected_port = int(endpoint_port or (endpoint.port if endpoint else 0) or 0)
         endpoint_ips = resolve_all_ips(self.connected_host) if self.connected_host else []
         self.connected_ip = endpoint_ips[0] if endpoint_ips else ""
-        outbound_bind_ip = _source_ip_for_endpoint(self.connected_host, self.connected_port)
-        # A precise host route is a second loop-prevention layer in addition to
-        # autoOutboundsInterface and sendThrough. It is removed on Disconnect.
+        # A precise host route complements Xray autoOutboundsInterface. Do not
+        # also set sendThrough here: binding an IPv4 source address breaks IPv6,
+        # interface failover and Wi-Fi changes on macOS/Linux.
         self._direct_routes = install_direct_host_routes(endpoint_ips, TUN_NAME, only_if_tun=False)
         _emit_progress_value(progress_value, 32)
 
@@ -1161,7 +1171,6 @@ class XrayManager:
                 api_port=self.api_port,
                 validation_socks_port=self.validation_socks_port,
                 secure_dns=secure_dns,
-                outbound_bind_ip=outbound_bind_ip,
             )
             tun_settings = config["inbounds"][0]["settings"]
             active_tun_name = str(tun_settings.get("name") or TUN_NAME)

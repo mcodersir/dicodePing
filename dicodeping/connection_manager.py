@@ -138,7 +138,7 @@ def _socks5_connect(port: int, host: str, target_port: int, timeout: float) -> s
 
 
 def _http_probe_through_socks(port: int, timeout: float = 5.0) -> int | None:
-    for host, path in (("www.gstatic.com", "/generate_204"), ("cp.cloudflare.com", "/generate_204")):
+    for host, path in (("captive.apple.com", "/hotspot-detect.html"), ("www.gstatic.com", "/generate_204"), ("cp.cloudflare.com", "/generate_204")):
         started = time.perf_counter()
         try:
             with _socks5_connect(port, host, 80, timeout) as sock:

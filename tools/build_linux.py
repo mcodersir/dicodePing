@@ -9,7 +9,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-APP_VERSION = "2.0.5"
+APP_VERSION = "2.0.6"
 APP_NAME = "dicodePing"
 
 
@@ -72,6 +72,8 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
         "PySide6.QtSvg",
         "--collect-submodules",
         "dicodeping",
+        "--collect-data",
+        "certifi",
         "--add-data",
         f"{assets}{separator}assets",
         "--add-binary",

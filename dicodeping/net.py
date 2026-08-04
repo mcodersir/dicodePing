@@ -8,6 +8,7 @@ import os
 import random
 import re
 import select
+import ssl
 import shutil
 import socket
 import struct
@@ -18,10 +19,42 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
+try:
+    import certifi
+except ImportError:  # pragma: no cover - source-only fallback
+    certifi = None
+
 from .constants import PING_ATTEMPTS, PING_TIMEOUT
 
 DownloadProgress = Callable[[int, int], None]
 MAX_TEXT_DOWNLOAD_BYTES = 16 * 1024 * 1024
+
+
+def create_tls_context() -> ssl.SSLContext:
+    """Return a verified TLS context that also works in frozen macOS apps.
+
+    Python normally uses the operating-system trust store. Frozen application
+    bundles can lose access to that store, so we augment it with certifi's
+    Mozilla CA bundle without ever disabling certificate verification.
+    """
+    context = ssl.create_default_context()
+    # Require TLS 1.2 or newer explicitly. Besides matching modern platform
+    # policy, this prevents clients from negotiating deprecated TLS 1.0/1.1.
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    if certifi is not None:
+        try:
+            context.load_verify_locations(cafile=certifi.where())
+        except (OSError, ssl.SSLError):
+            pass
+    return context
+
+
+def build_url_opener(*handlers: object) -> urllib.request.OpenerDirector:
+    """Build an opener with one explicit, verified HTTPS handler."""
+    return urllib.request.build_opener(
+        *handlers,
+        urllib.request.HTTPSHandler(context=create_tls_context()),
+    )
 
 
 
@@ -230,9 +263,9 @@ def fetch_text(
     # connection for networks where a stale proxy is configured.
     response = None
     proxy_error: Exception | None = None
-    openers = [urllib.request.build_opener(urllib.request.ProxyHandler({}))]
+    openers = [build_url_opener(urllib.request.ProxyHandler({}))]
     if allow_system_proxy:
-        openers.insert(0, urllib.request.build_opener())
+        openers.insert(0, build_url_opener())
     for opener in openers:
         try:
             response = opener.open(request, timeout=timeout)

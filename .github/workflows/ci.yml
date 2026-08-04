@@ -28,12 +28,16 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-build.txt
+      - name: Install minimal Qt Linux runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1
       - name: Install runtime dependencies
         run: python -m pip install -r requirements-build.txt
       - name: Verify synchronized version
         run: python tools/verify_version.py
-      - name: Validate 2.0.0 stable release invariants
-        run: python tools/validate_v200_stable.py
+      - name: Validate 2.0.6 stable invariants
+        run: python tools/validate_v206_stable.py
       - name: Compile Python
         run: python -m compileall -q app.py app_v200.py dicodeping shared tools tests
       - name: Unit tests

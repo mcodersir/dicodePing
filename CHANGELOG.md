@@ -1,3 +1,25 @@
+## 2.0.6 stable
+
+- Fixed the CodeQL security result by removing the unverified `ssl.CERT_NONE` SOCKS HTTPS probe; Xray liveness fallbacks now validate certificate chains and hostnames with the packaged CA bundle.
+- Failed GitHub checks now include their own title, summary, details, and annotations in `RELEASE_ERROR_v2.0.6.txt`, instead of only a generic link.
+- Fixed CodeQL Android resource linking by materializing the integrity-verified Vazirmatn Regular, Medium, and Bold TTF resources before Gradle runs; the font family is no longer allowed to reference missing files.
+- Fixed headless Linux CI by deferring PySide6 QtGui/EGL imports until UI patch installation.
+- Fixed CodeQL Android compilation so it does not require runtime Aether/Usque binaries, while real APK and release builds still build and verify all native helpers.
+- Added exact-SHA CI/CodeQL tracking, transient merge retry with state verification, failed-step log reporting, resumable release dispatch, and post-publication asset/commit verification.
+- The publisher opens the GitHub Release page only after the release is stable, Latest, commit-matched, and complete.
+- Preserved Git file modes during manifest staging.
+
+## 2.0.6 stable connectivity and concurrent ping/geo
+
+- Fixed the stable Windows publisher to stage only checksum-manifest files, preventing stale tests and old release helpers from dirty extracted folders from entering validation or commits.
+- Made Apple captive-portal detection the primary real connectivity probe with independent fallbacks.
+- Parallelized normal ping and geo enrichment on desktop and Android while sharing DNS results.
+- Added fast TCP prefiltering before expensive Xray probes and bounded process concurrency.
+- Fixed verified CA discovery in packaged macOS builds with bundled certifi data.
+- Prevented Android application/core traffic from looping into its own VPN.
+- Added robust cleanup and validation for obsolete downloadable-font certificate resources.
+- Published stable four-platform artifacts with versionCode 62 and universal Android ABIs.
+
 ## 2.0.5 stable universal Android APK (armeabi-v7a support)
 
 - Fixed Android APK showing as "incompatible" on 32-bit ARM devices (armeabi-v7a). Previously only arm64-v8a and x86_64 were packaged; now the APK is universal and includes armeabi-v7a too.
@@ -734,3 +756,5 @@
 - Changed the RC4 release workflow to `workflow_dispatch` only to prevent duplicate builds after source pushes.
 
 - Hotfix 4: deployment BAT now supports ephemeral classic-token authentication through a hidden prompt, validates repo access, configures Git HTTPS through GitHub CLI, and clears token variables on exit.
+
+- اعتبارسنجی نهایی PR اکنون Check Runها و commit statusها را مستقیماً برای SHA تغییرناپذیر همان Head از GitHub REST API می‌خواند؛ شکست قدیمیِ باقی‌مانده از force-push قبلی نمی‌تواند نتیجه Commit جدید را خراب کند، اما هر شکست واقعی روی SHA جاری همچنان انتشار را متوقف می‌کند.

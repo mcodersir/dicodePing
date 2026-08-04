@@ -12,6 +12,12 @@ val coreSha256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa3
 val coreAar = rootProject.file(
     "local-maven/ir/dicode/local/libv2ray/$coreVersion/libv2ray-$coreVersion.aar"
 )
+// CodeQL needs Kotlin/Java bytecode, not a runnable APK. Native runtime helpers
+// are still mandatory for every normal/debug/release build and can only be
+// skipped by the dedicated CodeQL workflow property below.
+val codeqlAnalysisBuild = providers.gradleProperty("dicodePing.codeql")
+    .map { it.equals("true", ignoreCase = true) }
+    .orElse(false)
 
 val releaseKeystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
 val releaseKeystorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
@@ -29,6 +35,10 @@ val verifyCore by tasks.registering {
     description = "Validates the manually installed Android connection core."
 
     doLast {
+        if (codeqlAnalysisBuild.get()) {
+            logger.lifecycle("CodeQL compilation: packaged native runtime verification is intentionally skipped.")
+            return@doLast
+        }
         if (!coreAar.isFile) {
             throw GradleException(
                 "Missing Android core. Download libv2ray.aar from " +
@@ -118,10 +128,10 @@ android {
         targetSdk = 36
         // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
         // RC10 used versionCode = 45; RC19 must be strictly greater.
-        versionCode = 61
+        versionCode = 62
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "2.0.5"
-        buildConfigField("String", "RELEASE_VERSION", "\"2.0.5\"")
+        versionName = "2.0.6"
+        buildConfigField("String", "RELEASE_VERSION", "\"2.0.6\"")
         multiDexEnabled = true
 
     }

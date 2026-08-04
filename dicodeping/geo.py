@@ -35,7 +35,15 @@ class GeoResolver:
         self.store = store
         self.cache = store.load_geo_cache()
 
-    def resolve_many(self, ips: list[str], callback: Callable[[int, int], None] | None = None, *, fast: bool = False, force_refresh: bool = False) -> dict[str, dict[str, str]]:
+    def resolve_many(
+        self,
+        ips: list[str],
+        callback: Callable[[int, int], None] | None = None,
+        *,
+        fast: bool = False,
+        force_refresh: bool = False,
+        result_callback: Callable[[str, dict[str, str]], None] | None = None,
+    ) -> dict[str, dict[str, str]]:
         unique = list(dict.fromkeys(ip for ip in ips if ip and ip != "dns"))
         missing = list(unique) if force_refresh else [ip for ip in unique if ip not in self.cache or not _fresh(self.cache.get(ip, {}))]
         total = len(missing)
@@ -62,6 +70,9 @@ class GeoResolver:
                             "_schema": GEO_CACHE_SCHEMA,
                         }
                     done += 1
+                    public_value = {key: item for key, item in self.cache.get(ip, {}).items() if not key.startswith("_")}
+                    if result_callback:
+                        result_callback(ip, public_value)
                     if callback:
                         callback(done, total)
             self.store.save_geo_cache(self.cache)
