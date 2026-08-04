@@ -104,6 +104,21 @@ def main() -> int:
     if re.search(r"\b[123]/3\b", strings):
         errors.append("Typography-fraction stage labels remain in English resources")
 
+    ping_probe = text("dicodePing_android/app/src/main/java/ir/dicode/ping/net/PingProbe.kt")
+    if "process.waitFor(ICMP_DEADLINE_MS, TimeUnit.MILLISECONDS)" in ping_probe:
+        errors.append("PingProbe still calls the API-26 Process.waitFor timeout overload")
+    if "private fun waitForExit" not in ping_probe or "process.exitValue()" not in ping_probe:
+        errors.append("PingProbe lost its API-24-compatible timeout polling")
+    if (
+        "process.destroyForcibly()" in ping_probe
+        and "Build.VERSION.SDK_INT >= Build.VERSION_CODES.O" not in ping_probe
+    ):
+        errors.append("PingProbe force-destroy is not gated to API 26 or newer")
+
+    localized_strings = text("dicodePing_android/app/src/main/res/values-fa/strings.xml")
+    if 'translatable="false"' in localized_strings:
+        errors.append("Persian resources duplicate non-translatable base constants")
+
     if not (RES / "xml/data_extraction_rules.xml").is_file() or not (RES / "xml/backup_rules.xml").is_file():
         errors.append("Backup/data extraction rules are incomplete")
 

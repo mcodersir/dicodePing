@@ -34,6 +34,8 @@ def main() -> int:
     core_bridge = read("dicodePing_android/app/src/main/java/ir/dicode/ping/xray/CoreBridge.kt")
     vpn_service = read("dicodePing_android/app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt")
     network_security = read("dicodePing_android/app/src/main/res/xml/network_security_config.xml")
+    ping_probe = read("dicodePing_android/app/src/main/java/ir/dicode/ping/net/PingProbe.kt")
+    localized_strings = read("dicodePing_android/app/src/main/res/values-fa/strings.xml")
 
     require(re.search(r'(?m)^VERSION = "2\.0\.6"$', constants) is not None,
             "VERSION must be 2.0.6", errors)
@@ -96,8 +98,13 @@ def main() -> int:
             "CodeQL-only native-runtime verification gate is missing", errors)
     require("-PdicodePing.codeql=true assembleDebug" in codeql_workflow,
             "CodeQL does not opt into its compile-only native-runtime gate", errors)
-    require("actions/setup-python@v6" in codeql_workflow and 'python-version: "3.12"' in codeql_workflow,
-            "CodeQL does not provision the pinned Python used for Android resource preparation", errors)
+    setup_python_is_pinned = (
+        re.search(r"uses:\s*actions/setup-python@v6", codeql_workflow) is not None
+        and re.search(r"python-version:\s*[\"']3\.12(?:\.\d+)?[\"']", codeql_workflow) is not None
+        and "assert sys.version_info[:2] == (3, 12)" in codeql_workflow
+    )
+    require(setup_python_is_pinned,
+            "CodeQL does not provision and verify the pinned Python used for Android resource preparation", errors)
     font_prepare_marker = "python tools/prepare_vazirmatn.py --android"
     gradle_build_marker = "-PdicodePing.codeql=true assembleDebug"
     require(font_prepare_marker in codeql_workflow,
@@ -122,6 +129,17 @@ def main() -> int:
             "Android ping/geo parallel pipeline is incomplete", errors)
     require("addAllowedApplication(packageName)" not in vpn_service and ".filter { it.isNotBlank() && it != packageName }" in vpn_service,
             "Android still routes the core into its own VPN", errors)
+
+    require("process.waitFor(ICMP_DEADLINE_MS, TimeUnit.MILLISECONDS)" not in ping_probe,
+            "Android ICMP timeout still calls the API-26 Process.waitFor overload", errors)
+    require("private fun waitForExit" in ping_probe and "process.exitValue()" in ping_probe,
+            "Android API-24-compatible process timeout polling is missing", errors)
+    require("process.destroy()" in ping_probe and
+            "Build.VERSION.SDK_INT >= Build.VERSION_CODES.O" in ping_probe and
+            "process.destroyForcibly()" in ping_probe,
+            "Android process cleanup is not safely gated for API 24-25", errors)
+    require('translatable="false"' not in localized_strings,
+            "Localized Persian resources duplicate non-translatable constants", errors)
 
     font_generator = read("tools/prepare_vazirmatn.py")
     require("xmlns:android" not in font_generator and "android:font=" not in font_generator,
