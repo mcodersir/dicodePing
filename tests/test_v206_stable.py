@@ -128,7 +128,8 @@ def test_codeql_materializes_real_bundled_android_fonts_before_gradle() -> None:
     prepare = "python tools/prepare_vazirmatn.py --android"
     build = "-PdicodePing.codeql=true assembleDebug"
     assert "actions/setup-python@v6" in workflow
-    assert 'python-version: "3.12"' in workflow
+    assert 'python-version: "3.12.11"' in workflow
+    assert 'assert sys.version_info[:2] == (3, 12)' in workflow
     assert prepare in workflow
     assert workflow.index(prepare) < workflow.index(build)
     assert 'file="dicodePing_android/app/src/main/res/font/vazirmatn_${font}.ttf"' in workflow

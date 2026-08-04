@@ -62,3 +62,33 @@ def test_apple_http_probe_is_allowed_only_for_its_domain() -> None:
     assert '<base-config cleartextTrafficPermitted="false">' in policy
     assert '<domain-config cleartextTrafficPermitted="true">' in policy
     assert '<domain includeSubdomains="false">captive.apple.com</domain>' in policy
+
+def test_ping_probe_timeout_is_compatible_with_android_api_24() -> None:
+    probe = text("dicodePing_android/app/src/main/java/ir/dicode/ping/net/PingProbe.kt")
+    assert "process.waitFor(ICMP_DEADLINE_MS, TimeUnit.MILLISECONDS)" not in probe
+    assert "private fun waitForExit" in probe
+    assert "process.exitValue()" in probe
+    assert "process.destroy()" in probe
+    assert "Build.VERSION.SDK_INT >= Build.VERSION_CODES.O" in probe
+    assert "process.destroyForcibly()" in probe
+    assert "@SuppressLint(\"NewApi\")" not in probe
+
+
+def test_persian_resources_do_not_duplicate_nontranslatable_constants() -> None:
+    localized = text("dicodePing_android/app/src/main/res/values-fa/strings.xml")
+    assert 'translatable="false"' not in localized
+    for name in (
+        "brand_name",
+        "brand_handle",
+        "brand_initial",
+        "status_dot_symbol",
+        "world_symbol",
+        "scanner_sub_name",
+    ):
+        assert f'name="{name}"' not in localized
+
+def test_android_project_validator_allows_base_nontranslatable_fallback() -> None:
+    validator = text("dicodePing_android/tools/validate_project.py")
+    assert "base_nontranslatable" in validator
+    assert "expected_fa = base - base_nontranslatable" in validator
+    assert "base-only-translatable" in validator

@@ -302,16 +302,9 @@
     <string name="resource_mode_help">حالت بهینه متناسب با توان گوشی CPU، رم و شبکه را تنظیم می‌کند. حالت حرفه‌ای هم‌زمانی بیشتری برای اسکن و تست دارد.</string>
     <string name="resource_mode_applies_next_run">حالت منابع از اجرای بعدی اعمال می‌شود</string>
     <string name="security_estimate">برآورد امنیت</string>
-
-    <string name="brand_name" translatable="false">dicodePing</string>
-    <string name="brand_handle" translatable="false">dicodeping</string>
-    <string name="brand_initial" translatable="false">D</string>
-    <string name="status_dot_symbol" translatable="false">●</string>
-    <string name="world_symbol" translatable="false">🌐</string>
     <string name="zero_bytes">۰ بایت</string>
     <string name="dash_placeholder">—</string>
     <string name="zero_value">۰</string>
-    <string name="scanner_sub_name" translatable="false">SUB</string>
     <string name="local_scanner_output">خروجی محلی اسکنر</string>
     <string name="integer_value">%1$d</string>
     <string name="location_latency_value">%1$s%2$s</string>

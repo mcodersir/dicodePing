@@ -38,7 +38,12 @@ jobs:
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.12.11"
+
+      - name: Verify pinned Python runtime
+        if: matrix.language == 'java-kotlin'
+        shell: bash
+        run: python -c "import sys; assert sys.version_info[:2] == (3, 12), sys.version"
 
       - name: Validate Gradle wrapper
         if: matrix.language == 'java-kotlin'

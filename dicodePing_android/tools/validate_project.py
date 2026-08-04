@@ -15,22 +15,31 @@ for path in xml_files:
     except Exception as exc:
         errors.append(f"{path.relative_to(ROOT)}: {exc}")
 
+base_strings_root = ET.parse(ROOT / "app/src/main/res/values/strings.xml").getroot()
 base = {
     node.attrib["name"]
-    for node in ET.parse(ROOT / "app/src/main/res/values/strings.xml").getroot()
+    for node in base_strings_root
     if node.tag == "string"
+}
+base_nontranslatable = {
+    node.attrib["name"]
+    for node in base_strings_root
+    if node.tag == "string" and node.attrib.get("translatable", "true").lower() == "false"
 }
 fa = {
     node.attrib["name"]
     for node in ET.parse(ROOT / "app/src/main/res/values-fa/strings.xml").getroot()
     if node.tag == "string"
 }
-if base != fa:
-    errors.append(f"String resource mismatch: base-only={sorted(base-fa)}, fa-only={sorted(fa-base)}")
+expected_fa = base - base_nontranslatable
+if expected_fa != fa:
+    errors.append(
+        f"String resource mismatch: base-only-translatable={sorted(expected_fa-fa)}, "
+        f"fa-only={sorted(fa-expected_fa)}"
+    )
 
 # Literal ASCII percent signs in non-format resources must opt out of Java Formatter parsing.
 # Android Lint otherwise treats text such as "30% sample" as an invalid format string.
-base_strings_root = ET.parse(ROOT / "app/src/main/res/values/strings.xml").getroot()
 for node in base_strings_root:
     if node.tag != "string":
         continue
@@ -191,6 +200,6 @@ if errors:
     sys.exit(1)
 
 print(f"Validated {len(xml_files)} XML files")
-print(f"Validated {len(base)} localized strings")
+print(f"Validated {len(fa)} localized strings; {len(base_nontranslatable)} base constants use locale fallback")
 print("Version is 2.0.6")
 print("Project structure is ready for Android build")

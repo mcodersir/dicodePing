@@ -1,5 +1,6 @@
 package ir.dicode.ping.net
 
+import android.os.Build
 import ir.dicode.ping.data.PingResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -45,8 +46,13 @@ object PingProbe {
         val process = ProcessBuilder(
             "/system/bin/ping", "-c", "1", "-W", "1", host,
         ).redirectErrorStream(true).start()
-        if (!process.waitFor(ICMP_DEADLINE_MS, TimeUnit.MILLISECONDS)) {
-            process.destroyForcibly()
+        if (!waitForExit(process, ICMP_DEADLINE_MS)) {
+            process.destroy()
+            if (!waitForExit(process, PROCESS_DESTROY_GRACE_MS) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ) {
+                process.destroyForcibly()
+            }
             return@runCatching null
         }
         val text = process.inputStream.bufferedReader().use { it.readText() }
@@ -58,7 +64,33 @@ object PingProbe {
             ?.roundToInt()
     }.getOrNull()
 
+    private fun waitForExit(process: Process, timeoutMs: Long): Boolean {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+        while (System.nanoTime() < deadline) {
+            try {
+                process.exitValue()
+                return true
+            } catch (_: IllegalThreadStateException) {
+                // Still running. Polling keeps the implementation compatible with API 24-25.
+            }
+            try {
+                Thread.sleep(PROCESS_POLL_INTERVAL_MS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return false
+            }
+        }
+        return try {
+            process.exitValue()
+            true
+        } catch (_: IllegalThreadStateException) {
+            false
+        }
+    }
+
     private const val DNS_TIMEOUT_MS = 1_500L
     private const val TCP_TIMEOUT_MS = 900
     private const val ICMP_DEADLINE_MS = 1_250L
+    private const val PROCESS_DESTROY_GRACE_MS = 150L
+    private const val PROCESS_POLL_INTERVAL_MS = 25L
 }
