@@ -223,6 +223,7 @@ class RefreshSubsetThread(TaskThread):
                 language=self.language,
                 ping_progress=lambda current, total: self.emit_scaled(0, 68, current, total),
                 geo_progress=lambda current, total: self.emit_scaled(68, 100, current, total),
+                record_progress=lambda record: self.record_updated.emit(record),
             )
             self.checkpoint()
             self.progress.emit(100, 100)

@@ -59,8 +59,13 @@ def main() -> int:
     for marker in ("app:fontWeight", "app:fontStyle", "app:font="):
         if marker not in family:
             errors.append(f"Vazirmatn support-library marker is missing: {marker}")
-    if (RES / "values/font_certs.xml").exists():
-        errors.append("Obsolete downloadable-font certificate resource is still present")
+    for certs in (RES / "values/font_certs.xml", RES / "values-v26/font_certs.xml"):
+        if certs.exists():
+            errors.append(f"Obsolete downloadable-font certificate resource is still present: {certs.relative_to(ROOT)}")
+    for family_file in (RES / "font").glob("*.xml"):
+        body = family_file.read_text(encoding="utf-8-sig", errors="ignore")
+        if "fontProvider" in body or "com_google_android_gms_fonts_certs" in body:
+            errors.append(f"Downloadable-font provider resource is still present: {family_file.relative_to(ROOT)}")
 
     volume = text("dicodePing_android/app/src/main/java/ir/dicode/ping/net/VolumeDetector.kt")
     if 'String.format(Locale.US, "%.1f GB"' not in volume:

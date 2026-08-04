@@ -91,13 +91,14 @@ class AppRepository private constructor(context: Context) {
             if (snapshot.isNotEmpty()) {
                 val sample = startupSample(snapshot)
                 AppLog.i("Repository", "Splash: quick-testing ${sample.size}/${snapshot.size} servers (30% per source)")
-                quickStartupProbe(sample)
-                // v2.0.3: resolve IP+location for the SAME sample inline so
-                // the main UI opens with flags visible. Previously this was
-                // deferred to finishStartupInBackground which only ran after
-                // openMain and was capped at 48 rows.
-                runCatching { locateServers(sample, mergeWithExisting = true) }
-                    .onFailure { AppLog.w("Repository", "Splash: inline geo failed", it) }
+                coroutineScope {
+                    val pingJob = async(Dispatchers.IO) { quickStartupProbe(sample) }
+                    val geoJob = async(Dispatchers.IO) {
+                        runCatching { locateServers(sample, mergeWithExisting = true) }
+                            .onFailure { AppLog.w("Repository", "Splash: inline geo failed", it) }
+                    }
+                    awaitAll(pingJob, geoJob)
+                }
             }
         }
     }
@@ -182,8 +183,7 @@ class AppRepository private constructor(context: Context) {
             refreshServersInternal()
             val snapshot = servers.value
             if (snapshot.isEmpty()) return@withLock
-            locateServers(snapshot, mergeWithExisting = true)
-            pingServers(servers.value)
+            locateAndPing(snapshot)
             rememberSourceRevisions()
         }
     }
@@ -308,9 +308,7 @@ class AppRepository private constructor(context: Context) {
             AppLog.i("Repository", "Real server test requested for ${servers.value.size} servers")
             scope.launch {
                 refreshMutex.withLock {
-                    val missingLocation = servers.value.filter { it.ip.isBlank() || it.countryCode.isBlank() }
-                    if (missingLocation.isNotEmpty()) locateServers(missingLocation, mergeWithExisting = true)
-                    pingServers(servers.value)
+                    locateAndPing(servers.value)
                 }
             }
         }
@@ -330,9 +328,7 @@ class AppRepository private constructor(context: Context) {
         AppLog.i("Repository", "Source-scoped ping requested for ${subset.size} servers (source=$sourceId)")
         scope.launch {
             refreshMutex.withLock {
-                val missingLocation = subset.filter { it.ip.isBlank() || it.countryCode.isBlank() }
-                if (missingLocation.isNotEmpty()) locateServers(missingLocation, mergeWithExisting = true)
-                pingServers(subset)
+                locateAndPing(subset)
             }
         }
     }
@@ -661,6 +657,16 @@ class AppRepository private constructor(context: Context) {
             }
         }
 
+    private suspend fun locateAndPing(input: List<ServerRecord>) = coroutineScope {
+        if (input.isEmpty()) return@coroutineScope
+        val geoRows = input.filter { it.ip.isBlank() || it.countryCode.isBlank() }
+        val pingJob = async(Dispatchers.IO) { pingServers(input) }
+        val geoJob = async(Dispatchers.IO) {
+            if (geoRows.isNotEmpty()) locateServers(geoRows, mergeWithExisting = true)
+        }
+        awaitAll(pingJob, geoJob)
+    }
+
     private suspend fun locateServerSnapshot(input: List<ServerRecord>, forceGeoRefresh: Boolean = false): List<ServerRecord> = coroutineScope {
         if (input.isEmpty()) return@coroutineScope emptyList()
         val sem = Semaphore(tuning.geoWorkers.coerceAtLeast(2))
@@ -763,7 +769,6 @@ class AppRepository private constructor(context: Context) {
     private suspend fun pingServers(input: List<ServerRecord>) = coroutineScope {
         if (input.isEmpty()) return@coroutineScope
         val inputIds = input.mapTo(HashSet()) { it.id }
-        // Emit testing state without reordering. Existing rows remain visible and selected.
         liveUpdateMutex.withLock {
             servers.value = servers.value.map { current ->
                 if (current.id in inputIds) current.copy(
@@ -774,69 +779,78 @@ class AppRepository private constructor(context: Context) {
         }
 
         try {
-            val done = AtomicInteger(0)
-            val requestedProbeWorkers = tuning.probeWorkers
-            val requestedRetryWorkers = tuning.retryWorkers
-            AppLog.i(
-                "Repository",
-                "Native Xray probes requested workers=$requestedProbeWorkers/$requestedRetryWorkers; serialized for libgojni safety",
-            )
             progress.value = ProgressState(true, "ping", 0, input.size, "Testing servers")
 
-            suspend fun runBatch(
-                batch: List<ServerRecord>,
-                concurrency: Int,
-                countProgress: Boolean,
-            ): List<ServerRecord> = coroutineScope {
-                val sem = Semaphore(concurrency)
+            // Phase A is genuinely parallel and immediately paints TCP latency.
+            // It also prevents dead endpoints from starting expensive JNI Xray probes.
+            val tcpRows = input.filter(::needsTcpPrecheck)
+            val tcpResults = parallelTcpProbe(
+                tcpRows,
+                NORMAL_TCP_PROBE_CONCURRENCY,
+                stopRequested = { false },
+                onProgress = { done, total ->
+                    progress.value = ProgressState(true, "ping_tcp", done, total.coerceAtLeast(1), "Fast TCP precheck")
+                },
+            ).associate { it.first.id to it.second }
+
+            val candidates = mutableListOf<ServerRecord>()
+            val rejected = mutableListOf<ServerRecord>()
+            input.forEach { server ->
+                val tcpMs = if (needsTcpPrecheck(server)) tcpResults[server.id] else null
+                val reachable = !needsTcpPrecheck(server) || tcpMs != null
+                val quick = server.copy(
+                    pingMs = tcpMs?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt(),
+                    pingKind = if (tcpMs != null) STARTUP_TCP_PING else "",
+                    healthy = tcpMs != null,
+                    testState = if (reachable) ServerRecord.TEST_RUNNING else ServerRecord.TEST_FAILED,
+                )
+                liveUpdateMutex.withLock {
+                    applyServerUpdates(listOf(quick), true, sort = false, persist = false)
+                }
+                if (reachable) candidates += quick else rejected += quick
+            }
+
+            val done = AtomicInteger(rejected.size)
+            progress.value = ProgressState(true, "ping_proxy", done.get(), input.size, "Verifying real proxy traffic")
+
+            suspend fun runNativeBatch(batch: List<ServerRecord>, countProgress: Boolean): List<ServerRecord> = coroutineScope {
                 batch.map { server ->
                     async(Dispatchers.IO) {
-                        sem.withPermit {
-                            // Match v2rayNG's real-ping path: quickly reject a dead
-                            // TCP endpoint, then ask the native Xray core to measure
-                            // actual HTTP traffic through this exact outbound.
-                            val reachable = !needsTcpPrecheck(server) || tcpReachable(server)
-                            val delay = if (reachable) runCatching {
-                                proxyProbe.measureOutboundDelay(
-                                    XrayConfigBuilder.build(
-                                        server.raw,
-                                        bufferSizeKiB = tuning.bufferSizeKiB,
-                                    )
+                        // AndroidLibXrayLite is process-serialized by CoreBridge,
+                        // so concurrency here remains one for crash safety.
+                        val delay = runCatching {
+                            proxyProbe.measureOutboundDelay(
+                                XrayConfigBuilder.build(
+                                    server.raw,
+                                    bufferSizeKiB = tuning.bufferSizeKiB,
                                 )
-                            }.getOrDefault(-1L) else -1L
-                            val pingMs = delay.takeIf { it in 1..60_000 }
-                                ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
-                            val updated = server.copy(
-                                pingMs = pingMs,
-                                pingKind = if (pingMs != null) REAL_PROXY_PING else "",
-                                healthy = pingMs != null,
-                                testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
                             )
-                            if (countProgress) {
-                                progress.value = ProgressState(
-                                    true, "ping", done.incrementAndGet(), input.size, server.name,
-                                )
-                            }
-                            liveUpdateMutex.withLock {
-                                applyServerUpdates(listOf(updated), true, sort = false, persist = false)
-                            }
-                            updated
+                        }.getOrDefault(-1L)
+                        val pingMs = delay.takeIf { it in 1..60_000 }
+                            ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
+                        val updated = server.copy(
+                            pingMs = pingMs,
+                            pingKind = if (pingMs != null) REAL_PROXY_PING else "",
+                            healthy = pingMs != null,
+                            testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                        )
+                        if (countProgress) {
+                            progress.value = ProgressState(
+                                true, "ping_proxy", done.incrementAndGet(), input.size, server.name,
+                            )
                         }
+                        liveUpdateMutex.withLock {
+                            applyServerUpdates(listOf(updated), true, sort = false, persist = false)
+                        }
+                        updated
                     }
                 }.awaitAll()
             }
 
-            val firstPass = runBatch(input, 1, countProgress = true)
+            val firstPass = runNativeBatch(candidates, countProgress = true)
             val failed = firstPass.filterNot { it.healthy }
             if (failed.isNotEmpty() && RETRY_FAILED_LIMIT > 0) {
-                val retryRows = failed.take(RETRY_FAILED_LIMIT)
-                val failedIds = retryRows.mapTo(HashSet()) { it.id }
-                liveUpdateMutex.withLock {
-                    servers.value = servers.value.map { current ->
-                        if (current.id in failedIds) current.copy(testState = ServerRecord.TEST_RUNNING) else current
-                    }
-                }
-                runBatch(retryRows, 1, countProgress = false)
+                runNativeBatch(failed.take(RETRY_FAILED_LIMIT), countProgress = false)
             }
             liveUpdateMutex.withLock {
                 servers.value = sortServers(servers.value)
@@ -847,9 +861,7 @@ class AppRepository private constructor(context: Context) {
                 servers.value = servers.value.map { current ->
                     if (current.testState == ServerRecord.TEST_RUNNING) {
                         current.copy(testState = ServerRecord.TEST_FAILED)
-                    } else {
-                        current
-                    }
+                    } else current
                 }
             }
             progress.value = ProgressState()
@@ -1103,6 +1115,7 @@ class AppRepository private constructor(context: Context) {
         private const val BACKGROUND_GEO_LIMIT = 48
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
+        private const val NORMAL_TCP_PROBE_CONCURRENCY = 20
         private const val MAX_SCANNER_SERVERS = 160
         private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 32
         private const val SCANNER_TCP_PREFILTER_WORKERS = 16

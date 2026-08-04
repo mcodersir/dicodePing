@@ -51,3 +51,14 @@ def test_typography_stage_labels_are_lint_safe() -> None:
     assert "1/3" not in strings
     assert "2/3" not in strings
     assert "3/3" not in strings
+
+
+def test_downloadable_font_certificates_are_not_shipped() -> None:
+    assert not (ROOT / "dicodePing_android/app/src/main/res/values/font_certs.xml").exists()
+    assert not (ROOT / "dicodePing_android/app/src/main/res/values-v26/font_certs.xml").exists()
+
+def test_apple_http_probe_is_allowed_only_for_its_domain() -> None:
+    policy = text("dicodePing_android/app/src/main/res/xml/network_security_config.xml")
+    assert '<base-config cleartextTrafficPermitted="false">' in policy
+    assert '<domain-config cleartextTrafficPermitted="true">' in policy
+    assert '<domain includeSubdomains="false">captive.apple.com</domain>' in policy

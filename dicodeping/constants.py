@@ -7,12 +7,12 @@ from pathlib import Path
 APP_ID = "ir.dicode.dicodePing"
 APP_NAME = "dicodePing"
 PRODUCT_NAME_FA = "dicodePing"
-VERSION = "2.0.5"
+VERSION = "2.0.6"
 # This is intentionally separate from the package version.  It lets release
 # candidates discover the next candidate without changing stable user-facing
 # version formatting.
 # Previous RC metadata retained for migration tests: RELEASE_VERSION = "1.8.0-rc.2"
-RELEASE_VERSION = "2.0.5"
+RELEASE_VERSION = "2.0.6"
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
 DEFAULT_SUBSCRIPTION_MIRRORS = (
@@ -27,7 +27,9 @@ XRAY_RELEASE_BASE = f"https://github.com/XTLS/Xray-core/releases/download/v{XRAY
 WINTUN_VERSION = "0.14.1"
 WINTUN_URL = f"https://www.wintun.net/builds/wintun-{WINTUN_VERSION}.zip"
 WINTUN_SHA256 = "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+CONNECTIVITY_TEST_URL = "http://captive.apple.com/hotspot-detect.html"
 HEALTH_URLS = (
+    CONNECTIVITY_TEST_URL,
     "http://www.gstatic.com/generate_204",
     "https://www.cloudflare.com/cdn-cgi/trace",
     "https://api.github.com/zen",

@@ -5,6 +5,11 @@ import shutil
 from pathlib import Path
 
 FONT_SUFFIXES = {".ttf", ".otf", ".woff", ".woff2"}
+LEGACY_ANDROID_FONT_RESOURCES = (
+    Path("dicodePing_android/app/src/main/res/values/font_certs.xml"),
+    Path("dicodePing_android/app/src/main/res/values-v26/font_certs.xml"),
+)
+
 GENERATED_NATIVE_FILES = {
     "core/xray.exe",
     "core/xray",
@@ -31,6 +36,20 @@ def clean(root: Path, *, clean_outputs: bool = True) -> list[Path]:
     if assets.is_dir():
         for path in assets.rglob("*"):
             if path.is_file() and path.suffix.lower() in FONT_SUFFIXES:
+                path.unlink(missing_ok=True)
+                removed.append(path)
+
+    for relative in LEGACY_ANDROID_FONT_RESOURCES:
+        path = root / relative
+        if path.is_file():
+            path.unlink(missing_ok=True)
+            removed.append(path)
+
+    android_font_dir = root / "dicodePing_android/app/src/main/res/font"
+    if android_font_dir.is_dir():
+        for path in android_font_dir.glob("*.xml"):
+            body = path.read_text(encoding="utf-8-sig", errors="ignore")
+            if "fontProvider" in body or "com_google_android_gms_fonts_certs" in body:
                 path.unlink(missing_ok=True)
                 removed.append(path)
 

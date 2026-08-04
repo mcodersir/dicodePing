@@ -34,6 +34,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Python for deterministic Android resource preparation
+        if: matrix.language == 'java-kotlin'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Validate Gradle wrapper
         if: matrix.language == 'java-kotlin'
         uses: gradle/actions/wrapper-validation@v6
@@ -59,12 +65,23 @@ jobs:
             "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar"
           echo "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352  $target" | sha256sum --check --strict
 
+      - name: Prepare pinned bundled Android fonts
+        if: matrix.language == 'java-kotlin'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/prepare_vazirmatn.py --android
+          for font in regular medium bold; do
+            file="dicodePing_android/app/src/main/res/font/vazirmatn_${font}.ttf"
+            test -s "$file"
+          done
+
       - name: Build Android for CodeQL
         if: matrix.language == 'java-kotlin'
         working-directory: dicodePing_android
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+          ./gradlew --no-daemon --stacktrace -PdicodePing.codeql=true assembleDebug
 
       - uses: github/codeql-action/analyze@v4

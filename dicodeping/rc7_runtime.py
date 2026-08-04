@@ -7,10 +7,6 @@ import socket
 import time
 from collections import defaultdict
 
-from PySide6.QtCore import QEvent, Qt
-from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import QBoxLayout, QHeaderView
-
 from . import net as net_module
 from . import service as service_module
 from . import xray as xray_module
@@ -41,20 +37,12 @@ def _probe(host: str, port: int, addresses: list[str], timeout: float) -> tuple[
     return min(choices, default=(None, addresses[0] if addresses else ""), key=lambda item: item[0] or 999_999)
 
 
-def _test_records(records: list[ServerRecord], settings: dict, callback=None, record_callback=None) -> list[ServerRecord]:
-    """Measure each saved configuration exactly once over TCP and Xray.
-
-    TCP is endpoint reachability only.  ``ping_ms`` is the end-to-end HTTP
-    latency through the exact Xray outbound and is the sole health/selection
-    signal.  Keeping these values separate prevents a responsive but unusable
-    port from being shown as a working proxy.
-    """
+def _resolve_record_ips(records: list[ServerRecord], record_callback=None) -> None:
+    """Resolve each host once and publish IPs before enrichment starts."""
     rows = [row for row in records if row.host and row.port]
-    if not rows:
-        return records
-
-    # Resolve once for display/location and for a deterministic TCP target.
     hosts = list(dict.fromkeys(row.host for row in rows))
+    if not hosts:
+        return
     address_results: dict[str, str] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(32, max(1, len(hosts)))) as resolver:
         futures = {resolver.submit(net_module.resolve_ipv4, host): host for host in hosts}
@@ -68,11 +56,35 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
         address = address_results.get(row.host, "")
         if address:
             row.ip = address
+            if record_callback:
+                record_callback(row)
 
-    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 3400, 1500, 7000)
-    xray_timeout = max(2.5, timeout_ms / 1000.0)
-    tcp_timeout = min(2.2, max(0.8, xray_timeout * 0.55))
-    concurrency = bounded_int(settings.get("test_concurrency"), 16, 4, 32)
+
+def _test_records(
+    records: list[ServerRecord],
+    settings: dict,
+    callback=None,
+    record_callback=None,
+    *,
+    resolve_ips: bool = True,
+) -> list[ServerRecord]:
+    """Measure saved configurations with a fast TCP gate and real Xray HTTP.
+
+    DNS is shared with geolocation, dead TCP endpoints never spawn an expensive
+    Xray process, and responsive rows are tested concurrently with bounded
+    workers.
+    """
+    rows = [row for row in records if row.host and row.port]
+    if not rows:
+        return records
+    if resolve_ips:
+        # DNS is delegated to _resolve_record_ips, which uses net_module.resolve_ipv4.
+        _resolve_record_ips(rows, record_callback=record_callback)
+
+    timeout_ms = bounded_int(settings.get("test_timeout_ms"), 2600, 1200, 7000)
+    xray_timeout = max(2.0, timeout_ms / 1000.0)
+    tcp_timeout = min(1.25, max(0.55, xray_timeout * 0.35))
+    concurrency = bounded_int(settings.get("test_concurrency"), 24, 4, 48)
 
     def measure(row: ServerRecord) -> tuple[int | None, int | None]:
         target = row.ip or row.host
@@ -81,7 +93,7 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
             with socket.create_connection((target, int(row.port)), timeout=tcp_timeout):
                 tcp_ms = max(1, int(round((time.perf_counter() - started) * 1000)))
         except OSError:
-            tcp_ms = None
+            return None, None
         try:
             xray_ms = xray_module.probe_outbound_delay(
                 blob_to_config(row.config_blob),
@@ -95,7 +107,6 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
     def apply_row(row: ServerRecord, tcp_ms: int | None, xray_ms: int | None) -> None:
         row.last_checked = service_module.utc_now()
         row.tcp_ms = tcp_ms
-        # Remove misleading legacy ICMP data from newly tested rows.
         row.icmp_ms = None
         if trusted_latency(xray_ms):
             row.ping_ms, row.status, row.failures = int(xray_ms), "online", 0
@@ -118,6 +129,59 @@ def _test_records(records: list[ServerRecord], settings: dict, callback=None, re
             if callback:
                 callback(done, len(rows))
     return records
+
+
+def _apply_geo(service, records, callback=None, record_callback=None):
+    """Resolve locations independently and stream each completed IP."""
+    rows_by_ip: dict[str, list[ServerRecord]] = defaultdict(list)
+    for row in records:
+        if row.ip and row.ip != "dns":
+            rows_by_ip[row.ip].append(row)
+    ips = list(rows_by_ip)
+
+    def apply_ip(ip: str, data: dict[str, str]) -> None:
+        for row in rows_by_ip.get(ip, []):
+            for field in ("country", "country_code", "region", "city", "isp", "asn", "geo_provider", "geo_confidence"):
+                value = data.get(field)
+                if value:
+                    setattr(row, field, str(value).upper() if field == "country_code" else str(value))
+            if record_callback:
+                record_callback(row)
+
+    located = service.geo.resolve_many(
+        ips,
+        callback=callback,
+        fast=True,
+        result_callback=apply_ip,
+    )
+    for ip, data in located.items():
+        apply_ip(ip, data)
+    return records
+
+
+def _enrich_records_parallel(
+    service,
+    records: list[ServerRecord],
+    settings: dict,
+    ping_callback=None,
+    geo_callback=None,
+    record_callback=None,
+) -> list[ServerRecord]:
+    """Run real proxy tests and geolocation at the same time."""
+    _resolve_record_ips(records, record_callback=record_callback)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        ping_future = pool.submit(
+            _test_records, records, settings, ping_callback, record_callback, resolve_ips=False
+        )
+        geo_future = pool.submit(
+            _apply_geo, service, records, None, record_callback
+        )
+        ping_future.result()
+        geo_future.result()
+    if geo_callback:
+        geo_callback(1, 1)
+    return records
+
 
 def _sample_records_by_source(records: list[ServerRecord], ratio: float = 0.30) -> list[ServerRecord]:
     """Return a deterministic per-subscription sample for splash probing.
@@ -142,20 +206,6 @@ def _sample_records_by_source(records: list[ServerRecord], ratio: float = 0.30) 
         sampled.extend(rows[:take])
     return sampled
 
-
-def _apply_geo(service, records, callback=None, record_callback=None):
-    # Looking up dead rows added dozens of slow public requests without adding
-    # useful information to the UI. Cached location stays intact on failures.
-    ips = geo_lookup_ips(records)
-    located = service.geo.resolve_many(ips, callback=callback)
-    for row in records:
-        data = located.get(row.ip, {})
-        for field in ("country", "country_code", "region", "city", "isp", "asn", "geo_provider", "geo_confidence"):
-            value = data.get(field)
-            if value:
-                setattr(row, field, str(value).upper() if field == "country_code" else str(value))
-        if record_callback:
-            record_callback(row)
 
 
 def _install_service_patch() -> None:
@@ -213,17 +263,11 @@ def _install_service_patch() -> None:
         )
         if kwargs.get("stage"):
             kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "testing_ping"))
-        _test_records(
+        _enrich_records_parallel(
+            self,
             probe_records,
             self.store.load_settings(),
             kwargs.get("ping_progress") or kwargs.get("progress"),
-            kwargs.get("record_progress"),
-        )
-        if kwargs.get("stage"):
-            kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "resolving_location"))
-        _apply_geo(
-            self,
-            probe_records,
             kwargs.get("geo_progress") or kwargs.get("progress"),
             kwargs.get("record_progress"),
         )
@@ -233,15 +277,11 @@ def _install_service_patch() -> None:
 
     def refresh(self, *args, **kwargs):
         records = self.store.load_servers()
-        _test_records(
+        _enrich_records_parallel(
+            self,
             records,
             self.store.load_settings(),
             kwargs.get("ping_progress") or kwargs.get("progress"),
-            kwargs.get("record_progress"),
-        )
-        _apply_geo(
-            self,
-            records,
             kwargs.get("geo_progress") or kwargs.get("progress"),
             kwargs.get("record_progress"),
         )
@@ -261,17 +301,29 @@ def _install_service_patch() -> None:
         sampled = _sample_records_by_source(records, ratio)
         if kwargs.get("stage"):
             kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "testing_ping"))
-        _test_records(
+        _enrich_records_parallel(
+            self,
             sampled,
             self.store.load_settings(),
             kwargs.get("ping_progress") or kwargs.get("progress"),
+            kwargs.get("geo_progress") or kwargs.get("progress"),
             kwargs.get("record_progress"),
         )
-        if kwargs.get("stage"):
-            kwargs["stage"](service_module.tr(kwargs.get("language", "fa"), "resolving_location"))
-        _apply_geo(
+        records.sort(key=service_module._sort_key)
+        self.store.save_servers(records)
+        return records
+
+    def refresh_subset(self, server_ids, *args, **kwargs):
+        target_ids = set(server_ids)
+        records = self.store.load_servers()
+        subset = [row for row in records if row.id in target_ids]
+        if not subset:
+            return records
+        _enrich_records_parallel(
             self,
-            sampled,
+            subset,
+            self.store.load_settings(),
+            kwargs.get("ping_progress") or kwargs.get("progress"),
             kwargs.get("geo_progress") or kwargs.get("progress"),
             kwargs.get("record_progress"),
         )
@@ -297,10 +349,19 @@ def _install_service_patch() -> None:
     service_module.ServerService.build_and_save = build
     service_module.ServerService.refresh_saved = refresh
     service_module.ServerService.refresh_sampled = refresh_sampled
+    service_module.ServerService.refresh_subset = refresh_subset
     service_module.ServerService.auto_candidates = auto_candidates
 
 
 def _install_ui_patch() -> None:
+    # Keep the network/runtime module importable on headless Linux CI hosts.
+    # QtGui loads EGL at import time on Linux, while the connectivity helpers
+    # above do not need any GUI classes. Import Qt only when UI patching is
+    # actually installed by the desktop application.
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QFontMetrics
+    from PySide6.QtWidgets import QBoxLayout, QHeaderView
+
     from .ui import AppDialog, MainWindow
 
     original_init = MainWindow.__init__

@@ -155,4 +155,3 @@ object VolumeDetector {
         return detectFromName(remark)
     }
 }
-

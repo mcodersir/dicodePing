@@ -90,37 +90,43 @@ def socks5_https_probe(
     proxy_host: str,
     proxy_port: int,
     *,
-    url: str = 'https://www.gstatic.com/generate_204',
+    url: str = 'http://captive.apple.com/hotspot-detect.html',
     timeout: float = 6.0,
     attempts: int = 2,
 ) -> ProbeResult:
     parts = urlsplit(url)
-    if parts.scheme != 'https' or not parts.hostname:
-        return ProbeResult(False, None, 'proxy-http', 'probe URL must be HTTPS')
+    if parts.scheme not in {'http', 'https'} or not parts.hostname:
+        return ProbeResult(False, None, 'proxy-http', 'probe URL must be HTTP or HTTPS')
     target_host = parts.hostname
-    target_port = parts.port or 443
+    use_tls = parts.scheme == 'https'
+    target_port = parts.port or (443 if use_tls else 80)
     path = parts.path or '/'
     if parts.query:
         path += '?' + parts.query
     values: list[float] = []
     last_error: str | None = None
     context = ssl.create_default_context()
+    # Python/OpenSSL defaults vary by runtime; pin the security floor so the
+    # probe can never negotiate deprecated TLS 1.0 or TLS 1.1.
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     for _ in range(max(1, attempts)):
         started = time.perf_counter()
         try:
             with socket.create_connection((proxy_host, int(proxy_port)), timeout=timeout) as raw:
                 raw.settimeout(timeout)
                 _socks5_connect(raw, target_host, target_port)
-                with context.wrap_socket(raw, server_hostname=target_host) as tls:
+                stream = context.wrap_socket(raw, server_hostname=target_host) if use_tls else raw
+                try:
                     request = (
                         f'GET {path} HTTP/1.1\r\nHost: {target_host}\r\n'
-                        'User-Agent: dicodePing-HealthProbe/1\r\n'
+                        'User-Agent: dicodePing-HealthProbe/2\r\n'
+                        'Accept: */*\r\n'
                         'Connection: close\r\n\r\n'
                     ).encode('ascii')
-                    tls.sendall(request)
+                    stream.sendall(request)
                     status_line = b''
                     while b'\r\n' not in status_line and len(status_line) < 4096:
-                        chunk = tls.recv(256)
+                        chunk = stream.recv(256)
                         if not chunk:
                             break
                         status_line += chunk
@@ -128,6 +134,9 @@ def socks5_https_probe(
                     fields = first.split()
                     if len(fields) < 2 or fields[1] not in {b'200', b'204'}:
                         raise ConnectionError(f'unexpected HTTP status: {first[:120]!r}')
+                finally:
+                    if stream is not raw:
+                        stream.close()
             values.append((time.perf_counter() - started) * 1000.0)
         except (OSError, ssl.SSLError, ValueError, ConnectionError) as exc:
             last_error = f'{type(exc).__name__}: {exc}'

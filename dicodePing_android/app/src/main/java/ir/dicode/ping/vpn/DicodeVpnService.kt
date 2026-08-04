@@ -188,19 +188,20 @@ class DicodeVpnService : VpnService() {
             when (perAppMode) {
                 "allowlist" -> {
                     // Only selected apps go through VPN.
-                    // The native core must always be allowed to prevent a routing loop.
+                    // The native core must always bypass the VPN to prevent a routing loop.
                     perAppPackages.asSequence()
                         .map(String::trim)
-                        .filter { it.isNotBlank() }
+                        .filter { it.isNotBlank() && it != packageName }
                         .distinct()
                         .forEach { appPackage ->
                             runCatching { builder.addAllowedApplication(appPackage) }
                                 .onFailure { AppLog.w("VPN", "Cannot allow app $appPackage: ${it.message}") }
                         }
-                    // Xray protects its sockets itself. External bundled cores must
-                    // stay outside the TUN to avoid a same-UID routing loop.
-                    if (coreId == "xray") runCatching { builder.addAllowedApplication(packageName) }
-                    AppLog.i("VPN", "Per-app VPN: allowlist mode with ${perAppPackages.size} apps")
+                    // Never add this package to the allowlist. Xray and the
+                    // external helpers run inside the application process; routing
+                    // their own outbound sockets back into the TUN creates a loop
+                    // and prevents connection establishment.
+                    AppLog.i("VPN", "Per-app VPN: allowlist mode with ${perAppPackages.size} apps; core process bypassed")
                 }
                 "denylist" -> {
                     // Selected apps bypass VPN.
