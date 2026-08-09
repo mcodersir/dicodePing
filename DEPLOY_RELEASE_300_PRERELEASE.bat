@@ -5,12 +5,12 @@ chcp 65001 >nul
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/mcodersir/dicodePing.git"
 set "BASE_BRANCH=main"
-set "RELEASE_BRANCH=release/v3.0.0-pre.1"
-set "TAG=v3.0.0-pre.1"
+set "RELEASE_BRANCH=release/v3.0.0-rc.1"
+set "TAG=v3.0.0-rc.1"
 set "WORKFLOW=release-v3.yml"
 rem Resolve the BAT directory to an absolute path without a trailing backslash.
 for %%I in ("%~dp0.") do set "SOURCE_DIR=%%~fI"
-set "STAGE_DIR=%TEMP%\dicodePing-v3.0.0-pre.1-release"
+set "STAGE_DIR=%TEMP%\dicodePing-v3.0.0-rc.1-release"
 set "PYTHON_CMD="
 set "PR_NUMBER="
 set "RUN_ID="
@@ -18,7 +18,7 @@ set "RELEASE_URL="
 
 cls
 echo ================================================================
-echo  dicodePing v3.0.0-pre.1 VERIFIED PRERELEASE PUBLISHER
+echo  dicodePing v3.0.0-rc.1 VERIFIED PRERELEASE PUBLISHER
 echo  (v2rayN stack migration + modern UI)
 echo ================================================================
 echo.
@@ -94,10 +94,10 @@ echo.
 echo [6/9] Creating or updating the pull request...
 for /f "delims=" %%N in ('gh pr list --repo "%REPO%" --head "%RELEASE_BRANCH%" --state open --json number --jq ".[0].number"') do set "PR_NUMBER=%%N"
 if not defined PR_NUMBER (
-  gh pr create --repo "%REPO%" --base "%BASE_BRANCH%" --head "%RELEASE_BRANCH%" --title "release: dicodePing v3.0.0-pre.1 v2rayN stack migration" --body-file "docs\releases\v3.0.0-pre.1.md" || goto :pr_failed
+  gh pr create --repo "%REPO%" --base "%BASE_BRANCH%" --head "%RELEASE_BRANCH%" --title "release: dicodePing v3.0.0-rc.1 v2rayN stack migration" --body-file "docs\releases\v3.0.0-rc.1.md" || goto :pr_failed
   for /f "delims=" %%N in ('gh pr list --repo "%REPO%" --head "%RELEASE_BRANCH%" --state open --json number --jq ".[0].number"') do set "PR_NUMBER=%%N"
 ) else (
-  gh pr edit !PR_NUMBER! --repo "%REPO%" --title "release: dicodePing v3.0.0-pre.1 v2rayN stack migration" --body-file "docs\releases\v3.0.0-pre.1.md" || goto :pr_failed
+  gh pr edit !PR_NUMBER! --repo "%REPO%" --title "release: dicodePing v3.0.0-rc.1 v2rayN stack migration" --body-file "docs\releases\v3.0.0-rc.1.md" || goto :pr_failed
 )
 if not defined PR_NUMBER goto :pr_failed
 echo [OK] Pull request #!PR_NUMBER! is ready.

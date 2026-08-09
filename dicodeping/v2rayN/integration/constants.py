@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 # Version metadata (Version 3 pre-release)
-VERSION = "3.0.0-pre.1"
-RELEASE_VERSION = "3.0.0-pre.1"
+VERSION = "3.0.0"
+RELEASE_VERSION = "3.0.0-rc.1"
 BUILD_TYPE = "pre-release"
 V2RAYN_VERSION = "7.24.5"
 

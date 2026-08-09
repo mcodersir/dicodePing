@@ -101,6 +101,18 @@ def main() -> int:
     # Create main window
     window = MainWindowV3()
 
+    # Auto-fetch subscription servers if list is empty
+    if not service.saved_records():
+        LOGGER.info("No saved servers found. Triggering background subscription auto-fetch...")
+        import threading
+        def _bg_fetch():
+            try:
+                service.build_and_save(DEFAULT_SUBSCRIPTION_URL)
+                LOGGER.info("Subscription auto-fetched successfully.")
+            except Exception as exc:
+                LOGGER.warning("Subscription auto-fetch failed: %s", exc)
+        threading.Thread(target=_bg_fetch, daemon=True).start()
+
     # Wire up the connection manager to the UI
     def on_connect():
         """Handle connect button click."""
