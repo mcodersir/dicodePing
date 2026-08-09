@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 
-APP_VERSION = "2.0.6"
+APP_VERSION = "3.0.0-pre.1"
 APP_NAME = "dicodePing"
 BUNDLE_ID = "ir.dicode.dicodePing"
 DMG_CREATE_ATTEMPTS = 6
@@ -180,7 +180,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
 
     core = root / "core"
     assets = root / "assets"
-    entrypoint = root / "app_v200.py"
+    entrypoint = root / "app_v3.py"
     font_files = [assets / "fonts" / f"Vazirmatn-{weight}.ttf" for weight in ("Regular", "Medium", "Bold")]
     required = [entrypoint, assets / "app.png", core / "xray", core / "aether", core / "usque"]
     required.extend(font_files)

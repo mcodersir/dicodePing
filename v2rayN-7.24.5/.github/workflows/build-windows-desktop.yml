@@ -1,0 +1,30 @@
+name: release Windows desktop (Avalonia UI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        required: false
+        type: string
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      target: windows
+
+  release-zip:
+    if: inputs.release_tag != ''
+    needs: build
+    uses: ./.github/workflows/package-zip.yml
+    with:
+      target: windows-desktop
+      release_tag: ${{ inputs.release_tag }}
+    secrets: inherit

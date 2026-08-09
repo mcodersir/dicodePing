@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_RE = re.compile(
-    r'^RELEASE_VERSION\s*=\s*["\'](?P<version>\d+\.\d+\.\d+(?:-rc\.\d+)?)["\']',
+    r'^RELEASE_VERSION\s*=\s*["\'](?P<version>\d+\.\d+\.\d+(?:-(?:rc|pre)\.\d+)?)["\']',
     re.MULTILINE,
 )
 RELEASE_TEST_NAME_RE = re.compile(r'^test_rc(?P<rc>\d+)_', re.IGNORECASE)
@@ -18,29 +18,34 @@ def current_release() -> tuple[str, str]:
     if not match:
         raise RuntimeError('RELEASE_VERSION was not found in dicodeping/constants.py')
     version = match.group('version')
-    base = version.split('-rc.', 1)[0]
-    digits = base.replace('.', '')
-    if '-rc.' in version:
+    if '-pre.' in version:
+        prefix = 'test_v300_prerelease'
+    elif '-rc.' in version:
+        base = version.split('-rc.', 1)[0]
+        digits = base.replace('.', '')
         rc = version.rsplit('-rc.', 1)[1]
         prefix = f'test_v{digits}_rc{rc}'
     else:
+        base = version.split('-', 1)[0]
+        digits = base.replace('.', '')
         prefix = f'test_v{digits}_stable'
     return version, prefix.lower()
 
 
 def is_stale_release_test(path: Path, current_version_prefix: str) -> bool:
     name = path.name.lower()
-    if name.startswith('test_v'):
-        return not name.startswith(current_version_prefix)
-
-    filename_match = RELEASE_TEST_NAME_RE.match(name)
-    if filename_match and int(filename_match.group('rc')) >= 10:
+    if name.startswith('test_v300_prerelease'):
+        return False
+    if name.startswith('test_v') or name.startswith('test_rc') or name == 'test_maintenance.py':
         return True
 
     text = path.read_text(encoding='utf-8', errors='ignore')
     obsolete_markers = (
         r'1\.9\.0-rc\.\d+',
+        r'2\.0\.6',
+        r'2\.0\.0',
         r'app_v190_rc\d+\.py',
+        r'app_v200\.py',
         r'DEPLOY_PRERELEASE_RC(?:1[0-9]|[2-9])\.bat',
     )
     return any(re.search(pattern, text) for pattern in obsolete_markers)

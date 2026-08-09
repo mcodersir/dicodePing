@@ -35,11 +35,11 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install -r requirements-build.txt
       - name: Verify synchronized version
-        run: python tools/verify_version.py
-      - name: Validate 2.0.6 stable invariants
-        run: python tools/validate_v206_stable.py
+        run: python tools/verify_version.py --tag v3.0.0-pre.1
+      - name: Validate v3.0.0 pre-release invariants
+        run: python tools/validate_v300_prerelease.py
       - name: Compile Python
-        run: python -m compileall -q app.py app_v200.py dicodeping shared tools tests
+        run: python -m compileall -q app_v3.py dicodeping tools tests
       - name: Unit tests
         run: python -m pytest -q
       - name: Security quality gate

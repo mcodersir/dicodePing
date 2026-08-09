@@ -1,0 +1,32 @@
+<Project>
+
+    <PropertyGroup>
+        <Version>7.24.5</Version>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <Nullable>annotations</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Authors>2dust</Authors>
+        <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
+        <Copyright>Copyright © 2017-$([System.DateTime]::UtcNow.Year) $(Authors)</Copyright>
+        <InvariantGlobalization>false</InvariantGlobalization>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugType>embedded</DebugType>
+        <EventSourceSupport>false</EventSourceSupport>
+        <StackTraceSupport>false</StackTraceSupport>
+        <MetricsSupport>false</MetricsSupport>
+        <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+        <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+        <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+
+        <UseSystemResourceKeys>true</UseSystemResourceKeys>
+        <PublishSingleFile>true</PublishSingleFile>
+        <PublishReadyToRun>false</PublishReadyToRun>
+    </PropertyGroup>
+</Project>

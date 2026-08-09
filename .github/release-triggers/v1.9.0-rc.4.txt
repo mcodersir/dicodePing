@@ -1,0 +1,4 @@
+tag=v1.9.0-rc.4
+mode=replace-existing-release
+requested_at_utc=template
+nonce=template

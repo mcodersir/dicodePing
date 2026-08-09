@@ -1,0 +1,302 @@
+@echo off
+setlocal EnableExtensions DisableDelayedExpansion
+chcp 65001 >nul
+title dicodePing 2.0.0 RC1 One-Click Release
+cd /d "%~dp0"
+
+set "REPO=mcodersir/dicodePing"
+set "REPO_URL=https://github.com/%REPO%.git"
+set "BRANCH=main"
+set "TAG=v2.0.0-rc.1"
+set "WORKFLOW=release.yml"
+set "DOCS_WORKFLOW=docs.yml"
+set "CURRENT_DEPLOY=DEPLOY_PRERELEASE_200_RC1.bat"
+set "COMMIT_MESSAGE=release: publish dicodePing 2.0.0 RC1 fonts scanner UI and pages"
+set "SOURCE_DIR=%CD%"
+set "STAGE_DIR=%TEMP%\dicodePing-deploy-v200-rc1-%RANDOM%%RANDOM%"
+set "WAIT_SCRIPT=%SOURCE_DIR%\tools\wait_for_github_release.ps1"
+set "PAGES_SCRIPT=%SOURCE_DIR%\tools\configure_github_pages.ps1"
+set "SIGNING_SCRIPT=%SOURCE_DIR%\tools\bootstrap_android_signing.ps1"
+set "RELEASE_TRIGGER_SCRIPT=%SOURCE_DIR%\tools\publish_release_trigger.ps1"
+set "HEAD_SHA="
+set "PYTHON_CMD="
+set "REMOTE_TAG_EXISTS="
+
+cls
+echo ================================================================
+echo  dicodePing 2.0.0 RC1 ONE-CLICK RELEASE
+echo  CLONE + VALIDATE + PRE-RELEASE + GITHUB PAGES
+echo ================================================================
+echo.
+echo Repository: %REPO%
+echo Branch:     %BRANCH%
+echo Tag:        %TAG%
+echo.
+echo This deployer creates a clean snapshot, validates every platform,
+echo pushes main, recreates the release tag, publishes all assets and
+echo deploys the responsive Persian download page.
+echo.
+echo Android signing secrets are created or restored automatically.
+echo The private backup remains in Documents\dicodePing-signing.
+echo.
+pause
+
+call :require_command git
+if errorlevel 1 goto :failed
+call :require_command robocopy
+if errorlevel 1 goto :failed
+call :require_command powershell
+if errorlevel 1 goto :failed
+call :ensure_gh
+if errorlevel 1 goto :failed
+call :find_python
+if errorlevel 1 goto :failed
+
+if not exist ".github\workflows\%WORKFLOW%" goto :missing_source
+if not exist ".github\workflows\%DOCS_WORKFLOW%" goto :missing_source
+if not exist "docs\releases\v2.0.0-rc.1.md" goto :missing_source
+if not exist "docs\site\index.html" goto :missing_source
+if not exist "app_v200_rc1.py" goto :missing_source
+if not exist "tests\test_v200_rc1.py" goto :missing_source
+if not exist "tools\validate_v200_rc1.py" goto :missing_source
+if not exist "%WAIT_SCRIPT%" goto :missing_source
+if not exist "%PAGES_SCRIPT%" goto :missing_source
+if not exist "%SIGNING_SCRIPT%" goto :missing_source
+if not exist "%RELEASE_TRIGGER_SCRIPT%" goto :missing_source
+
+echo.
+echo [SIGNING] Checking Android release-signing configuration...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SIGNING_SCRIPT%" -Repository "%REPO%"
+if errorlevel 1 (
+  echo [ERROR] Android signing bootstrap failed. Nothing was pushed.
+  goto :failed
+)
+
+echo.
+echo [1/10] Cloning %REPO_URL%...
+if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
+git -c credential.interactive=always clone --branch "%BRANCH%" --single-branch "%REPO_URL%" "%STAGE_DIR%"
+if errorlevel 1 (
+  echo [INFO] Clone failed. Refreshing GitHub authentication...
+  gh auth setup-git >nul 2>&1
+  git -c credential.interactive=always clone --branch "%BRANCH%" --single-branch "%REPO_URL%" "%STAGE_DIR%"
+  if errorlevel 1 goto :clone_failed
+)
+
+echo.
+echo [2/10] Reading existing release tag...
+pushd "%STAGE_DIR%"
+git ls-remote --exit-code --tags origin "refs/tags/%TAG%" >nul 2>&1
+if not errorlevel 1 set "REMOTE_TAG_EXISTS=1"
+popd
+if defined REMOTE_TAG_EXISTS (echo [INFO] Existing tag will be replaced.) else (echo [OK] No existing tag found.)
+
+echo.
+echo [3/10] Clearing the cloned working tree...
+pushd "%STAGE_DIR%"
+git reset --hard HEAD >nul
+if errorlevel 1 (popd & goto :git_failed)
+git clean -ffdqx >nul 2>&1
+git rm -r -f --ignore-unmatch . >nul
+if errorlevel 1 (popd & goto :git_failed)
+popd
+
+echo.
+echo [4/10] Copying the clean 2.0 RC1 source snapshot...
+robocopy "%SOURCE_DIR%" "%STAGE_DIR%" /E /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XJ ^
+ /XD ".git" ".venv" "venv" "build" "dist" "release" "release-assets" "downloaded-artifacts" "artifacts" ".pytest_cache" "__pycache__" ".gradle" ".idea" ".kotlin" ".cxx" ".externalNativeBuild" ^
+ /XF "*.jks" "*.keystore" "*.p12" "*.pfx" "*.pem" "*.key" "*.apk" "*.aab" "*.aar" "*.ttf" "*.otf" "local.properties" "*.log" "*.bak"
+if %ERRORLEVEL% GEQ 8 goto :copy_failed
+
+pushd "%STAGE_DIR%"
+echo.
+echo [5/10] Purging stale release files...
+call %PYTHON_CMD% tools\purge_stale_release_tests.py
+if errorlevel 1 (popd & goto :cleanup_failed)
+
+for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_*.bat" 2^>nul') do (
+  if /I not "%%F"=="%CURRENT_DEPLOY%" del /f /q "%%F" >nul 2>&1
+)
+for /f "delims=" %%F in ('dir /b /a-d "DEPLOY_PRERELEASE_*_README_FA.txt" 2^>nul') do del /f /q "%%F" >nul 2>&1
+for /f "delims=" %%F in ('dir /b /a-d "RC1*.md" 2^>nul') do del /f /q "%%F" >nul 2>&1
+if exist ".github\workflows\v1.9.0-rc.*-release.yml" del /f /q ".github\workflows\v1.9.0-rc.*-release.yml" >nul 2>&1
+if exist "dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt" del /f /q "dicodePing_android\app\src\main\java\ir\dicode\ping\vpn\AndroidTetheringController.kt" >nul 2>&1
+
+call %PYTHON_CMD% tools\purge_stale_release_tests.py --check
+if errorlevel 1 (popd & goto :cleanup_failed)
+if not exist "%CURRENT_DEPLOY%" (popd & goto :cleanup_failed)
+if not exist "tests\test_v200_rc1.py" (popd & goto :cleanup_failed)
+if not exist "app_v200_rc1.py" (popd & goto :cleanup_failed)
+findstr /C:"app_v200_rc1.py" "tools\build_windows.py" >nul || (popd & goto :cleanup_failed)
+findstr /C:"app_v200_rc1.py" "tools\build_linux.py" >nul || (popd & goto :cleanup_failed)
+findstr /C:"app_v200_rc1.py" "tools\build_macos.py" >nul || (popd & goto :cleanup_failed)
+findstr /C:"versionCode = 55" "dicodePing_android\app\build.gradle.kts" >nul || (popd & goto :cleanup_failed)
+findstr /C:"prepare_vazirmatn.py --android" "dicodePing_android\build_apk.sh" >nul || (popd & goto :cleanup_failed)
+findstr /C:"actions/upload-pages-artifact@v4" ".github\workflows\docs.yml" >nul || (popd & goto :cleanup_failed)
+echo [OK] Staged tree is clean.
+
+echo.
+echo [6/10] Running full local preflight...
+call %PYTHON_CMD% tools\prepare_build_workspace.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\verify_version.py --tag %TAG%
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_v200_rc1.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_android_gradle_kts.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\validate_android_source_references.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% dicodePing_android\tools\validate_project.py
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% -m compileall -q app.py app_v200_rc1.py dicodeping tools tests
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% -c "import pytest" >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] Installing pytest...
+  call %PYTHON_CMD% -m pip install --disable-pip-version-check "pytest==8.4.1"
+  if errorlevel 1 goto :validation_failed
+)
+call %PYTHON_CMD% -m pytest -q
+if errorlevel 1 goto :validation_failed
+call %PYTHON_CMD% tools\quality_gate.py
+if errorlevel 1 goto :validation_failed
+echo [OK] 2.0.0 RC1 preflight passed.
+
+git config --get user.name >nul 2>&1 || git config user.name "mcodersir"
+git config --get user.email >nul 2>&1 || git config user.email "mcodersir@users.noreply.github.com"
+git add -A
+if errorlevel 1 goto :git_failed
+git diff --cached --quiet
+if errorlevel 1 (git commit -m "%COMMIT_MESSAGE%") else (git commit --allow-empty -m "%COMMIT_MESSAGE%")
+if errorlevel 1 goto :git_failed
+for /f "delims=" %%H in ('git rev-parse HEAD') do set "HEAD_SHA=%%H"
+if not defined HEAD_SHA goto :git_failed
+
+echo.
+echo [7/10] Pushing commit %HEAD_SHA% to %BRANCH% with network retry...
+call :push_main_with_retry
+if errorlevel 1 goto :push_failed
+
+echo.
+echo [8/10] Creating tag %TAG% and triggering the pre-release through GitHub API...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%RELEASE_TRIGGER_SCRIPT%" -Repository "%REPO%" -Tag "%TAG%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%WORKFLOW%" -MaxAttempts 8
+if errorlevel 1 goto :release_failed
+popd
+
+echo.
+echo [9/10] Deploying the responsive GitHub Pages site...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PAGES_SCRIPT%" -Repository "%REPO%" -Branch "%BRANCH%" -CommitSha "%HEAD_SHA%" -WorkflowFile "%DOCS_WORKFLOW%" -TimeoutMinutes 30
+if errorlevel 1 echo [WARNING] Pages deployment failed or timed out. Release monitoring will continue.
+
+echo.
+echo [10/10] Waiting for all pre-release platform packages...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%WAIT_SCRIPT%" -Repository "%REPO%" -Tag "%TAG%" -WorkflowFile "%WORKFLOW%" -CommitSha "%HEAD_SHA%" -TimeoutMinutes 90
+if errorlevel 1 goto :wait_failed
+
+if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
+echo.
+echo ================================================================
+echo  SUCCESS: dicodePing 2.0.0 RC1 WAS PUBLISHED
+echo ================================================================
+echo https://github.com/%REPO%/releases/tag/%TAG%
+echo https://github.com/%REPO%/actions
+start "" "https://github.com/%REPO%/releases/tag/%TAG%"
+pause
+exit /b 0
+
+
+:push_main_with_retry
+for /L %%A in (1,1,8) do (
+  git push origin "HEAD:%BRANCH%"
+  if not errorlevel 1 exit /b 0
+  echo [WARNING] Push to main failed on attempt %%A/8.
+  gh auth setup-git >nul 2>&1
+  if %%A LSS 8 (
+    echo [RETRY] Waiting 8 seconds before retrying...
+    timeout /t 8 /nobreak >nul
+  )
+)
+exit /b 1
+
+:require_command
+where %~1 >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Required command not found: %~1
+  exit /b 1
+)
+exit /b 0
+
+:ensure_gh
+where gh >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] GitHub CLI is missing. Installing through winget...
+  where winget >nul 2>&1 || exit /b 1
+  winget install --id GitHub.cli --exact --source winget --accept-package-agreements --accept-source-agreements
+  if errorlevel 1 exit /b 1
+  set "PATH=%PATH%;C:\Program Files\GitHub CLI"
+)
+gh auth status --hostname github.com >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] Sign in to GitHub in the browser...
+  gh auth login --hostname github.com --git-protocol https --web
+  if errorlevel 1 exit /b 1
+)
+gh auth setup-git >nul 2>&1
+if errorlevel 1 exit /b 1
+echo [OK] GitHub CLI authenticated.
+exit /b 0
+
+:find_python
+py -3 --version >nul 2>&1
+if not errorlevel 1 (
+  set "PYTHON_CMD=py -3"
+  echo [OK] Python found through the Windows launcher.
+  exit /b 0
+)
+python --version >nul 2>&1
+if not errorlevel 1 (
+  set "PYTHON_CMD=python"
+  echo [OK] Python found.
+  exit /b 0
+)
+echo [ERROR] Python 3 was not found.
+exit /b 1
+
+:missing_source
+echo [ERROR] The RC1 source package is incomplete. Extract the full ZIP into a new folder.
+goto :failed
+:clone_failed
+echo [ERROR] Repository clone failed.
+goto :failed
+:copy_failed
+echo [ERROR] Source copy failed.
+goto :failed
+:cleanup_failed
+echo [ERROR] Stale release cleanup or staged-tree verification failed.
+goto :failed
+:validation_failed
+popd
+echo [ERROR] Local validation failed. Nothing was tagged or released.
+goto :failed
+:git_failed
+popd
+echo [ERROR] Git staging or commit failed.
+goto :failed
+:push_failed
+popd
+echo [ERROR] Push to main failed.
+goto :failed
+:release_failed
+popd
+echo [ERROR] Tag or pre-release trigger failed after automatic retries.
+goto :failed
+:wait_failed
+echo [ERROR] GitHub Actions failed or required release assets were not published.
+goto :failed
+:failed
+if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%" >nul 2>&1
+echo.
+echo Deployment was not completed. Read the first error above.
+pause
+exit /b 1
