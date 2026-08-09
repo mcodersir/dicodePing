@@ -105,7 +105,7 @@ echo [OK] Pull request #!PR_NUMBER! is ready.
 echo.
 echo [7/9] Waiting for CI and merging the pull request...
 gh pr ready !PR_NUMBER! --repo "%REPO%" >nul 2>&1
-gh pr checks !PR_NUMBER! --repo "%REPO%" --watch --fail-fast || goto :checks_failed
+gh pr checks !PR_NUMBER! --repo "%REPO%" --watch || goto :checks_failed
 gh pr merge !PR_NUMBER! --repo "%REPO%" --squash --delete-branch || goto :merge_failed
 
 popd
