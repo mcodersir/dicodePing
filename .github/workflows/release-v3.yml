@@ -153,11 +153,8 @@ jobs:
             printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
           fi
 
-          chmod +x gradlew
-          ./gradlew assembleRelease || ./gradlew assembleDebug
-          
-          mkdir -p release
-          cp app/build/outputs/apk/standard/release/*.apk release/dicodePing-v3.0.0-pre.1-android.apk || cp app/build/outputs/apk/standard/debug/*.apk release/dicodePing-v3.0.0-pre.1-android.apk || true
+          chmod +x gradlew build_apk.sh
+          ./build_apk.sh
       - uses: actions/upload-artifact@v7
         with:
           name: android
