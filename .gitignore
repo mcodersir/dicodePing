@@ -82,4 +82,5 @@ dicodePing_android/app/src/main/res/font/vazirmatn_*.ttf
 
 # Local release publisher helpers (distributed in source packages only)
 DEPLOY_RELEASE_*.bat
+!DEPLOY_RELEASE_300_PRERELEASE.bat
 DEPLOY_RELEASE_*README*.txt

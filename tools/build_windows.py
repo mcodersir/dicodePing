@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_VERSION = "2.0.6"
+APP_VERSION = "3.0.0-pre.1"
 APP_NAME = "dicodePing"
 
 
@@ -43,7 +43,7 @@ def build(*, skip_install: bool = False, skip_core: bool = False) -> Path:
     print("[3/4] Building the legacy-style portable Windows executable...", flush=True)
     assets = root / "assets"
     core = root / "core"
-    entrypoint = root / "app_v200.py"
+    entrypoint = root / "app_v3.py"
     generated_spec_dir = root / "build" / "windows-spec"
     generated_spec_dir.mkdir(parents=True, exist_ok=True)
 

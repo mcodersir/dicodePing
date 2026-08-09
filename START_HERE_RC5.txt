@@ -1,0 +1,23 @@
+dicodePing 1.9.0 RC5
+
+برای Push، Build چندپلتفرمی و ساخت/به‌روزرسانی خودکار GitHub Pre-Release فقط اجرا کنید:
+
+  DEPLOY_PRERELEASE_RC5.bat
+
+ورود GitHub با Git Credential Manager انجام می‌شود و هیچ توکنی داخل پروژه ذخیره نشده است.
+
+خروجی‌های مورد انتظار:
+  dicodePing-v1.9.0-rc.5-windows-x64.exe
+  dicodePing-v1.9.0-rc.5-linux-x86_64.tar.gz
+  dicodePing-v1.9.0-rc.5-macos-arm64.dmg
+  dicodePing-v1.9.0-rc.5-macos-x86_64.dmg
+  dicodePing-v1.9.0-rc.5-android.apk
+
+ساخت محلی Windows:
+  BUILD_RELEASE_RC5.bat
+
+اجرای مستقیم سورس:
+  RUN_SOURCE_RC5.bat
+
+ساخت APK امضاشده:
+  BUILD_SIGNED_APK_RC5.bat

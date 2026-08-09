@@ -74,10 +74,10 @@ if missing_code_refs:
     errors.append(f"Missing R.string resources: {missing_code_refs}")
 
 build_file = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
-if 'versionName = "2.0.6"' not in build_file:
-    errors.append("versionName must be 2.0.6 for this release")
-if 'buildConfigField("String", "RELEASE_VERSION", "\\"2.0.6\\"")' not in build_file:
-    errors.append("RELEASE_VERSION must be 2.0.6 for this release")
+if 'versionName = "3.0.0-pre.1"' not in build_file and 'versionName = "3.0.0"' not in build_file:
+    errors.append("versionName must be 3.0.0-pre.1 or 3.0.0 for this release")
+if 'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.1\\"")' not in build_file and 'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0\\"")' not in build_file:
+    errors.append("RELEASE_VERSION must be 3.0.0-pre.1 or 3.0.0 for this release")
 
 
 if 'android:extractNativeLibs=' in (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8"):
@@ -201,5 +201,5 @@ if errors:
 
 print(f"Validated {len(xml_files)} XML files")
 print(f"Validated {len(fa)} localized strings; {len(base_nontranslatable)} base constants use locale fallback")
-print("Version is 2.0.6")
+print("Version is 3.0.0-pre.1")
 print("Project structure is ready for Android build")

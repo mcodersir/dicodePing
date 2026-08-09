@@ -1,0 +1,17 @@
+dicodePing v1.9.0-rc.13 source validation
+
+PASS  Python regression suite: 265 tests
+PASS  Quality gate: 0 errors, 0 warnings
+PASS  Package/release version consistency: 1.9.0rc13 / 1.9.0-rc.13
+PASS  Android Gradle Kotlin DSL preflight
+PASS  Android project validation: 55 XML files / 236 localized strings
+PASS  RC13 Xray loopback SOCKS scanner route guards
+PASS  DicodeConfigChecker-style full-channel crawl guard
+PASS  Workflow YAML parsing
+PASS  Shell syntax checks
+PASS  Embedded GitHub credential scan
+PASS  Source archive native/generated binary exclusion
+
+The signed APK, EXE, Linux archive and DMGs are built and smoke-tested by the
+v1.9.0-rc.13 GitHub Actions workflow. A real Android device scan was not run in
+this container.

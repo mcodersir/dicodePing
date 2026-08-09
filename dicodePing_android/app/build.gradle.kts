@@ -130,8 +130,8 @@ android {
         // RC10 used versionCode = 45; RC19 must be strictly greater.
         versionCode = 62
         // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "2.0.6"
-        buildConfigField("String", "RELEASE_VERSION", "\"2.0.6\"")
+        versionName = "3.0.0-pre.1"
+        buildConfigField("String", "RELEASE_VERSION", "\"3.0.0-pre.1\"")
         multiDexEnabled = true
 
     }

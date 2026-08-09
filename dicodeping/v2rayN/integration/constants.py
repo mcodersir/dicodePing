@@ -1,0 +1,92 @@
+"""v2rayN integration constants for dicodePing Version 3.
+
+All constants for the v2rayN-based networking stack integration layer.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+# Version metadata (Version 3 pre-release)
+VERSION = "3.0.0-pre.1"
+RELEASE_VERSION = "3.0.0-pre.1"
+BUILD_TYPE = "pre-release"
+V2RAYN_VERSION = "7.24.5"
+
+# v2rayN library paths
+BUNDLE_ROOT = Path(sys.argv[0] if getattr(sys, "frozen", False) else __file__).resolve().parents[4]
+V2RAYN_DIR = BUNDLE_ROOT / "v2rayN-7.24.5" / "v2rayN"
+V2RAYN_CORE_DIR = V2RAYN_DIR / "core"
+
+# App metadata
+APP_ID = "ir.dicode.dicodePing"
+APP_NAME = "dicodePing"
+PRODUCT_NAME_FA = "dicodePing"
+PRODUCT_NAME_EN = "dicodePing"
+VERSION_CODE = 62
+
+# Subscription source (unchanged from v2)
+DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
+DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"
+DEFAULT_SUBSCRIPTION_MIRRORS = (
+    DEFAULT_SUBSCRIPTION_URL,
+    "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/sub.txt?ref=main",
+    "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/sub.txt",
+    DEFAULT_SUBSCRIPTION_FALLBACK,
+    "https://fastly.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt",
+)
+
+# Core versions
+XRAY_VERSION = "26.7.11"
+XRAY_RELEASE_BASE = f"https://github.com/XTLS/Xray-core/releases/download/v{XRAY_VERSION}"
+WINTUN_VERSION = "0.14.1"
+WINTUN_URL = f"https://www.wintun.net/builds/wintun-{WINTUN_VERSION}.zip"
+WINTUN_SHA256 = "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51"
+
+# Connectivity checks
+CONNECTIVITY_TEST_URL = "http://captive.apple.com/hotspot-detect.html"
+HEALTH_URLS = (
+    CONNECTIVITY_TEST_URL,
+    "http://www.gstatic.com/generate_204",
+    "https://www.cloudflare.com/cdn-cgi/trace",
+    "https://api.github.com/zen",
+)
+
+# Ping settings
+PING_ATTEMPTS = 2
+PING_TIMEOUT = 1.25
+MAX_SAVED_SERVERS = 160
+MAX_DISCOVERY_CONFIGS = 800
+MAX_CUSTOM_SUBSCRIPTIONS = 20
+GEO_CACHE_TTL_DAYS = 7
+
+# Runtime paths
+IS_FROZEN = bool(getattr(sys, "frozen", False))
+APP_ROOT = Path(sys.executable).resolve().parent if IS_FROZEN else Path(__file__).resolve().parents[4]
+BUNDLE_ROOT = Path(getattr(sys, "_MEIPASS", APP_ROOT)).resolve() if IS_FROZEN else APP_ROOT
+ASSET_DIR = BUNDLE_ROOT / "assets"
+BUNDLED_CORE_DIR = BUNDLE_ROOT / "core"
+
+def user_data_dir() -> Path:
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    path = base / APP_NAME
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+DATA_DIR = user_data_dir()
+RUNTIME_DIR = DATA_DIR / "runtime"
+CACHE_DIR = DATA_DIR / "cache"
+CORE_DIR = DATA_DIR / "core"
+SERVERS_FILE = DATA_DIR / "servers.json"
+SETTINGS_FILE = DATA_DIR / "settings.json"
+GEO_CACHE_FILE = CACHE_DIR / "geo.json"
+PID_FILE = RUNTIME_DIR / "v2rayn-owned.json"
+LOG_FILE = DATA_DIR / "dicodePing-v3.log"
+TUN_NAME = "dicodePing-TUN-v3"
+
+for _path in (RUNTIME_DIR, CACHE_DIR, CORE_DIR):
+    _path.mkdir(parents=True, exist_ok=True)

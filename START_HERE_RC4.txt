@@ -1,0 +1,29 @@
+dicodePing 1.9.0 RC4 - Legacy Release Hotfix 2
+
+Windows EXE on your own Windows PC:
+  BUILD_RELEASE_RC4.bat
+
+Direct source run:
+  RUN_SOURCE_RC4.bat
+
+Signed Android APK only:
+  BUILD_SIGNED_APK_RC4.bat
+
+All public release outputs (Windows EXE, Linux tar.gz, macOS DMG, Android APK):
+  Push this source to GitHub and run:
+  .github/workflows/v1.9.0-rc.4-release.yml
+
+Expected assets:
+  dicodePing-v1.9.0-rc.4-windows-x64.exe
+  dicodePing-v1.9.0-rc.4-linux-x86_64.tar.gz
+  dicodePing-v1.9.0-rc.4-macos-arm64.dmg
+  dicodePing-v1.9.0-rc.4-macos-x86_64.dmg
+  dicodePing-v1.9.0-rc.4-android.apk
+
+انتشار کامل GitHub Pre-Release:
+DEPLOY_PRERELEASE_RC4.bat
+
+این فایل Push، اجرای GitHub Actions، انتظار تا پایان Build و بازکردن Release را خودکار انجام می‌دهد.
+
+TOKEN DEPLOY HOTFIX 4:
+DEPLOY_PRERELEASE_RC4.bat now accepts a classic GitHub token through a hidden prompt and keeps it only for the current process. Never hardcode tokens in source files.
