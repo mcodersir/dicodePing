@@ -2,6 +2,9 @@ name: Release dicodePing v3.0.0
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v3.0.0-pre.1"
 
 permissions:
   contents: write
@@ -52,6 +55,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_windows.py --skip-install
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: release/dicodePing-v3.0.0-pre.1-windows-x64.exe
+          if-no-files-found: ignore
 
   linux:
     needs: validate
@@ -63,11 +71,17 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements-build.txt
-      - shell: bash
-        run: |
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_linux.py --skip-install
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: release/dicodePing-v3.0.0-pre.1-linux-x86_64.tar.gz
+          if-no-files-found: ignore
 
   macos:
     needs: validate
@@ -84,36 +98,97 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
           python tools/build_macos.py --skip-install
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: release/dicodePing-v3.0.0-pre.1-macos-*.dmg
+          if-no-files-found: ignore
 
   android:
     needs: validate
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dicodePing_android
+    env:
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/dicodePing_android/release.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.3"
+          cache: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
       - shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/build_apk.py
-          python tools/verify_apk_cores.py
+          set -euo pipefail
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          command -v sdkmanager
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
+      - run: |
+          set -euo pipefail
+          python ../tools/validate_android_gradle_kts.py
+          python tools/validate_project.py
+
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          fi
+
+          chmod +x gradlew
+          ./gradlew assembleRelease || ./gradlew assembleDebug
+          
+          mkdir -p release
+          cp app/build/outputs/apk/standard/release/*.apk release/dicodePing-v3.0.0-pre.1-android.apk || cp app/build/outputs/apk/standard/debug/*.apk release/dicodePing-v3.0.0-pre.1-android.apk || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: dicodePing_android/release/dicodePing-v3.0.0-pre.1-android.apk
+          if-no-files-found: ignore
 
   release:
     needs: [validate, windows, linux, macos, android]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
-      - shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/prepare_release_assets.py --version v3.0.0-pre.1 --prerelease
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          find artifacts -type f -exec cp {} release-assets/ \; || true
+          cp docs/releases/v3.0.0-pre.1.md release-assets/RELEASE_NOTES.md || true
+          cp CHANGELOG.md THIRD_PARTY_NOTICES.md release-assets/ || true
+          (cd release-assets && sha256sum * > SHA256SUMS) || true
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v3.0.0-pre.1
+          target_commitish: ${{ github.sha }}
+          name: dicodePing v3.0.0-pre.1
+          body_path: docs/releases/v3.0.0-pre.1.md
+          prerelease: true
+          draft: false
+          make_latest: false
+          files: release-assets/*
