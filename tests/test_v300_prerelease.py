@@ -20,7 +20,7 @@ from dicodeping.constants import (
 def test_v300_version_metadata() -> None:
     """Verify Version 3 metadata is consistent across package files."""
     assert VERSION == "3.0.0"
-    assert RELEASE_VERSION == "3.0.0-pre.1"
+    assert RELEASE_VERSION == "3.0.0-rc.1"
     assert APP_NAME == "dicodePing"
     assert APP_ID == "ir.dicode.dicodePing"
 
@@ -68,16 +68,16 @@ def test_v300_modern_ui_classes() -> None:
 
 
 def test_v300_desktop_builders_metadata() -> None:
-    """Verify all desktop build scripts reference app_v3.py and version 3.0.0-pre.1."""
+    """Verify all desktop build scripts reference app_v3.py and version 3.0.0-rc.1."""
     for script_name in ("build_windows.py", "build_linux.py", "build_macos.py"):
         content = (ROOT / "tools" / script_name).read_text(encoding="utf-8")
-        assert 'APP_VERSION = "3.0.0-pre.1"' in content
+        assert 'APP_VERSION = "3.0.0-rc.1"' in content
         assert "app_v3.py" in content
 
 
 def test_v300_android_metadata() -> None:
-    """Verify Android Gradle configuration targets version 3.0.0-pre.1."""
+    """Verify Android Gradle configuration targets version 3.0.0-rc.1."""
     gradle_file = ROOT / "dicodePing_android" / "app" / "build.gradle.kts"
     content = gradle_file.read_text(encoding="utf-8")
-    assert 'versionName = "3.0.0-pre.1"' in content
-    assert 'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.1\\"")' in content
+    assert 'versionName = "3.0.0-rc.1"' in content
+    assert 'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-rc.1\\"")' in content
