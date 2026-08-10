@@ -71,7 +71,7 @@ class ServersFragment : Fragment() {
             render()
         }
         binding.refresh.setOnClickListener {
-            // v1.6.0-rc.4: source-scoped refresh.
+            // Source-scoped refresh.
             if (sourceId != "all") {
                 vm.repo.pingSource(sourceId)
             } else {
@@ -79,7 +79,7 @@ class ServersFragment : Fragment() {
             }
         }
         binding.pingAll.setOnClickListener {
-            // v1.6.0-rc.4: source-scoped ping.
+            // Source-scoped ping.
             if (sourceId != "all") {
                 vm.repo.pingSource(sourceId)
             } else {
@@ -204,11 +204,11 @@ class ServersFragment : Fragment() {
 
     /**
      * Refresh real volume info for every saved server in one shot
-     * (v1.6.0-rc.3).  Issues HEAD requests in parallel for every
+     * Issues HEAD requests in parallel for every
      * enabled subscription URL and parses the ``Subscription-Userinfo``
      * header.  Reports the count via Snackbar.
      *
-     * v1.6.0-rc.4: when a specific source chip is active (not "all"),
+     * When a specific source chip is active (not "all"),
      * only fetch volumes for that source's servers.
      */
     private fun startVolumeFetch() {
@@ -217,7 +217,7 @@ class ServersFragment : Fragment() {
             Snackbar.make(binding.root, R.string.no_server, Snackbar.LENGTH_SHORT).show()
             return
         }
-        // v1.6.0-rc.4: source-scoped volume fetch.
+        // Source-scoped volume fetch.
         val targetServers: List<ir.dicode.ping.data.ServerRecord>
         val sourceUrls: Map<String, String>
         if (sourceId != "all") {

@@ -1,2 +1,0 @@
-Release v0.1.2
-Final synchronized trigger after fixing Windows UTF-8 console encoding.

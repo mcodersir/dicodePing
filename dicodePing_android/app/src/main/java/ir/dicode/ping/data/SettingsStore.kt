@@ -9,7 +9,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 class SettingsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("dicodeping", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("dicodeping_v3", Context.MODE_PRIVATE)
 
     var language: String
         get() = prefs.getString("language", "fa") ?: "fa"
@@ -25,23 +25,13 @@ class SettingsStore(context: Context) {
     var connectionMode: String
         get() = prefs.getString("connection_mode", "auto") ?: "auto"
         set(value) = prefs.edit().putString("connection_mode", value).apply()
-    var activeCore: String
-        get() = prefs.getString("active_core", "xray") ?: "xray"
-        set(value) = prefs.edit().putString("active_core", value).apply()
-    var warpTermsAccepted: Boolean
-        get() = prefs.getBoolean("warp_terms_accepted", false)
-        set(value) = prefs.edit().putBoolean("warp_terms_accepted", value).apply()
     var selectedServerId: String
         get() = prefs.getString("selected_server", "") ?: ""
         set(value) = prefs.edit().putString("selected_server", value).apply()
     var bypassDomains: String
         get() = prefs.getString("bypass_domains", "") ?: ""
         set(value) = prefs.edit().putString("bypass_domains", value).apply()
-    var bypassApps: Set<String>
-        get() = prefs.getStringSet("bypass_apps", emptySet())?.toSet().orEmpty()
-        set(value) = prefs.edit().putStringSet("bypass_apps", value.toSet()).apply()
 
-    // v1.7.0-rc.2: per-app VPN settings.
     var perAppVpnMode: String
         get() = prefs.getString("per_app_vpn_mode", "disabled") ?: "disabled"
         set(value) = prefs.edit().putString("per_app_vpn_mode", value).apply()
@@ -49,7 +39,6 @@ class SettingsStore(context: Context) {
         get() = prefs.getStringSet("per_app_vpn_packages", emptySet())?.toSet().orEmpty()
         set(value) = prefs.edit().putStringSet("per_app_vpn_packages", value.toSet()).apply()
 
-    // v1.7.0-rc.2: VPN sharing settings.
     var vpnSharingUsb: Boolean
         get() = prefs.getBoolean("vpn_sharing_usb", false)
         set(value) = prefs.edit().putBoolean("vpn_sharing_usb", value).apply()
@@ -57,7 +46,6 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("vpn_sharing_hotspot", false)
         set(value) = prefs.edit().putBoolean("vpn_sharing_hotspot", value).apply()
 
-    // v1.7.0-rc.2: CDN formatting settings.
     var cdnFormattingEnabled: Boolean
         get() = prefs.getBoolean("cdn_formatting_enabled", false)
         set(value) = prefs.edit().putBoolean("cdn_formatting_enabled", value).apply()
@@ -104,9 +92,7 @@ class SettingsStore(context: Context) {
         }
 
         var repaired = false
-        // RC14 could persist an empty or malformed source URL. Repair the
-        // built-in source and discard unusable custom rows before any startup
-        // revision request reaches OkHttp.
+        // Keep the built-in source authoritative and discard unusable custom rows.
         val defaultIndex = list.indexOfFirst { it.isDefault || it.id == "default" }
         if (defaultIndex < 0) {
             list.add(0, defaultSource(language))
@@ -187,7 +173,7 @@ class SettingsStore(context: Context) {
 
     companion object {
         const val DEFAULT_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
-        // v2.0.4: jsdelivr CDN mirror so the first-launch splash can still
+        // jsdelivr CDN mirror so the first-launch splash can still
         // download the default subscription when raw.githubusercontent.com is
         // blocked or throttled. refreshServersInternal() tries the primary
         // URL first and falls back to this automatically.
@@ -204,7 +190,7 @@ class SettingsStore(context: Context) {
             true,
         )
 
-        /** v2.0.4: returns all fallback URLs for the default source, in order. */
+        /** returns all fallback URLs for the default source, in order. */
         fun defaultSourceUrls(): List<String> = listOf(DEFAULT_URL, DEFAULT_URL_FALLBACK, DEFAULT_URL_FALLBACK_2)
 
         fun isLocalScannerSource(source: SourceDefinition): Boolean =

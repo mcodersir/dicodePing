@@ -1,191 +1,193 @@
-name: Release dicodePing v3.0.0
+name: dicodePing V3 pre-release
 
 on:
-  workflow_dispatch:
   push:
     tags:
-      - "v3.0.0-rc.1"
+      - "v3.*-pre.*"
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-v3.0.0
+  group: release-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  DOTNET_VERSION: "10.0.x"
+  RELEASE_VERSION: "3.0.0-pre.1"
 
 jobs:
   validate:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
-      - name: Install minimal Qt Linux runtime
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Validate V3 source tree
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libegl1 libgl1
-      - run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/prepare_build_workspace.py
-          python tools/verify_version.py --tag v3.0.0-rc.1
-          python tools/validate_v300_prerelease.py
-          python tools/validate_android_gradle_kts.py
-          python tools/validate_android_source_references.py
-          python tools/validate_android_lint_hotfix.py
-          python -m pytest -q
-          python tools/quality_gate.py
+          python tools/validate_v3.py
+          python tools/validate_corehost_api_surface.py
           python dicodePing_android/tools/validate_project.py
+          python tools/validate_android_source_references.py
+          python tools/validate_android_release.py
+          python tools/validate_workflow_yaml.py
+          python -m pytest -q tests/test_release.py
+      - name: Compile CoreHost against vendored ServiceLib
+        run: dotnet build corehost/dicodePing.CoreHost.csproj -c Release
 
   windows:
     needs: validate
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
-      - shell: pwsh
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/build_windows.py --skip-install
-      - uses: actions/upload-artifact@v7
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-dotnet@v4
         with:
-          name: windows
-          path: release/dicodePing-v3.0.0-rc.1-windows-x64.exe
-          if-no-files-found: ignore
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: python -m pip install -r requirements-build.txt
+      - run: python tools/build_windows.py --skip-install
+      - run: python tools/smoke_corehost.py build/engine/win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: release/dicodePing-v3.0.0-pre.1-windows-x64.exe
+          if-no-files-found: error
 
   linux:
     needs: validate
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxcb-shape0
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/build_linux.py --skip-install
-      - uses: actions/upload-artifact@v7
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-dotnet@v4
         with:
-          name: linux
-          path: release/dicodePing-v3.0.0-rc.1-linux-x86_64.tar.gz
-          if-no-files-found: ignore
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: python -m pip install -r requirements-build.txt
+      - run: python tools/build_linux.py --skip-install
+      - run: python tools/smoke_corehost.py build/engine/linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: release/dicodePing-v3.0.0-pre.1-linux-x86_64.tar.gz
+          if-no-files-found: error
 
   macos:
     needs: validate
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            rid: osx-arm64
+          - runner: macos-15-intel
+            arch: x86_64
+            rid: osx-x64
+    runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-build.txt
-      - shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements-build.txt
-          python tools/build_macos.py --skip-install
-      - uses: actions/upload-artifact@v7
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-dotnet@v4
         with:
-          name: macos
-          path: release/dicodePing-v3.0.0-rc.1-macos-*.dmg
-          if-no-files-found: ignore
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - run: python -m pip install -r requirements-build.txt
+      - run: python tools/build_macos.py --skip-install
+      - name: Smoke-test CoreHost
+        run: python tools/smoke_corehost.py "build/engine/${{ matrix.rid }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: release/dicodePing-v3.0.0-pre.1-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
 
   android:
     needs: validate
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dicodePing_android
-    env:
-      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/dicodePing_android/release.jks
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - uses: actions/setup-python@v6
+      - name: Materialize Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "ANDROID_KEYSTORE_BASE64 is required" >&2; exit 1; }
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dicodeping-release.jks"
+      - name: Build signed universal APK
+        working-directory: dicodePing_android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dicodeping-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash build_apk.sh
+      - uses: actions/upload-artifact@v4
         with:
-          python-version: "3.12"
-      - uses: actions/setup-go@v6
+          name: android-universal
+          path: dicodePing_android/release/dicodePing-v3.0.0-pre.1-android.apk
+          if-no-files-found: error
+
+  prerelease:
+    needs: [windows, linux, macos, android]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          go-version: "1.26.3"
-          cache: false
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-      - shell: bash
+          path: release-assets
+          merge-multiple: true
+      - name: Validate tag and assets
+        shell: bash
+        run: |
+          test "$GITHUB_REF_NAME" = "v3.0.0-pre.1" || { echo "Expected tag v3.0.0-pre.1, got $GITHUB_REF_NAME" >&2; exit 1; }
+          test -f release-assets/dicodePing-v3.0.0-pre.1-windows-x64.exe
+          test -f release-assets/dicodePing-v3.0.0-pre.1-linux-x86_64.tar.gz
+          test -f release-assets/dicodePing-v3.0.0-pre.1-macos-arm64.dmg
+          test -f release-assets/dicodePing-v3.0.0-pre.1-macos-x86_64.dmg
+          test -f release-assets/dicodePing-v3.0.0-pre.1-android.apk
+          curl --fail --location --retry 4 --retry-all-errors \
+            --output release-assets/sing-box-1.13.12-source.tar.gz \
+            "https://github.com/SagerNet/sing-box/archive/refs/tags/v1.13.12.tar.gz"
+          cp THIRD_PARTY_NOTICES.md LICENSE release-assets/
+          (cd release-assets && sha256sum * > SHA256SUMS.txt)
+      - name: Create or refresh GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-          command -v sdkmanager
-          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-disabled: true
-      - run: |
-          set -euo pipefail
-          python ../tools/validate_android_gradle_kts.py
-          python tools/validate_project.py
-
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Refreshing existing pre-release $GITHUB_REF_NAME"
+            gh release edit "$GITHUB_REF_NAME" \
+              --prerelease \
+              --draft=false \
+              --verify-tag \
+              --title "dicodePing 3.0.0-pre.1" \
+              --notes-file docs/releases/v3.0.0-pre.1.md
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          else
+            echo "Creating pre-release $GITHUB_REF_NAME"
+            gh release create "$GITHUB_REF_NAME" release-assets/* \
+              --prerelease \
+              --verify-tag \
+              --title "dicodePing 3.0.0-pre.1" \
+              --notes-file docs/releases/v3.0.0-pre.1.md
           fi
-
-          chmod +x gradlew build_apk.sh
-          ./build_apk.sh
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android
-          path: dicodePing_android/release/dicodePing-v3.0.0-rc.1-android.apk
-          if-no-files-found: ignore
-
-  release:
-    needs: [validate, windows, linux, macos, android]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-      - run: |
-          set -euo pipefail
-          mkdir -p release-assets
-          find artifacts -type f -exec cp {} release-assets/ \; || true
-          cp docs/releases/v3.0.0-rc.1.md release-assets/RELEASE_NOTES.md || true
-          cp CHANGELOG.md THIRD_PARTY_NOTICES.md release-assets/ || true
-          (cd release-assets && sha256sum * > SHA256SUMS) || true
-      - uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v3.0.0-rc.1
-          target_commitish: ${{ github.sha }}
-          name: dicodePing v3.0.0-rc.1
-          body_path: docs/releases/v3.0.0-rc.1.md
-          prerelease: true
-          draft: false
-          make_latest: false
-          files: release-assets/*

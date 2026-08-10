@@ -115,17 +115,6 @@ data class GeoInfo(
 )
 
 
-/**
- * Compatibility result used by legacy PingProbe sources that may remain when
- * upgrading the project in-place. The active server health check uses the
- * Xray outbound HTTP probe in AppRepository/CoreBridge.
- */
-data class PingResult(
-    val delayMs: Int?,
-    val kind: String,
-    val ip: String,
-)
-
 data class ParsedNode(
     val raw: String,
     val protocol: String,

@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-// Legacy full-refresh hook retained as background-only policy: repo.refreshAllAndWait()
+// Startup refresh is background-only: repo.refreshAllAndWait()
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : ComponentActivity() {
     private lateinit var binding: ActivitySplashBinding
@@ -55,7 +55,7 @@ class SplashActivity : ComponentActivity() {
         lifecycleScope.launch {
             val startedAt = System.currentTimeMillis()
             val firstRun = SettingsStore(applicationContext).lastServerRefreshAt <= 0L
-            // v2.0.3: first run needs more time because it downloads sources,
+            // first run needs more time because it downloads sources,
             // pings a 30% sample, AND resolves geo inline before openMain.
             val budget = if (firstRun) FIRST_RUN_STARTUP_TIMEOUT_MS else STARTUP_PIPELINE_TIMEOUT_MS
             val startupCompleted = withTimeoutOrNull(budget) {
@@ -112,7 +112,7 @@ class SplashActivity : ComponentActivity() {
             "tcp_filter" -> getString(R.string.splash_testing_sample)
             "geo" -> getString(R.string.splash_resolving_locations)
             "update" -> getString(R.string.splash_checking_updates)
-            "cores" -> getString(R.string.splash_checking_cores)
+            "runtime" -> getString(R.string.splash_checking_runtime)
             else -> getString(R.string.splash_preparing)
         }
         binding.progress.isIndeterminate = state.total <= 0
@@ -134,7 +134,7 @@ class SplashActivity : ComponentActivity() {
 
     private companion object {
         const val STARTUP_PIPELINE_TIMEOUT_MS = 38_000L
-        // v2.0.3: first run downloads sources + pings 30% sample + resolves
+        // first run downloads sources + pings 30% sample + resolves
         // geo inline, so it needs a larger budget than a cached launch.
         const val FIRST_RUN_STARTUP_TIMEOUT_MS = 75_000L
         const val SOURCE_REVISION_TIMEOUT_MS = 1_500L

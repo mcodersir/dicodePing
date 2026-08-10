@@ -9,7 +9,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-@dataclass
+@dataclass(slots=True)
 class Endpoint:
     raw: str
     protocol: str
@@ -17,7 +17,7 @@ class Endpoint:
     port: int
 
 
-@dataclass
+@dataclass(slots=True)
 class SourceDefinition:
     id: str
     name: str
@@ -41,15 +41,7 @@ class SourceDefinition:
         )
 
 
-@dataclass
-class DiscoveredConfig:
-    raw: str
-    source_id: str
-    source_name: str
-    source_order: int = 0
-
-
-@dataclass
+@dataclass(slots=True)
 class ServerRecord:
     id: str
     name: str
@@ -57,22 +49,10 @@ class ServerRecord:
     host: str
     port: int
     config_blob: str
-    # RC19 stores two honest measurements for every desktop test:
-    # ``tcp_ms`` is one TCP handshake to the server endpoint and ``ping_ms`` is
-    # one end-to-end HTTP request through that exact Xray outbound.  The old
-    # ``icmp_ms`` field is retained only for backward-compatible JSON loading.
-    tcp_ms: int | None = None
+    core_profile_id: str = ""
+    network: str = ""
+    transport_security: str = ""
     ping_ms: int | None = None
-    icmp_ms: int | None = None
-    ip: str = ""
-    country: str = "نامشخص"
-    country_code: str = ""
-    region: str = ""
-    city: str = ""
-    isp: str = ""
-    asn: str = ""
-    geo_provider: str = ""
-    geo_confidence: str = ""
     source_id: str = "default"
     source_name: str = "منبع اصلی"
     source_order: int = 0
@@ -81,10 +61,6 @@ class ServerRecord:
     last_checked: str = ""
     last_connected: str = ""
     failures: int = 0
-    profile_tag: str = "unknown"
-    security_score: int = 0
-    security_level: str = "unknown"
-    security_summary: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -93,25 +69,15 @@ class ServerRecord:
     def from_dict(cls, data: dict[str, Any]) -> "ServerRecord":
         return cls(
             id=str(data.get("id") or ""),
-            name=str(data.get("name") or "سرور"),
+            name=str(data.get("name") or "Server"),
             protocol=str(data.get("protocol") or "UNKNOWN"),
             host=str(data.get("host") or ""),
             port=int(data.get("port") or 0),
             config_blob=str(data.get("config_blob") or ""),
-            tcp_ms=int(data["tcp_ms"]) if data.get("tcp_ms") is not None else (
-                int(data["icmp_ms"]) if data.get("icmp_ms") is not None else None
-            ),
+            core_profile_id=str(data.get("core_profile_id") or ""),
+            network=str(data.get("network") or ""),
+            transport_security=str(data.get("transport_security") or ""),
             ping_ms=int(data["ping_ms"]) if data.get("ping_ms") is not None else None,
-            icmp_ms=int(data["icmp_ms"]) if data.get("icmp_ms") is not None else None,
-            ip=str(data.get("ip") or ""),
-            country=str(data.get("country") or "نامشخص"),
-            country_code=str(data.get("country_code") or ""),
-            region=str(data.get("region") or ""),
-            city=str(data.get("city") or ""),
-            isp=str(data.get("isp") or ""),
-            asn=str(data.get("asn") or ""),
-            geo_provider=str(data.get("geo_provider") or ""),
-            geo_confidence=str(data.get("geo_confidence") or ""),
             source_id=str(data.get("source_id") or "default"),
             source_name=str(data.get("source_name") or "منبع اصلی"),
             source_order=int(data.get("source_order") or 0),
@@ -120,8 +86,4 @@ class ServerRecord:
             last_checked=str(data.get("last_checked") or ""),
             last_connected=str(data.get("last_connected") or ""),
             failures=int(data.get("failures") or 0),
-            profile_tag=str(data.get("profile_tag") or "unknown"),
-            security_score=int(data.get("security_score") or 0),
-            security_level=str(data.get("security_level") or "unknown"),
-            security_summary=str(data.get("security_summary") or ""),
         )

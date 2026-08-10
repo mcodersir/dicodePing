@@ -1,5 +1,5 @@
-# Canonical Telegram channel list mirrored from mcodersir/DicodeConfigChecker.
-# RC9 uses this complete list; private invite links and duplicates are ignored.
+# Canonical Telegram channel list mirrored from the project channel source.
+# Private invite links and duplicates are ignored.
 # Source: https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt
 
 Spotify_Porteghali
@@ -11,7 +11,6 @@ LonUp_M
 sorenab2
 ProxyDaemi
 iMTProto
-v2rayngvpn
 ConfigX2ray
 IraneAzad_Net
 prrofile_purple
@@ -63,7 +62,6 @@ configraygan
 configshere
 VpnQavi
 v2ray_dalghak
-v2rayng_fars
 saka_net
 config_npv
 Outline_vpn
@@ -92,7 +90,6 @@ filembad
 bored_vpn
 Surfboardv2ray
 outlineOpenKey
-GH_v2rayng
 mtproxy_lists
 v2raysvmess
 freewireguard
@@ -163,12 +160,10 @@ SwagMeli
 mitivpn
 Npv_Tnnel
 poroxybaz
-v2rayNG_Matsuri
 vmess_ir
 An0nymousTeam
 v2ray_cartel
 proxy_Shadowsocks
-V2rayng_Fast
 V2RFA
 Config_HATunnel
 vpn_naji
@@ -180,7 +175,6 @@ iP_CF
 DailyV2RY
 ZibaNabz
 vpn_ioss
-ConfigV2rayNG
 hi_proxi
 Myporoxy
 MTProxyStar
@@ -199,18 +193,14 @@ armodchannel
 keysOutline
 warpplus
 iSeqaro
-v2rayNGconfig
 IP_CF_Configs
-V2rayNG3
 VmessProtocol
 RED2RAY
 MIGAVPNPRO
-Configg_V2RayNG_Free
 teleking_vip
 VMESS_RAY
 tesllaproxy
 MR_PROXY_V2
-v2rayngvpn_1
 vpniiranam
 ariuna_config
 v2proxys
@@ -261,7 +251,6 @@ Free_HTTPCustom
 customv2ray
 melov2ray
 V2pedia
-FalconPolV2rayNG
 MsV2ray
 VlessConfig
 kingofilter
@@ -286,8 +275,6 @@ spdnet
 TunelProV2
 iran_v2ray1
 v2rayvpn2
-v2rayNgg_iran
-V2rayNG_account_free
 V2rayi_net
 IRANVPNNET
 VPNwedbaz
@@ -301,17 +288,14 @@ V2RAYROZ
 V2Graphy
 ViraV2ray
 fnet00
-vmess_vless_v2rayng
 moh3enivx
 nofiltering2
-V2rayNGX
 VPN_SOLVE
 Fr33C0nfig
 Freedomnetir
 IP_CF_Config
 hddify
 v2raytechadoo
-V2rayNg_madam
 persianvpnhub
 configmahsa
 V2SayFree

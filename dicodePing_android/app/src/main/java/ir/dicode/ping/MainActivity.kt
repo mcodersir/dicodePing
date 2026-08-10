@@ -28,7 +28,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import ir.dicode.ping.data.ServerRecord
 import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.data.SettingsStore
-import ir.dicode.ping.core.AndroidCoreManager
 import ir.dicode.ping.databinding.ActivityMainBinding
 import ir.dicode.ping.ui.AboutFragment
 import ir.dicode.ping.ui.HomeFragment
@@ -132,7 +131,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         bindNavigationItem(binding.navScanner!!, binding.navScannerIcon!!, R.id.nav_scanner)
         bindNavigationItem(binding.navSettings, binding.navSettingsIcon!!, R.id.nav_settings)
         bindNavigationItem(binding.navAbout, binding.navAboutIcon!!, R.id.nav_about)
-        applyCoreMode()
 
         val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
         pendingScannerStart = savedInstanceState?.getBoolean(KEY_PENDING_SCANNER, false) ?: false
@@ -296,10 +294,8 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         if (isFinishing || isDestroyed) return
         pendingScannerStart = true
         scannerLaunchScheduled = false
-        // The scanner uses the app-owned Xray connection so it can stop it
+        // The scanner uses the app-owned runtime connection so it can stop it
         // deterministically before probing the collected configs.
-        vm.repo.settings.activeCore = "xray"
-        applyCoreMode()
         showPage(R.id.nav_home)
         when (VpnStateStore.state.value.status) {
             VpnStatus.CONNECTED -> launchScannerAfterConnection()
@@ -352,33 +348,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun connect(server: ServerRecord?) {
-        val selectedCore = vm.repo.settings.activeCore
-        if (selectedCore != "xray") {
-            val capability = AndroidCoreManager(applicationContext).capability(selectedCore)
-            if (!capability.canConnect) {
-                MaterialAlertDialogBuilder(this)
-                    .setMessage(capability.reason)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-                return
-            }
-            // Aether and WARP are independent tunnels. A server card selected for
-            // Xray must never be mislabeled as the target of an external core.
-            val synthetic = ServerRecord(
-                id = "core:$selectedCore",
-                raw = "",
-                name = if (selectedCore == "warp") "WARP / Usque" else "Aether",
-                protocol = selectedCore.uppercase(),
-                host = "127.0.0.1",
-                port = if (selectedCore == "warp") 1820 else 1819,
-                sourceId = "bundled-core",
-                sourceName = "dicodePing",
-                healthy = true,
-            )
-            clearAutomaticQueue()
-            prepareAndStart(synthetic)
-            return
-        }
         // Startup ping refresh must never make the Connect button inert.  The
         // saved candidate pool is available immediately and each candidate is
         // still accepted only after DicodeVpnService passes a real HTTP probe.
@@ -424,11 +393,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     private fun prepareAndStart(candidate: ServerRecord) {
-        // Synthetic external-core targets are not saved as an Xray server choice.
-        // Otherwise switching back to manual Xray mode leaves a non-existent server selected.
-        if (!candidate.id.startsWith("core:")) {
-            vm.repo.selectServer(candidate.id, userInitiated = false)
-        }
+        vm.repo.selectServer(candidate.id, userInitiated = false)
         VpnStateStore.state.value = VpnState(
             status = VpnStatus.CONNECTING,
             serverId = candidate.id,
@@ -490,7 +455,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         val settings = vm.repo.settings
         val intent = Intent(applicationContext, DicodeVpnService::class.java)
             .putExtra(DicodeVpnService.EXTRA_CONFIG, server.raw)
-            .putExtra(DicodeVpnService.EXTRA_CORE_ID, settings.activeCore)
             .putExtra(DicodeVpnService.EXTRA_SERVER_ID, server.id)
             .putExtra(
                 DicodeVpnService.EXTRA_NAME,
@@ -500,11 +464,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
                 ),
             )
             .putExtra(DicodeVpnService.EXTRA_BYPASS_DOMAINS, settings.bypassDomains)
-            .putStringArrayListExtra(
-                DicodeVpnService.EXTRA_BYPASS_APPS,
-                ArrayList(settings.bypassApps),
-            )
-            // v1.7.0-rc.2: per-app VPN and VPN sharing extras.
+            // Per-app VPN and VPN sharing controls.
             .putExtra(DicodeVpnService.EXTRA_PER_APP_MODE, settings.perAppVpnMode)
             .putStringArrayListExtra(
                 DicodeVpnService.EXTRA_PER_APP_PACKAGES,
@@ -554,14 +514,6 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         showPage(R.id.nav_home)
     }
 
-    fun applyCoreMode() {
-        // Scanner and server management stay available for every bundled core.
-        // The scanner itself always requests Xray as its bootstrap transport.
-        listOf(binding.navServers, binding.navScanner).forEach { item ->
-            item?.isEnabled = true
-            item?.alpha = 1f
-        }
-    }
 
     companion object {
         private const val KEY_CURRENT_PAGE = "current_page"

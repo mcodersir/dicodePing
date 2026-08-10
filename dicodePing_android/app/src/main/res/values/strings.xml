@@ -1,14 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">dicodePing</string>
     <string name="brand_title">Open access</string>
     <string name="brand_subtitle">Fast access for developers and technology users</string>
-
     <string name="nav_home">Home</string>
     <string name="nav_servers">Servers</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_about">About</string>
-
     <string name="ready_to_connect">Ready to connect</string>
     <string name="connected">Connected</string>
     <string name="connecting">Connecting</string>
@@ -23,7 +21,6 @@
     <string name="servers_still_preparing">Please wait until server download and testing are complete.</string>
     <string name="connect_best">Connect automatically</string>
     <string name="percent_value">%1$d%%</string>
-
     <string name="refresh_servers">Refresh</string>
     <string name="ping_servers">Real test</string>
     <string name="saved_servers">Saved servers</string>
@@ -35,7 +32,6 @@
     <string name="session_upload">Uploaded</string>
     <string name="connected_ping">Connection ping</string>
     <string name="connection_overview">Connection overview</string>
-
     <string name="all_servers">All servers</string>
     <string name="servers_subtitle">Search, test and connect to available servers</string>
     <string name="search_servers">Search server name or location</string>
@@ -51,7 +47,6 @@
     <string name="home_connected_title">Connection is active</string>
     <string name="home_error_title">Connection could not be established</string>
     <string name="secure_server">Server details</string>
-
     <string name="settings_subtitle">Connection, routing, sources and appearance</string>
     <string name="settings_connection">Connection</string>
     <string name="settings_bypass">Routing</string>
@@ -71,7 +66,6 @@
     <string name="bypass_domains_help">Enter one domain per line. These domains use the direct route instead of the proxy.</string>
     <string name="save_bypass">Save direct-site rules</string>
     <string name="settings_saved">Settings saved</string>
-
     <string name="server_sources">Server sources</string>
     <string name="add_source">Add source</string>
     <string name="edit_source">Edit source</string>
@@ -79,14 +73,12 @@
     <string name="source_url">Subscription URL</string>
     <string name="save">Save</string>
     <string name="invalid_source">Enter a name and a valid HTTPS URL.</string>
-
     <string name="about_text">A lightweight client that provides a simple and fast connection path. It does not guarantee the security or privacy of third-party servers; use and server selection are the user’s responsibility.</string>
     <string name="developer">Developer</string>
     <string name="github">GitHub</string>
     <string name="telegram">Official software channel</string>
     <string name="version">Version</string>
     <string name="responsibility">Use of this software and imported subscriptions is the user\'s responsibility.</string>
-
     <string name="no_server_title">No selectable server</string>
     <string name="no_server_message">Refresh the server list or select a server in manual mode.</string>
     <string name="vpn_channel">Secure connection</string>
@@ -94,7 +86,7 @@
     <string name="vpn_establish_failed">Android could not create the connection.</string>
     <string name="core_unavailable">The connection core is missing from this build. Rebuild the app while connected to the internet.</string>
     <string name="vpn_permission_failed_title">Connection permission was not applied</string>
-    <string name="vpn_permission_failed_message">Android did not confirm access. On MIUI or HyperOS, remove the previous dicodePing connection permission, force-stop the app, open it again, and approve the Android system dialog.</string>
+    <string name="vpn_permission_failed_message">Android did not confirm access. On MIUI or HyperOS, remove the existing dicodePing connection permission, force-stop the app, open it again, and approve the Android system dialog.</string>
     <string name="move_up">Move up</string>
     <string name="move_down">Move down</string>
     <string name="delete_source">Delete source</string>
@@ -105,18 +97,12 @@
     <string name="connection_verified">Connection verified through the selected server</string>
     <string name="server_unreachable">The selected server started but could not pass a real internet test. Try another server.</string>
     <string name="connection_lost">The selected server stopped passing real internet traffic. Connect to another server.</string>
-
     <string name="splash_subtitle">Simple, fast and lightweight connection</string>
     <string name="splash_preparing">Preparing the app…</string>
     <string name="splash_updating_servers">Updating the server list…</string>
     <string name="splash_testing_servers">Checking server health…</string>
     <string name="splash_locating_servers">Completing server details…</string>
-
-    <string name="bypass_apps_title">Apps excluded from the connection</string>
-    <string name="bypass_apps_help">Selected apps use the original internet connection. Changes apply on the next connection.</string>
-    <string name="choose_bypass_apps">Choose apps</string>
     <string name="search_apps">Search apps</string>
-    <string name="bypass_apps_dialog_help">Select apps that should use the original internet connection.</string>
     <string name="bypass_app_toggle">Toggle app</string>
     <string name="no_apps_found">No app found</string>
     <string name="connect_selected_short">Connect</string>
@@ -139,13 +125,16 @@
     <string name="connect_target_server">Connect to this server</string>
     <string name="search_server">Search by server name or location</string>
     <string name="test_real">Real test</string>
-
     <string name="share_logs">Share diagnostic log</string>
     <string name="clear_logs">Clear log</string>
     <string name="logs_cleared">Diagnostic log cleared</string>
     <string name="diagnostic_logging">Enable diagnostic reporting (off by default)</string>
     <string name="secure_dns_doh">Secure DNS (DNS-over-HTTPS, inspired by Intra)</string>
     <string name="log_share_failed">Could not share the diagnostic log</string>
+    <string name="runtime_log_preview">Runtime log preview</string>
+    <string name="log_preview_empty">No diagnostic entries have been recorded yet. Enable diagnostic reporting in Settings to collect runtime logs.</string>
+    <string name="refresh_log_preview">Refresh log preview</string>
+    <string name="splash_checking_runtime">Checking network runtime…</string>
     <string name="server_change_locked">Disconnect before changing the server</string>
     <string name="server_disabled">Disabled</string>
     <string name="restricted_server_message">This server is disabled because its network location was detected as Iran.</string>
@@ -157,8 +146,6 @@
     <string name="update_later">Later</string>
     <string name="app_update_title">Version %1$s is available</string>
     <string name="app_update_message">Open the release download now?</string>
-
-    <!-- v1.6.0-rc.1: scanner / volume / quality -->
     <string name="nav_scanner">Scanner</string>
     <string name="scanner_title">Scanner</string>
     <string name="scanner_subtitle">One-click scan and ping of live servers</string>
@@ -198,25 +185,13 @@ Details: %1$s</string>
     <string name="scanner_preview_1">1. Connect to the best server</string>
     <string name="scanner_preview_2">2. Fetch and test configs</string>
     <string name="scanner_preview_3">3. Save the new subscription</string>
-    <string name="scanner_preview_4">Legacy hidden stage</string>
+    <string name="scanner_preview_4">Finalizing profiles</string>
     <string name="scanner_preview_hint">Just press \'Start scan\' once. The rest is automatic!</string>
     <string name="volume_fetch">Fetch volumes</string>
     <string name="volume_fetching">Fetching volumes…</string>
     <string name="volume_summary">%1$d volume-limited out of %2$d servers</string>
     <string name="volume_real_fetched">Real volume for all sources refreshed</string>
-    <!-- v1.7.0-rc.1: connection methods, VPN sharing, per-app VPN -->
-    <string name="conn_method_title">Connection method</string>
-    <string name="conn_method_xray">Xray (default)</string>
-    <string name="conn_method_psiphon">Psiphon</string>
-    <string name="conn_method_aether">Aether (Ironclad)</string>
-    <string name="conn_method_help">The default method uses the servers in your list. Alternative methods download a separate core and disable the Servers page.</string>
-    <string name="conn_method_download">Download core</string>
-    <string name="conn_method_downloading">Downloading core…</string>
-    <string name="conn_method_download_done">Core downloaded successfully</string>
-    <string name="conn_method_download_failed">Core download failed</string>
-    <string name="conn_method_active">Active</string>
-    <string name="conn_method_activate">Activate</string>
-    <string name="cdn_formatting_title">CDN formatting</string>
+<string name="cdn_formatting_title">CDN formatting</string>
     <string name="cdn_formatting_enabled">Use CDN to bypass filtering</string>
     <string name="cdn_formatting_domain">CDN domain</string>
     <string name="cdn_formatting_help">When enabled, the server host of each config is replaced with a CDN domain and the original host is used as SNI/Host.</string>
@@ -234,75 +209,42 @@ Details: %1$s</string>
     <string name="per_app_apps_count">%1$d apps selected</string>
     <string name="choose_per_app_apps">Choose apps</string>
     <string name="per_app_apps_dialog_help">Choose the apps included by the selected allowlist or denylist mode.</string>
-    <string name="core_ready">Downloaded and verified</string>
-    <string name="core_not_downloaded">Not downloaded</string>
-    <string name="core_unsupported_build">Unsupported in this build</string>
-    <string name="conn_method_warp">WARP / Usque</string>
-    <string name="psiphon_authorized_config_missing">Authorized Psiphon distribution configuration is unavailable in this build.</string>
-    <string name="core_select_first">Download and verify this core before activating it.</string>
-    <string name="core_xray_builtin">Xray is the built-in dicodePing core.</string>
-    <string name="core_opened">The selected connection core was opened.</string>
-    <string name="alternative_core_notice">Alternative core mode is active. Servers and Scanner are available again after selecting Xray.</string>
-    <string name="vpn_sharing_android_help">Android VPN sharing requires root or a system-privileged build. Unsupported devices keep this option off instead of reporting a false success.</string>
+<string name="vpn_sharing_android_help">Android VPN sharing requires root or a system-privileged build. Unsupported devices keep this option off instead of reporting a false success.</string>
     <string name="vpn_sharing_unavailable">VPN connected; sharing is unavailable because root/system privileges were not granted.</string>
     <string name="invalid_cdn_domain">Enter a valid hostname such as speed.cloudflare.com</string>
     <plurals name="scanner_servers_count">
         <item quantity="one">%d server available</item>
         <item quantity="other">%d servers available</item>
     </plurals>
-    <string name="core_activation_done">Connection core activated</string>
-    <string name="warp_terms_title">Activate Cloudflare WARP</string>
-    <string name="warp_terms_message">Usque must register a WARP device with Cloudflare. By continuing, you confirm that you accept Cloudflare terms for this registration.</string>
-    <string name="accept_and_activate">Accept and activate</string>
-    <string name="conn_method_preparing">Preparing bundled core…</string>
-    <string name="warp_registration_failed">WARP registration failed</string>
-    <string name="splash_testing_sample" formatted="false">Testing a 30% sample of servers…</string>
+<string name="accept_and_activate">Accept and activate</string>
+<string name="splash_testing_sample" formatted="false">Testing a 30% sample of servers…</string>
     <string name="splash_resolving_locations">Resolving server locations…</string>
     <string name="splash_checking_updates">Checking for updates…</string>
-    <string name="splash_checking_cores">Verifying bundled connection cores…</string>
-    <string name="scanner_tab_review">Review</string>
+<string name="scanner_tab_review">Review</string>
     <string name="scanner_tab_output">Output</string>
     <string name="scanner_log_empty">Scanner log will appear here.</string>
     <string name="scanner_disconnecting">Stopping bootstrap VPN…</string>
     <string name="scanner_saving">Saving verified SUB…</string>
     <string name="scanner_telegram_unreachable">Telegram could not be reached through the active VPN. Check the selected server configuration, internet access, and VPN permission, then try again.</string>
-    <string name="core_aether_bundled">Aether is bundled for this device architecture.</string>
-    <string name="core_aether_missing">Aether is not available for this device architecture.</string>
-    <string name="core_warp_bundled">WARP / Usque is bundled for this device architecture.</string>
-    <string name="core_warp_missing">WARP / Usque is not available for this device architecture.</string>
-    <string name="core_psiphon_authorization_missing">Psiphon needs an authorized distribution configuration and is disabled in this build.</string>
-    <string name="core_unknown">Unknown connection core.</string>
-    <string name="scanner_fetch_progress">Receiving configurations</string>
+<string name="scanner_fetch_progress">Receiving configurations</string>
     <string name="scanner_test_progress">Testing servers</string>
     <string name="scanner_fetch_progress_value">Receiving configurations • %1$d%%</string>
     <string name="scanner_test_progress_value">Testing servers • %1$d/%2$d • %3$d live</string>
     <string name="scanner_alive_short">live</string>
-
-    <string name="core_activation_guide_title">Core activated; connect from Home</string>
-    <string name="core_activation_guide_aether">Aether is active. Go to Home, tap Connect, and wait until the status becomes Connected. Aether first discovers a reachable route; the first connection can take a few minutes, and the app automatically tries HTTP/2 when needed.</string>
-    <string name="core_activation_guide_warp">WARP / Usque is active. Go to Home, tap Connect, and wait until the status becomes Connected. On the first connection the app registers a WARP device and then establishes the real tunnel; if QUIC fails, HTTP/2 is tried automatically.</string>
-    <string name="go_to_home">Go to Home</string>
+<string name="go_to_home">Go to Home</string>
     <string name="connected_core">Connected core</string>
     <string name="connecting_core">Connecting core</string>
-    <string name="selected_connection_core">Selected connection core</string>
-    <string name="aether_core_home_description">Independent Aether tunnel • does not use Xray servers</string>
-    <string name="warp_core_home_description">Cloudflare WARP tunnel through Usque • does not use Xray servers</string>
-    <string name="core_stage_preparing">Preparing %1$s…</string>
-    <string name="core_stage_registering_warp">Registering the WARP device for the first connection…</string>
+<string name="core_stage_preparing">Preparing %1$s…</string>
     <string name="core_stage_starting_primary">Starting %1$s with the primary transport…</string>
-    <string name="core_stage_starting_http2">Starting %1$s with HTTP/2 fallback…</string>
-    <string name="core_stage_waiting">%1$s is establishing the tunnel; please wait…</string>
+<string name="core_stage_waiting">%1$s is establishing the tunnel; please wait…</string>
     <string name="core_stage_proxy_ready">The %1$s local tunnel is ready; routing device traffic…</string>
-    <string name="core_stage_switching_http2">The primary transport did not pass traffic; trying HTTP/2 automatically…</string>
-    <string name="core_stage_verifying_real_traffic">Verifying real internet traffic through the selected core…</string>
-    <string name="external_core_connection_failed">The selected core started, but real internet traffic could not be verified. Check the network and try Connect again.</string>
-    <string name="resource_mode_title">Smart resource usage</string>
+<string name="core_stage_verifying_real_traffic">Verifying real internet traffic through the selected core…</string>
+<string name="resource_mode_title">Smart resource usage</string>
     <string name="resource_mode_optimized">Optimized (recommended)</string>
     <string name="resource_mode_professional">Professional</string>
     <string name="resource_mode_help">Optimized mode adapts CPU, memory and network use to the phone. Professional mode enables higher scanner and test concurrency.</string>
     <string name="resource_mode_applies_next_run">Resource mode applies on the next run</string>
     <string name="security_estimate">Security estimate</string>
-
     <string name="brand_name" translatable="false">dicodePing</string>
     <string name="brand_handle" translatable="false">dicodeping</string>
     <string name="brand_initial" translatable="false">D</string>

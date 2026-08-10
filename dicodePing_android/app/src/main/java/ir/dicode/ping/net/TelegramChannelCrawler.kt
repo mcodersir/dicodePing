@@ -35,7 +35,7 @@ object TelegramChannelCrawler {
     private const val MAX_PREVIEW_BYTES = 1_500_000L
 
     private val CONFIG_PATTERNS = listOf(
-        Pattern.compile("""\b(?:vmess|vless|trojan|ss)://[^\s<>"'`\\]+""", Pattern.CASE_INSENSITIVE),
+        Pattern.compile("""\b(?:vmess|vless|trojan|ss|hysteria2|hy2)://[^\s<>"'`\\]+""", Pattern.CASE_INSENSITIVE),
     )
     private val dispatcher = Dispatcher().apply {
         maxRequests = MAX_WORKERS

@@ -74,13 +74,13 @@ class AppRepository private constructor(context: Context) {
      * to user actions because the JNI implementation is process-serialized
      * and can keep a splash visible for several minutes on large subs.
      *
-     * v2.0.3: the sample is now geo-resolved inline (before openMain) instead
+     * the sample is now geo-resolved inline (before openMain) instead
      * of being deferred to finishStartupInBackground, so first-launch users
      * see flags immediately.
      */
     suspend fun initialize() = withContext(Dispatchers.IO) {
         refreshMutex.withLock {
-            progress.value = ProgressState(true, "cores", 0, 1, "Checking bundled cores")
+            progress.value = ProgressState(true, "runtime", 0, 1, "Checking network runtime")
             delay(40)
             val firstRun = settings.lastServerRefreshAt <= 0L && servers.value.isEmpty()
             if (firstRun || servers.value.isEmpty() || settings.isServerRefreshDue()) {
@@ -225,7 +225,7 @@ class AppRepository private constructor(context: Context) {
             enabled.mapIndexed { sourceIndex, source ->
                 async(Dispatchers.IO) {
                     downloadSem.withPermit {
-                        // v2.0.4: for the default source, try the primary URL
+                        // for the default source, try the primary URL
                         // first, then fall back to the jsdelivr CDN mirrors.
                         // This makes the first-launch splash robust against
                         // raw.githubusercontent.com being blocked.
@@ -335,7 +335,7 @@ class AppRepository private constructor(context: Context) {
 
     /**
      * Persist scanner output as a real source, then run location and native
-     * Xray HTTP probes on exactly those configs. Previous scanner results are
+     * Xray HTTP probes on exactly those configs. Scanner results are
      * replaced atomically so repeated scans do not grow storage indefinitely.
      */
     suspend fun importScannerConfigs(
@@ -377,7 +377,7 @@ class AppRepository private constructor(context: Context) {
                 if (parsed.isEmpty()) return@withLock emptyList()
                 // Fast parallel TCP filtering removes dead endpoints before the
                 // process-global native Xray probe. Native probes remain serial
-                // for JNI safety, but RC19 tests far fewer dead candidates.
+                // for JNI safety while keeping the candidate set bounded.
                 progress.value = ProgressState(true, "prefilter", 0, parsed.size, "Filtering reachable candidates")
                 val prefilterDone = AtomicInteger(0)
                 val prefilterSem = Semaphore(SCANNER_TCP_PREFILTER_WORKERS)
@@ -403,11 +403,11 @@ class AppRepository private constructor(context: Context) {
                 progress.value = ProgressState(true, "ping", 0, reachable.size, "Testing scanner candidates")
                 val healthy = mutableListOf<ServerRecord>()
 
-                // v2.0.2: real concurrency for Android.
+                // real concurrency for Android.
                 //
                 // libv2ray's measureOutboundDelay is process-global (see
                 // CoreBridge.OUTBOUND_PROBE_LOCK) so Xray HTTP probes cannot
-                // run in parallel. The previous v2.0.1 attempt bumped
+                // run in parallel. The bounded worker pool keeps
                 // SCANNER_PROBE_CONCURRENCY to 3 but the chunked-batch loop
                 // still serialized everything on that lock, so the user saw
                 // no improvement.
@@ -423,12 +423,12 @@ class AppRepository private constructor(context: Context) {
                 //     Sorted by TCP delay, we only probe up to
                 //     SCANNER_NATIVE_CANDIDATE_LIMIT candidates through the
                 //     Xray core. Because Phase A already filtered dead hosts,
-                //     Phase B finishes in a fraction of the previous time.
+                //     Phase B stays bounded by the configured worker count.
                 //
                 // Net effect on a typical 40-candidate scan: Phase A takes
                 // ~3-5s (parallel), Phase B takes ~8-15s (serial but only on
                 // 20-30 live candidates), for a total of ~15-20s vs the
-                // previous 60-90s with v2.0.0/2.0.1.
+                // Keep the bounded probe stage responsive on mobile networks.
                 val tcpResults = parallelTcpProbe(
                     servers = reachable,
                     concurrency = SCANNER_TCP_PROBE_CONCURRENCY,
@@ -523,7 +523,7 @@ class AppRepository private constructor(context: Context) {
                 )
                 val nextSources = (sources.value.filterNot { it.id.startsWith("scanner-") } + source)
                     .mapIndexed { index, item -> item.apply { order = index } }
-                // RC19: resolve and persist locations before publishing the scanner SUB.
+                // Resolve and persist locations before publishing the scanner SUB.
                 // This uses the shared cache and bounded workers, so flags survive app restarts.
                 progress.value = ProgressState(true, "geo", 0, healthy.size, "Resolving scanner locations")
                 val locatedHealthy = locateServerSnapshot(healthy)
@@ -553,7 +553,7 @@ class AppRepository private constructor(context: Context) {
                 sources.value = nextSources
                 servers.value = sortServers(nextServers)
 
-                // 2.0.1 stable: the SUB is committed as soon as the parallel
+                // Commit the subscription as soon as the parallel
                 // probe batch finishes. The optional ping + location enrichment
                 // runs only when the user confirms the post-save modal (see
                 // enrichScannerRecords below).
@@ -563,7 +563,7 @@ class AppRepository private constructor(context: Context) {
         }
 
     /**
-     * v2.0.1: optional post-save ping + location enrichment.
+     * optional post-save ping + location enrichment.
      *
      * Re-probes the persisted scanner SUB with a bounded parallel pool,
      * force-refreshes geolocation for every healthy record, and atomically
@@ -580,7 +580,7 @@ class AppRepository private constructor(context: Context) {
                 if (healthy.isEmpty()) return@withLock emptyList()
                 progress.value = ProgressState(true, "post_save_verify", 0, healthy.size, "Verifying saved SUB")
 
-                // v2.0.2: same two-phase concurrency as the main scan.
+                // same two-phase concurrency as the main scan.
                 // Phase A: parallel TCP handshake delay probe.
                 val tcpResults = parallelTcpProbe(
                     servers = healthy,
@@ -874,7 +874,7 @@ class AppRepository private constructor(context: Context) {
             ?.optString("network", "tcp")
             ?.lowercase()
             .orEmpty()
-        return network !in setOf("kcp", "quic", "hysteria2", "wireguard") &&
+        return network !in setOf("kcp", "quic", "hysteria", "hysteria2", "wireguard") &&
             node.protocol.lowercase() !in setOf("hysteria2", "wireguard", "tuic")
     }
 
@@ -886,7 +886,7 @@ class AppRepository private constructor(context: Context) {
     }.getOrDefault(false)
 
     /**
-     * v2.0.2: bounded parallel TCP handshake delay probe.
+     * bounded parallel TCP handshake delay probe.
      *
      * Returns the TCP connect latency in milliseconds for every server whose
      * transport is TCP-compatible. This is the only kind of probe that can be
@@ -1125,19 +1125,19 @@ class AppRepository private constructor(context: Context) {
         private const val SCANNER_MIN_SUCCESS = 1
         private const val SCANNER_MAX_DELAY_MS = 60_000L
         private const val SCANNER_ATTEMPT_GAP_MS = 0L
-        // v2.0.1: bounded parallel Xray HTTP probes. Bumped from 1 to 3 so
+        // bounded parallel Xray HTTP probes. Bumped from 1 to 3 so
         // the scanner tests multiple candidates concurrently instead of one
         // by one. 3 stays below libv2ray's internal JNI lock contention
         // threshold while cutting total scan time by more than half on
         // typical 40-candidate scans.
         private const val SCANNER_PROBE_CONCURRENCY = 3
-        // v2.0.2: real concurrency for Android. The TCP handshake delay
+        // real concurrency for Android. The TCP handshake delay
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.
-        // v2.0.4: raised from 12 to 20 for even faster Phase A filtering.
+        // raised from 12 to 20 for even faster Phase A filtering.
         private const val SCANNER_TCP_PROBE_CONCURRENCY = 20
-        // v2.0.3: lowered from 1400ms to 800ms so dead hosts are filtered
+        // lowered from 1400ms to 800ms so dead hosts are filtered
         // out faster and Phase B starts sooner.
-        // v2.0.4: lowered further to 600ms. 600ms is enough for cross-border
+        // lowered further to 600ms. 600ms is enough for cross-border
         // TCP handshakes on real proxies; anything slower is likely dead.
         private const val SCANNER_TCP_PROBE_TIMEOUT_MS = 600
 

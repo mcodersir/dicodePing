@@ -70,7 +70,7 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- v2.0.4: Telegram-style loading overlay shown during Stop+Save.
+    <!-- Telegram-style loading overlay shown during Stop+Save.
          Blocks all UI interaction until the save transaction completes,
          then the ping/location modal appears. -->
     <FrameLayout android:id="@+id/scannerSaveOverlay"

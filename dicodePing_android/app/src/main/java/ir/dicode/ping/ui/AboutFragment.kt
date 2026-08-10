@@ -29,10 +29,23 @@ class AboutFragment : Fragment() {
         binding.github.setOnClickListener { open("https://github.com/mcodersir/") }
         binding.telegram.setOnClickListener { open("https://t.me/dicodeping") }
         binding.shareLogs.setOnClickListener { shareLogs() }
+        binding.refreshLogs.setOnClickListener { refreshLogPreview() }
         binding.clearLogs.setOnClickListener {
             AppLog.clear(requireContext())
+            refreshLogPreview()
             Snackbar.make(binding.root, R.string.logs_cleared, Snackbar.LENGTH_SHORT).show()
         }
+        refreshLogPreview()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (_binding != null) refreshLogPreview()
+    }
+
+    private fun refreshLogPreview() {
+        val text = AppLog.tail(requireContext())
+        binding.logPreview.text = text.ifBlank { getString(R.string.log_preview_empty) }
     }
 
     private fun shareLogs() {

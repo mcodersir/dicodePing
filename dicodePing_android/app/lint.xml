@@ -9,7 +9,7 @@
     <issue id="UseKtx" severity="ignore" />
 
     <!-- Some resources are referenced by product flavors, dynamic UI paths, or
-         retained for migration compatibility, which static analysis cannot see. -->
+         selected by product flavors or dynamic UI paths that static analysis cannot see. -->
     <issue id="UnusedResources" severity="ignore" />
 
     <!-- Status strings intentionally combine several counters; their grammar does

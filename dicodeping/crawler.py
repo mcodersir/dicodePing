@@ -1,6 +1,6 @@
 """DicodeConfigChecker-compatible Telegram preview crawler.
 
-RC13 keeps network work outside the GUI thread and uses the canonical
+Network work stays outside the GUI thread and uses the application's
 ``https://t.me/s/<channel>`` preview endpoint exclusively.  It extracts
 supported Xray links, deduplicates them, and uses a bounded worker pool.  When
 dicodePing exposes a verified local SOCKS5 listener that route is preferred so
@@ -34,7 +34,7 @@ LOGGER = get_logger("crawler")
 
 CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.txt"
 CANONICAL_CHANNELS_FILE = Path(__file__).resolve().parents[1] / "assets" / "channels.json"
-CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss)://[^\s<>\"'`\\]+", re.I)]
+CONFIG_REGEXES = [re.compile(r"\b(?:vmess|vless|trojan|ss|hysteria2|hy2)://[^\s<>\"'`\\]+", re.I)]
 _MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 _SOCKS_FETCH_SEMAPHORE = threading.BoundedSemaphore(10)
 _TELEGRAM_PREVIEW_TEMPLATE = "https://t.me/s/{channel}"
@@ -162,7 +162,7 @@ def _decode_response(data: bytes, content_type: str) -> str:
 def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: int = 2) -> tuple[str, int]:
     """Fetch one URL through the app-owned SOCKS5 listener.
 
-    RC13 uses the app-owned SOCKS5 listener first, including proxy-side DNS.
+    The crawler uses the app-owned SOCKS5 listener first, including proxy-side DNS.
     The ordinary TUN route is attempted only against the same canonical t.me
     endpoint. Limiting simultaneous TLS handshakes prevents the local Xray
     listener and bootstrap server from being flooded.
@@ -188,7 +188,7 @@ def _fetch_via_socks(url: str, *, socks_port: int, timeout: float, redirects: in
                 request = (
                     f"GET {path} HTTP/1.1\r\n"
                     f"Host: {host}\r\n"
-                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9\r\n"
+                    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/3.0\r\n"
                     "Accept: text/html,application/xhtml+xml,text/plain,*/*\r\n"
                     "Accept-Language: en-US,en;q=0.8,fa;q=0.7\r\n"
                     "Accept-Encoding: identity\r\n"
@@ -238,7 +238,7 @@ def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/1.9",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) dicodePing-Scanner/3.0",
             "Accept": "text/html,application/xhtml+xml,text/plain,*/*",
             "Accept-Language": "en-US,en;q=0.8,fa;q=0.7",
             "Accept-Encoding": "identity",
@@ -254,11 +254,6 @@ def _fetch_url_payload(url: str, *, timeout: float = 8.0, socks_port: int = 0) -
             raise OSError("Telegram preview response is unexpectedly large")
         charset = response.headers.get_content_charset() or "utf-8"
         return data.decode(charset, errors="ignore"), len(data), "direct"
-
-
-def _fetch_url(url: str, *, timeout: float = 8.0, socks_port: int = 0) -> str:
-    """Compatibility wrapper used by older tests and callers."""
-    return _fetch_url_payload(url, timeout=timeout, socks_port=socks_port)[0]
 
 
 def _is_usable_preview(page: str) -> bool:

@@ -35,7 +35,6 @@ import ir.dicode.ping.scanner.ScannerStage
 import kotlinx.coroutines.launch
 
 class ScannerFragment : Fragment() {
-    // Legacy regression marker: importScannerConfigs(configs, customName)
     private var _binding: FragmentScannerBinding? = null
     private val binding get() = _binding!!
     private val vm: MainViewModel by activityViewModels()
@@ -100,7 +99,7 @@ class ScannerFragment : Fragment() {
                     b.scannerRunButton.text = getString(if (state.running) R.string.scanner_stop_save else R.string.scanner_run)
                     renderLog(state.log, state.outputLog)
 
-                    // v2.0.4: Telegram-style loading overlay during SAVING.
+                    // Telegram-style loading overlay during SAVING.
                     // When the user clicks Stop+Save, the scanner transitions
                     // to SAVING. We show a blocking overlay so the user
                     // understands the save is in progress. The overlay
@@ -115,7 +114,7 @@ class ScannerFragment : Fragment() {
                         b.scannerSaveOverlay.visibility = View.GONE
                     }
 
-                    // v2.0.4: offer optional ping + location enrichment once
+                    // offer optional ping + location enrichment once
                     // the SUB is committed (DONE or STOPPED with alive > 0).
                     // Show the modal exactly once per scan by tracking the
                     // transition token (stage + alive + a salt) so re-collecting

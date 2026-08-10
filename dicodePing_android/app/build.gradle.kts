@@ -32,7 +32,7 @@ val releaseSigningReady = listOf(
 
 val verifyCore by tasks.registering {
     group = "build setup"
-    description = "Validates the manually installed Android connection core."
+    description = "Validates the pinned Android connection core."
 
     doLast {
         if (codeqlAnalysisBuild.get()) {
@@ -41,9 +41,8 @@ val verifyCore by tasks.registering {
         }
         if (!coreAar.isFile) {
             throw GradleException(
-                "Missing Android core. Download libv2ray.aar from " +
-                    "https://github.com/2dust/AndroidLibXrayLite/releases/download/v26.7.11/libv2ray.aar " +
-                    "and save it as ${coreAar.absolutePath} before syncing/building."
+                "Missing Android runtime. Run PREPARE_V3_RUNTIME.bat from the repository root " +
+                    "or execute tools/fetch_runtime_assets.py --android before building."
             )
         }
         if (coreAar.length() < 1_000_000L) {
@@ -83,36 +82,7 @@ val verifyCore by tasks.registering {
                 throw GradleException("Android core is missing required ABI: $abi")
             }
         }
-        val expectedMachines = mapOf("arm64-v8a" to 183, "armeabi-v7a" to 40, "x86_64" to 62)
-        for ((abi, expectedMachine) in expectedMachines) {
-            val helperDir = project.file("src/main/jniLibs/$abi")
-            for (helper in listOf("libaether.so", "libusque.so")) {
-                val file = File(helperDir, helper)
-                if (!file.isFile || file.length() < 500_000L) {
-                    throw GradleException("Bundled Android helper is missing or incomplete: ${file.absolutePath}")
-                }
-                file.inputStream().use { input ->
-                    val header = ByteArray(20)
-                    val bytesRead = input.read(header)
-                    val isElf = bytesRead == header.size &&
-                        header.copyOfRange(0, 4).contentEquals(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))
-                    if (!isElf) {
-                        throw GradleException("Bundled Android helper is not an ELF binary: ${file.absolutePath}")
-                    }
-                    val machine = (header[18].toInt() and 0xff) or ((header[19].toInt() and 0xff) shl 8)
-                    if (machine != expectedMachine) {
-                        throw GradleException(
-                            "Bundled Android helper has the wrong ABI: ${file.absolutePath}; " +
-                                "expected ELF machine $expectedMachine, got $machine"
-                        )
-                    }
-                }
-            }
-        }
-        val bundledManifest = project.file("src/main/assets/bundled_cores.json")
-        if (!bundledManifest.isFile || !bundledManifest.readText().contains("2.0.0")) {
-            throw GradleException("Bundled core manifest is missing or stale: ${bundledManifest.absolutePath}")
-        }
+
 
         logger.lifecycle("Using Android core: ${coreAar.absolutePath}")
     }
@@ -126,12 +96,9 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 36
-        // Legacy static-test markers only: versionCode = 48; versionName = "1.9.0-rc.13"
-        // RC10 used versionCode = 45; RC19 must be strictly greater.
-        versionCode = 62
-        // Previous stable-display scheme used: versionName = "1.8.0"
-        versionName = "3.0.0-rc.1"
-        buildConfigField("String", "RELEASE_VERSION", "\"3.0.0-rc.1\"")
+        versionCode = 70
+        versionName = "3.0.0-pre.1"
+        buildConfigField("String", "RELEASE_VERSION", "\"3.0.0-pre.1\"")
         multiDexEnabled = true
 
     }
@@ -204,8 +171,7 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
-        // Stable builds fail on real lint errors. Warnings stay visible in the
-        // uploaded reports instead of being blindly promoted to 200+ errors.
+        // Release builds fail on real lint errors while preserving warnings as diagnostics.
         warningsAsErrors = false
         ignoreWarnings = false
         checkAllWarnings = false
@@ -216,14 +182,8 @@ android {
         sarifReport = true
     }
 
-    sourceSets.getByName("main").jniLibs.srcDir("src/main/jniLibs")
-
     packaging {
-        // The bundled Aether/Usque executables are APK-owned native code. Legacy
-        // packaging makes PackageManager extract them into read-only
-        // nativeLibraryDir; Android 10+ forbids executing copies from filesDir.
-        jniLibs.useLegacyPackaging = true
-        jniLibs.keepDebugSymbols += setOf("**/libgojni.so", "**/libaether.so", "**/libusque.so")
+        jniLibs.keepDebugSymbols += setOf("**/libgojni.so", "**/libv2ray.so")
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 }

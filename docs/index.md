@@ -1,17 +1,7 @@
-# dicodePing Documentation
+# dicodePing 3 documentation
 
-## فارسی
-
-- [راهنمای کامل فارسی](README.fa.md)
-- [آخرین Release](https://github.com/mcodersir/dicodePing/releases/latest)
-- [معماری](ARCHITECTURE.md)
-- [ماتریس تست](TEST_MATRIX.md)
-- [سیاست امنیت](../SECURITY.md)
-
-## English
-
-- [Complete English guide](README.en.md)
-- [Latest release](https://github.com/mcodersir/dicodePing/releases/latest)
 - [Architecture](ARCHITECTURE.md)
 - [Test matrix](TEST_MATRIX.md)
-- [Security policy](../SECURITY.md)
+- [Android signing](ANDROID_SIGNING.md)
+- [Android distribution security](ANDROID_SECURITY_DISTRIBUTION.md)
+- [3.0.0-pre.1 release notes](releases/v3.0.0-pre.1.md)

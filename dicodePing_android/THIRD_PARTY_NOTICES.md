@@ -1,15 +1,7 @@
 # Android third-party notices
 
-- **AndroidLibXrayLite / libv2ray 26.7.11** — LGPL-3.0. The build downloads the
-  unmodified upstream AAR from the official `2dust/AndroidLibXrayLite` Release
-  and verifies SHA-256
-  `0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352`.
-  The application source and Gradle build configuration are provided so the AAR
-  can be replaced and the combined APK can be rebuilt.
-- **AndroidX, Material Components, and OkHttp** — Apache License 2.0.
-- **Kotlin and kotlinx.coroutines** — Apache License 2.0.
-- **Vazirmatn** — SIL Open Font License 1.1. The application requests the font
-  through Android downloadable fonts; it does not commit a font binary.
+The Android V3 product UI/business logic is dicodePing-specific. The Android networking runtime uses the pinned 2dust/AndroidLibXrayLite 26.7.11 AAR and its Xray-core dependencies. Preserve the upstream copyright/license notices when redistributing the APK or source.
 
-Full LGPL-3.0, GPL-3.0, and Apache-2.0 texts are in the repository-level
-`licenses/` directory.
+The AAR download URL and SHA-256 are pinned in `app/build.gradle.kts` and `build_apk.*`. Version 3 ships a single Android runtime path.
+
+See the repository-level `THIRD_PARTY_NOTICES.md` and `licenses/` directory for the complete V3 distribution notices.

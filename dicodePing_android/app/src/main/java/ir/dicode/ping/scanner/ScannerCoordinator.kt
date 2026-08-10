@@ -309,7 +309,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
     }
 
     /**
-     * v2.0.1: optional post-save ping + location enrichment.
+     * optional post-save ping + location enrichment.
      *
      * Called by the UI when the user accepts the post-save modal. Re-probes
      * the persisted scanner records with a bounded parallel pool, force-

@@ -9,7 +9,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 object ConfigParser {
-    private val regex = Regex("(?:vless|vmess|trojan|ss)://[^\\s<>\\\"']+", RegexOption.IGNORE_CASE)
+    private val regex = Regex("(?:vless|vmess|trojan|ss|hysteria2|hy2)://[^\\s<>\\\"']+", RegexOption.IGNORE_CASE)
 
     fun decodeSubscription(input: String): List<String> {
         var text = input.trim().removePrefix("\\uFEFF")
@@ -26,6 +26,7 @@ object ConfigParser {
             raw.startsWith("trojan://", true) -> parseVlessOrTrojan(raw, "trojan")
             raw.startsWith("vmess://", true) -> parseVmess(raw)
             raw.startsWith("ss://", true) -> parseShadowsocks(raw)
+            raw.startsWith("hysteria2://", true) || raw.startsWith("hy2://", true) -> parseHysteria2(raw)
             else -> null
         }
     }.getOrNull()
@@ -95,6 +96,79 @@ object ConfigParser {
         return ParsedNode(raw, "ss", name, host, port, outbound)
     }
 
+    /**
+     * Converts the Hysteria2 URI format used by the authoritative dicodePing
+     * subscription into Xray's native Hysteria v2 outbound/transport model.
+     * Xray 26.x calls the protocol/transport "hysteria" and selects v2 with
+     * the explicit version fields below.
+     */
+    private fun parseHysteria2(raw: String): ParsedNode? {
+        val uri = Uri.parse(raw)
+        val host = uri.host ?: return null
+        val port = if (uri.port > 0) uri.port else 443
+        val password = Uri.decode(uri.encodedUserInfo.orEmpty()).ifBlank { return null }
+        val q = uri.queryParameterNames.associate { name ->
+            name.lowercase() to uri.getQueryParameter(name).orEmpty()
+        }
+        val name = fragmentName(raw).ifBlank { "Server" }
+        val tlsSettings = JSONObject()
+        q["sni"]?.takeIf(String::isNotBlank)?.let { tlsSettings.put("serverName", it) }
+        val insecure = q["insecure"].isTruthy() || q["allowinsecure"].isTruthy()
+        if (insecure) tlsSettings.put("allowInsecure", true)
+        q["pinsha256"]?.takeIf(String::isNotBlank)?.let { tlsSettings.put("pinnedPeerCertSha256", it) }
+        q["alpn"]?.takeIf(String::isNotBlank)?.let { value ->
+            tlsSettings.put("alpn", JSONArray(value.split(',').map(String::trim).filter(String::isNotBlank)))
+        }
+
+        val hysteriaSettings = JSONObject()
+            .put("version", 2)
+            .put("auth", password)
+        val quicParams = JSONObject().put("congestion", "bbr")
+        q["mport"]?.takeIf(String::isNotBlank)?.let { ports ->
+            quicParams.put(
+                "udpHop",
+                JSONObject()
+                    .put("ports", ports.replace(':', '-'))
+                    .put("interval", q["hopinterval"].orEmpty().ifBlank { "30" })
+            )
+        }
+        val finalMask = JSONObject().put("quicParams", quicParams)
+        val obfs = q["obfs"].orEmpty().lowercase()
+        val obfsPassword = q["obfs-password"].orEmpty()
+        if (obfs.isNotBlank()) {
+            if (obfs !in setOf("salamander", "gecko") || obfsPassword.isBlank()) return null
+            val settings = JSONObject().put("password", obfsPassword)
+            if (obfs == "gecko") {
+                val min = q["minpacketsize"].orEmpty().toIntOrNull()?.coerceIn(1, 2048) ?: 512
+                val max = q["maxpacketsize"].orEmpty().toIntOrNull()?.coerceIn(min, 2048) ?: 1200
+                settings.put("packetSize", "$min-$max")
+            }
+            finalMask.put(
+                "udp",
+                JSONArray().put(JSONObject().put("type", "salamander").put("settings", settings))
+            )
+        }
+
+        val stream = JSONObject()
+            .put("network", "hysteria")
+            .put("security", "tls")
+            .put("tlsSettings", tlsSettings)
+            .put("hysteriaSettings", hysteriaSettings)
+            .put("finalmask", finalMask)
+        val outbound = JSONObject()
+            .put("tag", "proxy")
+            .put("protocol", "hysteria")
+            .put(
+                "settings",
+                JSONObject()
+                    .put("version", 2)
+                    .put("address", host)
+                    .put("port", port)
+            )
+            .put("streamSettings", stream)
+        return ParsedNode(raw, "hysteria2", name, host, port, outbound)
+    }
+
     private fun buildStream(q: Map<String, String>): JSONObject {
         var network = q["type"].orEmpty().ifBlank { q["net"].orEmpty().ifBlank { "tcp" } }
         if (network.equals("splithttp", true)) network = "xhttp"
@@ -129,6 +203,8 @@ object ConfigParser {
         }
         return stream
     }
+
+    private fun String?.isTruthy(): Boolean = this?.trim()?.lowercase() in setOf("1", "true", "yes")
 
     private fun decodeBase64(value: String): String? = runCatching {
         val normalized = value.trim().replace('-', '+').replace('_', '/').let { it + "=".repeat((4 - it.length % 4) % 4) }

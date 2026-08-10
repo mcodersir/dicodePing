@@ -15,40 +15,50 @@ object ReleaseUpdateChecker {
 
     suspend fun newerThan(current: String): AppRelease? = withContext(Dispatchers.IO) {
         runCatching {
+            val currentVersion = version(current) ?: return@runCatching null
             val request = Request.Builder().url(URL).header("Accept", "application/vnd.github+json").build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
                 val releases = JSONArray(response.body?.string().orEmpty())
                 (0 until releases.length()).mapNotNull { index ->
                     val item = releases.getJSONObject(index)
-                    if (item.optString("name").startsWith("Compatibility bridge")) return@mapNotNull null
+                    if (item.optBoolean("draft")) return@mapNotNull null
                     val tag = item.optString("tag_name")
-                    val candidate = version(tag)
-                    val currentVersion = version(current)
-                    val sameSeriesCandidate = !current.contains("-rc.") &&
-                        candidate.take(3) == currentVersion.take(3) && candidate[3] == 0
-                    if (compare(candidate, currentVersion) <= 0 && !sameSeriesCandidate) null else {
-                        val assets = item.optJSONArray("assets") ?: JSONArray()
-                        val asset = (0 until assets.length()).map { assets.getJSONObject(it) }
-                            .firstOrNull { it.optString("name").contains("-android.apk") }
-                        asset?.let { AppRelease(tag, it.optString("browser_download_url")) }
-                    }
-                }.maxWithOrNull { left, right -> compare(version(left.tag), version(right.tag)) }
+                    val candidate = version(tag) ?: return@mapNotNull null
+                    if (candidate.major != 3 || candidate <= currentVersion) return@mapNotNull null
+                    val assets = item.optJSONArray("assets") ?: JSONArray()
+                    val asset = (0 until assets.length()).asSequence()
+                        .map { assets.getJSONObject(it) }
+                        .firstOrNull { it.optString("name").endsWith("-android.apk") }
+                    asset?.let { AppRelease(tag, it.optString("browser_download_url")) }
+                }.maxByOrNull { version(it.tag) ?: SemVer.ZERO }
             }
         }.getOrNull()
     }
 
-    private fun version(raw: String): List<Int> {
-        val match = Regex("v?(\\d+)\\.(\\d+)\\.(\\d+)(?:-rc\\.(\\d+))?").matchEntire(raw) ?: return listOf(0,0,0,0,0)
-        val (major, minor, patch, rc) = match.destructured
-        return listOf(major.toInt(), minor.toInt(), patch.toInt(), if (rc.isBlank()) 1 else 0, rc.toIntOrNull() ?: 0)
+    private data class SemVer(
+        val major: Int,
+        val minor: Int,
+        val patch: Int,
+        val pre: Int?,
+    ) : Comparable<SemVer> {
+        override fun compareTo(other: SemVer): Int {
+            compareValuesBy(this, other, SemVer::major, SemVer::minor, SemVer::patch).let {
+                if (it != 0) return it
+            }
+            return when {
+                pre == null && other.pre == null -> 0
+                pre == null -> 1
+                other.pre == null -> -1
+                else -> pre.compareTo(other.pre)
+            }
+        }
+        companion object { val ZERO = SemVer(0, 0, 0, 0) }
     }
 
-    private fun compare(left: List<Int>, right: List<Int>): Int {
-        for (index in left.indices) {
-            val result = left[index].compareTo(right[index])
-            if (result != 0) return result
-        }
-        return 0
+    private fun version(raw: String): SemVer? {
+        val match = Regex("v?(\\d+)\\.(\\d+)\\.(\\d+)(?:-pre\\.(\\d+))?").matchEntire(raw.trim()) ?: return null
+        val (major, minor, patch, pre) = match.destructured
+        return SemVer(major.toInt(), minor.toInt(), patch.toInt(), pre.toIntOrNull())
     }
 }

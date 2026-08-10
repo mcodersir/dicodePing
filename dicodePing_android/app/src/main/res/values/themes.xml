@@ -11,9 +11,7 @@
         <item name="colorSurfaceContainerHigh">@color/surface_card_alt</item>
         <item name="colorOutline">@color/outline_soft</item>
         <item name="colorOnSurface">@color/text_primary</item>
-        <!-- v2.0.4: override ALL Material3 surface roles so the default
-             warm/purplish dark scheme (which looks brown) never leaks
-             through. Each role maps to our blue-based palette. -->
+        <!-- Keep all Material 3 surface roles aligned with the dicodePing palette. -->
         <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
         <item name="colorSurfaceVariant">@color/m3_surface_variant</item>
         <item name="colorSurfaceContainerLow">@color/m3_surface_low</item>

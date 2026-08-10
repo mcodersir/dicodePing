@@ -61,6 +61,18 @@ object AppLog {
         }
     }
 
+    fun tail(context: Context, maxChars: Int = 12_000): String {
+        synchronized(lock) {
+            val file = logFile(context)
+            if (file?.exists() != true || file.length() <= 0L) return ""
+            return runCatching {
+                val content = file.readText(Charsets.UTF_8)
+                if (content.length <= maxChars) content.trimEnd()
+                else content.takeLast(maxChars).trimStart().trimEnd()
+            }.getOrDefault("")
+        }
+    }
+
     fun clear(context: Context) {
         synchronized(lock) {
             logFile(context)?.delete()

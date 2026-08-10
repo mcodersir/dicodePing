@@ -1,90 +1,54 @@
-# Third-party notices
+# Third-party notices — dicodePing 3
 
-The original dicodePing source code is licensed under the repository's MIT
-license. Release binaries also contain or dynamically use the components below;
-those components remain under their own licenses.
+This file records third-party code/runtime components used by dicodePing Version 3. Product branding, UI, subscription ownership, and dicodePing-specific business logic remain dicodePing-specific; third-party provenance is not removed or misrepresented.
 
-## Native connection components
+## 2dust/v2rayN ServiceLib — 7.24.5
 
-| Component | Version used by the build | License | Reproducible source / binary origin |
-|---|---:|---|---|
-| Xray-core | `v26.7.11` | MPL-2.0 | `XTLS/Xray-core`, tag `v26.7.11`; Windows assets are downloaded from that GitHub Release and checked against its companion `.dgst` SHA-256 record. |
-| Wintun | `0.14.1` | GPL-2.0 | Official archive from `wintun.net`; archive SHA-256 is pinned in `dicodeping/constants.py`. Corresponding source is available from the `WireGuard/wintun` repository/tag. |
-| AndroidLibXrayLite (`libv2ray`) | `26.7.11` | LGPL-3.0 | Official `2dust/AndroidLibXrayLite` Release `v26.7.11`; AAR SHA-256: `0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352`. |
-| Aether | `1.4.0` | AGPL-3.0 | Bundled desktop executable from `CluvexStudio/Aether` Release `v1.4.0`; platform hashes are pinned in `assets/core-manifest.json`. Complete corresponding source: https://github.com/CluvexStudio/Aether/tree/v1.4.0 |
-| Usque | `4.2.1` | MIT | Bundled desktop executable from `Diniboy1123/usque` Release `v4.2.1`; platform hashes are pinned in `assets/core-manifest.json`. |
+- Upstream: `https://github.com/2dust/v2rayN`
+- License: GNU GPL v3
+- Use in V3: selected ServiceLib networking/client architecture is compiled into `dicodePing.CoreHost`; the upstream UI is not used.
+- Corresponding vendored source: `third_party/network-engine/runtime/`
+- Upstream license: `third_party/network-engine/LICENSE`
 
-## Design references (not copied or bundled)
+The V3 desktop combined distribution is provided under GPL-3.0. An existing MIT notice covering product-authored portions is retained at `licenses/PRODUCT_MIT_NOTICE.txt`; retaining that notice does not keep an alternate networking implementation in the product.
 
-- `MatinSenPai/Aether-GUI` (AGPL-3.0) was reviewed for documented interaction
-  concepts such as Auto/Advanced profiles, transport selection and visible
-  reconnect state. dicodePing contains an independent PySide6 implementation.
-- `bepass-org/oblivion` (CC BY-NC-SA 4.0) was reviewed as a WARP UX reference.
-  No Oblivion source code, artwork or application binary is included.
-- `2dust/v2rayN` (GPL-3.0) was reviewed for public Xray client behavior. No
-  v2rayN source or binary is included.
-- `Jigsaw-Code/Intra` (Apache-2.0) informed the Secure DNS description. The
-  implementation uses Xray's own DNS-over-HTTPS client; no Intra code is copied.
-- `mcodersir/DicodeConfigChecker` (MIT) is the canonical public subscription
-  source and scanner reference. dicodePing still requires a successful Xray
-  HTTP probe and never promotes a TCP-only result.
+## XTLS/Xray-core — 26.7.11
 
-The release workflow downloads the Android AAR instead of committing it. This
-keeps the exact replaceable library artifact, application source, build scripts,
-and version metadata available for relinking or rebuilding a modified library,
-consistent with the LGPL combined-work requirements.
+- Upstream: `https://github.com/XTLS/Xray-core`
+- License: Mozilla Public License 2.0
+- Use: desktop core executable downloaded by the reproducible build helper; Android receives Xray through its platform bridge.
+- License copy: `licenses/MPL-2.0.txt`
 
-## Frameworks and libraries
+## SagerNet/sing-box — 1.13.12
 
-- PySide6 / Qt for Python: LGPL-3.0, GPL, or applicable commercial terms.
-- AndroidX, Material Components, and OkHttp: Apache-2.0.
-- Python packages and Android dependencies are enumerated in the generated SPDX
-  SBOM. Their upstream notices and license terms continue to apply.
+- Upstream: `https://github.com/SagerNet/sing-box`
+- License: GPL-3.0-or-later, with the upstream additional naming/association notice retained by upstream.
+- Use: desktop runtime for profile/TUN paths selected by the ServiceLib integration.
+- Release binaries are downloaded from the exact upstream release and verified against the upstream checksums file.
+- GPL text: `licenses/GPL-3.0.txt`
 
-## Included license texts
+## Wintun — 0.14.1
 
-- [`licenses/MPL-2.0.txt`](licenses/MPL-2.0.txt)
-- [`licenses/GPL-2.0.txt`](licenses/GPL-2.0.txt)
-- [`licenses/LGPL-3.0.txt`](licenses/LGPL-3.0.txt)
-- [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt)
-- [`licenses/AGPL-3.0.txt`](licenses/AGPL-3.0.txt)
-- [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)
+- Upstream: `https://www.wintun.net/`
+- License: GPL-2.0, with upstream redistribution terms applying.
+- Use: Windows TUN driver component.
+- License copy: `licenses/GPL-2.0.txt`
 
-No private signing keys, credentials, or proprietary source are included in the
-repository or Release assets.
-## DicodeConfigChecker verification model
+## 2dust/AndroidLibXrayLite — 26.7.11
 
-The RC10 scanner verification flow is adapted from the public `mcodersir/DicodeConfigChecker` project: supported configurations are tested by starting an Xray outbound and performing real HTTP traffic through it, while unsupported formats use a bounded TCP fallback. The RC10 implementation was rewritten for dicodePing's worker, cancellation, persistence and UI contracts.
+- Upstream: `https://github.com/2dust/AndroidLibXrayLite`
+- Use: Android native VPN/core bridge distributed as the pinned `libv2ray.aar` release artifact.
+- The exact AAR URL and SHA-256 are pinned in `dicodePing_android/app/build.gradle.kts` and the Android build scripts.
+- Its upstream notices/license and notices of its bundled dependencies remain applicable.
 
+## PySide6 / Qt for Python
 
+Desktop UI uses PySide6. Qt/PySide redistribution must comply with the licenses applicable to the binary packages used for a release.
 
-## Aether Mobile integration reference
-- Project: QW-AI-Code/Aether
-- License: AGPL-3.0-or-later
-- Use: Android native-engine build pipeline and lifecycle reference.
-
-## Aether GUI integration reference
-- Project: MatinSenPai/Aether-GUI
-- License: AGPL-3.0-or-later
-- Use: desktop lifecycle/state-machine design reference.
-
-## defyxVPN architecture reference
-- Project: UnboundTechCo/defyxVPN
-- License: MIT
-- Use: multi-core orchestration and one-tap UX reference; DXcore is not bundled.
 ## Vazirmatn
 
-- Project: `rastikerdar/vazirmatn`
-- Package: `vazirmatn@33.0.3`
-- License: SIL Open Font License 1.1
-- Use: Regular, Medium and Bold weights are fetched during release builds, verified against npm package integrity metadata and bundled inside the platform artifacts. Generated font files are not committed in the source snapshot.
+The project prepares Vazirmatn font assets through its existing build tooling. Preserve the font project's license when distributing those files.
 
+## Source availability
 
-## PyYAML release-validator runtime
-
-- Project: `yaml/pyyaml`
-- Version: `6.0.3`
-- License: MIT
-- Use: the pure-Python `yaml` package is vendored under `tools/vendor/pyyaml`
-  exclusively for deterministic local validation of GitHub Actions workflow
-  files. No compiled LibYAML extension is included.
+This source package includes the modified/adapted ServiceLib source used by the desktop runtime. Build scripts fetch runtime binaries from their pinned upstream release locations. Keep this file and all license files with redistributed release artifacts.

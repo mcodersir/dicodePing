@@ -13,7 +13,6 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.core.widget.doAfterTextChanged
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -22,7 +21,6 @@ import com.google.android.material.tabs.TabLayout
 import ir.dicode.ping.R
 import ir.dicode.ping.BuildConfig
 import ir.dicode.ping.MainActivity
-import ir.dicode.ping.core.AndroidCoreManager
 import ir.dicode.ping.data.SourceDefinition
 import ir.dicode.ping.databinding.DialogAppBypassBinding
 import ir.dicode.ping.databinding.DialogSourceBinding
@@ -106,115 +104,6 @@ class SettingsFragment : Fragment() {
 
     private fun setupConnectionFeatures() {
         val store = vm.repo.settings
-        // RC19 migration: the old “apps outside connection” list duplicated denylist mode.
-        if (store.bypassApps.isNotEmpty()) {
-            if (store.perAppVpnPackages.isEmpty()) store.perAppVpnPackages = store.bypassApps
-            if (store.perAppVpnMode == "disabled") store.perAppVpnMode = "denylist"
-            store.bypassApps = emptySet()
-        }
-        val coreIds = listOf("xray", "psiphon", "aether", "warp")
-        val coreLabels = listOf(
-            getString(R.string.conn_method_xray),
-            getString(R.string.conn_method_psiphon),
-            getString(R.string.conn_method_aether),
-            getString(R.string.conn_method_warp),
-        )
-        val coreManager = AndroidCoreManager(requireContext().applicationContext)
-        binding.connectionCore.setAdapter(
-            ArrayAdapter(requireContext(), R.layout.item_dropdown, R.id.dropdownText, coreLabels)
-        )
-        binding.connectionCore.setText(coreLabels[coreIds.indexOf(store.activeCore).coerceAtLeast(0)], false)
-        fun selectedCore(): String = coreIds.getOrElse(coreLabels.indexOf(binding.connectionCore.text.toString())) {
-            "xray"
-        }
-        fun renderCoreStatus() {
-            val core = selectedCore()
-            binding.coreStatus.setText(
-                when {
-                    core == "xray" -> R.string.core_xray_builtin
-                    coreManager.isInstalled(core) -> R.string.core_ready
-                    else -> R.string.core_unsupported_build
-                }
-            )
-            val capability = coreManager.capability(core)
-            binding.downloadCore.isVisible = capability.canDownload
-            binding.downloadCore.isEnabled = capability.canDownload
-            binding.activateCore.isEnabled = capability.canConnect
-            binding.coreStatus.text = capability.reason
-        }
-        binding.connectionCore.setOnItemClickListener { _, _, _, _ -> renderCoreStatus() }
-        binding.downloadCore.setOnClickListener {
-            val core = selectedCore()
-            if (core == "xray") return@setOnClickListener
-            binding.downloadCore.isEnabled = false
-            binding.coreStatus.setText(R.string.conn_method_downloading)
-            viewLifecycleOwner.lifecycleScope.launch {
-                val result = runCatching { coreManager.install(core) }
-                if (_binding == null) return@launch
-                binding.coreStatus.text = result.fold(
-                    onSuccess = { getString(R.string.conn_method_download_done) },
-                    onFailure = { getString(R.string.conn_method_download_failed) + ": " + it.message },
-                )
-                renderCoreStatus()
-            }
-        }
-        fun showCoreActivationGuide(core: String) {
-            if (core !in setOf("aether", "warp")) {
-                Snackbar.make(binding.root, R.string.core_activation_done, Snackbar.LENGTH_SHORT).show()
-                return
-            }
-            val message = if (core == "warp") {
-                getString(R.string.core_activation_guide_warp)
-            } else {
-                getString(R.string.core_activation_guide_aether)
-            }
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.core_activation_guide_title)
-                .setMessage(message)
-                .setNegativeButton(R.string.later, null)
-                .setPositiveButton(R.string.go_to_home) { _, _ ->
-                    (activity as? MainActivity)?.openHomePage()
-                }
-                .show()
-        }
-        fun commitCoreActivation(core: String) {
-            if (VpnStateStore.state.value.status != VpnStatus.DISCONNECTED) {
-                (activity as? MainActivity)?.disconnect()
-            }
-            store.activeCore = core
-            (activity as? MainActivity)?.applyCoreMode()
-            binding.coreStatus.text = getString(
-                R.string.label_value,
-                getString(R.string.conn_method_active),
-                coreLabels[coreIds.indexOf(core)],
-            )
-            showCoreActivationGuide(core)
-        }
-        binding.activateCore.setOnClickListener {
-            val core = selectedCore()
-            if (!coreManager.isInstalled(core)) {
-                binding.coreStatus.setText(R.string.core_select_first)
-                return@setOnClickListener
-            }
-            if (core == "warp" && !store.warpTermsAccepted) {
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle(R.string.warp_terms_title)
-                    .setMessage(R.string.warp_terms_message)
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .setPositiveButton(R.string.accept_and_activate) { _, _ ->
-                        // Registration is intentionally deferred to the Connect button.
-                        // It is a network operation and belongs to the foreground VPN flow,
-                        // where the user can see progress and cancel safely.
-                        store.warpTermsAccepted = true
-                        commitCoreActivation(core)
-                    }
-                    .show()
-            } else {
-                commitCoreActivation(core)
-            }
-        }
-        renderCoreStatus()
-
         val perAppIds = listOf("disabled", "allowlist", "denylist")
         val perAppLabels = listOf(
             getString(R.string.per_app_vpn_disabled),

@@ -9,9 +9,9 @@ import java.util.regex.Pattern
  *
  * Two sources of volume information are supported:
  *
- * 1. The ``Subscription-Userinfo`` HTTP header (the v2rayN / Nekoray
+ * 1. The ``Subscription-Userinfo`` HTTP header (common desktop proxy clients
  *    standard).  This is the *real* remaining-volume number that the
- *    user asked for in v1.6.0-rc.2.  When the user taps "Fetch volumes"
+ *    server list. When the user taps "Fetch volumes"
  *    the scanner issues HEAD requests in parallel for every enabled
  *    subscription URL and parses this header.
  *

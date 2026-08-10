@@ -21,9 +21,7 @@
     <color name="skeleton_highlight">#26364A</color>
     <color name="info">#79AFFF</color>
 
-    <!-- v2.0.4: explicit Material3 surface role overrides so the dark theme
-         stays blue-based. Without these, Material3 components fall back to
-         the default dark scheme (#1D1B20 / #49454F) which looks brown. -->
+    <!-- Explicit Material 3 surface roles for the dicodePing dark palette. -->
     <color name="m3_surface_lowest">#070B12</color>
     <color name="m3_surface_low">#0C1218</color>
     <color name="m3_surface_high">#151E2B</color>

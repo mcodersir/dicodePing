@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Converts a user/source supplied subscription address into a safe HTTP URL.
  *
- * Old settings may contain an empty value, surrounding whitespace, or a host
+ * User input may contain an empty value, surrounding whitespace, or a host
  * without an explicit scheme. OkHttp deliberately throws when Request.url()
  * receives such a string, so URL parsing must happen before building a request.
  */
@@ -47,7 +47,7 @@ class SubscriptionClient {
         }
         val request = Request.Builder()
             .url(httpUrl)
-            .header("User-Agent", "dicodePing-Android/2.0.0")
+            .header("User-Agent", "dicodePing-Android/3.0.0-pre.1")
             .build()
 
         client.newCall(request).execute().use { response ->
@@ -76,7 +76,7 @@ class SubscriptionClient {
             val request = Request.Builder()
                 .url(httpUrl)
                 .head()
-                .header("User-Agent", "dicodePing-Android/2.0.0")
+                .header("User-Agent", "dicodePing-Android/3.0.0-pre.1")
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use ""
@@ -98,7 +98,7 @@ class SubscriptionClient {
             val request = Request.Builder()
                 .url(httpUrl)
                 .head()
-                .header("User-Agent", "dicodePing-Scanner/2.0.0")
+                .header("User-Agent", "dicodePing-Scanner/3.0.0-pre.1")
                 .build()
             client.newCall(request).execute().use { response ->
                 response.header("Subscription-Userinfo")?.takeIf { it.isNotBlank() }

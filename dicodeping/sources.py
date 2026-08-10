@@ -8,82 +8,52 @@ from .models import SourceDefinition
 
 
 def source_id_for_url(url: str) -> str:
-    if url.strip() == DEFAULT_SUBSCRIPTION_URL:
+    value = url.strip()
+    if value == DEFAULT_SUBSCRIPTION_URL:
         return "default"
-    return "src-" + hashlib.sha256(url.strip().encode("utf-8")).hexdigest()[:12]
+    return "src-" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
 
 
 def default_source_name(language: str = "fa") -> str:
     return "منبع اصلی" if language != "en" else "Primary source"
 
 
+def _primary(language: str) -> SourceDefinition:
+    return SourceDefinition(
+        id="default",
+        name=default_source_name(language),
+        url=DEFAULT_SUBSCRIPTION_URL,
+        order=0,
+        enabled=True,
+        is_default=True,
+    )
+
+
 def normalize_sources(settings: dict[str, Any], language: str = "fa") -> list[SourceDefinition]:
+    """Return the Version 3 source set with the product source always authoritative."""
+    rows: list[SourceDefinition] = [_primary(language)]
     stored = settings.get("sources")
-    rows: list[SourceDefinition] = []
     if isinstance(stored, list):
         for raw in stored:
             if not isinstance(raw, dict):
                 continue
             item = SourceDefinition.from_dict(raw)
             item.url = item.url.strip()
-            is_local = item.id.startswith("scanner-") and not item.url
-            if not is_local and not item.url.lower().startswith(("http://", "https://")):
+            if item.is_default or item.id == "default" or item.url == DEFAULT_SUBSCRIPTION_URL:
+                continue
+            if not item.url.lower().startswith(("http://", "https://")):
                 continue
             item.id = item.id or source_id_for_url(item.url)
-            item.name = item.name.strip() or ("SUB" if is_local else default_source_name(language))
+            item.name = item.name.strip() or ("منبع" if language != "en" else "Source")
             rows.append(item)
 
-    # Migration from the older custom_subscriptions setting.
-    if not rows:
-        rows.append(
-            SourceDefinition(
-                id="default",
-                name=str(settings.get("default_source_name") or default_source_name(language)),
-                url=DEFAULT_SUBSCRIPTION_URL,
-                order=0,
-                enabled=True,
-                is_default=True,
-            )
-        )
-        custom = settings.get("custom_subscriptions", [])
-        for index, url in enumerate(custom if isinstance(custom, list) else [], start=1):
-            value = str(url or "").strip()
-            if value.lower().startswith(("http://", "https://")):
-                rows.append(
-                    SourceDefinition(
-                        id=source_id_for_url(value),
-                        name=(f"منبع {index + 1}" if language != "en" else f"Source {index + 1}"),
-                        url=value,
-                        order=index,
-                        enabled=True,
-                    )
-                )
-
-    default = next((item for item in rows if item.is_default or item.id == "default" or item.url == DEFAULT_SUBSCRIPTION_URL), None)
-    if default is None:
-        default = SourceDefinition(
-            id="default",
-            name=default_source_name(language),
-            url=DEFAULT_SUBSCRIPTION_URL,
-            order=-1,
-            enabled=True,
-            is_default=True,
-        )
-        rows.insert(0, default)
-    default.id = "default"
-    default.url = DEFAULT_SUBSCRIPTION_URL
-    default.is_default = True
-    default.enabled = True
-    default.name = default.name.strip() or default_source_name(language)
-
     deduped: list[SourceDefinition] = []
-    seen_urls: set[str] = set()
-    for item in sorted(rows, key=lambda row: (row.order, row.name.casefold())):
-        key = item.url.casefold() if item.url else f"local:{item.id.casefold()}"
-        if key in seen_urls:
+    seen: set[str] = set()
+    for item in rows:
+        key = item.url.casefold()
+        if key in seen:
             continue
-        seen_urls.add(key)
-        item.id = "default" if item.is_default else (item.id or source_id_for_url(item.url))
+        seen.add(key)
         deduped.append(item)
         if len(deduped) >= MAX_CUSTOM_SUBSCRIPTIONS + 1:
             break
@@ -93,8 +63,8 @@ def normalize_sources(settings: dict[str, Any], language: str = "fa") -> list[So
 
 
 def serialize_sources(sources: list[SourceDefinition]) -> list[dict[str, Any]]:
-    result: list[dict[str, Any]] = []
+    normalized: list[dict[str, Any]] = []
     for order, source in enumerate(sources):
         source.order = order
-        result.append(source.to_dict())
-    return result
+        normalized.append(source.to_dict())
+    return normalized

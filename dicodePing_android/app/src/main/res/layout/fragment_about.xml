@@ -176,6 +176,39 @@
                                 android:text="@string/clear_logs"
                                 app:cornerRadius="14dp" />
                         </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="18dp"
+                            android:text="@string/runtime_log_preview"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/logPreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="monospace"
+                            android:lineSpacingExtra="2dp"
+                            android:maxLines="18"
+                            android:minHeight="96dp"
+                            android:padding="12dp"
+                            android:text="@string/log_preview_empty"
+                            android:textColor="@color/text_secondary"
+                            android:textIsSelectable="true"
+                            android:textSize="11sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/refreshLogs"
+                            style="@style/Widget.DicodePing.Button.Secondary"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/refresh_log_preview"
+                            app:cornerRadius="14dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

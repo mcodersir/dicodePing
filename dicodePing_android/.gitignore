@@ -2,6 +2,6 @@
 .idea/
 local.properties
 **/build/
-local-maven/ir/dicode/local/libv2ray/26.6.2/libv2ray-26.6.2.aar
+local-maven/**/*.aar
 *.jks
 *.keystore
