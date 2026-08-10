@@ -2,6 +2,8 @@
 
 ## 3.0.0-pre.1
 
+- Fixed the desktop release builders so Windows, Linux and both macOS jobs can run as direct scripts or Python modules without `ModuleNotFoundError: tools`.
+- Updated GitHub Actions runtime actions to Node 24 compatible majors and made release jobs invoke desktop builders with `python -m`.
 - Made the pre-release publisher recover safely from an existing `v3.0.0-pre.1` tag and refresh an existing GitHub pre-release instead of aborting.
 - Runtime bootstrap now retries GitHub downloads with curl and DNS-over-HTTPS fallbacks, and supports verified offline asset folders.
 - Replaced the desktop networking/client implementation with a ServiceLib-based runtime host.

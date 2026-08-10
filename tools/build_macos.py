@@ -10,6 +10,11 @@ import tempfile
 import time
 from pathlib import Path
 
+# Support both `python tools/build_*.py` and `python -m tools.build_*`
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 from tools.build_desktop_common import APP_NAME, APP_VERSION, ROOT, prepare_build, pyinstaller_base, run
 
 BUNDLE_ID = "ir.dicode.dicodePing"

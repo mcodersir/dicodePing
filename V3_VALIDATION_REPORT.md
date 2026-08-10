@@ -20,6 +20,12 @@ The Windows publisher targets `mcodersir/dicodePing` directly and does **not** r
 
 The publisher clones the current default branch into a temporary checkout, then uses `tools/sync_release_tree.py` to replace the checkout from `SOURCE_MANIFEST.sha256`. The sync preserves only `.git`, verifies every source hash before and after copy, and ignores local runtime downloads, build outputs, caches and other files that are not part of the source manifest. It then validates the source and pushes the Version 3 commit to the default branch. The `v3.0.0-pre.1` tag is idempotent: when an older copy of the tag already exists, the publisher refreshes that exact tag to the newly validated commit instead of failing. If the source tree already matches the default branch, an empty release commit is created so the tag update produces a fresh GitHub push event. `.github/workflows/release-v3.yml` then builds the four platform families and either creates the pre-release or refreshes the existing pre-release and replaces matching assets. `gh.exe` is optional and is used only to watch/verify the workflow when it is already installed and authenticated.
 
+## GitHub Actions release hotfix
+
+GitHub Actions run `31441422348` reached the platform jobs successfully, but all desktop builds stopped before packaging because `tools/build_windows.py`, `tools/build_linux.py`, and `tools/build_macos.py` imported `tools.build_desktop_common` while being executed as files. In that execution mode Python placed the `tools` directory, rather than the project root, at the front of `sys.path`, producing `ModuleNotFoundError: No module named 'tools'`.
+
+The three desktop builders now bootstrap the project root for direct execution, and the release workflow invokes them with `python -m tools.build_*` as a second layer of protection. Release/CI workflow actions were also moved to Node 24 compatible majors. Regression tests cover both direct and module entrypoint modes.
+
 ## Validation performed
 
 - V3 source validator passed.
@@ -29,7 +35,7 @@ The publisher clones the current default branch into a temporary checkout, then 
 - Android release validator passed.
 - Android Gradle Kotlin DSL validator passed.
 - GitHub workflow YAML validator passed.
-- 15 Python release tests passed.
+- 17 Python release tests passed.
 - Python modules compile successfully.
 
 ## Release targets

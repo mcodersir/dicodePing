@@ -294,3 +294,49 @@ def test_release_tree_sync_preserves_git_and_uses_only_manifest(tmp_path):
     assert (destination / "app.py").read_bytes() == tracked["app.py"]
     assert (destination / "nested/config.json").read_bytes() == tracked["nested/config.json"]
     assert (destination / "SOURCE_MANIFEST.sha256").is_file()
+
+
+
+def test_desktop_build_entrypoints_import_in_direct_and_module_modes():
+    root = Path(__file__).resolve().parents[1]
+    for module in ("build_windows", "build_linux", "build_macos"):
+        direct = subprocess.run(
+            [sys.executable, f"tools/{module}.py", "--help"],
+            cwd=root, text=True, capture_output=True, timeout=30, check=False,
+        )
+        assert direct.returncode == 0, f"{module} direct: {direct.stderr}"
+        assert "ModuleNotFoundError" not in direct.stderr
+
+        packaged = subprocess.run(
+            [sys.executable, "-m", f"tools.{module}", "--help"],
+            cwd=root, text=True, capture_output=True, timeout=30, check=False,
+        )
+        assert packaged.returncode == 0, f"{module} module: {packaged.stderr}"
+        assert "ModuleNotFoundError" not in packaged.stderr
+
+
+def test_release_workflow_uses_module_builders_and_node24_actions():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github/workflows/release-v3.yml").read_text(encoding="utf-8")
+    ci = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    codeql = (root / ".github/workflows/codeql.yml").read_text(encoding="utf-8")
+
+    for command in (
+        "python -m tools.build_windows --skip-install",
+        "python -m tools.build_linux --skip-install",
+        "python -m tools.build_macos --skip-install",
+    ):
+        assert command in workflow
+
+    combined = "\n".join((workflow, ci, codeql))
+    assert "actions/checkout@v4" not in combined
+    assert "actions/setup-python@v5" not in combined
+    assert "actions/setup-dotnet@v4" not in combined
+    assert "actions/checkout@v6" in workflow
+    assert "actions/setup-python@v6" in workflow
+    assert "actions/setup-dotnet@v6" in workflow
+    assert "actions/setup-java@v5" in workflow
+    assert "actions/upload-artifact@v7" in workflow
+    assert "actions/download-artifact@v8" in workflow
+    assert "actions/upload-artifact@v4" not in workflow
+    assert "actions/download-artifact@v4" not in workflow
