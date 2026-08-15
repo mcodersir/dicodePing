@@ -4,4 +4,4 @@
 - [Test matrix](TEST_MATRIX.md)
 - [Android signing](ANDROID_SIGNING.md)
 - [Android distribution security](ANDROID_SECURITY_DISTRIBUTION.md)
-- [3.0.0-pre.3 release notes](releases/v3.0.0-pre.3.md)
+- [3.0.0-pre.4 release notes](releases/v3.0.0-pre.4.md)

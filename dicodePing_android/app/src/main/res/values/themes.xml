@@ -62,10 +62,10 @@
 
     <style name="Widget.DicodePing.TextInput.Linear" parent="Widget.DicodePing.TextInput">
         <item name="boxBackgroundColor">@color/surface_card</item>
-        <item name="boxCornerRadiusTopStart">4dp</item>
-        <item name="boxCornerRadiusTopEnd">4dp</item>
-        <item name="boxCornerRadiusBottomStart">4dp</item>
-        <item name="boxCornerRadiusBottomEnd">4dp</item>
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
         <item name="boxStrokeWidth">1dp</item>
         <item name="boxStrokeWidthFocused">2dp</item>
     </style>
@@ -136,16 +136,16 @@
     <style name="Widget.DicodePing.Button.OutlineCompact" parent="Widget.DicodePing.Button.Secondary" />
 
     <style name="Widget.DicodePing.Button.LinearPrimary" parent="Widget.DicodePing.Button.Primary">
-        <item name="cornerRadius">4dp</item>
-        <item name="android:minHeight">40dp</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">44dp</item>
         <item name="android:textSize">11sp</item>
         <item name="android:paddingStart">8dp</item>
         <item name="android:paddingEnd">8dp</item>
     </style>
 
     <style name="Widget.DicodePing.Button.LinearSecondary" parent="Widget.DicodePing.Button.Secondary">
-        <item name="cornerRadius">4dp</item>
-        <item name="android:minHeight">40dp</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">44dp</item>
         <item name="android:textSize">11sp</item>
         <item name="android:paddingStart">8dp</item>
         <item name="android:paddingEnd">8dp</item>
@@ -153,7 +153,7 @@
 
     <style name="Widget.DicodePing.ServerCard" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/surface_card</item>
-        <item name="cardCornerRadius">6dp</item>
+        <item name="cardCornerRadius">16dp</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/outline_soft</item>
         <item name="strokeWidth">1dp</item>

@@ -124,7 +124,7 @@ class ServerAdapter(
         val context = binding.root.context
         binding.ping.clearAnimation()
         binding.ping.alpha = 1f
-        if (server.testState == ServerRecord.TEST_RUNNING) {
+        if (server.testState == ServerRecord.TEST_RUNNING && server.pingMs == null) {
             val color = ContextCompat.getColor(context, R.color.brand)
             binding.ping.text = context.getString(R.string.testing_server)
             binding.ping.setTextColor(color)

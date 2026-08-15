@@ -779,70 +779,89 @@ class AppRepository private constructor(context: Context) {
         }
 
         try {
-            progress.value = ProgressState(true, "ping", 0, input.size, "Testing servers")
-
-            // Phase A is genuinely parallel and immediately paints TCP latency.
-            // It also prevents dead endpoints from starting expensive JNI Xray probes.
+            // Phase A: every TCP-compatible profile is probed at once. The result
+            // is committed as soon as that socket finishes, rather than waiting
+            // for awaitAll(), so the list starts sorting while the test is running.
             val tcpRows = input.filter(::needsTcpPrecheck)
-            val tcpResults = parallelTcpProbe(
-                tcpRows,
-                NORMAL_TCP_PROBE_CONCURRENCY,
-                stopRequested = { false },
-                onProgress = { done, total ->
-                    progress.value = ProgressState(true, "ping_tcp", done, total.coerceAtLeast(1), "Fast TCP precheck")
-                },
-            ).associate { it.first.id to it.second }
-
-            val candidates = mutableListOf<ServerRecord>()
-            val rejected = mutableListOf<ServerRecord>()
-            input.forEach { server ->
-                val tcpMs = if (needsTcpPrecheck(server)) tcpResults[server.id] else null
-                val reachable = !needsTcpPrecheck(server) || tcpMs != null
-                val quick = server.copy(
-                    pingMs = tcpMs?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt(),
-                    pingKind = if (tcpMs != null) STARTUP_TCP_PING else "",
-                    healthy = tcpMs != null,
-                    testState = if (reachable) ServerRecord.TEST_RUNNING else ServerRecord.TEST_FAILED,
-                )
-                liveUpdateMutex.withLock {
-                    applyServerUpdates(listOf(quick), true, sort = false, persist = false)
-                }
-                if (reachable) candidates += quick else rejected += quick
+            val tcpResults = if (tcpRows.isEmpty()) {
+                emptyMap()
+            } else {
+                progress.value = ProgressState(true, "ping_fast", 0, tcpRows.size, "Fast parallel ping")
+                parallelTcpProbe(
+                    servers = tcpRows,
+                    concurrency = NORMAL_TCP_PROBE_CONCURRENCY,
+                    stopRequested = { false },
+                    onProgress = { done, total ->
+                        progress.value = ProgressState(
+                            true, "ping_fast", done, total.coerceAtLeast(1), "Fast parallel ping",
+                        )
+                    },
+                    onResult = { server, tcpMs ->
+                        val quick = server.copy(
+                            pingMs = tcpMs?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt(),
+                            pingKind = if (tcpMs != null) STARTUP_TCP_PING else "",
+                            healthy = tcpMs != null,
+                            testState = if (tcpMs != null) ServerRecord.TEST_RUNNING else ServerRecord.TEST_FAILED,
+                        )
+                        liveUpdateMutex.withLock {
+                            // Primary sort key is ping, so each completed result
+                            // moves immediately to its correct position.
+                            applyServerUpdates(listOf(quick), true, sort = true, persist = false)
+                        }
+                    },
+                ).associate { it.first.id to it.second }
             }
 
-            val done = AtomicInteger(rejected.size)
-            progress.value = ProgressState(true, "ping_proxy", done.get(), input.size, "Verifying real proxy traffic")
+            // TCP failures are final for TCP-compatible profiles. Non-TCP
+            // transports bypass the socket precheck and go directly to the real
+            // outbound probe, so QUIC/Hysteria/WireGuard are not discarded.
+            val candidates = input.filter { server ->
+                !needsTcpPrecheck(server) || tcpResults[server.id] != null
+            }
+            val realDone = AtomicInteger(0)
+            progress.value = ProgressState(
+                true, "ping_real", 0, candidates.size.coerceAtLeast(1), "Verifying proxy traffic",
+            )
 
-            suspend fun runNativeBatch(batch: List<ServerRecord>, countProgress: Boolean): List<ServerRecord> = coroutineScope {
+            // A small native worker pool gives visible, staggered real results
+            // without spawning one unbounded JNI operation per profile.
+            val nativeSemaphore = Semaphore(NATIVE_PROBE_CONCURRENCY)
+            suspend fun runNativeBatch(
+                batch: List<ServerRecord>,
+                countProgress: Boolean,
+            ): List<ServerRecord> = coroutineScope {
                 batch.map { server ->
                     async(Dispatchers.IO) {
-                        // AndroidLibXrayLite is process-serialized by CoreBridge,
-                        // so concurrency here remains one for crash safety.
-                        val delay = runCatching {
-                            proxyProbe.measureOutboundDelay(
-                                XrayConfigBuilder.build(
-                                    server.raw,
-                                    bufferSizeKiB = tuning.bufferSizeKiB,
+                        nativeSemaphore.withPermit {
+                            val measured = runCatching {
+                                proxyProbe.measureOutboundDelay(
+                                    XrayConfigBuilder.build(
+                                        server.raw,
+                                        bufferSizeKiB = tuning.bufferSizeKiB,
+                                    )
                                 )
+                            }.getOrDefault(-1L)
+                            val pingMs = measured.takeIf { it in 1..60_000 }
+                                ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
+                            val updated = server.copy(
+                                pingMs = pingMs,
+                                pingKind = if (pingMs != null) REAL_PROXY_PING else "",
+                                healthy = pingMs != null,
+                                testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
                             )
-                        }.getOrDefault(-1L)
-                        val pingMs = delay.takeIf { it in 1..60_000 }
-                            ?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
-                        val updated = server.copy(
-                            pingMs = pingMs,
-                            pingKind = if (pingMs != null) REAL_PROXY_PING else "",
-                            healthy = pingMs != null,
-                            testState = if (pingMs != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
-                        )
-                        if (countProgress) {
-                            progress.value = ProgressState(
-                                true, "ping_proxy", done.incrementAndGet(), input.size, server.name,
-                            )
+                            liveUpdateMutex.withLock {
+                                // Do not wait for the whole batch: every real
+                                // result is sorted into the live list immediately.
+                                applyServerUpdates(listOf(updated), true, sort = true, persist = false)
+                            }
+                            if (countProgress) {
+                                val done = realDone.incrementAndGet()
+                                progress.value = ProgressState(
+                                    true, "ping_real", done, batch.size.coerceAtLeast(1), server.name,
+                                )
+                            }
+                            updated
                         }
-                        liveUpdateMutex.withLock {
-                            applyServerUpdates(listOf(updated), true, sort = false, persist = false)
-                        }
-                        updated
                     }
                 }.awaitAll()
             }
@@ -890,17 +909,16 @@ class AppRepository private constructor(context: Context) {
      *
      * Returns the TCP connect latency in milliseconds for every server whose
      * transport is TCP-compatible. This is the only kind of probe that can be
-     * run concurrently on Android without contending on the process-wide
-     * libgojni lock inside AndroidLibXrayLite. The Xray HTTP probe remains
-     * serial (see CoreBridge.measureOutboundDelay) and is now run only on the
-     * top candidates that survived this concurrent TCP filter, which cuts the
-     * total scan time by 60-80% on typical 40-60 candidate scans.
+     * run concurrently on Android without creating one native core per row.
+     * Real outbound probes are then dispatched through a separate bounded
+     * native worker pool and are committed to the same live sorted list.
      */
     private suspend fun parallelTcpProbe(
         servers: List<ServerRecord>,
         concurrency: Int,
         stopRequested: () -> Boolean,
         onProgress: (Int, Int) -> Unit,
+        onResult: suspend (ServerRecord, Long?) -> Unit = { _, _ -> },
     ): List<Pair<ServerRecord, Long?>> = coroutineScope {
         if (servers.isEmpty()) return@coroutineScope emptyList()
         val sem = Semaphore(concurrency.coerceIn(4, 24))
@@ -915,6 +933,7 @@ class AppRepository private constructor(context: Context) {
                         true
                     }.getOrDefault(false)
                     val ms = if (ok) (System.nanoTime() - started) / 1_000_000L else null
+                    onResult(server, ms)
                     val d = done.incrementAndGet()
                     onProgress(d, servers.size)
                     server to ms
@@ -954,10 +973,10 @@ class AppRepository private constructor(context: Context) {
     private fun isAutoEligible(server: ServerRecord): Boolean = ServerPolicy.isAutoEligible(server)
 
     private fun sortServers(rows: List<ServerRecord>) = rows.sortedWith(
-        compareByDescending<ServerRecord> { it.favorite }
-            .thenByDescending(::isAutoEligible)
+        compareBy<ServerRecord> { it.pingMs ?: Int.MAX_VALUE }
             .thenByDescending { it.healthy }
-            .thenBy { it.pingMs ?: Int.MAX_VALUE }
+            .thenByDescending { it.favorite }
+            .thenBy { it.name.lowercase() }
     )
 
     fun saveSources(list: List<SourceDefinition>) {
@@ -1115,7 +1134,7 @@ class AppRepository private constructor(context: Context) {
         private const val BACKGROUND_GEO_LIMIT = 48
         private const val RETRY_FAILED_LIMIT = 6
         private const val TCP_PRECHECK_TIMEOUT_MS = 1_000
-        private const val NORMAL_TCP_PROBE_CONCURRENCY = 20
+        private const val NORMAL_TCP_PROBE_CONCURRENCY = 24
         private const val MAX_SCANNER_SERVERS = 160
         private const val SCANNER_NATIVE_CANDIDATE_LIMIT = 32
         private const val SCANNER_TCP_PREFILTER_WORKERS = 16
@@ -1125,12 +1144,11 @@ class AppRepository private constructor(context: Context) {
         private const val SCANNER_MIN_SUCCESS = 1
         private const val SCANNER_MAX_DELAY_MS = 60_000L
         private const val SCANNER_ATTEMPT_GAP_MS = 0L
-        // bounded parallel Xray HTTP probes. Bumped from 1 to 3 so
-        // the scanner tests multiple candidates concurrently instead of one
-        // by one. 3 stays below libv2ray's internal JNI lock contention
-        // threshold while cutting total scan time by more than half on
-        // typical 40-candidate scans.
+        // Bounded native worker pool for real profile probes. CoreBridge keeps
+        // environment setup serialized, while the actual one-shot probes are
+        // allowed to overlap so a complete list is not tested one-by-one.
         private const val SCANNER_PROBE_CONCURRENCY = 3
+        private const val NATIVE_PROBE_CONCURRENCY = SCANNER_PROBE_CONCURRENCY
         // real concurrency for Android. The TCP handshake delay
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.
         // raised from 12 to 20 for even faster Phase A filtering.

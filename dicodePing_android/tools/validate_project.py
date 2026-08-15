@@ -16,9 +16,9 @@ for path in [ROOT / "app/src/main/AndroidManifest.xml", *sorted((ROOT / "app/src
 
 build = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 for marker in (
-    'versionCode = 72',
-    'versionName = "3.0.0-pre.3"',
-    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.3\\"")',
+    'versionCode = 73',
+    'versionName = "3.0.0-pre.4"',
+    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.4\\"")',
     'setOf("arm64-v8a", "armeabi-v7a", "x86_64")',
     'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")',
     'coreSha256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"',

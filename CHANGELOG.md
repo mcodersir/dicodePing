@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.0-pre.4
+
+- Parallel server ping tests with live low-to-high sorting.
+- Connect or select a server while the ping sweep is still running.
+- Rebuilt the Android server screen with rounded cards, clearer spacing and a faster progress model.
+
 ## 3.0.0-pre.3
 
 - Added selectable automatic, Xray and sing-box core preferences.

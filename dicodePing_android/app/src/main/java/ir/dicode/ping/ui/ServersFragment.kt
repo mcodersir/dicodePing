@@ -47,7 +47,6 @@ class ServersFragment : Fragment() {
             onConnect = { (activity as? ConnectionHost)?.connect(it) },
             onFavorite = { vm.repo.setFavorite(it.id) },
             interactionLocked = {
-                vm.repo.progress.value.active ||
                     VpnStateStore.state.value.status == VpnStatus.CONNECTED ||
                     VpnStateStore.state.value.status == VpnStatus.CONNECTING
             },
@@ -116,7 +115,9 @@ class ServersFragment : Fragment() {
                         binding.progressStage.text = when (progress.stage) {
                             "download" -> getString(R.string.stage_downloading, progress.done, progress.total)
                             "geo" -> getString(R.string.stage_location, progress.done, progress.total)
-                            "ping" -> getString(R.string.stage_ping, progress.done, progress.total)
+                            "ping", "ping_tcp" -> getString(R.string.stage_ping, progress.done, progress.total)
+                            "ping_fast" -> getString(R.string.stage_ping_fast, progress.done, progress.total)
+                            "ping_real" -> getString(R.string.stage_ping_real, progress.done, progress.total)
                             else -> progress.message
                         }
                         // Keep populated rows visible during location/ping stages so results
@@ -199,7 +200,7 @@ class ServersFragment : Fragment() {
 
     private fun canConnectSelected(locked: Boolean): Boolean {
         val selected = vm.repo.selectedServer()
-        return !locked && !vm.repo.progress.value.active && selected != null && !ServerPolicy.isRestricted(selected)
+        return !locked && selected != null && !ServerPolicy.isRestricted(selected)
     }
 
     /**

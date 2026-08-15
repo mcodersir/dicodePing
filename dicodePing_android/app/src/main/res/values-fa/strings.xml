@@ -32,7 +32,7 @@
     <string name="connected_ping">پینگ اتصال</string>
     <string name="connection_overview">نمای کلی اتصال</string>
     <string name="all_servers">پروفایل‌ها</string>
-    <string name="servers_subtitle">انتخاب، تست و اتصال به پروفایل واردشده</string>
+    <string name="servers_subtitle">کمترین پینگ اول · انتخاب و اتصال هنگام تست آزاد است</string>
     <string name="search_servers">جستجوی نام یا موقعیت سرور</string>
     <string name="connect_selected">اتصال به سرور انتخابی</string>
     <string name="server_location">موقعیت تخمینی آی‌پی</string>
@@ -120,6 +120,8 @@
     <string name="stage_downloading">مرحله ۱ از ۳ · دریافت منابع · %1$d/%2$d</string>
     <string name="stage_location">مرحله ۲ از ۳ · تشخیص لوکیشن · %1$d/%2$d</string>
     <string name="stage_ping">مرحله ۳ از ۳ · تست هم‌زمان · %1$d/%2$d</string>
+    <string name="stage_ping_fast">پینگ سریع و هم‌زمان · %1$d/%2$d</string>
+    <string name="stage_ping_real">بررسی واقعی پروفایل‌ها · %1$d/%2$d</string>
     <string name="server_temporarily_unavailable_short">دردسترس نیست</string>
     <string name="connect_target_server">اتصال به این سرور</string>
     <string name="search_server">جستجوی نام یا موقعیت سرور</string>
