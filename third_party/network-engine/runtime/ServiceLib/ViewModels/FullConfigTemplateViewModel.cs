@@ -13,16 +13,16 @@ public partial class FullConfigTemplateViewModel : MyReactiveObject, ICloseable
     public partial bool EnableFullConfigTemplate4Singbox { get; set; }
 
     [Reactive]
-    public partial string FullConfigTemplate4Ray { get; set; } = string.Empty;
+    public partial string FullConfigTemplate4Ray { get; set; }
 
     [Reactive]
-    public partial string FullTunConfigTemplate4Ray { get; set; } = string.Empty;
+    public partial string FullTunConfigTemplate4Ray { get; set; }
 
     [Reactive]
-    public partial string FullConfigTemplate4Singbox { get; set; } = string.Empty;
+    public partial string FullConfigTemplate4Singbox { get; set; }
 
     [Reactive]
-    public partial string FullTunConfigTemplate4Singbox { get; set; } = string.Empty;
+    public partial string FullTunConfigTemplate4Singbox { get; set; }
 
     [Reactive]
     public partial bool AddProxyOnly4Ray { get; set; }
@@ -31,10 +31,10 @@ public partial class FullConfigTemplateViewModel : MyReactiveObject, ICloseable
     public partial bool AddProxyOnly4Singbox { get; set; }
 
     [Reactive]
-    public partial string ProxyDetour4Ray { get; set; } = string.Empty;
+    public partial string ProxyDetour4Ray { get; set; }
 
     [Reactive]
-    public partial string ProxyDetour4Singbox { get; set; } = string.Empty;
+    public partial string ProxyDetour4Singbox { get; set; }
 
     public ReactiveCommand<RxVoid, RxVoid> SaveCmd { get; }
 

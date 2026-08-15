@@ -13,7 +13,7 @@ public partial class BackupAndRestoreViewModel : MyReactiveObject
     public partial WebDavItem SelectedSource { get; set; }
 
     [Reactive]
-    public partial string OperationMsg { get; set; } = string.Empty;
+    public partial string OperationMsg { get; set; }
 
     public BackupAndRestoreViewModel()
     {

@@ -61,7 +61,7 @@ if "!REMOTE_TAG_EXISTS!"=="1" (
 
 if exist "%WORK%" rmdir /s /q "%WORK%"
 echo [1/7] Cloning %REPO% using installed Git...
-git clone --branch "!DEFAULT_BRANCH!" --single-branch "%REPO_URL%" "%WORK%"
+git clone --depth 1 --branch "!DEFAULT_BRANCH!" --single-branch "%REPO_URL%" "%WORK%"
 if errorlevel 1 (
   echo [ERROR] git clone failed.
   echo         Fix your normal GitHub Git authentication and run again.

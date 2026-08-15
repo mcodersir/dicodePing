@@ -14,7 +14,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.12"
-  DOTNET_VERSION: "10.0.x"
+  DOTNET_VERSION: "9.0.x"
   RELEASE_VERSION: "3.0.0-pre.1"
 
 jobs:

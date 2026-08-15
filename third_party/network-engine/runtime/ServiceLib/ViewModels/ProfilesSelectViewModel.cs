@@ -8,7 +8,7 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
 
     #region private prop
 
-    private string _serverFilter = string.Empty;
+    private string _serverFilterText = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
     private string _subIndexId = string.Empty;
 
@@ -68,7 +68,7 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
 
         this.WhenAnyValue(
           x => x.ServerFilter,
-          y => y != null && _serverFilter != y)
+          y => y != null && _serverFilterText != y)
               .Subscribe(async c => await ServerFilterChanged(c));
 
         // React to ConfigType filter changes
@@ -153,8 +153,8 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
         {
             return;
         }
-        _serverFilter = ServerFilter;
-        if (_serverFilter.IsNullOrEmpty())
+        _serverFilterText = ServerFilter;
+        if (_serverFilterText.IsNullOrEmpty())
         {
             await RefreshServers();
         }
@@ -167,7 +167,7 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
 
     private async Task RefreshServersBiz()
     {
-        var lstModel = await GetProfileItemsEx(_subIndexId, _serverFilter);
+        var lstModel = await GetProfileItemsEx(_subIndexId, _serverFilterText);
 
         ProfileItems.Clear();
         ProfileItems.AddRange(lstModel);

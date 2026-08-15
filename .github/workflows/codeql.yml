@@ -38,7 +38,7 @@ jobs:
         if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "9.0.x"
 
       - name: Set up Python for deterministic Android resource preparation
         if: matrix.language == 'java-kotlin'

@@ -16,7 +16,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     #region private prop
 
     private List<ProfileItem> _lstProfile;
-    private string _serverFilter = string.Empty;
+    private string _serverFilterText = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
     private SpeedtestService? _speedtestService;
     private string? _pendingSelectIndexId;
@@ -114,7 +114,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         this.WhenAnyValue(
           x => x.ServerFilter,
-          y => y != null && _serverFilter != y)
+          y => y != null && _serverFilterText != y)
               .Subscribe(async c => await ServerFilterChanged(c));
 
         //servers delete
@@ -360,8 +360,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             return;
         }
-        _serverFilter = ServerFilter;
-        if (_serverFilter.IsNullOrEmpty())
+        _serverFilterText = ServerFilter;
+        if (_serverFilterText.IsNullOrEmpty())
         {
             await RefreshServers();
         }
@@ -378,7 +378,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task RefreshServersBiz()
     {
-        var lstModel = await GetProfileItemsEx(_config.SubIndexId, _serverFilter);
+        var lstModel = await GetProfileItemsEx(_config.SubIndexId, _serverFilterText);
         _lstProfile = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(lstModel)) ?? [];
 
         ProfileItems.Clear();

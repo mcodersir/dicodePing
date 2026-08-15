@@ -22,15 +22,15 @@ public partial class DNSSettingViewModel : MyReactiveObject, ICloseable
     [Reactive] public partial bool EnableHappyEyeballs { get; set; }
 
     [Reactive] public partial bool UseSystemHostsCompatible { get; set; }
-    [Reactive] public partial string DomainStrategy4FreedomCompatible { get; set; } = string.Empty;
-    [Reactive] public partial string DomainDNSAddressCompatible { get; set; } = string.Empty;
-    [Reactive] public partial string NormalDNSCompatible { get; set; } = string.Empty;
-    [Reactive] public partial string TunDNSCompatible { get; set; } = string.Empty;
+    [Reactive] public partial string DomainStrategy4FreedomCompatible { get; set; }
+    [Reactive] public partial string DomainDNSAddressCompatible { get; set; }
+    [Reactive] public partial string NormalDNSCompatible { get; set; }
+    [Reactive] public partial string TunDNSCompatible { get; set; }
 
-    [Reactive] public partial string DomainStrategy4Freedom2Compatible { get; set; } = string.Empty;
-    [Reactive] public partial string DomainDNSAddress2Compatible { get; set; } = string.Empty;
-    [Reactive] public partial string NormalDNS2Compatible { get; set; } = string.Empty;
-    [Reactive] public partial string TunDNS2Compatible { get; set; } = string.Empty;
+    [Reactive] public partial string DomainStrategy4Freedom2Compatible { get; set; }
+    [Reactive] public partial string DomainDNSAddress2Compatible { get; set; }
+    [Reactive] public partial string NormalDNS2Compatible { get; set; }
+    [Reactive] public partial string TunDNS2Compatible { get; set; }
     [Reactive] public partial bool RayCustomDNSEnableCompatible { get; set; }
     [Reactive] public partial bool SBCustomDNSEnableCompatible { get; set; }
 
