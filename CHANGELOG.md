@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.0-pre.2
+
+- Added selectable automatic, Xray and sing-box core preferences.
+- Refined Routing & DNS settings into a compact Linear-style layout.
+- Added release-wide runtime, profile, DNS and four-platform validation coverage.
+
 ## 3.0.0-pre.1
 
 - Fixed the desktop release builders so Windows, Linux and both macOS jobs can run as direct scripts or Python modules without `ModuleNotFoundError: tools`.

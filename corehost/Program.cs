@@ -276,6 +276,7 @@ internal sealed class HostState
 
     private object SettingsGet() => new
     {
+        core_preference = GetCorePreference(),
         tun = _config.TunModeItem.EnableTun,
         auto_route = _config.TunModeItem.AutoRoute,
         strict_route = _config.TunModeItem.StrictRoute,
@@ -288,6 +289,8 @@ internal sealed class HostState
 
     private async Task<object> SettingsSetAsync(JsonElement args)
     {
+        if (args.TryGetProperty("core_preference", out var cp) && cp.ValueKind == JsonValueKind.String)
+            SetCorePreference(cp.GetString());
         if (args.TryGetProperty("tun", out var tun) && tun.ValueKind is JsonValueKind.True or JsonValueKind.False)
             _config.TunModeItem.EnableTun = tun.GetBoolean();
         if (args.TryGetProperty("auto_route", out var ar) && ar.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -323,6 +326,50 @@ internal sealed class HostState
 
         await ConfigHandler.SaveConfig(_config);
         return SettingsGet();
+    }
+
+    private string GetCorePreference()
+    {
+        var values = (_config.CoreTypeItem ?? [])
+            .Where(item => item.CoreType is ECoreType.Xray or ECoreType.sing_box)
+            .Select(item => item.CoreType)
+            .Distinct()
+            .ToArray();
+        return values.Length == 1
+            ? values[0] switch
+            {
+                ECoreType.sing_box => "sing_box",
+                _ => "xray"
+            }
+            : "auto";
+    }
+
+    private void SetCorePreference(string? preference)
+    {
+        var value = (preference ?? "auto").Trim().ToLowerInvariant();
+        if (value is not ("auto" or "xray" or "sing_box"))
+            return;
+
+        _config.CoreTypeItem ??= [];
+        if (value == "auto")
+        {
+            _config.CoreTypeItem.RemoveAll(item => item.CoreType is ECoreType.Xray or ECoreType.sing_box);
+            return;
+        }
+
+        var core = value == "sing_box" ? ECoreType.sing_box : ECoreType.Xray;
+        foreach (var configType in Enum.GetValues<EConfigType>())
+        {
+            var item = _config.CoreTypeItem.FirstOrDefault(entry => entry.ConfigType == configType);
+            if (item is null)
+            {
+                _config.CoreTypeItem.Add(new() { ConfigType = configType, CoreType = core });
+            }
+            else if (item.CoreType is ECoreType.Xray or ECoreType.sing_box)
+            {
+                item.CoreType = core;
+            }
+        }
     }
 
     private async Task<object> ShutdownAsync()

@@ -8,5 +8,5 @@ Exec=/opt/dicodePing/run-dicodePing.sh
 Icon=/opt/dicodePing/app.png
 Terminal=false
 Categories=Network;Utility;
-Keywords=vpn;proxy;xray;v2ray;
+Keywords=vpn;proxy;xray;sing-box;
 StartupWMClass=dicodePing

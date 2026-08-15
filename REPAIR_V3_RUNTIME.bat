@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo dicodePing 3.0.0-pre.1 - Runtime repair/download
+echo dicodePing 3.0.0-pre.2 - Runtime repair/download
 echo.
 py -3 tools\fetch_runtime_assets.py
 if errorlevel 1 (

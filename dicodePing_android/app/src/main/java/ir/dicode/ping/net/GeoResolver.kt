@@ -65,7 +65,7 @@ class GeoResolver {
     }
 
     private fun get(url: String): JSONObject? = runCatching {
-        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/3.0.0-pre.1").build()).execute().use {
+        client.newCall(Request.Builder().url(url).header("User-Agent", "dicodePing-Android/3.0.0-pre.2").build()).execute().use {
             if (!it.isSuccessful) return null
             JSONObject(it.body?.string().orEmpty())
         }

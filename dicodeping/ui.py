@@ -50,16 +50,16 @@ QLabel#TitleMD { font-size: 15px; font-weight: 700; }
 QLabel#Muted { color: #8E98AA; }
 QLabel#Subtle { color: #667085; }
 QLabel#AccentText { color: #8EA8FF; font-weight: 700; }
-QLabel#StatusPill { background: #171D29; border: 1px solid #283247; border-radius: 12px; padding: 5px 10px; }
-QFrame#Card { background: #10141C; border: 1px solid #202736; border-radius: 16px; }
-QFrame#Hero { background: #111722; border: 1px solid #263147; border-radius: 20px; }
-QFrame#Metric { background: #0F141D; border: 1px solid #202938; border-radius: 14px; }
+QLabel#StatusPill { background: #171D29; border: 1px solid #283247; border-radius: 8px; padding: 4px 9px; }
+QFrame#Card { background: #10141C; border: 1px solid #202736; border-radius: 10px; }
+QFrame#Hero { background: #111722; border: 1px solid #263147; border-radius: 12px; }
+QFrame#Metric { background: #0F141D; border: 1px solid #202938; border-radius: 9px; }
 QFrame#StatusDot { min-width: 10px; max-width: 10px; min-height: 10px; max-height: 10px; border-radius: 5px; background: #687386; }
 QListWidget#NavList { background: transparent; border: 0; outline: 0; padding: 0; }
-QListWidget#NavList::item { min-height: 28px; padding: 10px 12px; border-radius: 10px; color: #939DB0; margin: 2px 0; }
+QListWidget#NavList::item { min-height: 28px; padding: 9px 12px; border-radius: 7px; color: #939DB0; margin: 2px 0; }
 QListWidget#NavList::item:hover { background: #141A24; color: #C8D0DE; }
 QListWidget#NavList::item:selected { background: #1B2540; color: #F5F7FB; font-weight: 700; }
-QPushButton { background: #171D29; border: 1px solid #2A3447; border-radius: 10px; padding: 9px 14px; font-weight: 650; }
+QPushButton { background: #171D29; border: 1px solid #2A3447; border-radius: 7px; padding: 9px 14px; font-weight: 650; }
 QPushButton:hover { background: #202838; border-color: #38465E; }
 QPushButton:pressed { background: #121722; }
 QPushButton:disabled { color: #5E6878; background: #11151D; border-color: #1D2330; }
@@ -68,14 +68,14 @@ QPushButton#Primary:hover { background: #6686FA; }
 QPushButton#Danger { background: #351C25; border-color: #63303C; color: #FFBCC6; }
 QPushButton#Ghost { background: transparent; border-color: #263042; }
 QPushButton#NavAction { text-align: left; }
-QLineEdit, QComboBox, QSpinBox { background: #0D1118; border: 1px solid #283247; border-radius: 10px; padding: 8px 10px; min-height: 20px; selection-background-color: #314D9A; }
+QLineEdit, QComboBox, QSpinBox { background: #0D1118; border: 1px solid #283247; border-radius: 7px; padding: 8px 10px; min-height: 20px; selection-background-color: #314D9A; }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border-color: #5577F5; }
 QCheckBox { spacing: 8px; }
 QCheckBox::indicator { width: 18px; height: 18px; }
-QTableWidget { background: #0B0F15; alternate-background-color: #0E131B; border: 1px solid #202736; border-radius: 12px; gridline-color: #1B2230; selection-background-color: #1B2C55; selection-color: #FFFFFF; outline: 0; }
+QTableWidget { background: #0B0F15; alternate-background-color: #0E131B; border: 1px solid #202736; border-radius: 8px; gridline-color: #1B2230; selection-background-color: #1B2C55; selection-color: #FFFFFF; outline: 0; }
 QTableWidget::item { padding: 7px; }
 QHeaderView::section { background: #121721; color: #9BA5B6; border: 0; border-bottom: 1px solid #253044; padding: 9px 8px; font-weight: 700; }
-QPlainTextEdit { background: #080B10; border: 1px solid #202736; border-radius: 12px; padding: 10px; font-family: 'Cascadia Mono','Consolas',monospace; color: #D6DCE6; selection-background-color: #314D9A; }
+QPlainTextEdit { background: #080B10; border: 1px solid #202736; border-radius: 8px; padding: 10px; font-family: 'Cascadia Mono','Consolas',monospace; color: #D6DCE6; selection-background-color: #314D9A; }
 QProgressBar { background: #151A23; border: 0; border-radius: 3px; min-height: 6px; max-height: 6px; text-align: center; }
 QProgressBar::chunk { background: #5577F5; border-radius: 3px; }
 QScrollArea { border: 0; background: transparent; }
@@ -475,19 +475,28 @@ class RoutingPage(QWidget):
 
         mode, mode_layout = card()
         mode_layout.addWidget(label("حالت اتصال", "TitleMD"))
+        mode_row = QHBoxLayout()
         self.tun = QCheckBox("TUN mode")
         self.auto_route = QCheckBox("Auto route")
         self.strict_route = QCheckBox("Strict route")
-        mode_layout.addWidget(self.tun)
-        mode_layout.addWidget(self.auto_route)
-        mode_layout.addWidget(self.strict_route)
+        mode_row.addWidget(self.tun)
+        mode_row.addWidget(self.auto_route)
+        mode_row.addWidget(self.strict_route)
+        mode_row.addStretch(1)
+        mode_layout.addLayout(mode_row)
         mode_layout.addWidget(muted("در TUN mode مسیر سراسری توسط runtime مدیریت می‌شود. در بعضی سیستم‌ها مجوز مدیریتی لازم است."))
         root.addWidget(mode)
 
         proxy, proxy_layout = card()
-        proxy_layout.addWidget(label("System Proxy", "TitleMD"))
+        proxy_layout.addWidget(label("Core و پروکسی سیستم", "TitleMD"))
         row = QHBoxLayout()
-        row.addWidget(QLabel("Mode"))
+        row.addWidget(QLabel("Core"))
+        self.core_preference = QComboBox()
+        self.core_preference.addItem("خودکار / بهترین گزینه", "auto")
+        self.core_preference.addItem("Xray", "xray")
+        self.core_preference.addItem("sing-box", "sing_box")
+        row.addWidget(self.core_preference, 1)
+        row.addWidget(QLabel("System proxy"))
         self.system_proxy = QComboBox()
         self.system_proxy.addItem("فعال", "on")
         self.system_proxy.addItem("خاموش / پاک‌سازی", "off")
@@ -495,6 +504,7 @@ class RoutingPage(QWidget):
         self.system_proxy.addItem("PAC (Windows)", "pac")
         row.addWidget(self.system_proxy, 1)
         proxy_layout.addLayout(row)
+        proxy_layout.addWidget(muted("در حالت خودکار، نوع پروفایل مسیر مناسب را انتخاب می‌کند؛ انتخاب دستی برای عیب‌یابی و سازگاری بیشتر است."))
         root.addWidget(proxy)
 
         dns, dns_layout = card()
@@ -535,6 +545,8 @@ class RoutingPage(QWidget):
         root.addStretch(1)
 
     def apply(self, settings: dict[str, Any]) -> None:
+        core = self.core_preference.findData(str(settings.get("core_preference", "auto")))
+        self.core_preference.setCurrentIndex(core if core >= 0 else 0)
         self.tun.setChecked(bool(settings.get("tun", False)))
         self.auto_route.setChecked(bool(settings.get("auto_route", True)))
         self.strict_route.setChecked(bool(settings.get("strict_route", True)))
@@ -551,6 +563,7 @@ class RoutingPage(QWidget):
 
     def values(self) -> dict[str, Any]:
         return {
+            "core_preference": self.core_preference.currentData(),
             "tun": self.tun.isChecked(),
             "auto_route": self.auto_route.isChecked(),
             "strict_route": self.strict_route.isChecked(),
