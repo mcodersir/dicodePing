@@ -20,7 +20,7 @@ WEIGHTS = ("Regular", "Medium", "Bold")
 
 
 def _download(url: str, timeout: float = 35.0, attempts: int = 4) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/3.0.0-pre.2"})
+    request = urllib.request.Request(url, headers={"User-Agent": "dicodePing-build/3.0.0-pre.3"})
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:

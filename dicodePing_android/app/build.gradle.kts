@@ -96,9 +96,9 @@ android {
         applicationId = "ir.dicode.ping.client"
         minSdk = 24
         targetSdk = 36
-        versionCode = 71
-        versionName = "3.0.0-pre.2"
-        buildConfigField("String", "RELEASE_VERSION", "\"3.0.0-pre.2\"")
+        versionCode = 72
+        versionName = "3.0.0-pre.3"
+        buildConfigField("String", "RELEASE_VERSION", "\"3.0.0-pre.3\"")
         multiDexEnabled = true
 
     }

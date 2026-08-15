@@ -65,7 +65,7 @@ class Runtime:
 
 def test_version_and_primary_source_are_v3():
     assert VERSION == "3.0.0"
-    assert RELEASE_VERSION == "3.0.0-pre.2"
+    assert RELEASE_VERSION == "3.0.0-pre.3"
     assert DEFAULT_SUBSCRIPTION_URL.endswith("mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt")
 
 

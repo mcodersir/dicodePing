@@ -8,7 +8,7 @@ APP_ID = "ir.dicode.dicodePing"
 APP_NAME = "dicodePing"
 PRODUCT_NAME_FA = "dicodePing"
 VERSION = "3.0.0"
-RELEASE_VERSION = "3.0.0-pre.2"
+RELEASE_VERSION = "3.0.0-pre.3"
 
 DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 DEFAULT_SUBSCRIPTION_FALLBACK = "https://cdn.jsdelivr.net/gh/mcodersir/DicodeConfigChecker@main/sub.txt"

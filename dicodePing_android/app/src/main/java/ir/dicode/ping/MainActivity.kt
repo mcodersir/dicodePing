@@ -8,13 +8,11 @@ import android.content.res.Configuration
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
-import android.view.HapticFeedbackConstants
-import android.view.View
-import android.widget.ImageView
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -30,15 +28,12 @@ import ir.dicode.ping.data.ServerPolicy
 import ir.dicode.ping.data.SettingsStore
 import ir.dicode.ping.databinding.ActivityMainBinding
 import ir.dicode.ping.ui.AboutFragment
-import ir.dicode.ping.ui.HomeFragment
 import ir.dicode.ping.ui.MainViewModel
 import ir.dicode.ping.ui.ScannerFragment
 import ir.dicode.ping.scanner.ScannerCoordinator
 import ir.dicode.ping.scanner.ScannerService
 import ir.dicode.ping.ui.ServersFragment
 import ir.dicode.ping.ui.SettingsFragment
-import ir.dicode.ping.ui.DicodeWindowSizeClass
-import ir.dicode.ping.ui.dicodeWindowSizeClass
 import ir.dicode.ping.util.AppLog
 import ir.dicode.ping.util.LocaleHelper
 import ir.dicode.ping.util.PublicServerLabel
@@ -120,25 +115,48 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         configureSystemBars()
         applySystemBarInsets()
 
+        binding.mainToolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.nav_servers -> showPage(R.id.nav_servers)
+                R.id.nav_scanner -> requestScannerLaunch()
+                R.id.nav_settings -> showPage(R.id.nav_settings)
+                R.id.nav_about -> showPage(R.id.nav_about)
+                else -> return@setOnMenuItemClickListener false
+            }
+            true
+        }
+        binding.connectFab.setOnClickListener {
+            when (VpnStateStore.state.value.status) {
+                VpnStatus.CONNECTED, VpnStatus.CONNECTING -> disconnect()
+                else -> connect(null)
+            }
+        }
+        updateConnectionChrome(VpnStateStore.state.value)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (currentPageId != R.id.nav_servers) {
+                    showPage(R.id.nav_servers)
+                } else {
+                    finish()
+                }
+            }
+        })
+
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        bindNavigationItem(binding.navHome, binding.navHomeIcon!!, R.id.nav_home)
-        bindNavigationItem(binding.navServers, binding.navServersIcon!!, R.id.nav_servers)
-        bindNavigationItem(binding.navScanner!!, binding.navScannerIcon!!, R.id.nav_scanner)
-        bindNavigationItem(binding.navSettings, binding.navSettingsIcon!!, R.id.nav_settings)
-        bindNavigationItem(binding.navAbout, binding.navAboutIcon!!, R.id.nav_about)
-
-        val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_home) ?: R.id.nav_home
+        val restoredPage = savedInstanceState?.getInt(KEY_CURRENT_PAGE, R.id.nav_servers) ?: R.id.nav_servers
         pendingScannerStart = savedInstanceState?.getBoolean(KEY_PENDING_SCANNER, false) ?: false
         currentPageId = 0
         showPage(restoredPage, animate = false)
 
         lifecycleScope.launch {
             VpnStateStore.state.collect { state ->
+                updateConnectionChrome(state)
                 when {
                     state.status == VpnStatus.CONNECTED -> {
                         if (state.serverId == automaticAttemptId) clearAutomaticQueue()
@@ -159,7 +177,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putInt(KEY_CURRENT_PAGE, currentPageId.takeIf { it != 0 } ?: R.id.nav_home)
+        outState.putInt(KEY_CURRENT_PAGE, currentPageId.takeIf { it != 0 } ?: R.id.nav_servers)
         outState.putBoolean(KEY_PENDING_SCANNER, pendingScannerStart)
         super.onSaveInstanceState(outState)
     }
@@ -183,46 +201,33 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
             )
             val navigation = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
 
-            binding.fragmentHost.updatePadding(
+            binding.mainToolbar.updatePadding(
                 left = statusAndCutout.left,
                 top = statusAndCutout.top,
                 right = statusAndCutout.right,
             )
-            binding.navContainer.updatePadding(
-                left = navigation.left,
-                right = navigation.right,
-                bottom = navigation.bottom,
-            )
+            binding.fragmentHost.updatePadding(left = statusAndCutout.left, right = statusAndCutout.right)
+            val fabParams = binding.connectFab.layoutParams as android.view.ViewGroup.MarginLayoutParams
+            fabParams.bottomMargin = navigation.bottom + (20 * resources.displayMetrics.density).toInt()
+            fabParams.rightMargin = navigation.right + (20 * resources.displayMetrics.density).toInt()
+            fabParams.leftMargin = navigation.left + (20 * resources.displayMetrics.density).toInt()
+            binding.connectFab.layoutParams = fabParams
             windowInsets
         }
         ViewCompat.requestApplyInsets(binding.root)
     }
 
-    private fun bindNavigationItem(container: View, icon: ImageView, destination: Int) {
-        container.setOnClickListener {
-            container.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            showPage(destination)
-            icon.animate().cancel()
-            icon.scaleX = 0.92f
-            icon.scaleY = 0.92f
-            icon.animate()
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(100L)
-                .start()
-        }
-    }
-
     private fun showPage(id: Int, animate: Boolean = true) {
-        val tag = pageTag(id)
+        val pageId = id
+        val tag = pageTag(pageId)
         val existing = supportFragmentManager.findFragmentByTag(tag)
-        if (id == currentPageId && existing?.isVisible == true) return
+        if (pageId == currentPageId && existing?.isVisible == true) return
 
-        AppLog.i("Navigation", "Open destination=$id")
-        currentPageId = id
-        val target = existing ?: createPage(id)
+        AppLog.i("Navigation", "Open destination=$pageId")
+        currentPageId = pageId
+        val target = existing ?: createPage(pageId)
         val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
-        if (animate && resources.dicodeWindowSizeClass() != DicodeWindowSizeClass.COMPACT) {
+        if (animate) {
             transaction.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
@@ -236,7 +241,12 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         transaction.setMaxLifecycle(target, Lifecycle.State.RESUMED)
         transaction.setPrimaryNavigationFragment(target)
         transaction.commit()
-        updateNavigationSelection(id)
+        binding.mainToolbar.title = when (pageId) {
+            R.id.nav_settings -> getString(R.string.nav_settings)
+            R.id.nav_scanner -> getString(R.string.nav_scanner)
+            R.id.nav_about -> getString(R.string.nav_about)
+            else -> getString(R.string.app_name)
+        }
     }
 
     private fun createPage(id: Int): Fragment = when (id) {
@@ -244,22 +254,21 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         R.id.nav_scanner -> ScannerFragment()
         R.id.nav_settings -> SettingsFragment()
         R.id.nav_about -> AboutFragment()
-        else -> HomeFragment()
+        else -> ServersFragment()
     }
 
     private fun pageTag(id: Int): String = "main_page_$id"
 
-    private fun updateNavigationSelection(selectedId: Int) {
-        binding.navHome.isSelected = selectedId == R.id.nav_home
-        binding.navServers.isSelected = selectedId == R.id.nav_servers
-        binding.navScanner?.isSelected = selectedId == R.id.nav_scanner
-        binding.navSettings.isSelected = selectedId == R.id.nav_settings
-        binding.navAbout.isSelected = selectedId == R.id.nav_about
-        binding.navHomeIcon?.isSelected = binding.navHome.isSelected
-        binding.navServersIcon?.isSelected = binding.navServers.isSelected
-        binding.navScannerIcon?.isSelected = binding.navScanner?.isSelected == true
-        binding.navSettingsIcon?.isSelected = binding.navSettings.isSelected
-        binding.navAboutIcon?.isSelected = binding.navAbout.isSelected
+    private fun updateConnectionChrome(state: VpnState) {
+        val active = state.status == VpnStatus.CONNECTED || state.status == VpnStatus.CONNECTING
+        binding.connectFab.setImageResource(if (active) R.drawable.ic_power else R.drawable.ic_bolt)
+        binding.connectFab.contentDescription = getString(if (active) R.string.disconnect else R.string.connect)
+        binding.mainToolbar.subtitle = when (state.status) {
+            VpnStatus.CONNECTED -> getString(R.string.connected)
+            VpnStatus.CONNECTING -> getString(R.string.connecting)
+            VpnStatus.ERROR -> getString(R.string.connection_error)
+            else -> getString(R.string.ready_to_connect)
+        }
     }
 
     override fun requestScannerLaunch() {
@@ -296,7 +305,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
         scannerLaunchScheduled = false
         // The scanner uses the app-owned runtime connection so it can stop it
         // deterministically before probing the collected configs.
-        showPage(R.id.nav_home)
+        showPage(R.id.nav_servers)
         when (VpnStateStore.state.value.status) {
             VpnStatus.CONNECTED -> launchScannerAfterConnection()
             VpnStatus.CONNECTING -> Unit
@@ -511,7 +520,7 @@ class MainActivity : AppCompatActivity(), ConnectionHost {
 
 
     fun openHomePage() {
-        showPage(R.id.nav_home)
+        showPage(R.id.nav_servers)
     }
 
 

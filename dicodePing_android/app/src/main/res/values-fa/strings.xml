@@ -3,8 +3,7 @@
     <string name="app_name">dicodePing</string>
     <string name="brand_title">رفع تحریم‌ها</string>
     <string name="brand_subtitle">اتصال سریع برای برنامه‌نویس‌ها و کاربران فناوری</string>
-    <string name="nav_home">خانه</string>
-    <string name="nav_servers">سرورها</string>
+    <string name="nav_servers">پروفایل‌ها</string>
     <string name="nav_settings">تنظیمات</string>
     <string name="nav_about">درباره ما</string>
     <string name="ready_to_connect">آماده اتصال</string>
@@ -32,8 +31,8 @@
     <string name="session_upload">کل آپلود</string>
     <string name="connected_ping">پینگ اتصال</string>
     <string name="connection_overview">نمای کلی اتصال</string>
-    <string name="all_servers">همه سرورها</string>
-    <string name="servers_subtitle">جستجو، تست و اتصال به سرورهای موجود</string>
+    <string name="all_servers">پروفایل‌ها</string>
+    <string name="servers_subtitle">انتخاب، تست و اتصال به پروفایل واردشده</string>
     <string name="search_servers">جستجوی نام یا موقعیت سرور</string>
     <string name="connect_selected">اتصال به سرور انتخابی</string>
     <string name="server_location">موقعیت تخمینی آی‌پی</string>

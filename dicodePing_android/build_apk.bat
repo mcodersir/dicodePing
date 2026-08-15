@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0"
-set "VERSION=3.0.0-pre.2"
+set "VERSION=3.0.0-pre.3"
 where py >nul 2>&1 || (echo [ERROR] Python launcher was not found.& exit /b 1)
 py -3 ..\tools\prepare_build_workspace.py --keep-outputs || exit /b 1
 py -3 ..\tools\validate_android_source_references.py || exit /b 1

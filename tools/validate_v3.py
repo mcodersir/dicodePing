@@ -22,13 +22,13 @@ def require(path: str, *markers: str) -> str:
 require(
     "dicodeping/constants.py",
     'VERSION = "3.0.0"',
-    'RELEASE_VERSION = "3.0.0-pre.2"',
+    'RELEASE_VERSION = "3.0.0-pre.3"',
     'DEFAULT_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"',
     'base / APP_NAME / "v3"',
 )
 require("app.py", "CoreHostClient", "AppService", "MainWindow")
-require("dicodeping/__init__.py", '__version__ = "3.0.0-pre.2"')
-require("tools/windows_version_info.txt", "3.0.0.0", "3.0.0-pre.2")
+require("dicodeping/__init__.py", '__version__ = "3.0.0-pre.3"')
+require("tools/windows_version_info.txt", "3.0.0.0", "3.0.0-pre.3")
 require("dicodeping/subscription.py", "DEFAULT_SUBSCRIPTION_MIRRORS", "fetch_subscription")
 require("dicodeping/service.py", "runtime.sync_source", "runtime.latency", 'row.source_id.startswith("scanner-")')
 require("dicodeping/scanner.py", "service.runtime.probe_payload", "crawl_telegram_channels", "service.runtime.sync_source")
@@ -77,11 +77,11 @@ workflow = require(
     "tests/test_release.py",
 )
 for marker in (
-    "dicodePing-v3.0.0-pre.2-windows-x64.exe",
-    "dicodePing-v3.0.0-pre.2-linux-x86_64.tar.gz",
-    "dicodePing-v3.0.0-pre.2-macos-arm64.dmg",
-    "dicodePing-v3.0.0-pre.2-macos-x86_64.dmg",
-    "dicodePing-v3.0.0-pre.2-android.apk",
+    "dicodePing-v3.0.0-pre.3-windows-x64.exe",
+    "dicodePing-v3.0.0-pre.3-linux-x86_64.tar.gz",
+    "dicodePing-v3.0.0-pre.3-macos-arm64.dmg",
+    "dicodePing-v3.0.0-pre.3-macos-x86_64.dmg",
+    "dicodePing-v3.0.0-pre.3-android.apk",
 ):
     if marker not in workflow:
         errors.append(f"Release workflow missing artifact: {marker}")
@@ -107,8 +107,8 @@ for secret_literal in ("ghp_", "github_pat_", "gho_", "ghs_"):
 
 require(
     "dicodePing_android/app/build.gradle.kts",
-    'versionCode = 71',
-    'versionName = "3.0.0-pre.2"',
+    'versionCode = 72',
+    'versionName = "3.0.0-pre.3"',
     'setOf("arm64-v8a", "armeabi-v7a", "x86_64")',
 )
 require("dicodePing_android/app/src/main/java/ir/dicode/ping/data/SettingsStore.kt", 'getSharedPreferences("dicodeping_v3"')
@@ -127,7 +127,7 @@ require("licenses/PRODUCT_MIT_NOTICE.txt", "MIT License")
 require("third_party/network-engine/LICENSE", "GNU GENERAL PUBLIC LICENSE")
 require("third_party/network-engine/runtime/ServiceLib/ServiceLib.csproj", "<OutputType>Library</OutputType>")
 require("tools/prepare_engine.py", 'XRAY_VERSION = "26.7.11"', 'SING_BOX_VERSION = "1.13.12"', "dotnet", "publish", "dicodePing.CoreHost.csproj")
-require("runtime_assets/RUNTIME_ASSETS.lock.json", '"release": "3.0.0-pre.2"', '"Xray-windows-64.zip"', '"runtime_version": "26.7.11"')
+require("runtime_assets/RUNTIME_ASSETS.lock.json", '"release": "3.0.0-pre.3"', '"Xray-windows-64.zip"', '"runtime_version": "26.7.11"')
 require("tools/fetch_runtime_assets.py", "XRAY_ASSETS", "ANDROID_AAR_SHA256", "--verify-only")
 require("PREPARE_V3_RUNTIME.bat", "--verify-only", "No network access was used")
 require("REPAIR_V3_RUNTIME.bat", "fetch_runtime_assets.py")
@@ -137,7 +137,7 @@ require("tools/sync_release_tree.py", "SOURCE_MANIFEST.sha256", "Preserved .git"
 
 # Version 3 ships one release document and one release workflow.
 release_docs = sorted(p.name for p in (ROOT / "docs" / "releases").glob("*.md"))
-if release_docs != ["v3.0.0-pre.2.md"]:
+if release_docs != ["v3.0.0-pre.3.md"]:
     errors.append(f"Unexpected release docs: {release_docs}")
 
 release_workflows = [p.name for p in (ROOT / ".github/workflows").glob("*release*.yml")]
@@ -145,8 +145,8 @@ if release_workflows != ["release-v3.yml"]:
     errors.append(f"Competing release workflows remain: {release_workflows}")
 
 if errors:
-    print("dicodePing 3.0.0-pre.2 validation failed:", file=sys.stderr)
+    print("dicodePing 3.0.0-pre.3 validation failed:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
-print("dicodePing 3.0.0-pre.2 source validation passed")
+print("dicodePing 3.0.0-pre.3 source validation passed")

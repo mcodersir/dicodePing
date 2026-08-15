@@ -30,7 +30,7 @@ from tools.fetch_runtime_assets import (
     verify,
 )
 
-RELEASE = "3.0.0-pre.2"
+RELEASE = "3.0.0-pre.3"
 OUTPUT_NAME = f"dicodePing-{RELEASE}-complete.zip"
 EXCLUDED_DIRS = {".git", "build", "dist", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".part"}

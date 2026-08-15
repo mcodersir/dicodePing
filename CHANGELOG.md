@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0-pre.2
+## 3.0.0-pre.3
 
 - Added selectable automatic, Xray and sing-box core preferences.
 - Refined Routing & DNS settings into a compact Linear-style layout.

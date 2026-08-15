@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="3.0.0-pre.2"
+VERSION="3.0.0-pre.3"
 
 command -v python >/dev/null 2>&1 || { echo "Python is required." >&2; exit 1; }
 python ../tools/prepare_build_workspace.py --keep-outputs
