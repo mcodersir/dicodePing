@@ -65,7 +65,7 @@ class Runtime:
 
 def test_version_and_primary_source_are_v3():
     assert VERSION == "3.0.0"
-    assert RELEASE_VERSION == "3.0.0-pre.4"
+    assert RELEASE_VERSION == "3.0.0-pre.5"
     assert DEFAULT_SUBSCRIPTION_URL.endswith("mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt")
 
 
@@ -112,6 +112,40 @@ def test_latency_uses_runtime_profile_ids():
     rows = service.test_latency()
     assert rows[0].ping_ms == 42
     assert rows[0].status == "online"
+
+
+def test_latency_does_not_drop_profiles_after_eighty():
+    store = Store()
+    store.rows = [ServerRecord(
+        id=f"server-{index}", name=f"Server {index}", protocol="VLESS",
+        host=f"{index}.example", port=443, config_blob=f"vless://{index}",
+        core_profile_id=f"runtime-{index}",
+    ) for index in range(96)]
+    runtime = Runtime()
+    seen: list[str] = []
+
+    def latency(ids):
+        seen.extend(ids)
+        return {str(value): 42 for value in ids}
+
+    runtime.latency = latency
+    rows = AppService(store, runtime).test_latency()
+
+    assert len(seen) == 96
+    assert sum(row.ping_ms == 42 for row in rows) == 96
+
+
+def test_real_ping_paths_are_bounded_and_not_truncated():
+    root = Path(__file__).resolve().parents[1]
+    host = (root / "corehost/Program.cs").read_text(encoding="utf-8")
+    service = (root / "third_party/network-engine/runtime/ServiceLib/Services/SpeedtestService.cs").read_text(encoding="utf-8")
+    android = (root / "dicodePing_android/app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
+
+    assert ".Take(80)" not in host
+    assert "SpeedTestPageSize = 1000" in host
+    assert "Task.WhenAll(lstTest.Select" in service
+    assert "new SemaphoreSlim(Math.Min(_realPingConcurrency, selecteds.Count))" in service
+    assert "parallelRealProxyProbe" in android
 
 
 def test_refresh_keeps_product_identity_when_runtime_profile_id_changes(monkeypatch):

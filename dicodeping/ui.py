@@ -312,7 +312,8 @@ class ProfilesPage(QWidget):
         self.refresh_btn = QPushButton("دریافت Subscription")
         self.refresh_btn.setObjectName("Primary")
         self.refresh_btn.clicked.connect(self.refresh_clicked)
-        self.latency_btn = QPushButton("Real Ping")
+        self.latency_btn = QPushButton("Real Ping هم‌زمان")
+        self.latency_btn.setToolTip("پینگ واقعی همهٔ پروفایل‌ها با workerهای هم‌زمان و اتصال proxy")
         self.latency_btn.clicked.connect(self.latency_clicked)
         self.connect_btn = QPushButton("اتصال به انتخاب")
         self.connect_btn.setObjectName("Ghost")
@@ -322,6 +323,9 @@ class ProfilesPage(QWidget):
         toolbar.addWidget(self.connect_btn)
         toolbar.addStretch(1)
         root.addLayout(toolbar)
+
+        self.ping_hint = muted("پینگ واقعی از مسیر proxy انجام می‌شود؛ نتیجه‌ها بعد از تست مرتب می‌شوند.")
+        root.addWidget(self.ping_hint)
 
         self.progress = QProgressBar()
         self.progress.setVisible(False)
@@ -360,6 +364,8 @@ class ProfilesPage(QWidget):
         self.progress.setRange(0, 0 if busy else 100)
         if text:
             self.summary.setText(text)
+            if "Ping" in text or "پینگ" in text:
+                self.ping_hint.setText("همهٔ پروفایل‌ها با workerهای محدود و هم‌زمان تست می‌شوند؛ اتصال واقعی بررسی می‌شود.")
 
     def set_rows(self, rows: list[ServerRecord], selected_id: str = "") -> None:
         self.rows = rows
@@ -831,7 +837,7 @@ class MainWindow(QMainWindow):
         rows = self.service.servers()
         if not rows:
             return
-        self.profiles.set_busy(True, "Real Ping در حال اندازه‌گیری است…")
+        self.profiles.set_busy(True, "Real Ping هم‌زمان در حال اندازه‌گیری است…")
         self.run_worker(
             lambda: self.service.test_latency(rows),
             self._latency_done,
@@ -846,7 +852,8 @@ class MainWindow(QMainWindow):
         self.selected = next((r for r in rows if r.id == selected_id), self.selected)
         self.overview.set_server(self.selected)
         reachable = sum(1 for r in rows if r.ping_ms is not None)
-        self.profiles.summary.setText(f"Real Ping کامل شد • {reachable}/{len(rows)} پاسخ‌گو")
+        self.profiles.summary.setText(f"Real Ping هم‌زمان کامل شد • {reachable}/{len(rows)} پاسخ‌گو")
+        self.profiles.ping_hint.setText("پینگ واقعی از مسیر proxy انجام شد؛ کمترین latency در ابتدای فهرست قرار دارد.")
 
     def _load_runtime_settings(self) -> None:
         def done(settings: object) -> None:

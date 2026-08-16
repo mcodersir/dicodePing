@@ -1,4 +1,4 @@
-dicodePing Version 3 pre-release (3.0.0-pre.4)
+dicodePing Version 3 pre-release (3.0.0-pre.5)
 
 Run ./run-dicodePing.sh or the bundled dicodePing executable.
 The desktop package includes the dicodePing CoreHost runtime and the third-party notices required for bundled networking components.
