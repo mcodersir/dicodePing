@@ -51,6 +51,8 @@ CHECKS: dict[str, tuple[str, ...]] = {
         "public class SpeedtestService",
         "public void RunLoop(ESpeedActionType actionType, List<ProfileItem> selecteds)",
         "public void ExitLoop()",
+        "Task.WhenAll(lstTest.Select",
+        "new SemaphoreSlim(Math.Min(_realPingConcurrency, selecteds.Count))",
     ),
 }
 

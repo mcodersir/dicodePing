@@ -32,7 +32,7 @@
     <string name="connected_ping">Connection ping</string>
     <string name="connection_overview">Connection overview</string>
     <string name="all_servers">Profiles</string>
-    <string name="servers_subtitle">Lowest ping first · select and connect while testing</string>
+    <string name="servers_subtitle">Lowest real ping first · results arrive while testing</string>
     <string name="search_servers">Search server name or location</string>
     <string name="connect_selected">Connect selected server</string>
     <string name="server_location">Estimated IP location</string>
@@ -121,11 +121,11 @@
     <string name="stage_location">Step 2 of 3 · Finding locations · %1$d/%2$d</string>
     <string name="stage_ping">Step 3 of 3 · Testing concurrently · %1$d/%2$d</string>
     <string name="stage_ping_fast">Fast parallel ping · %1$d/%2$d</string>
-    <string name="stage_ping_real">Real proxy checks · %1$d/%2$d</string>
+    <string name="stage_ping_real">Concurrent real proxy checks · %1$d/%2$d</string>
     <string name="server_temporarily_unavailable_short">Unavailable</string>
     <string name="connect_target_server">Connect to this server</string>
     <string name="search_server">Search by server name or location</string>
-    <string name="test_real">Real test</string>
+    <string name="test_real">Real Ping (parallel)</string>
     <string name="share_logs">Share diagnostic log</string>
     <string name="clear_logs">Clear log</string>
     <string name="logs_cleared">Diagnostic log cleared</string>

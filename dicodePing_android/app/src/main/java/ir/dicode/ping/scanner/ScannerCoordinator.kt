@@ -61,7 +61,7 @@ data class ScannerState(
  * 1) require the dashboard's already verified dicodePing Xray VPN,
  * 2) collect and persist Telegram candidates,
  * 3) fully stop the bootstrap VPN,
- * 4) run serialized native Xray HTTP probes,
+ * 4) run bounded parallel native Xray HTTP probes,
  * 5) atomically replace the single SUB source.
  */
 class ScannerCoordinator private constructor(private val context: Context) {
@@ -252,7 +252,7 @@ class ScannerCoordinator private constructor(private val context: Context) {
         disconnectStrict(ignoreFailure = false)
         ensureRunning()
 
-        update(ScannerStage.PROBING, progress = 50, done = 0, total = configs.size, log = "Running serialized real Xray HTTP probes")
+        update(ScannerStage.PROBING, progress = 50, done = 0, total = configs.size, log = "Running bounded parallel real Xray HTTP probes")
         val imported = withTimeout(PROBE_TIMEOUT_MS) {
             repo.importScannerConfigs(
             configs = configs,

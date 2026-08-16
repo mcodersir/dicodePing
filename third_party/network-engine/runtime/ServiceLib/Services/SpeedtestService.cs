@@ -10,6 +10,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private static readonly ConcurrentBag<string> _lstExitLoop = [];
     private readonly int _speedTestPageSize = config.SpeedTestItem.SpeedTestPageSize ?? Global.SpeedTestPageSize;
     private readonly TimeSpan _delayInterval = TimeSpan.FromSeconds(config.SpeedTestItem.SpeedTestDelayInterval ?? 1);
+    private readonly int _realPingConcurrency = Math.Clamp(
+        config.SpeedTestItem.MixedConcurrencyCount > 0 ? config.SpeedTestItem.MixedConcurrencyCount : 5,
+        1,
+        32);
 
     public void RunLoop(ESpeedActionType actionType, List<ProfileItem> selecteds)
     {
@@ -193,15 +197,23 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         var lstTest = GetTestBatchItem(lstSelected, pageSize);
 
         List<ServerTestItem> lstFailed = [];
-        foreach (var lst in lstTest)
+        if (lstTest.Count == 0)
         {
-            var ret = await RunRealPingAsync(lst, exitLoopKey);
-            if (ret == false)
-            {
-                lstFailed.AddRange(lst);
-            }
-            await Task.Delay(_delayInterval);
+            return;
         }
+
+        // Xray and sing-box use separate temporary cores. Run those groups
+        // together so a mixed subscription does not wait for one core family
+        // before starting the other. Each group still has its own bounded
+        // worker pool and process lifecycle.
+        var batchResults = await Task.WhenAll(lstTest.Select(async lst =>
+            (Batch: lst, Success: await RunRealPingAsync(lst, exitLoopKey))));
+        foreach (var batchResult in batchResults)
+        {
+            if (!batchResult.Success)
+                lstFailed.AddRange(batchResult.Batch);
+        }
+        await Task.Delay(_delayInterval);
 
         //Retest the failed part
         var pageSizeNext = pageSize / 2;
@@ -238,6 +250,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             }
             await Task.Delay(1000);
 
+            using var concurrency = new SemaphoreSlim(Math.Min(_realPingConcurrency, selecteds.Count));
             List<Task> tasks = [];
             foreach (var it in selecteds)
             {
@@ -254,7 +267,15 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
                 tasks.Add(Task.Run(async () =>
                 {
-                    await DoRealPing(it);
+                    await concurrency.WaitAsync();
+                    try
+                    {
+                        await DoRealPing(it);
+                    }
+                    finally
+                    {
+                        concurrency.Release();
+                    }
                 }));
             }
             await Task.WhenAll(tasks);

@@ -1,4 +1,4 @@
-# dicodePing 3.0.0-pre.4 Project Validation Report
+# dicodePing 3.0.0-pre.5 Project Validation Report
 
 This archive is the complete Version 3 project source tree and release tooling package.
 
@@ -18,7 +18,7 @@ This archive is the complete Version 3 project source tree and release tooling p
 
 The Windows publisher targets `mcodersir/dicodePing` directly and does **not** require a local `GH_TOKEN`. Git clone/push/tag operations use the authentication already configured for `git.exe`. If the project is already inside a clone of the target repository, the publisher preserves that checkout's `origin` transport, so an existing HTTPS/Git Credential Manager or SSH setup continues to be used.
 
-The publisher clones the current default branch into a temporary checkout, then uses `tools/sync_release_tree.py` to replace the checkout from `SOURCE_MANIFEST.sha256`. The sync preserves only `.git`, verifies every source hash before and after copy, and ignores local runtime downloads, build outputs, caches and other files that are not part of the source manifest. It then validates the source and pushes the Version 3 commit to the default branch. The `v3.0.0-pre.4` tag is created only after source validation. `.github/workflows/release-v3.yml` then builds the four platform families and creates the pre-release with matching assets. `gh.exe` is optional and is used only to watch/verify the workflow when it is already installed and authenticated.
+The publisher clones the current default branch into a temporary checkout, then uses `tools/sync_release_tree.py` to replace the checkout from `SOURCE_MANIFEST.sha256`. The sync preserves only `.git`, verifies every source hash before and after copy, and ignores local runtime downloads, build outputs, caches and other files that are not part of the source manifest. It then validates the source and pushes the Version 3 commit to the default branch. The `v3.0.0-pre.5` tag is created only after source validation. `.github/workflows/release-v3.yml` then builds the four platform families and creates the pre-release with matching assets. `gh.exe` is optional and is used only to watch/verify the workflow when it is already installed and authenticated.
 
 ## GitHub Actions release hotfix
 

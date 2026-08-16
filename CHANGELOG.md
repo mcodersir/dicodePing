@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0-pre.5
+
+- Real Ping now uses bounded concurrent workers for Xray and sing-box on Windows, Linux and macOS, plus native Android probes.
+- Removed the silent 80-profile limit; every requested profile is tested and receives a real result or an explicit failure.
+- Scanner TCP filtering and real Xray checks now run in separate bounded parallel phases.
+- Clarified the desktop and Android UI so users can see that the test is real, parallel and proxy-backed.
+- Updated release validation, packaging metadata and workflow assets for `v3.0.0-pre.5`.
+
 ## 3.0.0-pre.4
 
 - Parallel server ping tests with live low-to-high sorting.

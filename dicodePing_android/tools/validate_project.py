@@ -16,9 +16,9 @@ for path in [ROOT / "app/src/main/AndroidManifest.xml", *sorted((ROOT / "app/src
 
 build = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 for marker in (
-    'versionCode = 73',
-    'versionName = "3.0.0-pre.4"',
-    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.4\\"")',
+    'versionCode = 74',
+    'versionName = "3.0.0-pre.5"',
+    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.5\\"")',
     'setOf("arm64-v8a", "armeabi-v7a", "x86_64")',
     'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")',
     'coreSha256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"',
@@ -52,6 +52,13 @@ if "hysteria2|hy2" not in crawler:
 repository = (ROOT / "app/src/main/java/ir/dicode/ping/data/AppRepository.kt").read_text(encoding="utf-8")
 if 'setOf("kcp", "quic", "hysteria", "hysteria2", "wireguard")' not in repository:
     errors.append("Android Hysteria2 must bypass the TCP-only scanner precheck")
+for marker in (
+    "private suspend fun parallelRealProxyProbe(",
+    "concurrency = tuning.probeWorkers.coerceIn(2, SCANNER_PROBE_CONCURRENCY)",
+    "measureOutboundDelay(",
+):
+    if marker not in repository:
+        errors.append(f"Android real-ping concurrency marker missing: {marker}")
 
 settings = (ROOT / "app/src/main/java/ir/dicode/ping/data/SettingsStore.kt").read_text(encoding="utf-8")
 if ("active" + "Core") in settings or "active_core" in settings:

@@ -27,6 +27,17 @@ internal sealed class HostState
 
     public async Task InitializeAsync()
     {
+        // Keep real-ping fast without allowing an unbounded fan-out. The
+        // ServiceLib worker pool applies the actual per-profile limit. A
+        // minimum of eight workers makes the parallel path visible on a
+        // fresh install, while the upper bound protects smaller machines.
+        _config.SpeedTestItem.SpeedTestPageSize = 1000;
+        _config.SpeedTestItem.SpeedTestDelayInterval = 0;
+        _config.SpeedTestItem.MixedConcurrencyCount = Math.Clamp(
+            Math.Max(_config.SpeedTestItem.MixedConcurrencyCount, 8),
+            8,
+            16
+        );
         _config.GuiItem.EnableStatistics = true;
         _config.GuiItem.DisplayRealTimeSpeed = true;
         _config.GuiItem.EnableLog = true;
@@ -187,7 +198,15 @@ internal sealed class HostState
         if (!args.TryGetProperty("profile_ids", out var idsNode) || idsNode.ValueKind != JsonValueKind.Array)
             throw new InvalidOperationException("profile_ids must be an array");
 
-        var ids = idsNode.EnumerateArray().Select(x => x.GetString()).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().Take(80).ToList();
+        // Every profile sent by the UI must receive a result.  The worker pool
+        // bounds concurrency; silently truncating at 80 made the tail appear
+        // unreachable even though it was never tested.
+        var ids = idsNode.EnumerateArray()
+            .Select(x => x.GetString())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
         var profiles = await AppManager.Instance.GetProfileItemsByIndexIds(ids);
         if (profiles.Count == 0)
             return new { results = new Dictionary<string, int?>() };
@@ -244,7 +263,12 @@ internal sealed class HostState
         });
 
         speed.RunLoop(ESpeedActionType.Realping, profiles);
-        await Task.WhenAny(completed.Task, Task.Delay(TimeSpan.FromSeconds(Math.Min(90, 15 + profiles.Count * 2))));
+        var workers = Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 1, 32);
+        var waves = Math.Max(1, (profiles.Count + workers - 1) / workers);
+        var timeout = TimeSpan.FromSeconds(Math.Clamp(30 + waves * 12, 120, 900));
+        var finished = await Task.WhenAny(completed.Task, Task.Delay(timeout));
+        if (finished != completed.Task)
+            Log($"real ping timed out after {timeout.TotalSeconds:0}s ({profiles.Count} profiles)");
         speed.ExitLoop();
         foreach (var profile in profiles)
             results.TryAdd(profile.IndexId, null);

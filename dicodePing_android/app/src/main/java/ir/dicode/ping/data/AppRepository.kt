@@ -376,8 +376,8 @@ class AppRepository private constructor(context: Context) {
                     .toList()
                 if (parsed.isEmpty()) return@withLock emptyList()
                 // Fast parallel TCP filtering removes dead endpoints before the
-                // process-global native Xray probe. Native probes remain serial
-                // for JNI safety while keeping the candidate set bounded.
+                // bounded native Xray worker pool. The native environment is
+                // initialized once; each one-shot outbound probe is isolated.
                 progress.value = ProgressState(true, "prefilter", 0, parsed.size, "Filtering reachable candidates")
                 val prefilterDone = AtomicInteger(0)
                 val prefilterSem = Semaphore(SCANNER_TCP_PREFILTER_WORKERS)
@@ -398,37 +398,20 @@ class AppRepository private constructor(context: Context) {
                     progress.value = ProgressState()
                     return@withLock emptyList()
                 }
-                val done = AtomicInteger(0)
                 val aliveDone = AtomicInteger(0)
                 progress.value = ProgressState(true, "ping", 0, reachable.size, "Testing scanner candidates")
                 val healthy = mutableListOf<ServerRecord>()
 
-                // real concurrency for Android.
-                //
-                // libv2ray's measureOutboundDelay is process-global (see
-                // CoreBridge.OUTBOUND_PROBE_LOCK) so Xray HTTP probes cannot
-                // run in parallel. The bounded worker pool keeps
-                // SCANNER_PROBE_CONCURRENCY to 3 but the chunked-batch loop
-                // still serialized everything on that lock, so the user saw
-                // no improvement.
-                //
-                // The fix is to split the scan into two phases:
+                // The scan is split into two bounded phases:
                 //   Phase A — parallel TCP handshake delay probe
-                //     Runs SCANNER_TCP_PROBE_CONCURRENCY (default 12) sockets
+                //     Runs SCANNER_TCP_PROBE_CONCURRENCY sockets
                 //     at once on Dispatchers.IO. This is the actual heavy
                 //     work (one TCP connect per candidate) and it is fully
                 //     safe to run concurrently because each Socket is a fresh
                 //     instance with no shared JNI state.
-                //   Phase B — serial Xray HTTP probe on the top survivors
-                //     Sorted by TCP delay, we only probe up to
-                //     SCANNER_NATIVE_CANDIDATE_LIMIT candidates through the
-                //     Xray core. Because Phase A already filtered dead hosts,
-                //     Phase B stays bounded by the configured worker count.
-                //
-                // Net effect on a typical 40-candidate scan: Phase A takes
-                // ~3-5s (parallel), Phase B takes ~8-15s (serial but only on
-                // 20-30 live candidates), for a total of ~15-20s vs the
-                // Keep the bounded probe stage responsive on mobile networks.
+                //   Phase B — parallel one-shot Xray HTTP probes on the top
+                //     survivors. CoreBridge serializes only environment setup;
+                //     independent measureOutboundDelay calls may overlap.
                 val tcpResults = parallelTcpProbe(
                     servers = reachable,
                     concurrency = SCANNER_TCP_PROBE_CONCURRENCY,
@@ -452,60 +435,18 @@ class AppRepository private constructor(context: Context) {
                     "Phase A done: ${aliveByTcp.size}/${reachable.size} candidates survived the parallel TCP probe",
                 )
 
-                // Phase B: serial Xray HTTP probe on the top survivors.
-                // The Xray core's measureOutboundDelay is process-global for
-                // JNI safety, so this loop is intentionally serial.
-                progress.value = ProgressState(true, "ping", 0, aliveByTcp.size, "Running Xray HTTP probes on survivors")
-                done.set(0)
-                for (server in aliveByTcp) {
-                    if (stopRequested()) break
-                    val samples = mutableListOf<Long>()
-                    for (attempt in 0 until SCANNER_TEST_ATTEMPTS) {
-                        if (stopRequested()) break
-                        val measured = runCatching {
-                            proxyProbe.measureOutboundDelay(
-                                XrayConfigBuilder.build(
-                                    server.raw,
-                                    bufferSizeKiB = tuning.bufferSizeKiB,
-                                )
-                            )
-                        }.getOrDefault(-1L)
-                        if (measured in 1..SCANNER_MAX_DELAY_MS) samples += measured
-                        val remaining = SCANNER_TEST_ATTEMPTS - attempt - 1
-                        if (samples.size >= SCANNER_MIN_SUCCESS || samples.size + remaining < SCANNER_MIN_SUCCESS) {
-                            break
-                        }
-                        delay(SCANNER_ATTEMPT_GAP_MS)
-                    }
-                    val ping = samples.takeIf { it.size >= SCANNER_MIN_SUCCESS }
-                        ?.sorted()
-                        ?.let { sorted -> sorted[sorted.size / 2].toInt() }
-                    AppLog.i(
-                        "Scanner",
-                        "${server.name}: tester=xray-http attempts=${SCANNER_TEST_ATTEMPTS} " +
-                            "success=${samples.size} samples=${samples.joinToString(",")} " +
-                            "median=${ping ?: -1}ms",
-                    )
-                    val doneNow = done.incrementAndGet()
-                    val aliveNow = if (ping != null) aliveDone.incrementAndGet() else aliveDone.get()
-                    progress.value = ProgressState(
-                        true,
-                        "ping",
-                        doneNow,
-                        aliveByTcp.size,
-                        server.name,
-                    )
-                    onProgress(doneNow, aliveByTcp.size, aliveNow)
-                    ping?.let {
-                        healthy += server.copy(
-                            pingMs = it,
-                            pingKind = REAL_PROXY_PING,
-                            healthy = true,
-                            testState = ServerRecord.TEST_IDLE,
-                        )
-                    }
-                    if (healthy.size >= SCANNER_HEALTHY_TARGET) break
-                }
+                progress.value = ProgressState(true, "ping", 0, aliveByTcp.size, "Running parallel Xray HTTP probes")
+                val probed = parallelRealProxyProbe(
+                    servers = aliveByTcp,
+                    concurrency = tuning.probeWorkers.coerceIn(2, SCANNER_PROBE_CONCURRENCY),
+                    stopRequested = stopRequested,
+                    onProgress = { server, doneNow, ping ->
+                        val aliveNow = if (ping != null) aliveDone.incrementAndGet() else aliveDone.get()
+                        progress.value = ProgressState(true, "ping", doneNow, aliveByTcp.size, server.name)
+                        onProgress(doneNow, aliveByTcp.size, aliveNow)
+                    },
+                )
+                healthy += probed.filter { it.healthy }
                 healthy.sortBy { it.pingMs }
                 if (healthy.size > SCANNER_HEALTHY_TARGET) {
                     healthy.subList(SCANNER_HEALTHY_TARGET, healthy.size).clear()
@@ -553,9 +494,9 @@ class AppRepository private constructor(context: Context) {
                 sources.value = nextSources
                 servers.value = sortServers(nextServers)
 
-                // Commit the subscription as soon as the parallel
-                // probe batch finishes. The optional ping + location enrichment
-                // runs only when the user confirms the post-save modal (see
+                // Commit the subscription as soon as the parallel probe batch
+                // finishes. Optional ping + location enrichment runs only when
+                // the user confirms the post-save modal (see
                 // enrichScannerRecords below).
                 progress.value = ProgressState()
                 healthy
@@ -604,30 +545,17 @@ class AppRepository private constructor(context: Context) {
                     "Enrich Phase A done: ${survivors.size}/${healthy.size} persisted servers survived the TCP re-probe",
                 )
 
-                // Phase B: serial Xray HTTP probe on the survivors.
-                val rechecked = mutableListOf<ServerRecord>()
-                val done = AtomicInteger(0)
-                for (server in survivors) {
-                    if (stopRequested()) break
-                    val measured = runCatching {
-                        proxyProbe.measureOutboundDelay(
-                            XrayConfigBuilder.build(
-                                server.raw,
-                                bufferSizeKiB = tuning.bufferSizeKiB,
-                            )
-                        )
-                    }.getOrDefault(-1L)
-                    val ping = measured.takeIf { it in 1..SCANNER_MAX_DELAY_MS }?.toInt()
-                    rechecked += server.copy(
-                        pingMs = ping,
-                        pingKind = if (ping != null) REAL_PROXY_PING else "",
-                        healthy = ping != null,
-                        testState = if (ping != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
-                    )
-                    val d = done.incrementAndGet()
-                    onProgress(d, survivors.size)
-                    progress.value = ProgressState(true, "post_save_verify", d, survivors.size, server.name)
-                }
+                // Phase B: bounded parallel Xray HTTP probes with immediate
+                // per-server progress updates.
+                val rechecked = parallelRealProxyProbe(
+                    servers = survivors,
+                    concurrency = tuning.probeWorkers.coerceIn(2, SCANNER_PROBE_CONCURRENCY),
+                    stopRequested = stopRequested,
+                    onProgress = { server, doneNow, _ ->
+                        onProgress(doneNow, survivors.size)
+                        progress.value = ProgressState(true, "post_save_verify", doneNow, survivors.size, server.name)
+                    },
+                )
                 val finalRows = locateServerSnapshot(rechecked, forceGeoRefresh = true)
                 val sourceId = SCANNER_SOURCE_ID
                 val sourceName = SCANNER_SOURCE_NAME
@@ -825,7 +753,7 @@ class AppRepository private constructor(context: Context) {
 
             // A small native worker pool gives visible, staggered real results
             // without spawning one unbounded JNI operation per profile.
-            val nativeSemaphore = Semaphore(NATIVE_PROBE_CONCURRENCY)
+            val nativeSemaphore = Semaphore(tuning.probeWorkers.coerceIn(2, NATIVE_PROBE_CONCURRENCY))
             suspend fun runNativeBatch(
                 batch: List<ServerRecord>,
                 countProgress: Boolean,
@@ -940,6 +868,67 @@ class AppRepository private constructor(context: Context) {
                 }
             }
         }.awaitAll()
+    }
+
+    /**
+     * Runs independent one-shot proxy HTTP probes concurrently.
+     *
+     * This follows the same bounded-worker shape as PattNG's real-ping
+     * service: the native environment is prepared once, each profile gets an
+     * isolated config string, and only the number of simultaneous JNI calls is
+     * capped. The returned list includes failed rows so callers can persist a
+     * truthful failed state instead of leaving stale latency values behind.
+     */
+    private suspend fun parallelRealProxyProbe(
+        servers: List<ServerRecord>,
+        concurrency: Int,
+        stopRequested: () -> Boolean,
+        onProgress: suspend (ServerRecord, Int, Int?) -> Unit = { _, _, _ -> },
+    ): List<ServerRecord> = coroutineScope {
+        if (servers.isEmpty()) return@coroutineScope emptyList()
+        val sem = Semaphore(concurrency.coerceIn(2, NATIVE_PROBE_CONCURRENCY))
+        val done = AtomicInteger(0)
+        servers.map { server ->
+            async<ServerRecord?>(Dispatchers.IO) {
+                sem.withPermit {
+                    if (stopRequested()) return@withPermit null
+                    val samples = mutableListOf<Long>()
+                    for (attempt in 0 until SCANNER_TEST_ATTEMPTS) {
+                        if (stopRequested()) return@withPermit null
+                        val measured = runCatching {
+                            proxyProbe.measureOutboundDelay(
+                                XrayConfigBuilder.build(
+                                    server.raw,
+                                    bufferSizeKiB = tuning.bufferSizeKiB,
+                                )
+                            )
+                        }.getOrDefault(-1L)
+                        if (measured in 1..SCANNER_MAX_DELAY_MS) samples += measured
+                        val remaining = SCANNER_TEST_ATTEMPTS - attempt - 1
+                        if (samples.size >= SCANNER_MIN_SUCCESS || samples.size + remaining < SCANNER_MIN_SUCCESS) {
+                            break
+                        }
+                        delay(SCANNER_ATTEMPT_GAP_MS)
+                    }
+                    val ping = samples.takeIf { it.size >= SCANNER_MIN_SUCCESS }
+                        ?.sorted()
+                        ?.let { sorted -> sorted[sorted.size / 2].toInt() }
+                    AppLog.i(
+                        "Repository",
+                        "${server.name}: real-http attempts=${SCANNER_TEST_ATTEMPTS} " +
+                            "success=${samples.size} median=${ping ?: -1}ms",
+                    )
+                    val doneNow = done.incrementAndGet()
+                    onProgress(server, doneNow, ping)
+                    server.copy(
+                        pingMs = ping,
+                        pingKind = if (ping != null) REAL_PROXY_PING else "",
+                        healthy = ping != null,
+                        testState = if (ping != null) ServerRecord.TEST_IDLE else ServerRecord.TEST_FAILED,
+                    )
+                }
+            }
+        }.awaitAll().filterNotNull()
     }
 
     private fun applyServerUpdates(
@@ -1147,7 +1136,7 @@ class AppRepository private constructor(context: Context) {
         // Bounded native worker pool for real profile probes. CoreBridge keeps
         // environment setup serialized, while the actual one-shot probes are
         // allowed to overlap so a complete list is not tested one-by-one.
-        private const val SCANNER_PROBE_CONCURRENCY = 3
+        private const val SCANNER_PROBE_CONCURRENCY = 8
         private const val NATIVE_PROBE_CONCURRENCY = SCANNER_PROBE_CONCURRENCY
         // real concurrency for Android. The TCP handshake delay
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.
