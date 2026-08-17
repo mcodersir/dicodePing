@@ -1,2 +1,2 @@
 PySide6==6.11.1
-certifi==2026.6.17
+certifi==2026.7.22
