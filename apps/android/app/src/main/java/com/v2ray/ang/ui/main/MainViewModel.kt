@@ -110,6 +110,15 @@ class MainViewModel(
             MainServiceEvent.StateStopSuccess -> updateRunningState(false)
             is MainServiceEvent.MeasureDelayResult -> {
                 _uiState.update { it.copy(status = MainStatus.ConnectionTest(event.result)) }
+                val selectedGuid = dataSource.getSelectServer()
+                if (selectedGuid != null && (event.result.country != null || event.result.ipAddress != null)) {
+                    dataSource.encodeServerLocation(
+                        selectedGuid,
+                        event.result.country,
+                        event.result.ipAddress
+                    )
+                    reloadServerList()
+                }
             }
 
             MainServiceEvent.MeasureConfigSuccess -> {
@@ -266,7 +275,9 @@ class MainViewModel(
             ServersCache(
                 guid = guid,
                 profile = profile.copy(),
-                testDelayMillis = affiliation?.testDelayMillis ?: 0L
+                testDelayMillis = affiliation?.testDelayMillis ?: 0L,
+                countryCode = affiliation?.countryCode,
+                ipAddress = affiliation?.ipAddress
             )
         }
 
@@ -709,12 +720,6 @@ class MainViewModel(
             return
         }
         val serverGuids = servers.map { it.guid }
-        mutableServersForGroup(groupId).update { current ->
-            current.map { server ->
-                if (server.testDelayMillis == 0L) server
-                else server.copy(testDelayMillis = 0L)
-            }
-        }
         testingGroupId = groupId
         _uiState.update {
             it.copy(
@@ -723,7 +728,6 @@ class MainViewModel(
             )
         }
         viewModelScope.launch(ioDispatcher) {
-            dataSource.clearAllTestDelayResults(serverGuids)
             cacheMutex.withLock { groupDataCache.remove(groupId) }
             dataSource.sendMsg2TestService(
                 TestServiceMessage(

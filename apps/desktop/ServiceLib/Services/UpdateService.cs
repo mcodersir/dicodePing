@@ -180,7 +180,10 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             }
 
             var gitHubReleases = JsonUtils.Deserialize<List<GitHubRelease>>(result);
-            var gitHubRelease = preRelease ? gitHubReleases?.First() : gitHubReleases?.First(r => r.Prerelease == false);
+            var gitHubRelease = gitHubReleases?
+                .Where(r => !r.Draft && (preRelease || !r.Prerelease))
+                .OrderByDescending(r => r.PublishedAt)
+                .FirstOrDefault();
             tagName = gitHubRelease?.TagName;
             //var body = gitHubRelease?.Body;
         }

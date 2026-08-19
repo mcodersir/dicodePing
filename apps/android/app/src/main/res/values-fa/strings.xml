@@ -243,6 +243,13 @@
     <string name="title_pref_real_ping_concurrency">آزمایش‌های هم‌زمان تأخیر واقعی</string>
 
     <string name="title_pref_ip_api_url">URL آزمایش اطلاعات اتصال فعلی</string>
+    <string name="title_pref_domain_filter_mode">حالت فیلتر دامنه</string>
+    <string name="title_pref_domain_filter_list">دامنه‌ها (با ویرگول یا خط جدید جدا کنید)</string>
+    <string-array name="domain_filter_mode_entries">
+        <item>خاموش</item>
+        <item>عبور مستقیم دامنه‌های مشخص‌شده از VPN</item>
+        <item>استفاده از VPN فقط برای دامنه‌های مشخص‌شده</item>
+    </string-array>
     <string name="summary_pref_ip_api_url" translatable="false">URL</string>
 
     <string name="title_pref_proxy_sharing_enabled">اشتراک‌گذاری پروکسی در شبکه محلی (LAN)</string>

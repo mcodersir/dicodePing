@@ -22,7 +22,7 @@ public readonly record struct IpInfoResult(string Country, string? Ip)
 {
     public override string ToString()
     {
-        var emoji = Utils.IsWindows() ? null : Country.CountryToEmoji();
-        return $"{emoji}({Country}) {Ip}";
+        var emoji = Country.CountryToEmoji() ?? "🏳️";
+        return $"{emoji} {Country.ToUpperInvariant()}  {Ip}";
     }
 }

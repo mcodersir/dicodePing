@@ -186,6 +186,7 @@ public class DownloadService
                 userAgent = Utils.GetVersion(false);
             }
             client.DefaultRequestHeaders.UserAgent.TryParseAdd(userAgent);
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
 
             Uri uri = new(url);
             //Authorization Header

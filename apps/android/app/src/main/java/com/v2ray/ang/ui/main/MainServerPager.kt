@@ -255,6 +255,8 @@ private fun ServerItemRow(
             ?: AngConfigManager.generateDescription(profile),
         typeDescription = getProtocolDescription(profile),
         testDelayMillis = serverCache.testDelayMillis,
+        countryCode = serverCache.countryCode,
+        ipAddress = serverCache.ipAddress,
         isSelected = serverCache.guid == selectedGuid,
         subscriptionRemarks = subRemarks,
         doubleColumnDisplay = false,
@@ -288,6 +290,8 @@ private fun ServerItemColumn(
             statistics = profile.description.nullIfBlank() ?: AngConfigManager.generateDescription(profile),
             typeDescription = getProtocolDescription(profile),
             testDelayMillis = serverCache.testDelayMillis,
+            countryCode = serverCache.countryCode,
+            ipAddress = serverCache.ipAddress,
             isSelected = serverCache.guid == selectedGuid,
             subscriptionRemarks = subRemarks,
             doubleColumnDisplay = doubleColumnDisplay,
@@ -307,6 +311,8 @@ fun ServerListItem(
     statistics: String,
     typeDescription: String,
     testDelayMillis: Long,
+    countryCode: String?,
+    ipAddress: String?,
     isSelected: Boolean,
     subscriptionRemarks: String,
     doubleColumnDisplay: Boolean,
@@ -427,10 +433,32 @@ fun ServerListItem(
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(typeDescription, style = MaterialTheme.typography.bodySmall, color = colorConfigType, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(testResult, style = MaterialTheme.typography.bodySmall, color = if (testDelayMillis < 0L) colorPingRed else colorPing, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val flag = countryCode?.asCountryFlag()
+                    if (!flag.isNullOrBlank()) {
+                        Text(flag, style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        listOfNotNull(
+                            listOfNotNull(countryCode, ipAddress).joinToString(" ").takeIf { it.isNotBlank() },
+                            testResult.takeIf { it.isNotBlank() }
+                        ).joinToString("  •  "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (testDelayMillis < 0L) colorPingRed else colorPing,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
+}
+
+private fun String.asCountryFlag(): String? {
+    val code = trim().uppercase()
+    if (code.length != 2 || code.any { it !in 'A'..'Z' }) return null
+    return code.map { Character.toChars(0x1F1E6 + (it - 'A')).concatToString() }.joinToString("")
 }
 
 private fun getProtocolDescription(profile: ProfileItem): String {

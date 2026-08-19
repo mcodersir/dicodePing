@@ -1153,6 +1153,29 @@ object CoreConfigManager {
             MmkvManager.decodeSettingsString(AppConfig.PREF_ROUTING_DOMAIN_STRATEGY)
                 ?: "AsIs"
 
+        val filterDomains = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_LIST)
+            ?.split(',', '\n', '\r', ' ', '\t')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.distinct()
+            .orEmpty()
+        val filterMode = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off")
+        if (filterDomains.isNotEmpty() && filterMode != "off") {
+            val outbound = if (filterMode == "only") AppConfig.TAG_PROXY else AppConfig.TAG_DIRECT
+            v2rayConfig.routing.rules.add(
+                0,
+                V2rayConfig.RoutingBean.RulesBean(
+                    domain = ArrayList(filterDomains),
+                    outboundTag = outbound
+                )
+            )
+            if (filterMode == "only") {
+                v2rayConfig.routing.rules.lastOrNull { it.outboundTag == AppConfig.TAG_PROXY }?.let {
+                    it.outboundTag = AppConfig.TAG_DIRECT
+                }
+            }
+        }
+
         val rulesetItems = MmkvManager.decodeRoutingRulesets()
         rulesetItems?.forEach { key ->
             appendRoutingUserRule(configContext, key, v2rayConfig, policyGroupBalancerTags)

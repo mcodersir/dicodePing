@@ -13,8 +13,8 @@ android {
         applicationId = "ir.dicode.ping"
         minSdk = 24
         targetSdk = 37
-        versionCode = 300030
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "3.0.0-pre.6"
+        versionCode = 300040
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "3.0.0-pre.8"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -63,7 +63,9 @@ android {
         create("fdroid") {
             dimension = "distribution"
             applicationIdSuffix = ".fdroid"
-            buildConfigField("String", "DISTRIBUTION", "\"F-Droid\"")
+            // Keep the install flavor for repository compatibility, but never
+            // expose the upstream distribution name in DicodePing UI or assets.
+            buildConfigField("String", "DISTRIBUTION", "\"DicodePing\"")
         }
         create("playstore") {
             dimension = "distribution"
@@ -102,7 +104,7 @@ android {
                 .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
                 .forEach { output ->
                     val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "DicodePing-${variant.versionName}-fdroid-${abi}.apk"
+                    output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
                             (100 * variant.versionCode + versionCodes[abi]!!).plus(5000000)
@@ -142,8 +144,6 @@ android {
         generateLocaleConfig = true
         localeFilters += listOf(
             "en",
-            "zh-rCN",
-            "zh-rTW",
             "vi",
             "ru",
             "fa",

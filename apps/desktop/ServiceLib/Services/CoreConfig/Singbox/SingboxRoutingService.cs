@@ -6,7 +6,8 @@ public partial class CoreConfigSingboxService
     {
         try
         {
-            _coreConfig.route.final = Global.ProxyTag;
+            var domainFilterMode = _config.RoutingBasicItem.DomainFilterMode;
+            _coreConfig.route.final = domainFilterMode == "only" ? Global.DirectTag : Global.ProxyTag;
             var simpleDnsItem = context.SimpleDnsItem;
 
             var defaultDomainResolverTag = Global.SingboxDirectDNSTag;
@@ -274,6 +275,15 @@ public partial class CoreConfigSingboxService
                         ipRules.Add(item1);
                     }
                 }
+            }
+            var filterDomains = _config.RoutingBasicItem.DomainFilterList;
+            if (filterDomains is { Count: > 0 } && domainFilterMode != "off")
+            {
+                _coreConfig.route.rules.Insert(0, new Rule4Sbox
+                {
+                    domain = filterDomains.ToList(),
+                    outbound = domainFilterMode == "only" ? Global.ProxyTag : Global.DirectTag,
+                });
             }
             if (_config.RoutingBasicItem.DomainStrategy == Global.IPIfNonMatch)
             {

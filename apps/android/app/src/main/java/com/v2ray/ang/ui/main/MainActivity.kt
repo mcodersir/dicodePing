@@ -49,8 +49,10 @@ import com.v2ray.ang.ui.userasset.UserAssetActivity
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MainActivity : HelperBaseComponentActivity() {
 
@@ -178,6 +180,18 @@ class MainActivity : HelperBaseComponentActivity() {
     private fun handleLayoutTestClick() {
         if (mainViewModel.uiState.value.isRunning) {
             mainViewModel.testCurrentServerRealPing()
+        } else {
+            // Location beta is useful on a fresh launch too: start the selected
+            // TUN route, then run the real endpoint/IP probe once the service is up.
+            requestServiceStart()
+            lifecycleScope.launch {
+                withTimeoutOrNull(15_000) {
+                    while (!mainViewModel.uiState.value.isRunning) delay(100)
+                }
+                if (mainViewModel.uiState.value.isRunning) {
+                    mainViewModel.testCurrentServerRealPing()
+                }
+            }
         }
     }
 

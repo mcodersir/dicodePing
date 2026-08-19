@@ -68,6 +68,12 @@ public static class ConfigHandler
         {
             config.RoutingBasicItem.DomainStrategy = Global.DomainStrategies.First();
         }
+        config.RoutingBasicItem.DomainFilterMode = config.RoutingBasicItem.DomainFilterMode switch
+        {
+            "bypass" or "only" => config.RoutingBasicItem.DomainFilterMode,
+            _ => "off"
+        };
+        config.RoutingBasicItem.DomainFilterList ??= [];
 
         config.KcpItem ??= new KcpItem
         {
@@ -110,13 +116,23 @@ public static class ConfigHandler
         config.UiItem.WindowSizeItem ??= [];
 
         if (config.UiItem.CurrentLanguage.IsNullOrEmpty()
-            || config.UiItem.CurrentLanguage is "zh-Hans" or "zh-Hant")
+            || config.UiItem.CurrentLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
         {
             config.UiItem.CurrentLanguage = "fa";
         }
         if (!hasSavedColumns)
         {
             config.UiItem.EnableAutoAdjustMainLvColWidth = true;
+        }
+        // New installs (and older configs without saved splitter dimensions)
+        // open with the information/proxy/connections panel visible below the
+        // server list. This is the useful DicodePing layout instead of a blank
+        // hidden pane.
+        if (config.UiItem.MainGirdHeight1 <= 0 || config.UiItem.MainGirdHeight2 <= 0)
+        {
+            config.UiItem.MainGirdOrientation = EGirdOrientation.Vertical;
+            config.UiItem.MainGirdHeight1 = 3;
+            config.UiItem.MainGirdHeight2 = 2;
         }
 
         config.ConstItem ??= new ConstItem();

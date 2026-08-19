@@ -19,6 +19,12 @@ public partial class RoutingSettingViewModel : MyReactiveObject
     [Reactive]
     public partial string DomainStrategy4Singbox { get; set; }
 
+    [Reactive]
+    public partial int DomainFilterModeIndex { get; set; }
+
+    [Reactive]
+    public partial string DomainFilterDomains { get; set; }
+
     public ReactiveCommand<RxVoid, RxVoid> RoutingAdvancedAddCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RoutingAdvancedRemoveCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RoutingAdvancedSetDefaultCmd { get; }
@@ -58,7 +64,9 @@ public partial class RoutingSettingViewModel : MyReactiveObject
         // Auto-save DomainStrategy when changed
         this.WhenAnyValue(
             x => x.DomainStrategy,
-            x => x.DomainStrategy4Singbox)
+            x => x.DomainStrategy4Singbox,
+            x => x.DomainFilterModeIndex,
+            x => x.DomainFilterDomains)
             .Skip(1)
             .DistinctUntilChanged()
             .Subscribe(x =>
@@ -74,6 +82,13 @@ public partial class RoutingSettingViewModel : MyReactiveObject
 
         DomainStrategy = _config.RoutingBasicItem.DomainStrategy;
         DomainStrategy4Singbox = _config.RoutingBasicItem.DomainStrategy4Singbox;
+        DomainFilterModeIndex = _config.RoutingBasicItem.DomainFilterMode switch
+        {
+            "bypass" => 1,
+            "only" => 2,
+            _ => 0
+        };
+        DomainFilterDomains = string.Join(Environment.NewLine, _config.RoutingBasicItem.DomainFilterList ?? []);
 
         await ConfigHandler.InitBuiltinRouting(_config);
         await RefreshRoutingItems();
@@ -112,6 +127,16 @@ public partial class RoutingSettingViewModel : MyReactiveObject
     {
         _config.RoutingBasicItem.DomainStrategy = DomainStrategy;
         _config.RoutingBasicItem.DomainStrategy4Singbox = DomainStrategy4Singbox;
+        _config.RoutingBasicItem.DomainFilterMode = DomainFilterModeIndex switch
+        {
+            1 => "bypass",
+            2 => "only",
+            _ => "off"
+        };
+        _config.RoutingBasicItem.DomainFilterList = DomainFilterDomains
+            .Split(['\r', '\n', ',', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         await ConfigHandler.SaveConfig(_config);
     }
 

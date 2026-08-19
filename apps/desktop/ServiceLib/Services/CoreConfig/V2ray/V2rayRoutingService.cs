@@ -63,6 +63,7 @@ public partial class CoreConfigV2rayService
                         GenRoutingUserRule(item2);
                     }
                 }
+                AddDomainFilterRules();
                 var balancerTagList = _coreConfig.routing.balancers
                     ?.Select(p => p.tag)
                     .ToList() ?? [];
@@ -79,6 +80,25 @@ public partial class CoreConfigV2rayService
         catch (Exception ex)
         {
             Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void AddDomainFilterRules()
+    {
+        var domains = _config.RoutingBasicItem.DomainFilterList;
+        var mode = _config.RoutingBasicItem.DomainFilterMode;
+        if (domains is not { Count: > 0 } || mode == "off") return;
+
+        _coreConfig.routing.rules.Insert(0, new RulesItem4Ray
+        {
+            type = "field",
+            domain = domains.ToList(),
+            outboundTag = mode == "only" ? Global.ProxyTag : Global.DirectTag,
+        });
+        if (mode == "only")
+        {
+            var finalRule = _coreConfig.routing.rules.LastOrDefault(x => x.outboundTag == Global.ProxyTag);
+            if (finalRule != null) finalRule.outboundTag = Global.DirectTag;
         }
     }
 

@@ -243,6 +243,18 @@
     <string name="title_pref_real_ping_concurrency">Concurrent real-delay tests</string>
 
     <string name="title_pref_ip_api_url">Current connection info test URL</string>
+    <string name="title_pref_domain_filter_mode">Domain filter mode</string>
+    <string name="title_pref_domain_filter_list">Filtered domains (comma or newline separated)</string>
+    <string-array name="domain_filter_mode_entries">
+        <item>Disabled</item>
+        <item>Bypass VPN for listed domains</item>
+        <item>Use VPN only for listed domains</item>
+    </string-array>
+    <string-array name="domain_filter_mode_values" translatable="false">
+        <item>off</item>
+        <item>bypass</item>
+        <item>only</item>
+    </string-array>
     <string name="summary_pref_ip_api_url" translatable="false">URL</string>
 
     <string name="title_pref_proxy_sharing_enabled">Allow connections from the LAN</string>

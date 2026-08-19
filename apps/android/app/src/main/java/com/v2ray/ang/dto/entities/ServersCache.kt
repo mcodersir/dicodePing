@@ -4,4 +4,6 @@ data class ServersCache(
     val guid: String,
     val profile: ProfileItem,
     val testDelayMillis: Long = 0L,
+    val countryCode: String? = null,
+    val ipAddress: String? = null,
 )

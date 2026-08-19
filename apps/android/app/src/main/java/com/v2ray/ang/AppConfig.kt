@@ -75,6 +75,8 @@ object AppConfig {
     const val PREF_DNS_HOSTS = "pref_dns_hosts"
     const val PREF_DELAY_TEST_URL = "pref_delay_test_url"
     const val PREF_IP_API_URL = "pref_ip_api_url"
+    const val PREF_DOMAIN_FILTER_MODE = "pref_domain_filter_mode"
+    const val PREF_DOMAIN_FILTER_LIST = "pref_domain_filter_list"
     const val PREF_LOGLEVEL = "pref_core_loglevel"
     const val PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD = "pref_outbound_domain_resolve_method"
     const val PREF_MODE = "pref_mode"

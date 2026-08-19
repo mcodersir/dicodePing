@@ -172,6 +172,8 @@ public class RoutingBasicItem
     public string DomainStrategy { get; set; }
     public string DomainStrategy4Singbox { get; set; }
     public string RoutingIndexId { get; set; }
+    public string DomainFilterMode { get; set; } = "off";
+    public List<string> DomainFilterList { get; set; } = [];
 }
 
 [Serializable]

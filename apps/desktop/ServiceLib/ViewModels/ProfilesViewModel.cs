@@ -71,6 +71,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public ReactiveCommand<RxVoid, RxVoid> TcpingServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RealPingServerCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> LocationTestCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> UdpTestServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SpeedServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SortServerResultCmd { get; }
@@ -200,6 +201,12 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             await ServerSpeedtest(ESpeedActionType.Realping);
         }, canEditRemove);
+        // Location beta uses the same real proxy path as the delay test; the
+        // IPAPI response is persisted and rendered as country flag + address.
+        LocationTestCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await ServerSpeedtest(ESpeedActionType.Realping);
+        }, canEditRemove);
         UdpTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await ServerSpeedtest(ESpeedActionType.UdpTest);
@@ -303,9 +310,12 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
-        if (result.Delay.IsNotEmpty())
+        // Progress messages such as "testing" must not overwrite the last
+        // measured value. Keep the previous real ping visible until a numeric
+        // result arrives, and persist every completed result immediately.
+        if (result.Delay.IsNotEmpty() && int.TryParse(result.Delay, out var parsedDelay))
         {
-            item.Delay = result.Delay.ToInt();
+            item.Delay = parsedDelay;
             item.DelayVal = result.Delay ?? string.Empty;
         }
         if (result.Speed.IsNotEmpty())
@@ -316,7 +326,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
-        await Task.CompletedTask;
+        await ProfileExManager.Instance.SaveTo();
     }
 
     public async Task UpdateStatistics(ServerSpeedItem update)

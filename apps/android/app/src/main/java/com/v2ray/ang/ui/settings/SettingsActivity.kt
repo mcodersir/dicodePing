@@ -128,7 +128,7 @@ fun SettingsScreen(
     var groupAllDisplay by rememberMmkvBool(AppConfig.PREF_GROUP_ALL_DISPLAY, true)
     var language by remember {
         mutableStateOf(
-            MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE, "auto") ?: "auto"
+            MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE, "fa") ?: "fa"
         )
     }
     var uiModeNight by rememberMmkvString(AppConfig.PREF_UI_MODE_NIGHT, "0")
@@ -148,6 +148,8 @@ fun SettingsScreen(
     var delayTestUrl by rememberMmkvString(AppConfig.PREF_DELAY_TEST_URL, "")
     var realPingConcurrency by rememberMmkvString(AppConfig.PREF_REAL_PING_CONCURRENCY, "16")
     var ipApiUrl by rememberMmkvString(AppConfig.PREF_IP_API_URL, "")
+    var domainFilterMode by rememberMmkvString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off")
+    var domainFilterList by rememberMmkvString(AppConfig.PREF_DOMAIN_FILTER_LIST, "")
 
     val isVpn = mode == VPN
     val hevTunEnabled = isVpn && useHevTun
@@ -185,6 +187,8 @@ fun SettingsScreen(
     val observatoryLeastLoadMethodValues = stringArrayResource(R.array.observatory_least_load_method).toList()
     val modeEntries = stringArrayResource(R.array.mode_entries).toList()
     val modeValues = stringArrayResource(R.array.mode_value).toList()
+    val domainFilterModeEntries = stringArrayResource(R.array.domain_filter_mode_entries).toList()
+    val domainFilterModeValues = stringArrayResource(R.array.domain_filter_mode_values).toList()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -627,6 +631,19 @@ fun SettingsScreen(
                     title = stringResource(R.string.title_pref_ip_api_url),
                     value = ipApiUrl,
                     onValueChanged = { ipApiUrl = it }
+                )
+                SettingsListItem(
+                    title = stringResource(R.string.title_pref_domain_filter_mode),
+                    entries = domainFilterModeEntries,
+                    values = domainFilterModeValues,
+                    selectedValue = domainFilterMode,
+                    onSelected = { domainFilterMode = it }
+                )
+                SettingsEditItem(
+                    title = stringResource(R.string.title_pref_domain_filter_list),
+                    value = domainFilterList,
+                    enabled = domainFilterMode != "off",
+                    onValueChanged = { domainFilterList = it }
                 )
             }
 

@@ -26,7 +26,7 @@
             Margin="{StaticResource Margin4}"
             ColumnDefinitions="Auto,Auto"
             DockPanel.Dock="Top"
-            RowDefinitions="Auto,Auto">
+            RowDefinitions="Auto,Auto,Auto,Auto">
 
             <TextBlock
                 Grid.Row="0"
@@ -63,6 +63,26 @@
                 Margin="{StaticResource Margin4}"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="{StaticResource Margin4}" VerticalAlignment="Center" Text="فیلتر دامنه" />
+            <ComboBox
+                x:Name="cmbDomainFilterMode"
+                Grid.Row="2"
+                Grid.Column="1"
+                Width="420"
+                Margin="{StaticResource Margin4}"
+                HorizontalAlignment="Left" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Margin="{StaticResource Margin4}" VerticalAlignment="Center" Text="فهرست دامنه‌ها" />
+            <TextBox
+                x:Name="txtDomainFilter"
+                Grid.Row="3"
+                Grid.Column="1"
+                Width="420"
+                Height="70"
+                Margin="{StaticResource Margin4}"
+                AcceptsReturn="True"
+                TextWrapping="Wrap"
+                Watermark="example.com، یا یک دامنه در هر خط" />
         </Grid>
 
         <TabControl x:Name="tabAdvanced">

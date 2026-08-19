@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 object UpdateCheckerManager {
     suspend fun checkForUpdate(includePreRelease: Boolean = false): CheckUpdateResult = withContext(Dispatchers.IO) {
         val url = if (includePreRelease) {
-            AppConfig.APP_API_URL
+            "${AppConfig.APP_API_URL}?per_page=20"
         } else {
             AppConfig.APP_API_URL.concatUrl("latest")
         }
@@ -27,7 +27,8 @@ object UpdateCheckerManager {
         var response = HttpUtil.getUrlContent(
             UrlContentRequest(
                 url = url,
-                timeout = 5000
+                timeout = 15000,
+                userAgent = "DicodePing/${BuildConfig.VERSION_NAME}"
             )
         )
         if (response.isNullOrEmpty()) {
@@ -35,21 +36,44 @@ object UpdateCheckerManager {
             response = HttpUtil.getUrlContent(
                 UrlContentRequest(
                     url = url,
-                    timeout = 5000,
+                    timeout = 15000,
                     httpPort = httpPort,
                     proxyUsername = proxyUsername,
-                    proxyPassword = proxyPassword
+                    proxyPassword = proxyPassword,
+                    userAgent = "DicodePing/${BuildConfig.VERSION_NAME}"
                 )
             )
-                ?: throw IllegalStateException("Failed to get response")
+        }
+
+        // GitHub's `/latest` endpoint intentionally excludes prereleases and can
+        // return 404 while a project is prerelease-only. Fall back to the release
+        // list so the update page remains usable for every DicodePing channel.
+        if (response.isNullOrEmpty() && !includePreRelease) {
+            response = HttpUtil.getUrlContent(
+                UrlContentRequest(
+                    url = "${AppConfig.APP_API_URL}?per_page=20",
+                    timeout = 15000,
+                    httpPort = SettingsManager.getHttpPort(),
+                    proxyUsername = proxyUsername,
+                    proxyPassword = proxyPassword,
+                    userAgent = "DicodePing/${BuildConfig.VERSION_NAME}"
+                )
+            )
+            if (response.isNullOrEmpty()) {
+                throw IllegalStateException("Failed to reach the update service")
+            }
         }
 
         val latestRelease = if (includePreRelease) {
             JsonUtil.fromJsonSafe(response, Array<GitHubRelease>::class.java)
-                ?.firstOrNull()
-                ?: throw IllegalStateException("No pre-release found")
+                ?.filterNot { it.draft }
+                ?.maxByOrNull { it.publishedAt }
+                ?: throw IllegalStateException("No release found")
         } else {
             JsonUtil.fromJsonSafe(response, GitHubRelease::class.java)
+                ?: JsonUtil.fromJsonSafe(response, Array<GitHubRelease>::class.java)
+                    ?.filter { !it.prerelease && !it.draft }
+                    ?.maxByOrNull { it.publishedAt }
         }
         if (latestRelease == null) {
             return@withContext CheckUpdateResult(hasUpdate = false)
@@ -91,17 +115,12 @@ object UpdateCheckerManager {
     }
 
     private fun getDownloadUrl(release: GitHubRelease, abi: String): String {
-        val fDroid = "fdroid"
-
-        val assetsByAbi = release.assets.filter {
-            (it.name.contains(abi, true))
-        }
-
-        val asset = if (BuildConfig.APPLICATION_ID.contains(fDroid, ignoreCase = true)) {
-            assetsByAbi.firstOrNull { it.name.contains(fDroid) }
-        } else {
-            assetsByAbi.firstOrNull { !it.name.contains(fDroid) }
-        }
+        // Release assets are product-branded and distribution-neutral. Prefer the
+        // exact ABI, then universal, and finally any APK as a safe last resort.
+        val apkAssets = release.assets.filter { it.name.endsWith(".apk", true) }
+        val asset = apkAssets.firstOrNull { it.name.contains(abi, true) }
+            ?: apkAssets.firstOrNull { it.name.contains("universal", true) }
+            ?: apkAssets.firstOrNull()
 
         return asset?.browserDownloadUrl
             ?: throw IllegalStateException("No compatible APK found")

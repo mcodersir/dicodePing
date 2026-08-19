@@ -18,6 +18,7 @@ public partial class RoutingSettingWindow : WindowBase<RoutingSettingViewModel>
 
         cmbdomainStrategy.ItemsSource = Global.DomainStrategies;
         cmbdomainStrategy4Singbox.ItemsSource = Global.DomainStrategies4Sbox;
+        cmbDomainFilterMode.ItemsSource = new[] { "خاموش", "عبور مستقیم دامنه‌های مشخص‌شده", "استفاده از VPN فقط برای دامنه‌های مشخص‌شده" };
 
         this.WhenActivated(disposables =>
         {
@@ -26,6 +27,8 @@ public partial class RoutingSettingWindow : WindowBase<RoutingSettingViewModel>
 
             this.Bind(ViewModel, vm => vm.DomainStrategy, v => v.cmbdomainStrategy.SelectedValue).DisposeWith(disposables);
             this.Bind(ViewModel, vm => vm.DomainStrategy4Singbox, v => v.cmbdomainStrategy4Singbox.SelectedValue).DisposeWith(disposables);
+            this.Bind(ViewModel, vm => vm.DomainFilterModeIndex, v => v.cmbDomainFilterMode.SelectedIndex).DisposeWith(disposables);
+            this.Bind(ViewModel, vm => vm.DomainFilterDomains, v => v.txtDomainFilter.Text).DisposeWith(disposables);
 
             this.BindCommand(ViewModel, vm => vm.RoutingAdvancedAddCmd, v => v.menuRoutingAdvancedAdd).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.RoutingAdvancedAddCmd, v => v.menuRoutingAdvancedAdd2).DisposeWith(disposables);

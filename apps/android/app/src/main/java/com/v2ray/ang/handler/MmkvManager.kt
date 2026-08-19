@@ -487,6 +487,15 @@ object MmkvManager {
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
     }
 
+    /** Stores the last real endpoint location beside the persisted delay result. */
+    fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) {
+        if (guid.isBlank() || (countryCode.isNullOrBlank() && ipAddress.isNullOrBlank())) return
+        val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
+        aff.countryCode = countryCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        aff.ipAddress = ipAddress?.trim()?.takeIf { it.isNotBlank() }
+        serverAffStorage.encode(guid, JsonUtil.toJson(aff))
+    }
+
     /**
      * Clears all test delay results.
      *

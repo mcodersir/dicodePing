@@ -43,7 +43,9 @@ object AppLocaleManager {
      * Applies a language selected in the app and lets AppCompat recreate the current activity.
      */
     fun setApplicationLanguage(languageCode: String) {
-        val language = Language.fromCode(languageCode)
+        val language = Language.fromCode(languageCode).let {
+            if (it == Language.AUTO || it == Language.CHINA || it == Language.TRADITIONAL_CHINESE) Language.PERSIAN else it
+        }
         persistLegacyPreference(language)
         AppCompatDelegate.setApplicationLocales(language.toLocaleList())
     }
@@ -70,21 +72,33 @@ object AppLocaleManager {
         val storedLocales = LocaleManagerCompat.getApplicationLocales(context)
         if (storedLocales.isEmpty) {
             val legacyLanguage = storedLanguage()
-            if (legacyLanguage != Language.AUTO) {
-                AppCompatDelegate.setApplicationLocales(legacyLanguage.toLocaleList())
-            }
+            AppCompatDelegate.setApplicationLocales(legacyLanguage.toLocaleList())
         } else {
             syncLegacyPreference(storedLocales.get(0)?.toLanguageTag())
         }
     }
 
-    private fun storedLanguage(): Language = Language.fromCode(
-        // Persian is the product default. Explicit user choices are preserved.
-        MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE) ?: Language.PERSIAN.code
-    )
+    private fun storedLanguage(): Language {
+        // `auto` was the upstream default and caused new installs to follow the
+        // device locale (including Chinese). DicodePing has a Persian product UI;
+        // only an explicit language selection may override it.
+        val stored = MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE)
+        return Language.fromCode(stored ?: Language.PERSIAN.code).let {
+            if (it == Language.AUTO || it == Language.CHINA || it == Language.TRADITIONAL_CHINESE) {
+                Language.PERSIAN
+            } else it
+        }
+    }
 
     private fun syncLegacyPreference(languageTag: String?) {
-        persistLegacyPreference(Language.fromLanguageTag(languageTag))
+        val language = if (languageTag.isNullOrBlank()) {
+            Language.PERSIAN
+        } else {
+            Language.fromLanguageTag(languageTag).let {
+                if (it == Language.AUTO || it == Language.CHINA || it == Language.TRADITIONAL_CHINESE) Language.PERSIAN else it
+            }
+        }
+        persistLegacyPreference(language)
     }
 
     private fun persistLegacyPreference(language: Language) {
@@ -105,17 +119,22 @@ object AppLocaleManager {
             val localeManager = context.getSystemService(LocaleManager::class.java)
             val applicationLocales = localeManager.applicationLocales
             if (!applicationLocales.isEmpty) {
-                syncLegacyPreference(applicationLocales.get(0)?.toLanguageTag())
+                val frameworkLanguage = Language.fromLanguageTag(applicationLocales.get(0)?.toLanguageTag())
+                val language = frameworkLanguage.let {
+                    if (it == Language.AUTO || it == Language.CHINA || it == Language.TRADITIONAL_CHINESE) Language.PERSIAN else it
+                }
+                if (language != frameworkLanguage) {
+                    localeManager.applicationLocales = android.os.LocaleList(requireNotNull(language.locale))
+                }
+                persistLegacyPreference(language)
                 return
             }
 
             val legacyLanguage = storedLanguage()
-            if (legacyLanguage != Language.AUTO) {
-                // Make application and service contexts correct even before the first activity.
-                localeManager.applicationLocales = android.os.LocaleList(
-                    requireNotNull(legacyLanguage.locale)
-                )
-            }
+            // Make application and service contexts correct even before the first activity.
+            localeManager.applicationLocales = android.os.LocaleList(
+                requireNotNull(legacyLanguage.locale)
+            )
         }
 
         fun completeMigration(context: Context) {
@@ -124,8 +143,9 @@ object AppLocaleManager {
                 val frameworkLanguage = Language.fromLanguageTag(
                     localeManager.applicationLocales.get(0)?.toLanguageTag()
                 )
-                val language = frameworkLanguage.takeUnless { it == Language.AUTO }
-                    ?: storedLanguage()
+                val language = frameworkLanguage.takeUnless {
+                    it == Language.AUTO || it == Language.CHINA || it == Language.TRADITIONAL_CHINESE
+                } ?: storedLanguage()
 
                 // Android's migration guidance requires this one-time AppCompat handoff after
                 // Activity.onCreate(), including on Android 13 and newer.

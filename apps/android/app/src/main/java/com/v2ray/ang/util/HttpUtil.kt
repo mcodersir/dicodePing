@@ -115,6 +115,8 @@ object HttpUtil {
         val requestBuilder = Request.Builder()
             .url(url)
             .get()
+            .header("User-Agent", request.userAgent?.takeIf { it.isNotBlank() } ?: "DicodePing/${BuildConfig.VERSION_NAME}")
+            .header("Accept", "application/vnd.github+json")
             .header("Connection", "close")
         if (request.httpPort != 0 && !request.proxyUsername.isNullOrBlank() && !request.proxyPassword.isNullOrBlank()) {
             requestBuilder.header("Proxy-Authorization", Credentials.basic(request.proxyUsername, request.proxyPassword))

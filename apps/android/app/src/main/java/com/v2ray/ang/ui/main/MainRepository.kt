@@ -155,6 +155,9 @@ class MainRepository(
     override fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo? =
         MmkvManager.decodeServerAffiliationInfo(guid)
 
+    override fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) =
+        MmkvManager.encodeServerLocation(guid, countryCode, ipAddress)
+
     override fun encodeServerList(guids: List<String>, groupId: String) =
         MmkvManager.encodeServerList(ArrayList(guids), groupId)
 

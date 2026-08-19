@@ -67,13 +67,17 @@
                 Theme="{DynamicResource SimpleToggleSwitch}" />
         </WrapPanel>
 
-            <avaloniaEdit:TextEditor
-            Name="txtMsg"
+        <Border
             Margin="{StaticResource Margin8}"
-            FlowDirection="LeftToRight"
-            IsReadOnly="True"
-            VerticalScrollBarVisibility="Auto"
-            WordWrap="True">
+            Padding="6"
+            Theme="{DynamicResource CardBorder}">
+            <avaloniaEdit:TextEditor
+                Name="txtMsg"
+                FlowDirection="LeftToRight"
+                IsReadOnly="True"
+                FontFamily="Cascadia Mono,Consolas,monospace"
+                VerticalScrollBarVisibility="Auto"
+                WordWrap="True">
             <avaloniaEdit:TextEditor.Options>
                 <avaloniaEdit:TextEditorOptions AllowScrollBelowDocument="False" />
             </avaloniaEdit:TextEditor.Options>
@@ -99,7 +103,8 @@
                         Header="{x:Static resx:ResUI.menuMsgViewClear}" />
                 </MenuFlyout>
             </avaloniaEdit:TextEditor.ContextFlyout>
-        </avaloniaEdit:TextEditor>
+            </avaloniaEdit:TextEditor>
+        </Border>
 
     </DockPanel>
 </UserControl>

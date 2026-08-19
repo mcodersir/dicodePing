@@ -88,6 +88,13 @@
                         </Button.Content>
                     </Button>
                     <Button
+                        x:Name="btnLocationTest"
+                        Margin="{StaticResource MarginLr4}"
+                        Classes="IconButton Success"
+                        ToolTip.Tip="آزمایش لوکیشن (بتا)">
+                        <TextBlock Text="🌐" />
+                    </Button>
+                    <Button
                         x:Name="btnConnectBest"
                         Margin="8,0,0,0"
                         Classes="FabButton Success"

@@ -111,7 +111,6 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 case ESpeedActionType.Realping:
                 case ESpeedActionType.UdpTest:
                     await UpdateFunc(it.IndexId, ResUI.Speedtesting, "");
-                    ProfileExManager.Instance.SetTestDelay(it.IndexId, 0);
                     break;
 
                 case ESpeedActionType.Speedtest:
