@@ -49,6 +49,9 @@ fun MainScreen(
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
+    val allServers by remember(mainViewModel) {
+        mainViewModel.serversForGroup("")
+    }.collectAsStateWithLifecycle()
 
     val isDarkTheme = LocalDarkTheme.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -59,6 +62,28 @@ fun MainScreen(
     var showDelDuplicateConfirm by remember { mutableStateOf(false) }
     var showDelInvalidConfirm by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf<String?>(null) }
+    var autoConnectPending by remember { mutableStateOf(false) }
+    var autoConnectStarted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(autoConnectPending, uiState.isTesting, allServers) {
+        if (!autoConnectPending) return@LaunchedEffect
+        if (uiState.isTesting) {
+            autoConnectStarted = true
+            return@LaunchedEffect
+        }
+        if (!autoConnectStarted) return@LaunchedEffect
+
+        val best = allServers
+            .filter { it.testDelayMillis > 0L }
+            .minByOrNull { it.testDelayMillis }
+        autoConnectPending = false
+        autoConnectStarted = false
+        if (best != null) {
+            onAction(MainAction.SelectServer(best.guid))
+            delay(120)
+            onAction(MainAction.ToggleService)
+        }
+    }
 
     var shareTarget by remember { mutableStateOf<Triple<String, ProfileItem, Boolean>?>(null) }
     val removeServer: (String) -> Unit = { guid ->
@@ -237,7 +262,17 @@ fun MainScreen(
                     displayText = displayText,
                     isRunning = isRunning,
                     isDarkTheme = isDarkTheme,
-                    onAction = onAction
+                    isAutoConnecting = autoConnectPending,
+                    onAction = onAction,
+                    onAutoConnect = {
+                        if (isRunning) {
+                            onAction(MainAction.ToggleService)
+                        } else if (!autoConnectPending) {
+                            autoConnectPending = true
+                            autoConnectStarted = false
+                            onAction(MainAction.TestRealAllServers)
+                        }
+                    }
                 )
             },
             floatingActionButton = {},

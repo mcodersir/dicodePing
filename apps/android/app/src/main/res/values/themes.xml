@@ -1,6 +1,6 @@
 <resources>
-    <color name="window_background_light">#FFFFFFFF</color>
-    <color name="window_background_dark">#FF1C1B1F</color>
+    <color name="window_background_light">#FFF5F6F8</color>
+    <color name="window_background_dark">#FF0B0F14</color>
 
     <style name="AppThemeBase" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
@@ -8,6 +8,9 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowBackground">@color/window_background_light</item>
+        <item name="android:fontFamily">@font/vazirmatn</item>
+        <item name="fontFamily">@font/vazirmatn</item>
+        <item name="android:windowActionModeOverlay">true</item>
     </style>
 
     <style name="AppThemeDayNight" parent="AppThemeBase" />

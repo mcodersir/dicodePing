@@ -25,3 +25,11 @@ Behavioral reference and default public subscription source. Licensed under MIT.
 ## Electron
 
 Copyright OpenJS Foundation and Electron contributors. MIT License. Source: https://github.com/electron/electron
+
+## v2rayN desktop UI reference
+
+The DicodePing desktop information architecture and group/profile workflow were redesigned with reference to v2rayN `7.24.7` (commit `e0ad2c46e6b561be9895e66f32ea8b0ad3f2bb43`). DicodePing retains an independent implementation and visual identity. v2rayN is licensed under GNU GPL v3. Source: https://github.com/2dust/v2rayN
+
+## Vazirmatn
+
+Vazirmatn `v33.003`, Copyright Saber Rastikerdar and contributors, is bundled for Persian/Arabic interface typography under the SIL Open Font License 1.1. The license text is available at `licenses/OFL-Vazirmatn.txt`. Source: https://github.com/rastikerdar/vazirmatn

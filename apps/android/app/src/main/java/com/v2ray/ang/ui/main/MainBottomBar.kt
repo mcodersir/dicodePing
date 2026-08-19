@@ -15,12 +15,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -39,7 +40,9 @@ fun MainBottomBar(
     displayText: String,
     isRunning: Boolean,
     isDarkTheme: Boolean,
-    onAction: (MainAction) -> Unit
+    isAutoConnecting: Boolean,
+    onAction: (MainAction) -> Unit,
+    onAutoConnect: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -67,26 +70,36 @@ fun MainBottomBar(
                 )
             }
         }
-        FloatingActionButton(
-            onClick = { onAction(MainAction.ToggleService) },
+        ExtendedFloatingActionButton(
+            onClick = onAutoConnect,
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = 24.dp)
+                .align(AbsoluteAlignment.TopRight)
+                .padding(end = 18.dp)
                 .offset(y = (-28).dp)
                 .navigationBarsPadding(),
             containerColor = if (isRunning) colorFabActive
             else if (isDarkTheme) colorFabInactiveDark
-            else colorFabInactiveLight
-        ) {
-            Icon(
-                painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp)
-                else painterResource(R.drawable.ic_play_24dp),
-                contentDescription = stringResource(
-                    if (isRunning) R.string.acc_stop else R.string.acc_start
-                ),
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        }
+            else colorFabInactiveLight,
+            icon = {
+                Icon(
+                    painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp)
+                    else painterResource(R.drawable.ic_flash_on_24dp),
+                    contentDescription = stringResource(if (isRunning) R.string.acc_stop else R.string.fab_auto_connect_best),
+                    tint = if (!isRunning && isDarkTheme) Color(0xFF111820) else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            },
+            text = {
+                Text(
+                    text = when {
+                        isRunning -> stringResource(R.string.acc_stop)
+                        isAutoConnecting -> stringResource(R.string.fab_finding_best)
+                        else -> stringResource(R.string.fab_auto_connect_best)
+                    },
+                    color = if (!isRunning && isDarkTheme) Color(0xFF111820) else Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            },
+        )
     }
 }

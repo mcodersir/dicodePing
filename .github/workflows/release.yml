@@ -97,7 +97,7 @@ jobs:
         working-directory: apps/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.8
+          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.2
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android

@@ -3,51 +3,128 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; font-src 'self'">
   <title>DicodePing 3</title>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <div class="shell">
-    <aside>
-      <div class="brand"><span class="logo">D</span><div><strong>DicodePing</strong><small>نسخه ۳ · Xray 26.7.28</small></div></div>
-      <nav>
-        <button class="nav active" data-page="client">◉ <span>کلاینت</span></button>
-        <button class="nav" data-page="scanner">⌁ <span>اسکن هم‌زمان</span></button>
-        <button class="nav" data-page="sources">↻ <span>ساب‌ها</span></button>
-        <button class="nav" data-page="settings">⚙ <span>تنظیمات</span></button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/app.svg" alt="DicodePing">
+        <div><strong>DicodePing</strong><small>PRE 2 · XRAY 26.7.28</small></div>
+      </div>
+
+      <nav aria-label="ناوبری اصلی">
+        <button class="nav active" data-page="client" data-title="همه کانفیگ‌ها" data-subtitle="مدیریت یکپارچه تمام ساب‌ها و اتصال سریع">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>همه کانفیگ‌ها</span>
+        </button>
+        <button class="nav" data-page="scanner" data-title="اسکن هم‌زمان" data-subtitle="سنجش واقعی کیفیت مسیر، بدون پینگ نمایشی">
+          <svg viewBox="0 0 24 24"><path d="M4 18V9m5 9V5m5 13v-7m5 7V3"/></svg><span>اسکن هم‌زمان</span>
+        </button>
+        <button class="nav" data-page="sources" data-title="اشتراک‌ها" data-subtitle="همگام‌سازی و مدیریت منابع کانفیگ">
+          <svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 12-4.9L19 9m0-5v5h-5M19 12a7 7 0 0 1-12 4.9L5 15m0 5v-5h5"/></svg><span>اشتراک‌ها</span>
+        </button>
+        <button class="nav" data-page="settings" data-title="تنظیمات" data-subtitle="رفتار شبکه و مشخصات موتور اجرا">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg><span>تنظیمات</span>
+        </button>
       </nav>
-      <div class="runtime"><i></i><div><b>Real-path engine</b><small>SOCKS → TLS → HTTP</small></div></div>
+
+      <div class="engine-card">
+        <span class="engine-dot"></span>
+        <div><b>Real-path engine</b><small>SOCKS → TLS → HTTP</small></div>
+        <span class="engine-version">v3</span>
+      </div>
     </aside>
+
     <main>
-      <header><div><h1 id="page-title">کلاینت</h1><p id="page-subtitle">اتصال پایدار با اندازه‌گیری واقعی مسیر</p></div><span id="profile-count" class="pill">۰ کانفیگ</span></header>
+      <header class="topbar">
+        <div><h1 id="page-title">همه کانفیگ‌ها</h1><p id="page-subtitle">مدیریت یکپارچه تمام ساب‌ها و اتصال سریع</p></div>
+        <div class="top-actions">
+          <span id="sync-state" class="sync-state"><i></i><span>آماده</span></span>
+          <span id="profile-count" class="count-pill">۰ کانفیگ</span>
+        </div>
+      </header>
 
       <section id="client" class="page active">
-        <div class="hero">
-          <div class="pulse"><div class="pulse-inner"><span id="connection-icon">⏻</span></div></div>
-          <h2 id="connection-title">آماده اتصال</h2>
-          <p id="connection-detail">یک کانفیگ سالم را انتخاب کنید</p>
-          <button id="connect-button" class="primary" disabled>اتصال</button>
+        <div class="overview-grid">
+          <article class="connection-card">
+            <div class="connection-copy">
+              <span class="eyebrow">وضعیت اتصال</span>
+              <h2 id="connection-title">آماده اتصال</h2>
+              <p id="connection-detail">بهترین مسیر را خودکار پیدا کنید یا یک کانفیگ انتخاب کنید.</p>
+              <div class="connection-actions">
+                <button id="connect-button" class="button primary" disabled>
+                  <svg viewBox="0 0 24 24"><path d="M12 2v10m6.4-5.4a8 8 0 1 1-12.8 0"/></svg><span>اتصال به انتخاب‌شده</span>
+                </button>
+                <button id="quick-scan" class="button outline">
+                  <svg viewBox="0 0 24 24"><path d="m4 17 4-5 4 3 5-8 3 4"/></svg><span>تست واقعی همه</span>
+                </button>
+              </div>
+            </div>
+            <div class="connection-visual" aria-hidden="true"><img src="assets/app.svg" alt=""><span></span></div>
+          </article>
+
+          <article class="metrics-card">
+            <div><span>کانفیگ‌ها</span><strong id="metric-total">۰</strong></div>
+            <div><span>پاسخ‌گو</span><strong id="metric-alive">—</strong></div>
+            <div><span>بهترین مسیر</span><strong id="metric-best">—</strong></div>
+          </article>
         </div>
-        <div class="panel"><div class="panel-head"><h3>بهترین کانفیگ‌ها</h3><button id="quick-scan" class="ghost">تست همه</button></div><div id="client-list" class="server-list empty">هنوز کانفیگی وارد نشده است.</div></div>
+
+        <div class="workspace-card">
+          <div class="workspace-toolbar">
+            <div id="source-tabs" class="source-tabs" role="tablist"><button class="source-tab active" data-source="all">همه</button></div>
+            <div class="toolbar-actions">
+              <label class="search-box">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                <input id="profile-search" type="search" placeholder="جست‌وجوی نام، آدرس یا پروتکل">
+              </label>
+              <button id="refresh-all" class="icon-button" title="همگام‌سازی همه ساب‌ها"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 0 1 12-4.9L19 9m0-5v5h-5M19 12a7 7 0 0 1-12 4.9L5 15m0 5v-5h5"/></svg></button>
+            </div>
+          </div>
+          <div class="table-head"><span>پروفایل</span><span>پروتکل</span><span>پینگ واقعی</span><span>افت</span><span>امتیاز</span></div>
+          <div id="client-list" class="server-list empty-state"><span class="empty-icon">⌁</span><b>در حال دریافت کانفیگ‌ها…</b><small>تمام subscriptionها در همین تب نمایش داده می‌شوند.</small></div>
+        </div>
       </section>
 
       <section id="scanner" class="page">
-        <div class="grid two">
-          <div class="panel"><h3>ورود کانفیگ</h3><p class="hint">لینک‌ها یا متن Base64 subscription را وارد کنید.</p><textarea id="config-input" spellcheck="false" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea><div class="actions"><button id="import-button" class="secondary">افزودن</button><button id="scan-button" class="primary">شروع تست واقعی</button></div></div>
-          <div class="panel stats"><h3>وضعیت اسکن</h3><div class="stat-grid"><div><strong id="tested-count">۰</strong><span>تست‌شده</span></div><div><strong id="alive-count">۰</strong><span>سالم</span></div><div><strong id="best-ping">—</strong><span>بهترین TTFB</span></div><div><strong id="scan-progress">۰٪</strong><span>پیشرفت</span></div></div><div class="meter"><i id="meter-bar"></i></div><p class="hint">پینگ نمایش‌داده‌شده از درخواست HTTPS عبوری از خود کانفیگ محاسبه می‌شود.</p></div>
+        <div class="scanner-grid">
+          <article class="panel input-panel">
+            <div class="section-title"><span class="line-icon">＋</span><div><h3>ورود کانفیگ</h3><p>لینک‌ها یا متن Base64 subscription را وارد کنید.</p></div></div>
+            <textarea id="config-input" spellcheck="false" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea>
+            <div class="actions"><button id="import-button" class="button outline">فقط افزودن</button><button id="scan-button" class="button primary">افزودن و تست واقعی</button></div>
+          </article>
+          <article class="panel scan-summary">
+            <div class="section-title"><span class="line-icon">⌁</span><div><h3>وضعیت اسکن</h3><p>نتیجه بر اساس چند نمونهٔ واقعی مسیر است.</p></div></div>
+            <div class="stat-grid"><div><strong id="tested-count">۰</strong><span>تست‌شده</span></div><div><strong id="alive-count">۰</strong><span>پاسخ‌گو</span></div><div><strong id="best-ping">—</strong><span>بهترین TTFB</span></div><div><strong id="scan-progress">۰٪</strong><span>پیشرفت</span></div></div>
+            <div class="meter"><i id="meter-bar"></i></div>
+            <button id="cancel-button" class="button danger" disabled>توقف اسکن</button>
+          </article>
         </div>
-        <div class="panel"><div class="panel-head"><h3>نتایج زنده</h3><button id="cancel-button" class="danger" disabled>توقف</button></div><div id="scan-list" class="server-list empty">برای شروع، کانفیگ وارد کنید.</div></div>
+        <div class="workspace-card scanner-results"><div class="workspace-toolbar"><div><h3>نتایج زنده</h3><p>Median، jitter و loss در امتیاز نهایی محاسبه می‌شوند.</p></div></div><div class="table-head"><span>پروفایل</span><span>پروتکل</span><span>پینگ واقعی</span><span>افت</span><span>امتیاز</span></div><div id="scan-list" class="server-list empty-state"><span class="empty-icon">↗</span><b>هنوز تستی شروع نشده</b><small>کانفیگ وارد کنید یا از صفحهٔ اول «تست واقعی همه» را بزنید.</small></div></div>
       </section>
 
       <section id="sources" class="page">
-        <div class="panel source-card"><div><span class="source-badge">پیش‌فرض</span><h3>Dicode Config Checker</h3><p id="default-sub">https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt</p></div><button id="sync-default" class="primary">همگام‌سازی و تست</button></div>
-        <div class="panel"><h3>ساب دلخواه</h3><div class="inline"><input id="sub-url" type="url" placeholder="https://example.com/sub"><button id="sync-custom" class="secondary">دریافت</button></div><p class="hint">منبع پیش‌فرض همیشه باقی می‌ماند و منابع دلخواه جایگزین آن نمی‌شوند.</p></div>
+        <div class="source-hero"><div><span class="eyebrow">Subscription center</span><h2>همه منابع در یک نما</h2><p>هر منبع جداگانه همگام می‌شود و خروجی همهٔ آن‌ها در تب اول تجمیع خواهد شد.</p></div><button id="sync-default" class="button primary">همگام‌سازی همه</button></div>
+        <div id="source-list" class="source-list"></div>
+        <article class="panel add-source"><div class="section-title"><span class="line-icon">＋</span><div><h3>افزودن subscription</h3><p>منبع پیش‌فرض حذف یا جایگزین نمی‌شود.</p></div></div><div class="inline"><input id="sub-url" type="url" placeholder="https://example.com/sub"><button id="sync-custom" class="button outline">افزودن و دریافت</button></div></article>
       </section>
 
       <section id="settings" class="page">
-        <div class="panel settings-list"><label><div><b>پروفایل شبکه ایران</b><small>IPv4-first، retry و timeout تطبیقی</small></div><input type="checkbox" checked disabled></label><label><div><b>تست هم‌زمان</b><small>۱۲ worker با کنترل مصرف CPU/RAM</small></div><input type="checkbox" checked disabled></label><label><div><b>اعتبارسنجی TLS</b><small>گواهی نامعتبر پذیرفته نمی‌شود</small></div><input type="checkbox" checked disabled></label></div>
+        <div class="settings-grid">
+          <article class="setting-card"><span class="setting-icon">IR</span><div><b>پروفایل شبکه ایران</b><small>IPv4-first، retry و timeout تطبیقی</small></div><span class="status-tag">فعال</span></article>
+          <article class="setting-card"><span class="setting-icon">12</span><div><b>تست هم‌زمان</b><small>۱۲ worker با کنترل مصرف منابع</small></div><span class="status-tag">فعال</span></article>
+          <article class="setting-card"><span class="setting-icon">TLS</span><div><b>اعتبارسنجی امن</b><small>گواهی نامعتبر پذیرفته نمی‌شود</small></div><span class="status-tag">فعال</span></article>
+          <article class="setting-card"><span class="setting-icon">UI</span><div><b>رابط Dicode Line</b><small>Vazirmatn · مینیمال · واکنش‌گرا</small></div><span class="status-tag neutral">Pre 2</span></article>
+        </div>
+        <article class="about-panel"><img src="assets/app.svg" alt="DicodePing"><div><h3>DicodePing 3</h3><p>رابط دسکتاپ با الهام از گردش‌کار گروه/پروفایل v2rayN 7.24.7 و هویت بصری مستقل Dicode بازطراحی شده است.</p></div></article>
       </section>
+
+      <button id="auto-connect" class="auto-fab" title="اتصال خودکار به بهترین کانفیگ" aria-label="اتصال خودکار به بهترین کانفیگ">
+        <svg viewBox="0 0 24 24"><path d="m13 2-8 12h7l-1 8 8-12h-7z"/></svg><span>اتصال هوشمند</span>
+      </button>
+      <div class="statusbar"><span><i></i> موتور Xray آماده</span><span id="status-selected">کانفیگی انتخاب نشده</span><span>Local SOCKS + HTTP</span></div>
       <div id="toast" role="status"></div>
     </main>
   </div>

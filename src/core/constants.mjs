@@ -1,4 +1,4 @@
-export const APP_VERSION = '3.0.0-pre.8';
+export const APP_VERSION = '3.0.0-pre.2';
 export const XRAY_VERSION = 'v26.7.28';
 export const PRIMARY_SUBSCRIPTION = 'https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt';
 export const SUPPORTED_SCHEMES = new Set(['vmess:', 'vless:', 'trojan:', 'ss:', 'socks:', 'http:', 'https:', 'hysteria2:', 'hy2:']);

@@ -1,6 +1,6 @@
 {
   "name": "dicodeping",
-  "version": "3.0.0-pre.8",
+  "version": "3.0.0-pre.2",
   "private": true,
   "type": "module",
   "description": "Cross-platform Xray client and real-path concurrent scanner",
@@ -25,11 +25,11 @@
     "appId": "ir.dicode.ping",
     "productName": "DicodePing",
     "asar": true,
-    "files": ["src/**/*", "package.json", "THIRD_PARTY_NOTICES.md"],
+    "files": ["src/**/*", "licenses/**/*", "package.json", "THIRD_PARTY_NOTICES.md"],
     "extraResources": [{"from": "runtime", "to": "runtime", "filter": ["**/*"]}],
-    "win": {"target": ["nsis", "portable"]},
-    "linux": {"target": ["AppImage", "tar.gz"], "category": "Network"},
-    "mac": {"target": ["dmg", "zip"], "category": "public.app-category.utilities"}
+    "win": {"target": ["nsis", "portable"], "icon": "assets/app.ico"},
+    "linux": {"target": ["AppImage", "tar.gz"], "category": "Network", "icon": "assets/app.png"},
+    "mac": {"target": ["dmg", "zip"], "category": "public.app-category.utilities", "icon": "assets/app.png"}
   },
   "engines": {"node": ">=22"}
 }

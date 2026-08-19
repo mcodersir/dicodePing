@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -328,8 +330,20 @@ fun ServerListItem(
     }
     Row(
         modifier = modifier
+            .padding(horizontal = 12.dp, vertical = 5.dp)
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                else MaterialTheme.colorScheme.surfaceContainerLow
+            )
+            .border(
+                width = 1.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                else MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(14.dp)
+            )
             .semantics {
                 if (selectedStateDescription != null) {
                     stateDescription = selectedStateDescription
@@ -340,17 +354,17 @@ fun ServerListItem(
     ) {
         Box(
             Modifier
-                .width(10.dp)
+                .width(8.dp)
                 .fillMaxHeight()
         ) {
             if (isSelected) {
                 Row {
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(4.dp))
                     Box(
                         Modifier
-                            .width(4.dp)
+                            .width(3.dp)
                             .fillMaxHeight()
-                            .padding(vertical = 10.dp)
+                            .padding(vertical = 12.dp)
                             .background(MaterialTheme.colorScheme.primary)
                     )
                 }
