@@ -69,7 +69,7 @@ internal class Program
         }
         else
         {
-            _ = new Mutex(true, "v2rayN", out var bOnlyOneInstance);
+            _ = new Mutex(true, "DicodePing.Desktop", out var bOnlyOneInstance);
             if (!bOnlyOneInstance)
             {
                 return false;

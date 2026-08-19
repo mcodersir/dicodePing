@@ -91,11 +91,11 @@
                         x:Name="btnConnectBest"
                         Margin="8,0,0,0"
                         Classes="Success"
-                        Content="Smart connect" />
+                        Content="اتصال هوشمند" />
                     <Button
                         x:Name="btnConnectSelected"
                         Margin="4,0,0,0"
-                        Content="Connect selected" />
+                        Content="اتصال انتخاب‌شده" />
                     <Button
                         x:Name="menuMixedTestServer"
                         Margin="{StaticResource MarginLr4}"
