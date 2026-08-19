@@ -799,9 +799,19 @@ class MainWindow(QMainWindow):
         self.overview.set_connected(False, connecting=True)
         self.run_worker(
             lambda: self.service.connect(selected, tun=bool(values["tun"]), system_proxy=str(values["system_proxy"])),
-            lambda _: self._set_connected(True),
+            self._connection_verified,
             self._connection_error,
         )
+
+    def _connection_verified(self, result: object) -> None:
+        """Publish CONNECTED only after CoreHost's real proxy HTTP check."""
+        self._set_connected(True)
+        if not isinstance(result, dict):
+            return
+        ping = result.get("verified_ping_ms")
+        if isinstance(ping, int) and ping > 0:
+            self.overview.latency_value.setText(f"{ping} ms")
+            self.overview.status.setText(f"متصل و تأییدشده • {ping} ms")
 
     def _set_connected(self, value: bool) -> None:
         self.connected = value

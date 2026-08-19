@@ -1,6 +1,6 @@
 # dicodePing 3
 
-**Release:** `3.0.0-pre.5`
+**Release:** `3.0.0-pre.6`
 
 Version 3 is a clean client/runtime architecture. The application keeps the dicodePing subscription ecosystem and product-specific Scanner/business behavior while networking is isolated behind the dedicated dicodePing runtime host. Android follows the same application-layer boundary with a platform-native VPN runtime bridge.
 
@@ -45,7 +45,7 @@ Optional user sources may be added without replacing the primary source.
 
 ## Runtime preparation
 
-`PREPARE_V3_RUNTIME.bat` is the offline verification-and-packaging entry point. It never downloads anything: it verifies the pinned desktop/Android runtime files already present in the checkout and then creates `dist/dicodePing-3.0.0-pre.5-complete.zip`. If any runtime is missing or corrupt, run `REPAIR_V3_RUNTIME.bat` once; the repair helper performs the checksum-pinned downloads and includes Windows curl/DNS-over-HTTPS and Schannel revocation fallbacks.
+`PREPARE_V3_RUNTIME.bat` is the offline verification-and-packaging entry point. It never downloads anything: it verifies the pinned desktop/Android runtime files already present in the checkout and then creates `dist/dicodePing-3.0.0-pre.6-complete.zip`. If any runtime is missing or corrupt, run `REPAIR_V3_RUNTIME.bat` once; the repair helper performs the checksum-pinned downloads and includes Windows curl/DNS-over-HTTPS and Schannel revocation fallbacks.
 
 ## Desktop development
 
@@ -87,9 +87,9 @@ Release signing variables:
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-## Publish `3.0.0-pre.5`
+## Publish `3.0.0-pre.6`
 
-The project root includes `PUBLISH_3.0.0_PRE1.bat` (also mirrored as `RELEASE_V3_PRERELEASE.bat`). It targets **`mcodersir/dicodePing`** directly. No local `GH_TOKEN` is required: clone and push operations use the authentication already configured for `git.exe` (for example Git Credential Manager on Windows, another Git credential helper, or an SSH/insteadOf configuration). The publisher clones the current default branch, replaces it with this Version 3 tree, validates it, commits to the default branch, and creates `v3.0.0-pre.5`. The workflow uses the built-in GitHub Actions token to build every platform and create the GitHub **pre-release** with rebuilt assets.
+The project root includes `PUBLISH_3.0.0_PRE1.bat` (also mirrored as `RELEASE_V3_PRERELEASE.bat`). It targets **`mcodersir/dicodePing`** directly. No local `GH_TOKEN` is required: clone and push operations use the authentication already configured for `git.exe` (for example Git Credential Manager on Windows, another Git credential helper, or an SSH/insteadOf configuration). The publisher clones the current default branch, replaces it with this Version 3 tree, validates it, commits to the default branch, and creates `v3.0.0-pre.6`. The workflow uses the built-in GitHub Actions token to build every platform and create the GitHub **pre-release** with rebuilt assets.
 
 ```bat
 PUBLISH_3.0.0_PRE1.bat
@@ -107,4 +107,4 @@ The combined desktop distribution includes GPL-covered components. Required noti
 
 ## Complete offline package
 
-After the pinned runtime set is present, run `PREPARE_V3_RUNTIME.bat`. It verifies every runtime SHA-256 and invokes the packager as a Python module (`python -m tools.package_complete_v3`) so imports resolve from the repository root on Windows. The generated `dist/dicodePing-3.0.0-pre.5-complete.zip` contains all pinned Xray, sing-box, Wintun and Android runtime files; the archive is re-opened, extracted to a temporary directory, and every runtime digest is verified again before success is reported. `REPAIR_V3_RUNTIME.bat` is only needed if a pinned runtime file is missing or corrupt.
+After the pinned runtime set is present, run `PREPARE_V3_RUNTIME.bat`. It verifies every runtime SHA-256 and invokes the packager as a Python module (`python -m tools.package_complete_v3`) so imports resolve from the repository root on Windows. The generated `dist/dicodePing-3.0.0-pre.6-complete.zip` contains all pinned Xray, sing-box, Wintun and Android runtime files; the archive is re-opened, extracted to a temporary directory, and every runtime digest is verified again before success is reported. `REPAIR_V3_RUNTIME.bat` is only needed if a pinned runtime file is missing or corrupt.

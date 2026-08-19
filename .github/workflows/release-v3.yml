@@ -15,7 +15,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   DOTNET_VERSION: "9.0.x"
-  RELEASE_VERSION: "3.0.0-pre.5"
+  RELEASE_VERSION: "3.0.0-pre.6"
 
 jobs:
   validate:
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows-x64
-          path: release/dicodePing-v3.0.0-pre.5-windows-x64.exe
+          path: release/dicodePing-v3.0.0-pre.6-windows-x64.exe
           if-no-files-found: error
 
   linux:
@@ -79,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: linux-x86_64
-          path: release/dicodePing-v3.0.0-pre.5-linux-x86_64.tar.gz
+          path: release/dicodePing-v3.0.0-pre.6-linux-x86_64.tar.gz
           if-no-files-found: error
 
   macos:
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
-          path: release/dicodePing-v3.0.0-pre.5-macos-${{ matrix.arch }}.dmg
+          path: release/dicodePing-v3.0.0-pre.6-macos-${{ matrix.arch }}.dmg
           if-no-files-found: error
 
   android:
@@ -142,7 +142,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: android-universal
-          path: dicodePing_android/release/dicodePing-v3.0.0-pre.5-android.apk
+          path: dicodePing_android/release/dicodePing-v3.0.0-pre.6-android.apk
           if-no-files-found: error
 
   prerelease:
@@ -157,12 +157,12 @@ jobs:
       - name: Validate tag and assets
         shell: bash
         run: |
-          test "$GITHUB_REF_NAME" = "v3.0.0-pre.5" || { echo "Expected tag v3.0.0-pre.5, got $GITHUB_REF_NAME" >&2; exit 1; }
-          test -f release-assets/dicodePing-v3.0.0-pre.5-windows-x64.exe
-          test -f release-assets/dicodePing-v3.0.0-pre.5-linux-x86_64.tar.gz
-          test -f release-assets/dicodePing-v3.0.0-pre.5-macos-arm64.dmg
-          test -f release-assets/dicodePing-v3.0.0-pre.5-macos-x86_64.dmg
-          test -f release-assets/dicodePing-v3.0.0-pre.5-android.apk
+          test "$GITHUB_REF_NAME" = "v3.0.0-pre.6" || { echo "Expected tag v3.0.0-pre.6, got $GITHUB_REF_NAME" >&2; exit 1; }
+          test -f release-assets/dicodePing-v3.0.0-pre.6-windows-x64.exe
+          test -f release-assets/dicodePing-v3.0.0-pre.6-linux-x86_64.tar.gz
+          test -f release-assets/dicodePing-v3.0.0-pre.6-macos-arm64.dmg
+          test -f release-assets/dicodePing-v3.0.0-pre.6-macos-x86_64.dmg
+          test -f release-assets/dicodePing-v3.0.0-pre.6-android.apk
           curl --fail --location --retry 4 --retry-all-errors \
             --output release-assets/sing-box-1.13.12-source.tar.gz \
             "https://github.com/SagerNet/sing-box/archive/refs/tags/v1.13.12.tar.gz"
@@ -180,14 +180,14 @@ jobs:
               --prerelease \
               --draft=false \
               --verify-tag \
-              --title "dicodePing 3.0.0-pre.5" \
-              --notes-file docs/releases/v3.0.0-pre.5.md
+              --title "dicodePing 3.0.0-pre.6" \
+              --notes-file docs/releases/v3.0.0-pre.6.md
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
           else
             echo "Creating pre-release $GITHUB_REF_NAME"
             gh release create "$GITHUB_REF_NAME" release-assets/* \
               --prerelease \
               --verify-tag \
-              --title "dicodePing 3.0.0-pre.5" \
-              --notes-file docs/releases/v3.0.0-pre.5.md
+              --title "dicodePing 3.0.0-pre.6" \
+              --notes-file docs/releases/v3.0.0-pre.6.md
           fi

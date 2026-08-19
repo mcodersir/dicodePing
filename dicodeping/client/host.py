@@ -251,7 +251,9 @@ class CoreHostClient:
         # Real probes are bounded and concurrent, but a large subscription can
         # still need several waves. Keep the RPC deadline above the CoreHost
         # estimate so the UI does not report a false timeout for the tail.
-        workers = 8
+        # CoreHost bounds real probes to 24 workers.  Keep this estimate in
+        # lockstep so the desktop UI never times out a valid parallel batch.
+        workers = 24
         waves = max(1, (len(profile_ids) + workers - 1) // workers)
         timeout = min(900, max(150, 30 + waves * 12))
         result = self.request("latency", {"profile_ids": profile_ids}, timeout=timeout)

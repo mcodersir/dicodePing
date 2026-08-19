@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ServiceLib.Enums;
@@ -31,12 +34,15 @@ internal sealed class HostState
         // ServiceLib worker pool applies the actual per-profile limit. A
         // minimum of eight workers makes the parallel path visible on a
         // fresh install, while the upper bound protects smaller machines.
+        // pre.6 raises the ceiling to 24: this keeps the full subscription
+        // moving concurrently, without turning a large refresh into an
+        // unbounded process/socket fan-out.
         _config.SpeedTestItem.SpeedTestPageSize = 1000;
         _config.SpeedTestItem.SpeedTestDelayInterval = 0;
         _config.SpeedTestItem.MixedConcurrencyCount = Math.Clamp(
             Math.Max(_config.SpeedTestItem.MixedConcurrencyCount, 8),
             8,
-            16
+            24
         );
         _config.GuiItem.EnableStatistics = true;
         _config.GuiItem.DisplayRealTimeSpeed = true;
@@ -150,18 +156,32 @@ internal sealed class HostState
             throw new InvalidOperationException("proxy core did not become ready before timeout");
         }
 
+        // A local SOCKS listener only proves that the core process started.
+        // Before we touch global proxy/TUN state, route a small HTTP request
+        // through that listener and require a real internet response.  This
+        // mirrors the Android runtime's connect verification and prevents a
+        // misleading "connected" state when an outbound is blocked.
+        var verifiedPing = await VerifyProxyTrafficAsync(port, TimeSpan.FromSeconds(9));
+        if (verifiedPing is null)
+        {
+            await CoreManager.Instance.CoreStop();
+            await SysProxyHandler.UpdateSysProxy(_config, true);
+            throw new InvalidOperationException("proxy started but could not pass the real internet check");
+        }
+
         if (!enableTun)
             await SysProxyHandler.UpdateSysProxy(_config, _config.SystemProxyItem.SysProxyType == ESysProxyType.ForcedClear);
         else
             await SysProxyHandler.UpdateSysProxy(_config, true);
 
         _connectedProfileId = profileId;
-        Log($"connected {profile.Remarks} ({profile.Address}:{profile.Port})");
+        Log($"connected and verified {profile.Remarks} ({profile.Address}:{profile.Port}) in {verifiedPing}ms");
         return new
         {
             connected = true,
             profile = ProfileDto(profile),
             socks_port = port,
+            verified_ping_ms = verifiedPing,
             tun = enableTun,
             system_proxy = _config.SystemProxyItem.SysProxyType.ToString()
         };
@@ -263,7 +283,7 @@ internal sealed class HostState
         });
 
         speed.RunLoop(ESpeedActionType.Realping, profiles);
-        var workers = Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 1, 32);
+        var workers = Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 1, 24);
         var waves = Math.Max(1, (profiles.Count + workers - 1) / workers);
         var timeout = TimeSpan.FromSeconds(Math.Clamp(30 + waves * 12, 120, 900));
         var finished = await Task.WhenAny(completed.Task, Task.Delay(timeout));
@@ -477,6 +497,114 @@ internal sealed class HostState
             return true;
         }
         catch { return false; }
+    }
+
+    /// <summary>
+    /// Performs a SOCKS5 CONNECT and a small HTTP request through the newly
+    /// started core.  It deliberately does not use the operating-system proxy,
+    /// so success is attributable to the selected profile rather than a stale
+    /// system setting or another VPN.
+    /// </summary>
+    private static async Task<int?> VerifyProxyTrafficAsync(int socksPort, TimeSpan timeout)
+    {
+        using var deadline = new CancellationTokenSource(timeout);
+        foreach (var (host, path) in new[]
+        {
+            ("captive.apple.com", "/hotspot-detect.html"),
+            ("www.gstatic.com", "/generate_204"),
+        })
+        {
+            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                using var client = new TcpClient();
+                await client.ConnectAsync(IPAddress.Loopback, socksPort, deadline.Token);
+                await using var stream = client.GetStream();
+
+                await stream.WriteAsync(new byte[] { 0x05, 0x01, 0x00 }, deadline.Token);
+                var greeting = new byte[2];
+                await ReadExactlyAsync(stream, greeting, deadline.Token);
+                if (greeting[0] != 0x05 || greeting[1] != 0x00)
+                    continue;
+
+                var hostBytes = Encoding.ASCII.GetBytes(host);
+                var connect = new byte[7 + hostBytes.Length];
+                connect[0] = 0x05; connect[1] = 0x01; connect[2] = 0x00; connect[3] = 0x03;
+                connect[4] = (byte)hostBytes.Length;
+                Buffer.BlockCopy(hostBytes, 0, connect, 5, hostBytes.Length);
+                connect[^2] = 0x00; connect[^1] = 0x50;
+                await stream.WriteAsync(connect, deadline.Token);
+
+                var reply = new byte[4];
+                await ReadExactlyAsync(stream, reply, deadline.Token);
+                if (reply[0] != 0x05 || reply[1] != 0x00 || !await SkipSocksAddressAsync(stream, reply[3], deadline.Token))
+                    continue;
+
+                var request = Encoding.ASCII.GetBytes(
+                    $"GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: dicodePing/3.0\r\n\r\n");
+                await stream.WriteAsync(request, deadline.Token);
+                var response = await ReadHttpPrefixAsync(stream, deadline.Token);
+                if (response.StartsWith("HTTP/1.1 2", StringComparison.Ordinal) || response.StartsWith("HTTP/1.0 2", StringComparison.Ordinal))
+                    return Math.Max(1, (int)stopwatch.ElapsedMilliseconds);
+            }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+            {
+                break;
+            }
+            catch
+            {
+                // Try the independent fallback endpoint before declaring the
+                // selected profile unreachable.
+            }
+        }
+        return null;
+    }
+
+    private static async Task ReadExactlyAsync(NetworkStream stream, byte[] buffer, CancellationToken token)
+    {
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(offset), token);
+            if (read == 0) throw new IOException("unexpected end of SOCKS response");
+            offset += read;
+        }
+    }
+
+    private static async Task<bool> SkipSocksAddressAsync(NetworkStream stream, byte type, CancellationToken token)
+    {
+        var length = type switch
+        {
+            0x01 => 4,
+            0x04 => 16,
+            0x03 => (await ReadOneAsync(stream, token)),
+            _ => -1,
+        };
+        if (length < 0) return false;
+        var remainder = new byte[length + 2]; // bound address + bound port
+        await ReadExactlyAsync(stream, remainder, token);
+        return true;
+    }
+
+    private static async Task<byte> ReadOneAsync(NetworkStream stream, CancellationToken token)
+    {
+        var value = new byte[1];
+        await ReadExactlyAsync(stream, value, token);
+        return value[0];
+    }
+
+    private static async Task<string> ReadHttpPrefixAsync(NetworkStream stream, CancellationToken token)
+    {
+        var buffer = new byte[2048];
+        var received = 0;
+        while (received < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(received), token);
+            if (read == 0) break;
+            received += read;
+            if (Encoding.ASCII.GetString(buffer, 0, received).Contains("\r\n", StringComparison.Ordinal)) break;
+        }
+        return Encoding.ASCII.GetString(buffer, 0, received);
     }
 }
 

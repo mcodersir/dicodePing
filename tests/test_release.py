@@ -65,7 +65,7 @@ class Runtime:
 
 def test_version_and_primary_source_are_v3():
     assert VERSION == "3.0.0"
-    assert RELEASE_VERSION == "3.0.0-pre.5"
+    assert RELEASE_VERSION == "3.0.0-pre.6"
     assert DEFAULT_SUBSCRIPTION_URL.endswith("mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt")
 
 
@@ -143,9 +143,14 @@ def test_real_ping_paths_are_bounded_and_not_truncated():
 
     assert ".Take(80)" not in host
     assert "SpeedTestPageSize = 1000" in host
+    assert "VerifyProxyTrafficAsync" in host
+    assert "proxy started but could not pass the real internet check" in host
+    assert "MixedConcurrencyCount" in host and "24" in host
     assert "Task.WhenAll(lstTest.Select" in service
     assert "new SemaphoreSlim(Math.Min(_realPingConcurrency, selecteds.Count))" in service
     assert "parallelRealProxyProbe" in android
+    assert "timeoutMs = TCP_PRECHECK_TIMEOUT_MS" in android
+    assert "SCANNER_PROBE_CONCURRENCY = 12" in android
 
 
 def test_refresh_keeps_product_identity_when_runtime_profile_id_changes(monkeypatch):

@@ -718,6 +718,7 @@ class AppRepository private constructor(context: Context) {
                 parallelTcpProbe(
                     servers = tcpRows,
                     concurrency = NORMAL_TCP_PROBE_CONCURRENCY,
+                    timeoutMs = TCP_PRECHECK_TIMEOUT_MS,
                     stopRequested = { false },
                     onProgress = { done, total ->
                         progress.value = ProgressState(
@@ -844,6 +845,7 @@ class AppRepository private constructor(context: Context) {
     private suspend fun parallelTcpProbe(
         servers: List<ServerRecord>,
         concurrency: Int,
+        timeoutMs: Int = SCANNER_TCP_PROBE_TIMEOUT_MS,
         stopRequested: () -> Boolean,
         onProgress: (Int, Int) -> Unit,
         onResult: suspend (ServerRecord, Long?) -> Unit = { _, _ -> },
@@ -857,7 +859,7 @@ class AppRepository private constructor(context: Context) {
                     if (stopRequested()) return@withPermit server to null
                     val started = System.nanoTime()
                     val ok = runCatching {
-                        Socket().use { it.connect(InetSocketAddress(server.host, server.port), SCANNER_TCP_PROBE_TIMEOUT_MS) }
+                        Socket().use { it.connect(InetSocketAddress(server.host, server.port), timeoutMs) }
                         true
                     }.getOrDefault(false)
                     val ms = if (ok) (System.nanoTime() - started) / 1_000_000L else null
@@ -1136,7 +1138,11 @@ class AppRepository private constructor(context: Context) {
         // Bounded native worker pool for real profile probes. CoreBridge keeps
         // environment setup serialized, while the actual one-shot probes are
         // allowed to overlap so a complete list is not tested one-by-one.
-        private const val SCANNER_PROBE_CONCURRENCY = 8
+        // PattNG's bounded real-ping worker model is retained here, with a
+        // 12-worker ceiling for current AndroidLibXrayLite builds.  This keeps
+        // the real HTTP phase concurrent on capable devices without risking
+        // a memory spike on entry-level phones.
+        private const val SCANNER_PROBE_CONCURRENCY = 12
         private const val NATIVE_PROBE_CONCURRENCY = SCANNER_PROBE_CONCURRENCY
         // real concurrency for Android. The TCP handshake delay
         // probe is JNI-safe and runs in true parallel on Dispatchers.IO.

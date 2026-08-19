@@ -21,7 +21,7 @@ VSVersionInfo(
           StringStruct('LegalCopyright', 'Copyright (c) dicodePing contributors'),
           StringStruct('OriginalFilename', 'dicodePing.exe'),
           StringStruct('ProductName', 'dicodePing'),
-          StringStruct('ProductVersion', '3.0.0-pre.5')
+          StringStruct('ProductVersion', '3.0.0-pre.6')
         ]
       )
     ]),

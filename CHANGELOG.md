@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.0-pre.6
+
+- Desktop connection state is now gated by a real HTTP request through the newly started local SOCKS proxy, before TUN/system-proxy state is published on Windows, Linux, and macOS.
+- Increased bounded desktop real-ping capacity to 24 concurrent workers and aligned the client RPC estimate with that runtime limit.
+- Android normal TCP checks now retain their one-second timeout while scanner filtering stays fast; bounded real-proxy concurrency increased to 12 workers on capable devices.
+- Updated the connection UI to show the verified real-traffic latency immediately after a successful desktop connection.
+
 ## 3.0.0-pre.5
 
 - Real Ping now uses bounded concurrent workers for Xray and sing-box on Windows, Linux and macOS, plus native Android probes.
