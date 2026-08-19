@@ -1,5 +1,5 @@
 # Privacy
 
-The client should process profiles locally and must not collect browsing history, DNS queries, device identifiers, crash logs, or connection metadata unless the user explicitly opts in. Any future telemetry requires a documented schema, retention period, purpose, endpoint, and an off-by-default control.
+DicodePing حساب کاربری، analytics یا telemetry اختصاصی ندارد. کانفیگ‌ها و تنظیمات روی دستگاه نگه‌داری می‌شوند. هنگام استفاده، برنامه فقط با منابعی که کاربر افزوده، ساب پیش‌فرض، مقصدهای probe و سرور کانفیگ انتخابی ارتباط می‌گیرد.
 
-Subscription URLs and proxy credentials are secrets. Logs must redact user info, UUIDs, passwords, tokens, query strings, and full server links.
+دادهٔ subscription و کانفیگ ممکن است شامل شناسه یا رمز اتصال باشد؛ آن را محرمانه بدانید. گزارش اسکن نباید raw URI را بدون رضایت کاربر منتشر کند.

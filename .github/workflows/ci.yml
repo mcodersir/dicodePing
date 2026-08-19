@@ -1,30 +1,35 @@
-name: V3 CI
+name: CI
 
 on:
   push:
-    branches: [main, "release/**"]
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  validate:
-    runs-on: ubuntu-24.04
+  core:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.12"
-      - uses: actions/setup-dotnet@v6
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  android-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          dotnet-version: "9.0.x"
-      - run: python -m pip install -r requirements-build.txt
-      - run: python tools/validate_v3.py
-      - run: python tools/validate_corehost_api_surface.py
-      - run: python dicodePing_android/tools/validate_project.py
-      - run: python tools/validate_android_source_references.py
-      - run: python tools/validate_android_release.py
-      - run: python tools/validate_workflow_yaml.py
-      - run: python -m pytest -q tests/test_release.py
-      - run: dotnet build corehost/dicodePing.CoreHost.csproj -c Release
+          distribution: temurin
+          java-version: 21
+      - name: Validate Gradle wrapper and project
+        working-directory: apps/android
+        run: |
+          chmod +x gradlew
+          ./gradlew tasks --no-daemon

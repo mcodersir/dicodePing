@@ -1,110 +1,63 @@
-# dicodePing 3
+# DicodePing 3
 
-**Release:** `3.0.0-pre.7`
+یک کلاینت چندسکویی Xray و اسکنر هم‌زمان کانفیگ برای Windows، Linux، macOS و Android.
 
-Version 3 is a clean client/runtime architecture. The application keeps the dicodePing subscription ecosystem and product-specific Scanner/business behavior while networking is isolated behind the dedicated dicodePing runtime host. Android follows the same application-layer boundary with a platform-native VPN runtime bridge.
+> وضعیت: `3.0.0-pre.8` — پیش‌انتشار برای آزمون عمومی. برای شبکه‌های حساس، ابتدا با تعداد کمی کانفیگ آزمایش کنید.
 
-## Release targets
+## چرا پینگ این برنامه واقعی است؟
 
-- Windows x64
-- Linux x86_64
-- macOS arm64
-- macOS x86_64
-- Android universal APK (`arm64-v8a`, `armeabi-v7a`, `x86_64`)
+DicodePing عدد ICMP یا زمان اتصال مستقیم به IP سرور را به‌عنوان پینگ کانفیگ نشان نمی‌دهد. برای هر کانفیگ، Xray یک outbound مستقل می‌سازد و برنامه از مسیر SOCKS همان outbound اتصال TLS معتبر و درخواست HTTP واقعی می‌فرستد. نتیجه از چند تلاش محاسبه می‌شود:
 
-The repository treats macOS as one product platform with two release architectures.
+- `median`: میانهٔ زمان کامل درخواست از داخل تونل؛
+- `jitter`: نوسان بین نمونه‌ها؛
+- `loss`: درصد تلاش‌های ناموفق؛
+- `score`: امتیاز ترکیبی پایداری و سرعت.
 
-## Architecture
+این روش کندتر از fake ping است، اما نشان می‌دهد کانفیگ واقعاً قادر به عبور ترافیک است.
+
+## قابلیت‌ها
+
+- import لینک و subscription برای VMess، VLESS، Trojan، Shadowsocks، SOCKS، HTTP و Hysteria2؛
+- پشتیبانی از REALITY، TLS، WebSocket، gRPC، HTTPUpgrade و XHTTP در سازندهٔ Xray؛
+- subscription پیش‌فرض ثابت DicodeConfigChecker در کنار منابع دلخواه کاربر؛
+- اسکن هم‌زمان bounded، cancellation، حذف تکراری‌ها و مرتب‌سازی بر اساس کیفیت واقعی؛
+- کلاینت desktop با SOCKS/HTTP محلی و runtime جداگانهٔ Xray؛
+- کلاینت Android مبتنی بر VpnService، libv2ray و hev-socks5-tunnel؛
+- تنظیمات IPv4-first، DNS over HTTPS و retry مناسب اختلال‌های رایج شبکهٔ ایران؛
+- اعتبارسنجی TLS؛ گزینهٔ ناامن به‌طور پیش‌فرض فعال نیست.
+
+## ساب پیش‌فرض
 
 ```text
-Modern UI
-   │
-Application / product service
-   ├── Authoritative subscription service
-   ├── Scanner / product logic
-   └── Profile state
-   │
-Runtime boundary
-   ├── Desktop: dicodePing CoreHost
-   │      ├── proxy runtime
-   │      ├── routing runtime
-   │      ├── system proxy / TUN
-   │      └── real latency / statistics / logs
-   └── Android: native runtime bridge + VpnService integration
+https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt
 ```
 
-The UI never starts or configures proxy cores directly.
+منابع افزوده‌شده توسط کاربر این منبع را حذف یا جایگزین نمی‌کنند.
 
-## Primary subscription
+## اجرا و تست دسکتاپ
 
-The built-in primary source is intentionally fixed to the project source:
-
-`https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt`
-
-Optional user sources may be added without replacing the primary source.
-
-## Runtime preparation
-
-`PREPARE_V3_RUNTIME.bat` is the offline verification-and-packaging entry point. It never downloads anything: it verifies the pinned desktop/Android runtime files already present in the checkout and then creates `dist/dicodePing-3.0.0-pre.7-complete.zip`. If any runtime is missing or corrupt, run `REPAIR_V3_RUNTIME.bat` once; the repair helper performs the checksum-pinned downloads and includes Windows curl/DNS-over-HTTPS and Schannel revocation fallbacks.
-
-## Desktop development
-
-Requirements:
-
-- Python 3.12
-- .NET SDK 10
-- platform packaging tools
+پیش‌نیاز: Node.js 22 یا جدیدتر.
 
 ```bash
-python -m pip install -r requirements-build.txt
-python tools/validate_v3.py
-python tools/validate_corehost_api_surface.py
-python -m pytest -q tests/test_release.py
-python app.py
+npm install
+npm run verify
+npm start
 ```
 
-Build on the target OS:
-
-```bash
-python tools/build_windows.py
-python tools/build_linux.py
-python tools/build_macos.py
-```
+برای اجرای اتصال، فایل Xray سازگار با سیستم را در `runtime/xray` (در Windows: `runtime/xray.exe`) قرار دهید یا مسیر را در `DICODE_XRAY` تنظیم کنید. بسته‌های Release این runtime را خودکار همراه دارند.
 
 ## Android
 
-Android requires Java 17+ and an Android SDK. The release helper validates the pinned runtime and produces the universal APK.
+سورس native در `apps/android` است. build رسمی در GitHub Actions، `libv2ray.aar` متناظر با AndroidLibXrayLite و کتابخانهٔ TUN را با نسخه‌های pin‌شده آماده می‌کند. برای build محلی راهنمای [Android](docs/ANDROID.md) را ببینید.
 
-```bash
-cd dicodePing_android
-bash build_apk.sh
-```
+## معماری و امنیت
 
-Release signing variables:
+- [معماری](docs/ARCHITECTURE.md)
+- [مدل پینگ واقعی](docs/REAL_PING.md)
+- [امنیت](SECURITY.md)
+- [حریم خصوصی](PRIVACY.md)
+- [اجزای شخص ثالث](THIRD_PARTY_NOTICES.md)
 
-- `ANDROID_KEYSTORE_PATH`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
+## مجوز
 
-## Publish `3.0.0-pre.7`
-
-The project root includes `PUBLISH_3.0.0_PRE1.bat` (also mirrored as `RELEASE_V3_PRERELEASE.bat`). It targets **`mcodersir/dicodePing`** directly. No local `GH_TOKEN` is required: clone and push operations use the authentication already configured for `git.exe` (for example Git Credential Manager on Windows, another Git credential helper, or an SSH/insteadOf configuration). The publisher clones the current default branch, replaces it with this Version 3 tree, validates it, commits to the default branch, and creates `v3.0.0-pre.7`. The workflow uses the built-in GitHub Actions token to build every platform and create the GitHub **pre-release** with rebuilt assets.
-
-```bat
-PUBLISH_3.0.0_PRE1.bat
-```
-
-`gh.exe` is optional. If GitHub CLI is installed and already authenticated, the BAT also waits for the Actions run and verifies the resulting release. If `gh.exe` is missing or not authenticated, publication still proceeds through Git + GitHub Actions. The Android workflow requires the four repository Action secrets documented below.
-
-## Version 3 state
-
-Desktop state is isolated under `dicodePing/v3`. Android state is isolated in the `dicodeping_v3` SharedPreferences store. Both platforms start from a clean Version 3 profile database.
-
-## Licensing
-
-The combined desktop distribution includes GPL-covered components. Required notices and corresponding source references are retained in `THIRD_PARTY_NOTICES.md`, `licenses/`, and `third_party/network-engine/`. Product UI branding does not reproduce upstream UI branding.
-
-## Complete offline package
-
-After the pinned runtime set is present, run `PREPARE_V3_RUNTIME.bat`. It verifies every runtime SHA-256 and invokes the packager as a Python module (`python -m tools.package_complete_v3`) so imports resolve from the repository root on Windows. The generated `dist/dicodePing-3.0.0-pre.7-complete.zip` contains all pinned Xray, sing-box, Wintun and Android runtime files; the archive is re-opened, extracted to a temporary directory, and every runtime digest is verified again before success is reported. `REPAIR_V3_RUNTIME.bat` is only needed if a pinned runtime file is missing or corrupt.
+GPL-3.0-or-later. بخش Android از PattNG/v2rayNG مشتق شده و attribution کامل در `THIRD_PARTY_NOTICES.md` آمده است. Xray-core به‌صورت runtime جداگانه و تحت MPL-2.0 توزیع می‌شود.

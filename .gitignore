@@ -1,76 +1,13 @@
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
-venv/
+node_modules/
 dist/
-build/
 release/
-downloaded-artifacts/
-release-assets/
-artifacts/*.json
-*.spec.bak
-
-# Android / Gradle
-.gradle/
-.kotlin/
-.idea/
-**/build/
-local.properties
-captures/
-.cxx/
-.externalNativeBuild/
-*.apk
-*.aab
-dicodePing_android/app/src/main/jniLibs/
-
-# Generated unpacked native runtime directory. Pinned source archives live in runtime_assets/.
-core/
-
-# Signing material and secrets
-.env
-.env.*
-*.jks
-*.keystore
-*.p12
-*.pfx
-*.pem
-*.key
-
-# OS / editors
-.DS_Store
-Thumbs.db
-*.swp
-*.tmp
+runtime/
+.tmp-research/
+.build-check/
+coverage/
 *.log
-
-# Generated release/build output
-release/
-artifacts/
-*.apk
-*.aab
-*.exe
-*.dmg
-*.tar.gz
-*.zip
+*.pem
 *.jks
 *.keystore
-**/build/
-**/.gradle/
-__pycache__/
-.pytest_cache/
-
-# Build-time bundled Vazirmatn binaries
-assets/fonts/*.ttf
-dicodePing_android/app/src/main/res/font/vazirmatn_*.ttf
-
-# Local release publisher helpers (distributed in source packages only)
-DEPLOY_RELEASE_*.bat
-DEPLOY_RELEASE_*README*.txt
-
-# V3 ships pinned runtime inputs and the Android core AAR in source packages.
-!runtime_assets/**
-!dicodePing_android/local-maven/**/*.aar
+.env
+.DS_Store

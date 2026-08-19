@@ -1,0 +1,35 @@
+{
+  "name": "dicodeping",
+  "version": "3.0.0-pre.8",
+  "private": true,
+  "type": "module",
+  "description": "Cross-platform Xray client and real-path concurrent scanner",
+  "author": "M_CODER and DicodePing contributors",
+  "license": "GPL-3.0-or-later",
+  "repository": "https://github.com/mcodersir/dicodePing",
+  "main": "src/desktop/main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "lint": "node scripts/check-syntax.mjs",
+    "verify": "npm run lint && npm test",
+    "validate:xray": "node scripts/validate-xray.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "43.4.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "ir.dicode.ping",
+    "productName": "DicodePing",
+    "asar": true,
+    "files": ["src/**/*", "package.json", "THIRD_PARTY_NOTICES.md"],
+    "extraResources": [{"from": "runtime", "to": "runtime", "filter": ["**/*"]}],
+    "win": {"target": ["nsis", "portable"]},
+    "linux": {"target": ["AppImage", "tar.gz"], "category": "Network"},
+    "mac": {"target": ["dmg", "zip"], "category": "public.app-category.utilities"}
+  },
+  "engines": {"node": ">=22"}
+}

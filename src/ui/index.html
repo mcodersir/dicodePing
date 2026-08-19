@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <title>DicodePing 3</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><span class="logo">D</span><div><strong>DicodePing</strong><small>نسخه ۳ · Xray 26.7.28</small></div></div>
+      <nav>
+        <button class="nav active" data-page="client">◉ <span>کلاینت</span></button>
+        <button class="nav" data-page="scanner">⌁ <span>اسکن هم‌زمان</span></button>
+        <button class="nav" data-page="sources">↻ <span>ساب‌ها</span></button>
+        <button class="nav" data-page="settings">⚙ <span>تنظیمات</span></button>
+      </nav>
+      <div class="runtime"><i></i><div><b>Real-path engine</b><small>SOCKS → TLS → HTTP</small></div></div>
+    </aside>
+    <main>
+      <header><div><h1 id="page-title">کلاینت</h1><p id="page-subtitle">اتصال پایدار با اندازه‌گیری واقعی مسیر</p></div><span id="profile-count" class="pill">۰ کانفیگ</span></header>
+
+      <section id="client" class="page active">
+        <div class="hero">
+          <div class="pulse"><div class="pulse-inner"><span id="connection-icon">⏻</span></div></div>
+          <h2 id="connection-title">آماده اتصال</h2>
+          <p id="connection-detail">یک کانفیگ سالم را انتخاب کنید</p>
+          <button id="connect-button" class="primary" disabled>اتصال</button>
+        </div>
+        <div class="panel"><div class="panel-head"><h3>بهترین کانفیگ‌ها</h3><button id="quick-scan" class="ghost">تست همه</button></div><div id="client-list" class="server-list empty">هنوز کانفیگی وارد نشده است.</div></div>
+      </section>
+
+      <section id="scanner" class="page">
+        <div class="grid two">
+          <div class="panel"><h3>ورود کانفیگ</h3><p class="hint">لینک‌ها یا متن Base64 subscription را وارد کنید.</p><textarea id="config-input" spellcheck="false" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea><div class="actions"><button id="import-button" class="secondary">افزودن</button><button id="scan-button" class="primary">شروع تست واقعی</button></div></div>
+          <div class="panel stats"><h3>وضعیت اسکن</h3><div class="stat-grid"><div><strong id="tested-count">۰</strong><span>تست‌شده</span></div><div><strong id="alive-count">۰</strong><span>سالم</span></div><div><strong id="best-ping">—</strong><span>بهترین TTFB</span></div><div><strong id="scan-progress">۰٪</strong><span>پیشرفت</span></div></div><div class="meter"><i id="meter-bar"></i></div><p class="hint">پینگ نمایش‌داده‌شده از درخواست HTTPS عبوری از خود کانفیگ محاسبه می‌شود.</p></div>
+        </div>
+        <div class="panel"><div class="panel-head"><h3>نتایج زنده</h3><button id="cancel-button" class="danger" disabled>توقف</button></div><div id="scan-list" class="server-list empty">برای شروع، کانفیگ وارد کنید.</div></div>
+      </section>
+
+      <section id="sources" class="page">
+        <div class="panel source-card"><div><span class="source-badge">پیش‌فرض</span><h3>Dicode Config Checker</h3><p id="default-sub">https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt</p></div><button id="sync-default" class="primary">همگام‌سازی و تست</button></div>
+        <div class="panel"><h3>ساب دلخواه</h3><div class="inline"><input id="sub-url" type="url" placeholder="https://example.com/sub"><button id="sync-custom" class="secondary">دریافت</button></div><p class="hint">منبع پیش‌فرض همیشه باقی می‌ماند و منابع دلخواه جایگزین آن نمی‌شوند.</p></div>
+      </section>
+
+      <section id="settings" class="page">
+        <div class="panel settings-list"><label><div><b>پروفایل شبکه ایران</b><small>IPv4-first، retry و timeout تطبیقی</small></div><input type="checkbox" checked disabled></label><label><div><b>تست هم‌زمان</b><small>۱۲ worker با کنترل مصرف CPU/RAM</small></div><input type="checkbox" checked disabled></label><label><div><b>اعتبارسنجی TLS</b><small>گواهی نامعتبر پذیرفته نمی‌شود</small></div><input type="checkbox" checked disabled></label></div>
+      </section>
+      <div id="toast" role="status"></div>
+    </main>
+  </div>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

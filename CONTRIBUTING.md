@@ -1,7 +1,5 @@
 # Contributing
 
-1. Create a focused branch and keep unrelated changes separate.
-2. Run `python tools/quality_gate.py`, `python -m compileall .`, and the unit tests.
-3. For Android changes, run Gradle lint/tests/assembly.
-4. Include a regression test for connection, parsing, lifecycle, or ranking changes.
-5. Never commit profiles, subscription URLs, credentials, signing keys, generated build folders, or user logs.
+هر تغییر core باید test داشته باشد و `npm run verify` را پاس کند. تغییر probe نباید TCP مستقیم را با عنوان پینگ کانفیگ نمایش دهد. تغییر وابستگی native یا runtime باید commit/tag و مجوز را در `THIRD_PARTY_NOTICES.md` به‌روز کند.
+
+اطلاعات خصوصی کانفیگ، token و log دارای URI کامل را در issue قرار ندهید.

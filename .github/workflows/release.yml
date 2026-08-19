@@ -1,0 +1,129 @@
+name: Release v3
+
+on:
+  push:
+    tags: ['v3.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            asset: Xray-windows-64.zip
+            binary: xray.exe
+            command: npx electron-builder --win --x64
+            artifact: windows-x64
+          - runner: ubuntu-latest
+            asset: Xray-linux-64.zip
+            binary: xray
+            command: npx electron-builder --linux --x64
+            artifact: linux-x64
+          - runner: macos-14
+            asset: Xray-macos-64.zip
+            binary: xray
+            command: npx electron-builder --mac --x64
+            artifact: macos-x64
+          - runner: macos-14
+            asset: Xray-macos-arm64-v8a.zip
+            binary: xray
+            command: npx electron-builder --mac --arm64
+            artifact: macos-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Fetch pinned Xray runtime
+        shell: pwsh
+        run: |
+          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.asset }}"
+          Invoke-WebRequest -Uri $url -OutFile xray.zip
+          Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
+          $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
+          $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
+          if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
+          New-Item -ItemType Directory -Force runtime | Out-Null
+          Expand-Archive xray.zip -DestinationPath runtime -Force
+          if (-not (Test-Path "runtime/${{ matrix.binary }}")) { throw "Xray binary missing from archive" }
+      - name: Package
+        run: ${{ matrix.command }}
+      - name: Checksums
+        shell: pwsh
+        run: Get-ChildItem dist -File -Recurse | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.tar.gz
+            dist/*.dmg
+            dist/*.zip
+            dist/SHA256SUMS-*.txt
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Install SDK and NDK
+        run: yes | sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.14206865"
+      - name: Build pinned hev TUN
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+        run: |
+          git clone --branch 2.3.4-P26 --depth 1 --recurse-submodules --shallow-submodules https://github.com/patterniha/PattNG.git native-upstream
+          bash native-upstream/compile-hevtun.sh
+          cp -r native-upstream/libs apps/android/app/
+      - name: Fetch pinned libv2ray
+        run: |
+          mkdir -p apps/android/app/libs
+          curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar https://github.com/patterniha/AndroidLibXrayLite/releases/download/v26.8.19-P/libv2ray.aar
+      - name: Build installable prerelease APKs
+        working-directory: apps/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.8
+      - name: Stage APK and checksums
+        run: |
+          mkdir -p dist-android
+          find apps/android/app/build/outputs/apk -type f -name '*.apk' -exec cp {} dist-android/ \;
+          cd dist-android
+          sha256sum *.apk > SHA256SUMS-android.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist-android/*
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          generate_release_notes: false
+          body: |
+            بازنویسی کامل DicodePing 3: کلاینت Xray و اسکن هم‌زمان با تست واقعی SOCKS → TLS → HTTP.
+
+            این نسخه پیش‌انتشار است. جزئیات و محدودیت‌ها در CHANGELOG و README آمده‌اند.
+          files: artifacts/*

@@ -1,9 +1,13 @@
 # Security policy
 
-Please report vulnerabilities privately to the repository maintainers. Do not include live subscription URLs, UUIDs, credentials, private keys, or user traffic logs in public issues.
+نسخه‌های `3.x` پشتیبانی امنیتی می‌شوند. گزارش آسیب‌پذیری را عمومی نکنید؛ از Security Advisory خصوصی GitHub در مخزن استفاده کنید.
 
-Supported releases are the latest tagged release and the current default branch. Reports should include affected version/commit, platform, reproduction steps, expected impact, and sanitized logs.
+اصول پروژه:
 
-## Release verification
-
-Every release must publish `SHA256SUMS`, `SBOM.spdx.json`, the source commit ID, and a GitHub artifact attestation. A checksum proves integrity only when obtained from a trusted channel; it is not a substitute for a maintainer signature or platform attestation.
+- TLS verification به‌صورت پیش‌فرض اجباری است؛
+- renderer دسکتاپ به Node دسترسی ندارد؛
+- inboundهای desktop فقط روی loopback گوش می‌دهند؛
+- فایل‌های موقت کانفیگ با دسترسی محدود ساخته و پس از توقف حذف می‌شوند؛
+- runtimeها در CI از release/tag pin‌شده دریافت می‌شوند؛
+- URL subscription فقط HTTP(S)، بدون credential در URL و با سقف حجم پذیرفته می‌شود؛
+- secret، token، کلید امضا و کانفیگ خصوصی نباید در issue یا log ارسال شود.

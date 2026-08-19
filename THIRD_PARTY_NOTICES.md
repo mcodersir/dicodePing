@@ -1,54 +1,27 @@
-# Third-party notices — dicodePing 3
+# Third-party notices
 
-This file records third-party code/runtime components used by dicodePing Version 3. Product branding, UI, subscription ownership, and dicodePing-specific business logic remain dicodePing-specific; third-party provenance is not removed or misrepresented.
+## Xray-core
 
-## 2dust/v2rayN ServiceLib — 7.24.5
+Copyright XTLS/Xray-core contributors. Version `v26.7.28`. Licensed under Mozilla Public License 2.0. DicodePing runs it as a separate runtime. Source: https://github.com/XTLS/Xray-core
 
-- Upstream: `https://github.com/2dust/v2rayN`
-- License: GNU GPL v3
-- Use in V3: selected ServiceLib networking/client architecture is compiled into `dicodePing.CoreHost`; the upstream UI is not used.
-- Corresponding vendored source: `third_party/network-engine/runtime/`
-- Upstream license: `third_party/network-engine/LICENSE`
+## PattNG / v2rayNG (Android)
 
-The V3 desktop combined distribution is provided under GPL-3.0. An existing MIT notice covering product-authored portions is retained at `licenses/PRODUCT_MIT_NOTICE.txt`; retaining that notice does not keep an alternate networking implementation in the product.
+The Android application is derived from PattNG `2.3.4-P26`, itself based on v2rayNG. Licensed under GNU GPL v3. Source: https://github.com/patterniha/PattNG and https://github.com/2dust/v2rayNG
 
-## XTLS/Xray-core — 26.7.11
+Substantial upstream notices and generated dependency-license reports remain part of Android release artifacts.
 
-- Upstream: `https://github.com/XTLS/Xray-core`
-- License: Mozilla Public License 2.0
-- Use: desktop core executable downloaded by the reproducible build helper; Android receives Xray through its platform bridge.
-- License copy: `licenses/MPL-2.0.txt`
+## AndroidLibXrayLite
 
-## SagerNet/sing-box — 1.13.12
+Pinned at commit `87cb97f3db8dc9cec79541fee27ad50b80b4b2b0` / tag `v26.8.19-P`. Source: https://github.com/patterniha/AndroidLibXrayLite
 
-- Upstream: `https://github.com/SagerNet/sing-box`
-- License: GPL-3.0-or-later, with the upstream additional naming/association notice retained by upstream.
-- Use: desktop runtime for profile/TUN paths selected by the ServiceLib integration.
-- Release binaries are downloaded from the exact upstream release and verified against the upstream checksums file.
-- GPL text: `licenses/GPL-3.0.txt`
+## hev-socks5-tunnel
 
-## Wintun — 0.14.1
+Pinned at commit `0428c4ebb0df933ebac8e507832f252ef7da47f1`. Licensed under MIT. Source: https://github.com/heiher/hev-socks5-tunnel
 
-- Upstream: `https://www.wintun.net/`
-- License: GPL-2.0, with upstream redistribution terms applying.
-- Use: Windows TUN driver component.
-- License copy: `licenses/GPL-2.0.txt`
+## DicodeConfigChecker
 
-## 2dust/AndroidLibXrayLite — 26.7.11
+Behavioral reference and default public subscription source. Licensed under MIT. Source: https://github.com/mcodersir/DicodeConfigChecker
 
-- Upstream: `https://github.com/2dust/AndroidLibXrayLite`
-- Use: Android native VPN/core bridge distributed as the pinned `libv2ray.aar` release artifact.
-- The exact AAR URL and SHA-256 are pinned in `dicodePing_android/app/build.gradle.kts` and the Android build scripts.
-- Its upstream notices/license and notices of its bundled dependencies remain applicable.
+## Electron
 
-## PySide6 / Qt for Python
-
-Desktop UI uses PySide6. Qt/PySide redistribution must comply with the licenses applicable to the binary packages used for a release.
-
-## Vazirmatn
-
-The project prepares Vazirmatn font assets through its existing build tooling. Preserve the font project's license when distributing those files.
-
-## Source availability
-
-This source package includes the modified/adapted ServiceLib source used by the desktop runtime. Build scripts fetch runtime binaries from their pinned upstream release locations. Keep this file and all license files with redistributed release artifacts.
+Copyright OpenJS Foundation and Electron contributors. MIT License. Source: https://github.com/electron/electron
