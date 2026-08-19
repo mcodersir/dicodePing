@@ -2,7 +2,7 @@
 
 یک کلاینت چندسکویی Xray و اسکنر هم‌زمان کانفیگ برای Windows، Linux، macOS و Android.
 
-> وضعیت: `3.0.0-pre.5` — پیش‌انتشار کلاینت مستقل TUN-only برای آزمون عمومی. برای شبکه‌های حساس، ابتدا با تعداد کمی کانفیگ آزمایش کنید.
+> وضعیت: `3.0.0-pre.6` — پیش‌انتشار کلاینت مستقل TUN-only برای آزمون عمومی. برای شبکه‌های حساس، ابتدا با تعداد کمی کانفیگ آزمایش کنید.
 
 ## چرا پینگ این برنامه واقعی است؟
 
@@ -43,7 +43,7 @@ dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj
 dotnet run --project apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj
 ```
 
-برای اجرای اتصال، فایل‌های سازگار با سیستم را در `bin/` قرار دهید. بسته‌های Release، Xray و sing-box را با کنترل SHA-256 همراه دارند. اجرای TUN به دسترسی Administrator نیاز دارد.
+برای اجرای اتصال، فایل‌های سازگار در بسته‌های Release داخل `bin/xray/` و `bin/sing_box/` قرار دارند و با SHA-256 کنترل می‌شوند. اجرای TUN به دسترسی Administrator نیاز دارد.
 
 ## Android
 

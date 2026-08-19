@@ -105,12 +105,18 @@ public static class ConfigHandler
         config.MsgUIItem ??= new();
 
         config.UiItem ??= new();
+        var hasSavedColumns = config.UiItem.MainColumnItem is { Count: > 0 };
         config.UiItem.MainColumnItem ??= [];
         config.UiItem.WindowSizeItem ??= [];
 
-        if (config.UiItem.CurrentLanguage.IsNullOrEmpty())
+        if (config.UiItem.CurrentLanguage.IsNullOrEmpty()
+            || config.UiItem.CurrentLanguage is "zh-Hans" or "zh-Hant")
         {
             config.UiItem.CurrentLanguage = "fa";
+        }
+        if (!hasSavedColumns)
+        {
+            config.UiItem.EnableAutoAdjustMainLvColWidth = true;
         }
 
         config.ConstItem ??= new ConstItem();

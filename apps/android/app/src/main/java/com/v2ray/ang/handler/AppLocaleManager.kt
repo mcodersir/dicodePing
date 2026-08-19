@@ -79,7 +79,8 @@ object AppLocaleManager {
     }
 
     private fun storedLanguage(): Language = Language.fromCode(
-        MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE) ?: Language.AUTO.code
+        // Persian is the product default. Explicit user choices are preserved.
+        MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE) ?: Language.PERSIAN.code
     )
 
     private fun syncLegacyPreference(languageTag: String?) {

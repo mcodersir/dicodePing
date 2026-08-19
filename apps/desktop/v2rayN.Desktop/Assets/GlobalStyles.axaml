@@ -42,6 +42,23 @@
 
     <Style Selector="TextBox">
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+        <Setter Property="FlowDirection" Value="LeftToRight" />
+        <Setter Property="TextAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="SelectableTextBlock">
+        <Setter Property="FlowDirection" Value="LeftToRight" />
+        <Setter Property="TextAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="Button.FabButton">
+        <Setter Property="Width" Value="52" />
+        <Setter Property="Height" Value="52" />
+        <Setter Property="MinWidth" Value="52" />
+        <Setter Property="MinHeight" Value="52" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="26" />
+        <Setter Property="FontSize" Value="20" />
     </Style>
 
     <Style Selector="ScrollViewer">

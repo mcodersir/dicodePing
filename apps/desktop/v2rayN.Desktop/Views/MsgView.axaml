@@ -67,9 +67,10 @@
                 Theme="{DynamicResource SimpleToggleSwitch}" />
         </WrapPanel>
 
-        <avaloniaEdit:TextEditor
+            <avaloniaEdit:TextEditor
             Name="txtMsg"
             Margin="{StaticResource Margin8}"
+            FlowDirection="LeftToRight"
             IsReadOnly="True"
             VerticalScrollBarVisibility="Auto"
             WordWrap="True">

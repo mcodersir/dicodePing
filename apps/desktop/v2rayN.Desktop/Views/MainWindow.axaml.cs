@@ -373,6 +373,11 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     {
         try
         {
+            // Paint cached/current profiles immediately. The network refresh runs after the
+            // first frame, so a slow route cannot leave the desktop looking empty.
+            await ViewModel.ProfilesViewModel.RefreshSubscriptions();
+            await ViewModel.ProfilesViewModel.RefreshServersBiz();
+            await ViewModel.StatusBarViewModel.RefreshServersBiz();
             await ViewModel.UpdateSubscriptionProcess("", false);
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();

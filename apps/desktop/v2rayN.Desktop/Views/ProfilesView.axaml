@@ -90,12 +90,17 @@
                     <Button
                         x:Name="btnConnectBest"
                         Margin="8,0,0,0"
-                        Classes="Success"
-                        Content="اتصال هوشمند" />
+                        Classes="FabButton Success"
+                        ToolTip.Tip="اتصال هوشمند به بهترین مسیر">
+                        <PathIcon Data="{StaticResource SemiIconBolt}" />
+                    </Button>
                     <Button
                         x:Name="btnConnectSelected"
                         Margin="4,0,0,0"
-                        Content="اتصال انتخاب‌شده" />
+                        Classes="FabButton"
+                        ToolTip.Tip="اتصال به مسیر انتخاب‌شده">
+                        <TextBlock Text="⏻" />
+                    </Button>
                     <Button
                         x:Name="menuMixedTestServer"
                         Margin="{StaticResource MarginLr4}"
@@ -115,6 +120,7 @@
                 CanUserReorderColumns="True"
                 CanUserResizeColumns="True"
                 Classes.InsetContent="True"
+                FlowDirection="LeftToRight"
                 GridLinesVisibility="All"
                 HeadersVisibility="All"
                 IsReadOnly="True"
@@ -217,12 +223,12 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn
-                        Width="80"
+                        Width="*"
                         Binding="{Binding ConfigType}"
                         Header="{x:Static resx:ResUI.LvServiceType}"
                         Tag="ConfigType" />
 
-                    <DataGridTemplateColumn SortMemberPath="Remarks" Tag="Remarks">
+                    <DataGridTemplateColumn Width="2*" SortMemberPath="Remarks" Tag="Remarks">
                         <DataGridTemplateColumn.Header>
                             <TextBlock Text="{x:Static resx:ResUI.LvRemarks}" />
                         </DataGridTemplateColumn.Header>
@@ -245,31 +251,31 @@
                     </DataGridTemplateColumn>
 
                     <DataGridTextColumn
-                        Width="120"
+                        Width="2*"
                         Binding="{Binding Address}"
                         Header="{x:Static resx:ResUI.LvAddress}"
                         Tag="Address" />
                     <DataGridTextColumn
-                        Width="60"
+                        Width="1*"
                         Binding="{Binding Port}"
                         Header="{x:Static resx:ResUI.LvPort}"
                         Tag="Port" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding Network}"
                         Header="{x:Static resx:ResUI.LvTransportProtocol}"
                         Tag="Network" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding StreamSecurity}"
                         Header="{x:Static resx:ResUI.LvTLS}"
                         Tag="StreamSecurity" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding SubRemarks}"
                         Header="{x:Static resx:ResUI.LvSubscription}"
                         Tag="SubRemarks" />
-                    <DataGridTemplateColumn SortMemberPath="Delay" Tag="DelayVal">
+                    <DataGridTemplateColumn Width="1*" SortMemberPath="Delay" Tag="DelayVal">
                         <DataGridTemplateColumn.Header>
                             <TextBlock Text="{x:Static resx:ResUI.LvTestDelay}" />
                         </DataGridTemplateColumn.Header>
@@ -285,12 +291,12 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding SpeedVal}"
                         Header="{x:Static resx:ResUI.LvTestSpeed}"
                         Tag="SpeedVal" />
 
-                    <DataGridTemplateColumn SortMemberPath="IpInfo" Tag="IpInfo">
+                    <DataGridTemplateColumn Width="2*" SortMemberPath="IpInfo" Tag="IpInfo">
                         <DataGridTemplateColumn.Header>
                             <TextBlock Text="{x:Static resx:ResUI.LvTestIpInfo}" />
                         </DataGridTemplateColumn.Header>
@@ -305,22 +311,22 @@
                     </DataGridTemplateColumn>
 
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding TodayUp}"
                         Header="{x:Static resx:ResUI.LvTodayUploadDataAmount}"
                         Tag="TodayUp" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding TodayDown}"
                         Header="{x:Static resx:ResUI.LvTodayDownloadDataAmount}"
                         Tag="TodayDown" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding TotalUp}"
                         Header="{x:Static resx:ResUI.LvTotalUploadDataAmount}"
                         Tag="TotalUp" />
                     <DataGridTextColumn
-                        Width="100"
+                        Width="1*"
                         Binding="{Binding TotalDown}"
                         Header="{x:Static resx:ResUI.LvTotalDownloadDataAmount}"
                         Tag="TotalDown" />
