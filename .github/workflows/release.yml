@@ -15,61 +15,60 @@ jobs:
       matrix:
         include:
           - runner: windows-latest
-            asset: Xray-windows-64.zip
-            binary: xray.exe
-            command: npx electron-builder --win --x64 --publish never
+            rid: win-x64
+            xray_asset: Xray-windows-64.zip
+            xray_binary: xray.exe
             artifact: windows-x64
           - runner: ubuntu-latest
-            asset: Xray-linux-64.zip
-            binary: xray
-            command: npx electron-builder --linux --x64 --publish never
+            rid: linux-x64
+            xray_asset: Xray-linux-64.zip
+            xray_binary: xray
             artifact: linux-x64
           - runner: macos-14
-            asset: Xray-macos-64.zip
-            binary: xray
-            command: npx electron-builder --mac --x64 --publish never
+            rid: osx-x64
+            xray_asset: Xray-macos-64.zip
+            xray_binary: xray
             artifact: macos-x64
           - runner: macos-14
-            asset: Xray-macos-arm64-v8a.zip
-            binary: xray
-            command: npx electron-builder --mac --arm64 --publish never
+            rid: osx-arm64
+            xray_asset: Xray-macos-arm64-v8a.zip
+            xray_binary: xray
             artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-dotnet@v5
         with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run verify
-      - name: Fetch pinned Xray runtime
+          dotnet-version: 10.0.x
+      - name: Restore and build the independent desktop client
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.3
+      - name: Publish DicodePing desktop
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.3 -o publish
+      - name: Bundle pinned Xray runtime
         shell: pwsh
         run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.asset }}"
+          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
           $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
           if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
-          New-Item -ItemType Directory -Force runtime | Out-Null
-          Expand-Archive xray.zip -DestinationPath runtime -Force
-          if (-not (Test-Path "runtime/${{ matrix.binary }}")) { throw "Xray binary missing from archive" }
-      - name: Package
-        run: ${{ matrix.command }}
-      - name: Checksums
+          Expand-Archive xray.zip -DestinationPath xray-runtime -Force
+          if (-not (Test-Path "xray-runtime/${{ matrix.xray_binary }}")) { throw "Xray binary missing from archive" }
+          New-Item -ItemType Directory -Force publish/bin | Out-Null
+          Copy-Item xray-runtime/* publish/bin -Recurse -Force
+          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/${{ matrix.xray_binary }}" }
+      - name: Archive and checksum
         shell: pwsh
-        run: Get-ChildItem dist -File -Recurse | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $archive = "dist/DicodePing-3.0.0-pre.3-${{ matrix.artifact }}.zip"
+          Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
+          "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            dist/*.exe
-            dist/*.AppImage
-            dist/*.tar.gz
-            dist/*.dmg
-            dist/*.zip
-            dist/SHA256SUMS-*.txt
+          path: dist/*
 
   android:
     runs-on: ubuntu-latest
@@ -97,7 +96,7 @@ jobs:
         working-directory: apps/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.2
+          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.3
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -123,7 +122,22 @@ jobs:
           prerelease: true
           generate_release_notes: false
           body: |
-            بازنویسی کامل DicodePing 3: کلاینت Xray و اسکن هم‌زمان با تست واقعی SOCKS → TLS → HTTP.
+            ## DicodePing 3.0.0 Pre 3
 
-            این نسخه پیش‌انتشار است. جزئیات و محدودیت‌ها در CHANGELOG و README آمده‌اند.
+            دسکتاپ مستقل Avalonia/.NET بر پایهٔ v2rayN 7.24.7 با برند DicodePing، اجرای اجباری با Administrator و TUN-only.
+
+            - به‌روزرسانی خودکار Subscription پیش‌فرض در شروع
+            - تست مسیر واقعی و مرتب‌سازی سریع‌ترین کانفیگ‌ها
+            - رابط همسو با Android، دو دکمهٔ اتصال دستی و اتصال هوشمند
+            - آزمایش Location بتا و نمایش پرچم کشور برای اتصال فعال
+
+            | Platform | Download |
+            | --- | --- |
+            | Windows x64 | `DicodePing-3.0.0-pre.3-windows-x64.zip` |
+            | Linux x64 | `DicodePing-3.0.0-pre.3-linux-x64.zip` |
+            | macOS Intel | `DicodePing-3.0.0-pre.3-macos-x64.zip` |
+            | macOS Apple Silicon | `DicodePing-3.0.0-pre.3-macos-arm64.zip` |
+            | Android | APKهای Universal و تفکیک‌شدهٔ ABI |
+
+            فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه Pre-release است.
           files: artifacts/*

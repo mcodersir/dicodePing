@@ -44,7 +44,7 @@ class AngApplication : Application() {
             MmkvManager.encodeSubscription(
                 AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID,
                 SubscriptionItem(
-                    remarks = "Dicode Config Checker",
+                    remarks = "DicodePing",
                     url = AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL,
                     enabled = true,
                     autoUpdate = true,
@@ -60,6 +60,14 @@ class AngApplication : Application() {
 
         // Ensure critical preference defaults are present in MMKV early
         SettingsManager.initApp(this)
+
+        // Preserve manual configurations while removing the old user-facing placeholder name.
+        MmkvManager.decodeSubscription(AppConfig.DEFAULT_SUBSCRIPTION_ID)?.let { legacy ->
+            if (legacy.remarks.equals("Default", ignoreCase = true)) {
+                legacy.remarks = "Local configs"
+                MmkvManager.encodeSubscription(AppConfig.DEFAULT_SUBSCRIPTION_ID, legacy)
+            }
+        }
 
         // Initialize theme state from MMKV
         ThemeManager.refresh()

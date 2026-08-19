@@ -1,0 +1,827 @@
+namespace ServiceLib.Services.CoreConfig;
+
+public partial class CoreConfigSingboxService
+{
+    private void GenOutbounds()
+    {
+        var proxyOutbounds = BuildAllProxyOutbounds();
+        FillRangeProxy(proxyOutbounds, _coreConfig, true);
+    }
+
+    private List<BaseServer4Sbox> BuildAllProxyOutbounds(string baseTagName = Global.ProxyTag, bool withSelector = true)
+    {
+        var proxyOutboundList = new List<BaseServer4Sbox>();
+        if (!_node.ConfigType.IsGroupType())
+        {
+            var outbound = BuildProxyOutbound(baseTagName);
+            proxyOutboundList.Add(outbound);
+        }
+        else
+        {
+            proxyOutboundList.AddRange(BuildGroupProxyOutbounds(baseTagName));
+        }
+        if (withSelector)
+        {
+            var proxyTags = proxyOutboundList.Where(n => n.tag.StartsWith(baseTagName)).Select(n => n.tag).ToList();
+            if (proxyTags.Count > 1)
+            {
+                proxyOutboundList.InsertRange(0, BuildSelectorOutbounds(proxyTags, baseTagName));
+            }
+        }
+        return proxyOutboundList;
+    }
+
+    private BaseServer4Sbox BuildProxyOutbound(string baseTagName = Global.ProxyTag)
+    {
+        var outbound = BuildProxyServer();
+        outbound.tag = baseTagName;
+        if (_node.ConfigType == EConfigType.Outbound)
+        {
+            context.CustomOutboundMap[outbound] = _node.IndexId;
+        }
+        return outbound;
+    }
+
+    private List<BaseServer4Sbox> BuildGroupProxyOutbounds(string baseTagName = Global.ProxyTag)
+    {
+        var proxyOutboundList = new List<BaseServer4Sbox>();
+        switch (_node.ConfigType)
+        {
+            case EConfigType.PolicyGroup:
+                proxyOutboundList = BuildOutboundsList(baseTagName);
+                break;
+
+            case EConfigType.ProxyChain:
+                proxyOutboundList = BuildChainOutboundsList(baseTagName);
+                break;
+        }
+        return proxyOutboundList;
+    }
+
+    private BaseServer4Sbox BuildProxyServer()
+    {
+        try
+        {
+            var txtOutbound = EmbedUtils.GetEmbedText(Global.SingboxSampleOutbound);
+            if (_node.ConfigType == EConfigType.Outbound)
+            {
+                if (_node.GetProtocolExtra().IsSingboxEndpoint == true)
+                {
+                    var endpoint = JsonUtils.Deserialize<Endpoints4Sbox>(txtOutbound);
+                    return endpoint;
+                }
+                else
+                {
+                    var outbound = JsonUtils.Deserialize<Outbound4Sbox>(txtOutbound);
+                    return outbound;
+                }
+            }
+
+            if (_node.ConfigType == EConfigType.WireGuard)
+            {
+                var endpoint = JsonUtils.Deserialize<Endpoints4Sbox>(txtOutbound);
+                FillEndpoint(endpoint);
+                return endpoint;
+            }
+            else
+            {
+                var outbound = JsonUtils.Deserialize<Outbound4Sbox>(txtOutbound);
+                FillOutbound(outbound);
+                return outbound;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+        throw new InvalidOperationException();
+    }
+
+    private void FillOutbound(Outbound4Sbox outbound)
+    {
+        try
+        {
+            var protocolExtra = _node.GetProtocolExtra();
+            var transportExtra = _node.GetTransportExtra();
+            var network = _node.GetNetwork();
+            outbound.server = _node.Address;
+            outbound.server_port = _node.Port;
+            outbound.type = Global.ProtocolTypes[_node.ConfigType];
+
+            switch (_node.ConfigType)
+            {
+                case EConfigType.VMess:
+                    {
+                        outbound.uuid = _node.Password;
+                        outbound.alter_id = int.TryParse(protocolExtra.AlterId, out var result) ? result : 0;
+                        if (Global.VmessSecurities.Contains(protocolExtra.VmessSecurity))
+                        {
+                            outbound.security = protocolExtra.VmessSecurity;
+                        }
+                        else
+                        {
+                            outbound.security = Global.DefaultSecurity;
+                        }
+
+                        FillOutboundMux(outbound);
+                        FillOutboundTransport(outbound);
+                        break;
+                    }
+                case EConfigType.Shadowsocks:
+                    {
+                        outbound.method = AppManager.Instance.GetShadowsocksSecurities(_node).Contains(protocolExtra.SsMethod)
+                            ? protocolExtra.SsMethod : Global.None;
+                        outbound.password = _node.Password;
+                        outbound.udp_over_tcp = protocolExtra.Uot == true ? true : null;
+
+                        if (network == nameof(ETransport.raw) && transportExtra.RawHeaderType == Global.RawHeaderHttp)
+                        {
+                            outbound.plugin = "obfs-local";
+                            outbound.plugin_opts = $"obfs=http;obfs-host={transportExtra.Host};";
+                        }
+                        else
+                        {
+                            var pluginArgs = string.Empty;
+                            if (network == nameof(ETransport.ws))
+                            {
+                                pluginArgs += "mode=websocket;";
+                                pluginArgs += $"host={transportExtra.Host};";
+                                // https://github.com/shadowsocks/v2ray-plugin/blob/e9af1cdd2549d528deb20a4ab8d61c5fbe51f306/args.go#L172
+                                // Equal signs and commas [and backslashes] must be escaped with a backslash.
+                                var path = (transportExtra.Path ?? string.Empty).Replace("\\", "\\\\").Replace("=", "\\=").Replace(",", "\\,");
+                                pluginArgs += $"path={path};";
+                            }
+                            if (_node.StreamSecurity == Global.StreamSecurity)
+                            {
+                                pluginArgs += "tls;";
+                                var certs = CertPemManager.ParsePemChain(_node.Cert);
+                                if (certs.Count > 0)
+                                {
+                                    var cert = certs.First();
+                                    const string beginMarker = "-----BEGIN CERTIFICATE-----\n";
+                                    const string endMarker = "\n-----END CERTIFICATE-----";
+
+                                    var base64Content = cert.Replace(beginMarker, "").Replace(endMarker, "").Trim();
+
+                                    base64Content = base64Content.Replace("=", "\\=");
+
+                                    pluginArgs += $"certRaw={base64Content};";
+                                }
+                            }
+                            if (pluginArgs.Length > 0)
+                            {
+                                outbound.plugin = "v2ray-plugin";
+                                pluginArgs += "mux=0;";
+                                // pluginStr remove last ';'
+                                pluginArgs = pluginArgs[..^1];
+                                outbound.plugin_opts = pluginArgs;
+                            }
+                        }
+
+                        FillOutboundMux(outbound);
+                        break;
+                    }
+                case EConfigType.SOCKS:
+                    {
+                        outbound.version = "5";
+                        if (_node.Username.IsNotEmpty()
+                            && _node.Password.IsNotEmpty())
+                        {
+                            outbound.username = _node.Username;
+                            outbound.password = _node.Password;
+                        }
+                        break;
+                    }
+                case EConfigType.HTTP:
+                    {
+                        if (_node.Username.IsNotEmpty()
+                            && _node.Password.IsNotEmpty())
+                        {
+                            outbound.username = _node.Username;
+                            outbound.password = _node.Password;
+                        }
+                        break;
+                    }
+                case EConfigType.VLESS:
+                    {
+                        outbound.uuid = _node.Password;
+
+                        outbound.packet_encoding = "xudp";
+
+                        if (protocolExtra.Flow is "xtls-rprx-vision" or "xtls-rprx-vision-udp443")
+                        {
+                            outbound.flow = "xtls-rprx-vision";
+                        }
+                        else if (!protocolExtra.Flow.IsNullOrEmpty())
+                        {
+                            outbound.flow = protocolExtra.Flow;
+                        }
+
+                        FillOutboundMux(outbound);
+                        FillOutboundTransport(outbound);
+                        break;
+                    }
+                case EConfigType.Trojan:
+                    {
+                        outbound.password = _node.Password;
+
+                        FillOutboundMux(outbound);
+                        FillOutboundTransport(outbound);
+                        break;
+                    }
+                case EConfigType.Hysteria2:
+                    {
+                        outbound.password = _node.Password;
+
+                        if (!protocolExtra.SalamanderPass.IsNullOrEmpty())
+                        {
+                            var isGecko = !protocolExtra.GeckoMinPacketSize.IsNullOrEmpty() || !protocolExtra.GeckoMaxPacketSize.IsNullOrEmpty();
+                            outbound.obfs = new()
+                            {
+                                type = isGecko ? "gecko" : "salamander",
+                                password = protocolExtra.SalamanderPass.TrimEx(),
+                            };
+                            if (isGecko)
+                            {
+                                outbound.obfs.min_packet_size = protocolExtra.GeckoMinPacketSize.ToInt();
+                                outbound.obfs.max_packet_size = protocolExtra.GeckoMaxPacketSize.ToInt();
+                            }
+                        }
+                        int? upMbps = protocolExtra?.UpMbps is { } su and >= 0
+                            ? su
+                            : _config.HysteriaItem.UpMbps;
+                        int? downMbps = protocolExtra?.DownMbps is { } sd and >= 0
+                            ? sd
+                            : _config.HysteriaItem.DownMbps;
+                        outbound.up_mbps = upMbps > 0 ? upMbps : null;
+                        outbound.down_mbps = downMbps > 0 ? downMbps : null;
+                        var ports = protocolExtra?.Ports?.IsNullOrEmpty() == false ? protocolExtra.Ports : null;
+                        if ((!ports.IsNullOrEmpty()) && (ports.Contains(':') || ports.Contains('-') || ports.Contains(',')))
+                        {
+                            outbound.server_port = null;
+                            outbound.server_ports = ports.Split(',')
+                                .Select(p => p.Trim())
+                                .Where(p => p.IsNotEmpty())
+                                .Select(p =>
+                                {
+                                    var port = p.Replace('-', ':');
+                                    return port.Contains(':') ? port : $"{port}:{port}";
+                                })
+                                .ToList();
+                            outbound.hop_interval = _config.HysteriaItem.HopInterval >= 5
+                                ? $"{_config.HysteriaItem.HopInterval}s"
+                                : $"{Global.Hysteria2DefaultHopInt}s";
+                            if (int.TryParse(protocolExtra.HopInterval, out var hiResult))
+                            {
+                                outbound.hop_interval = hiResult >= 5 ? $"{hiResult}s" : outbound.hop_interval;
+                            }
+                            else if (protocolExtra.HopInterval?.Contains('-') ?? false)
+                            {
+                                // may be a range like 5-10
+                                var parts = protocolExtra.HopInterval.Split('-');
+                                if (parts.Length == 2 && int.TryParse(parts[0], out var hiL) &&
+                                    int.TryParse(parts[0], out var hiH))
+                                {
+                                    var hi = (hiL + hiH) / 2;
+                                    outbound.hop_interval = hi >= 5 ? $"{hi}s" : outbound.hop_interval;
+                                }
+                            }
+                        }
+
+                        if (HyRealm.TryParse(protocolExtra.Hy2RealmUrl, out var realm)
+                            && realm is not null)
+                        {
+                            var realm4Sbox = new HyRealm4Sbox()
+                            {
+                                server_url = realm.ToServerUrl(),
+                                token = realm.Token,
+                                realm_id = realm.RealmName,
+                                stun_servers = realm.StunList?.Count > 0 ? realm.StunList : null,
+                            };
+                            outbound.realm = realm4Sbox;
+                            outbound.server = null;
+                            outbound.server_port = null;
+                            outbound.server_ports = null;
+                        }
+
+                        break;
+                    }
+                case EConfigType.TUIC:
+                    {
+                        outbound.uuid = _node.Username;
+                        outbound.password = _node.Password;
+                        outbound.congestion_control = protocolExtra.CongestionControl;
+                        break;
+                    }
+                case EConfigType.Anytls:
+                    {
+                        outbound.password = _node.Password;
+                        break;
+                    }
+                case EConfigType.Naive:
+                    {
+                        outbound.username = _node.Username;
+                        outbound.password = _node.Password;
+                        if (protocolExtra.NaiveQuic == true)
+                        {
+                            outbound.quic = true;
+                            outbound.quic_congestion_control = protocolExtra.CongestionControl.NullIfEmpty();
+                        }
+                        if (protocolExtra.InsecureConcurrency > 0)
+                        {
+                            outbound.insecure_concurrency = protocolExtra.InsecureConcurrency;
+                        }
+                        outbound.udp_over_tcp = protocolExtra.Uot == true ? true : null;
+                        break;
+                    }
+            }
+
+            FillOutboundTls(outbound);
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void FillEndpoint(Endpoints4Sbox endpoint)
+    {
+        try
+        {
+            var protocolExtra = _node.GetProtocolExtra();
+
+            endpoint.address = Utils.String2List(protocolExtra.WgInterfaceAddress)?.Select(s => s.Trim()).ToList() ?? ["172.16.0.2/32"];
+            endpoint.type = Global.ProtocolTypes[_node.ConfigType];
+
+            switch (_node.ConfigType)
+            {
+                case EConfigType.WireGuard:
+                    {
+                        var peer = new Peer4Sbox
+                        {
+                            public_key = protocolExtra.WgPublicKey ?? string.Empty,
+                            pre_shared_key = protocolExtra.WgPresharedKey,
+                            reserved = Utils.String2List(protocolExtra.WgReserved)?.Select(s => s.Trim()).Select(int.Parse).ToList(),
+                            address = _node.Address,
+                            port = _node.Port,
+                            allowed_ips = ["0.0.0.0/0", "::/0"],
+                        };
+                        endpoint.private_key = _node.Password;
+                        endpoint.mtu = protocolExtra.WgMtu > 0 ? protocolExtra.WgMtu : Global.TunMtus.First();
+                        endpoint.peers = [peer];
+                        break;
+                    }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void FillOutboundMux(Outbound4Sbox outbound)
+    {
+        try
+        {
+            var muxEnabled = _node.MuxEnabled ?? false;
+            if (muxEnabled && _config.Mux4SboxItem.Protocol.IsNotEmpty())
+            {
+                var mux = new Multiplex4Sbox()
+                {
+                    enabled = true,
+                    protocol = _config.Mux4SboxItem.Protocol,
+                    max_connections = _config.Mux4SboxItem.MaxConnections,
+                    padding = _config.Mux4SboxItem.Padding,
+                };
+                outbound.multiplex = mux;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void FillOutboundTls(Outbound4Sbox outbound)
+    {
+        try
+        {
+            if (_node.StreamSecurity is not (Global.StreamSecurityReality or Global.StreamSecurity))
+            {
+                return;
+            }
+            if (_node.ConfigType is EConfigType.Shadowsocks or EConfigType.SOCKS or EConfigType.WireGuard)
+            {
+                return;
+            }
+            var serverName = string.Empty;
+            if (_node.Sni.IsNotEmpty())
+            {
+                serverName = _node.Sni;
+            }
+            else
+            {
+                var host = _node.GetNetwork() switch
+                {
+                    nameof(ETransport.raw) => _node.GetTransportExtra().Host,
+                    nameof(ETransport.ws) => _node.GetTransportExtra().Host,
+                    nameof(ETransport.httpupgrade) => _node.GetTransportExtra().Host,
+                    nameof(ETransport.xhttp) => _node.GetTransportExtra().Host,
+                    nameof(ETransport.grpc) => _node.GetTransportExtra().GrpcAuthority,
+                    _ => null,
+                };
+                serverName = Utils.String2List(host)?.First();
+            }
+            var tls = new Tls4Sbox()
+            {
+                enabled = true,
+                server_name = serverName,
+                insecure = _node.GetAllowInsecure(),
+                alpn = _node.GetAlpn(),
+            };
+            if (_config.CoreBasicItem.EnableFragment == true)
+            {
+                tls.fragment = true;
+                tls.record_fragment = true;
+            }
+            if (_node.Fingerprint.IsNotEmpty())
+            {
+                tls.utls = new Utls4Sbox()
+                {
+                    enabled = true,
+                    fingerprint = _node.Fingerprint.IsNullOrEmpty() ? _config.CoreBasicItem.DefFingerprint : _node.Fingerprint
+                };
+            }
+            if (_node.StreamSecurity == Global.StreamSecurity)
+            {
+                var certs = CertPemManager.ParsePemChain(_node.Cert);
+                if (certs.Count > 0)
+                {
+                    tls.certificate = certs;
+                    tls.insecure = false;
+                }
+            }
+            else if (_node.StreamSecurity == Global.StreamSecurityReality)
+            {
+                tls.reality = new Reality4Sbox()
+                {
+                    enabled = true,
+                    public_key = _node.PublicKey,
+                    short_id = _node.ShortId
+                };
+                tls.insecure = false;
+            }
+            var (ech, _) = ParseEchParam(_node.EchConfigList);
+            if (ech is not null)
+            {
+                tls.ech = ech;
+            }
+            outbound.tls = tls;
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void FillOutboundTransport(Outbound4Sbox outbound)
+    {
+        try
+        {
+            var transport = new Transport4Sbox();
+            var transportExtra = _node.GetTransportExtra();
+            var useragent = _config.CoreBasicItem.DefUserAgent ?? string.Empty;
+            var useragentValue = Global.RawHttpUserAgentTexts.GetValueOrDefault(useragent, useragent);
+
+            switch (_node.GetNetwork())
+            {
+                case nameof(ETransport.raw):   //http
+                    if (transportExtra.RawHeaderType == Global.RawHeaderHttp)
+                    {
+                        transport.type = nameof(ETransport.http);
+                        transport.host = transportExtra.Host.IsNullOrEmpty()
+                            ? null
+                            : Utils.String2List(transportExtra.Host);
+                        transport.path = transportExtra.Path.NullIfEmpty();
+                        if (!useragentValue.IsNullOrEmpty())
+                        {
+                            transport.headers ??= new();
+                            transport.headers.UserAgent = useragentValue;
+                        }
+                    }
+                    break;
+
+                case nameof(ETransport.ws):
+                    transport.type = nameof(ETransport.ws);
+                    var wsPath = transportExtra.Path;
+
+                    // Parse eh and ed parameters from path using regex
+                    if (!wsPath.IsNullOrEmpty())
+                    {
+                        var edRegex = new Regex(@"[?&]ed=(\d+)");
+                        var edMatch = edRegex.Match(wsPath);
+                        if (edMatch.Success && int.TryParse(edMatch.Groups[1].Value, out var edValue))
+                        {
+                            transport.max_early_data = edValue;
+                            transport.early_data_header_name = "Sec-WebSocket-Protocol";
+
+                            wsPath = edRegex.Replace(wsPath, "");
+                            wsPath = wsPath.Replace("?&", "?");
+                            if (wsPath.EndsWith('?'))
+                            {
+                                wsPath = wsPath.TrimEnd('?');
+                            }
+                        }
+
+                        var ehRegex = new Regex(@"[?&]eh=([^&]+)");
+                        var ehMatch = ehRegex.Match(wsPath);
+                        if (ehMatch.Success)
+                        {
+                            transport.early_data_header_name = Uri.UnescapeDataString(ehMatch.Groups[1].Value);
+                        }
+                    }
+
+                    transport.path = wsPath.NullIfEmpty();
+                    if (transportExtra.Host.IsNotEmpty())
+                    {
+                        transport.headers = new()
+                        {
+                            Host = transportExtra.Host
+                        };
+                    }
+                    if (!useragentValue.IsNullOrEmpty())
+                    {
+                        transport.headers ??= new();
+                        transport.headers.UserAgent = useragentValue;
+                    }
+                    break;
+
+                case nameof(ETransport.httpupgrade):
+                    transport.type = nameof(ETransport.httpupgrade);
+                    transport.path = transportExtra.Path.NullIfEmpty();
+                    transport.host = transportExtra.Host.NullIfEmpty();
+                    if (!useragentValue.IsNullOrEmpty())
+                    {
+                        transport.headers ??= new();
+                        transport.headers.UserAgent = useragentValue;
+                    }
+
+                    break;
+
+                case nameof(ETransport.grpc):
+                    transport.type = nameof(ETransport.grpc);
+                    transport.service_name = transportExtra.GrpcServiceName;
+                    transport.idle_timeout = _config.GrpcItem.IdleTimeout?.ToString("##s");
+                    transport.ping_timeout = _config.GrpcItem.HealthCheckTimeout?.ToString("##s");
+                    transport.permit_without_stream = _config.GrpcItem.PermitWithoutStream;
+                    break;
+
+                default:
+                    break;
+            }
+            if (transport.type != null)
+            {
+                outbound.transport = transport;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private List<Outbound4Sbox> BuildSelectorOutbounds(List<string> proxyTags, string baseTagName = Global.ProxyTag)
+    {
+        var multipleLoad = _node.GetProtocolExtra().MultipleLoad ?? EMultipleLoad.LeastPing;
+        var outUrltest = new Outbound4Sbox
+        {
+            type = "urltest",
+            tag = $"{baseTagName}-auto",
+            outbounds = proxyTags,
+            interrupt_exist_connections = false,
+        };
+
+        if (multipleLoad == EMultipleLoad.Fallback)
+        {
+            outUrltest.tolerance = 5000;
+        }
+
+        // Add selector outbound (manual selection)
+        var outSelector = new Outbound4Sbox
+        {
+            type = "selector",
+            tag = baseTagName,
+            outbounds = [.. proxyTags],
+            interrupt_exist_connections = false,
+        };
+        outSelector.outbounds.Insert(0, outUrltest.tag);
+
+        return [outSelector, outUrltest];
+    }
+
+    private List<BaseServer4Sbox> BuildOutboundsList(string baseTagName = Global.ProxyTag)
+    {
+        var nodes = new List<ProfileItem>();
+        foreach (var nodeId in Utils.String2List(_node.GetProtocolExtra().ChildItems) ?? [])
+        {
+            if (context.AllProxiesMap.TryGetValue(nodeId, out var node))
+            {
+                nodes.Add(node);
+            }
+        }
+        var resultOutbounds = new List<BaseServer4Sbox>();
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            var node = nodes[i];
+            var currentTag = $"{baseTagName}-{i + 1}-{node.Remarks}";
+
+            if (nodes.Count == 1)
+            {
+                currentTag = baseTagName;
+            }
+
+            if (node.ConfigType.IsGroupType())
+            {
+                var childProfiles = new CoreConfigSingboxService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                resultOutbounds.AddRange(childProfiles);
+                continue;
+            }
+            var outbound = new CoreConfigSingboxService(context with { Node = node, }).BuildProxyOutbound();
+            outbound.tag = currentTag;
+            resultOutbounds.Add(outbound);
+        }
+        return resultOutbounds;
+    }
+
+    private List<BaseServer4Sbox> BuildChainOutboundsList(string baseTagName = Global.ProxyTag)
+    {
+        var nodes = new List<ProfileItem>();
+        foreach (var nodeId in Utils.String2List(_node.GetProtocolExtra().ChildItems) ?? [])
+        {
+            if (context.AllProxiesMap.TryGetValue(nodeId, out var node))
+            {
+                nodes.Add(node);
+            }
+        }
+        // Based on actual network flow instead of data packets
+        var nodesReverse = nodes.AsEnumerable().Reverse().ToList();
+        var resultOutbounds = new List<BaseServer4Sbox>();
+        for (var i = 0; i < nodesReverse.Count; i++)
+        {
+            var node = nodesReverse[i];
+            var currentTag = i == 0 ? baseTagName : $"chain-{baseTagName}-{i}-{node.Remarks}";
+            var dialerProxyTag = i != nodesReverse.Count - 1 ? $"chain-{baseTagName}-{i + 1}-{nodesReverse[i + 1].Remarks}" : null;
+            if (node.ConfigType.IsGroupType())
+            {
+                var childProfiles = new CoreConfigSingboxService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                if (!dialerProxyTag.IsNullOrEmpty())
+                {
+                    var chainEndNodes =
+                        childProfiles.Where(n => n?.detour.IsNullOrEmpty() ?? true);
+                    foreach (var chainEndNode in chainEndNodes)
+                    {
+                        chainEndNode.detour = dialerProxyTag;
+                    }
+                }
+                if (i != 0)
+                {
+                    var chainStartNodes = childProfiles.Where(n => n.tag.StartsWith(currentTag)).ToList();
+                    if (chainStartNodes.Count == 1)
+                    {
+                        foreach (var existedChainEndNode in resultOutbounds.Where(n => n.detour == currentTag))
+                        {
+                            existedChainEndNode.detour = chainStartNodes.First().tag;
+                        }
+                    }
+                    else if (chainStartNodes.Count > 1)
+                    {
+                        var existedChainNodes = CloneOutbounds(resultOutbounds);
+                        resultOutbounds.Clear();
+                        var j = 0;
+                        foreach (var chainStartNode in chainStartNodes)
+                        {
+                            var existedChainNodesClone = CloneOutbounds(existedChainNodes);
+                            foreach (var existedChainNode in existedChainNodesClone)
+                            {
+                                var cloneTag = $"{existedChainNode.tag}-clone-{j + 1}";
+                                existedChainNode.tag = cloneTag;
+                            }
+                            for (var k = 0; k < existedChainNodesClone.Count; k++)
+                            {
+                                var existedChainNode = existedChainNodesClone[k];
+                                var previousDialerProxyTag = existedChainNode.detour;
+                                var nextTag = k + 1 < existedChainNodesClone.Count
+                                    ? existedChainNodesClone[k + 1].tag
+                                    : chainStartNode.tag;
+                                existedChainNode.detour = (previousDialerProxyTag == currentTag)
+                                    ? chainStartNode.tag
+                                    : nextTag;
+                                resultOutbounds.Add(existedChainNode);
+                            }
+                            j++;
+                        }
+                    }
+                }
+                resultOutbounds.AddRange(childProfiles);
+                continue;
+            }
+            var outbound = new CoreConfigSingboxService(context with { Node = node, }).BuildProxyOutbound();
+
+            outbound.tag = currentTag;
+
+            if (!dialerProxyTag.IsNullOrEmpty())
+            {
+                outbound.detour = dialerProxyTag;
+            }
+
+            resultOutbounds.Add(outbound);
+        }
+        return resultOutbounds;
+    }
+
+    private List<BaseServer4Sbox> CloneOutbounds(List<BaseServer4Sbox> source)
+    {
+        if (source is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var result = new List<BaseServer4Sbox>(source.Count);
+        foreach (var item in source)
+        {
+            BaseServer4Sbox? clone = null;
+            if (item is Outbound4Sbox outbound)
+            {
+                clone = JsonUtils.DeepCopy(outbound);
+            }
+            else if (item is Endpoints4Sbox endpoint)
+            {
+                clone = JsonUtils.DeepCopy(endpoint);
+            }
+            if (clone is null)
+            {
+                continue;
+            }
+            result.Add(clone);
+            if (context.CustomOutboundMap.ContainsKey(item))
+            {
+                context.CustomOutboundMap[clone] = context.CustomOutboundMap[item];
+            }
+        }
+        return result;
+    }
+
+    private static void FillRangeProxy(List<BaseServer4Sbox> servers, SingboxConfig singboxConfig, bool prepend = true)
+    {
+        try
+        {
+            if (servers is null || servers.Count <= 0)
+            {
+                return;
+            }
+            var outbounds = servers.OfType<Outbound4Sbox>().ToList();
+            var endpoints = servers.OfType<Endpoints4Sbox>().ToList();
+            singboxConfig.endpoints ??= [];
+            if (prepend)
+            {
+                singboxConfig.outbounds.InsertRange(0, outbounds);
+                singboxConfig.endpoints.InsertRange(0, endpoints);
+            }
+            else
+            {
+                singboxConfig.outbounds.AddRange(outbounds);
+                singboxConfig.endpoints.AddRange(endpoints);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private static (Ech4Sbox? ech, Server4Sbox? dnsServer) ParseEchParam(string? echConfig)
+    {
+        if (echConfig.IsNullOrEmpty())
+        {
+            return (null, null);
+        }
+        if (!echConfig.Contains("://"))
+        {
+            return (new Ech4Sbox()
+            {
+                enabled = true,
+                config = [$"-----BEGIN ECH CONFIGS-----\n" +
+                          $"{echConfig}\n" +
+                          $"-----END ECH CONFIGS-----"],
+            }, null);
+        }
+        var idx = echConfig.IndexOf('+');
+        var queryServerName = idx > 0 ? echConfig[..idx] : null;
+        var echDnsServer = idx > 0 ? echConfig[(idx + 1)..] : echConfig;
+        return (new Ech4Sbox()
+        {
+            enabled = true,
+            query_server_name = queryServerName,
+        }, ParseDnsAddress(echDnsServer));
+    }
+}

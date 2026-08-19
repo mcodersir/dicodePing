@@ -3,6 +3,8 @@
     <string name="app_name" translatable="false">DicodePing</string>
     <string name="fab_auto_connect_best">Connect to best</string>
     <string name="fab_finding_best">Finding best…</string>
+    <string name="fab_manual_connect">Connect selected server</string>
+    <string name="fab_location_beta">Test location (Beta)</string>
     <string name="app_widget_name">Switch</string>
     <string name="app_tile_name">Switch</string>
     <string name="app_tile_first_use">Add a profile in the app before using this feature.</string>

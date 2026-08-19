@@ -22,13 +22,9 @@ Pinned at commit `0428c4ebb0df933ebac8e507832f252ef7da47f1`. Licensed under MIT.
 
 Behavioral reference and default public subscription source. Licensed under MIT. Source: https://github.com/mcodersir/DicodeConfigChecker
 
-## Electron
+## v2rayN desktop
 
-Copyright OpenJS Foundation and Electron contributors. MIT License. Source: https://github.com/electron/electron
-
-## v2rayN desktop UI reference
-
-The DicodePing desktop information architecture and group/profile workflow were redesigned with reference to v2rayN `7.24.7` (commit `e0ad2c46e6b561be9895e66f32ea8b0ad3f2bb43`). DicodePing retains an independent implementation and visual identity. v2rayN is licensed under GNU GPL v3. Source: https://github.com/2dust/v2rayN
+The desktop client is derived from v2rayN `7.24.7` (commit `e0ad2c46e6b561be9895e66f32ea8b0ad3f2bb43`) and remains licensed under GNU GPL v3. DicodePing changes the branding, startup subscription, TUN-only policy, elevation policy and visual styling. Source: https://github.com/2dust/v2rayN
 
 ## Vazirmatn
 

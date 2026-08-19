@@ -158,7 +158,14 @@ class MainViewModel(
         }
 
         val unknown = dataSource.getString(R.string.value_unknown)
-        return "$status\n(${result.country ?: unknown}) ${result.ipAddress ?: unknown}"
+        val country = result.country ?: unknown
+        return "$status\n${country.asCountryFlag()} $country ${result.ipAddress ?: unknown}"
+    }
+
+    private fun String.asCountryFlag(): String {
+        val code = trim().uppercase()
+        if (code.length != 2 || code.any { it !in 'A'..'Z' }) return "🏳️"
+        return code.map { char -> Character.toChars(0x1F1E6 + (char - 'A')).concatToString() }.joinToString("")
     }
 
     // ---------- Public state accessors ----------
@@ -225,6 +232,11 @@ class MainViewModel(
                 delay(32)
                 dataSource.initAssets()
                 dataSource.syncSubscriptions()
+                // The default source is refreshed in the background at startup. Once loaded,
+                // use the existing real-path tester and persist the fastest-first ordering.
+                dataSource.updateConfigViaSubAll()
+                setupGroupTab(forceRefresh = true).join()
+                testAllRealPing()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -728,6 +740,7 @@ class MainViewModel(
 
     private fun onTestsFinished() {
         viewModelScope.launch(ioDispatcher) {
+            sortByTestResultsInternal()
             cacheMutex.withLock { groupDataCache.clear() }
             testingGroupId = null
             _uiState.update {

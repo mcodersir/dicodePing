@@ -247,7 +247,7 @@ object SettingsManager {
         }
 
         val defaultSub = SubscriptionItem(
-            remarks = "Default",
+            remarks = "Local configs",
         )
         encodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub)
     }
@@ -567,7 +567,7 @@ object SettingsManager {
     private fun ensureDefaultSubscription() {
         if (decodeSubscription(DEFAULT_SUBSCRIPTION_ID) == null) {
             val defaultSub = SubscriptionItem(
-                remarks = "Default",
+                remarks = "Local configs",
             )
             encodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub)
 

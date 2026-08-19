@@ -14,11 +14,11 @@ Core مشترک
   └─ median / jitter / loss scoring
        │
 Runtime platform
-  ├─ Desktop: Electron host → Xray process → SOCKS/HTTP loopback
+  ├─ Desktop: Avalonia/.NET client → Xray TUN process → system routing
   └─ Android: Compose → libv2ray → VpnService → hev TUN
 ```
 
-UI هیچ باینری شبکه‌ای را مستقیم اجرا نمی‌کند. در desktop فقط فرایند main اجازهٔ اجرای Xray و دسترسی شبکه دارد؛ renderer با `contextIsolation` و CSP اجرا می‌شود. Android از سرویس foreground و مجوز استاندارد VpnService استفاده می‌کند.
+در desktop، سرویس Avalonia/.NET فرایند Xray را فقط با پیکربندی TUN و دسترسی Administrator اجرا می‌کند. Android از سرویس foreground و مجوز استاندارد VpnService استفاده می‌کند.
 
 ## هم‌زمانی
 
@@ -35,4 +35,4 @@ Scanner پروفایل‌ها را در batchهای کوچک به یک Xray می
 
 ## محدودیت پیش‌انتشار
 
-در desktop نسخهٔ فعلی SOCKS و HTTP محلی را ارائه می‌دهد. اعمال system proxy/TUN به‌دلیل تفاوت سطح دسترسی سیستم‌عامل‌ها باید در هر پلتفرم جداگانه QA شود و در prerelease بعدی پس از تست installer فعال می‌شود. Android از VpnService واقعی استفاده می‌کند.
+در desktop نسخهٔ فعلی تنها از TUN استفاده می‌کند و اجرای آن با Administrator اجباری است. Android از VpnService واقعی استفاده می‌کند.

@@ -5,7 +5,7 @@
 اصول پروژه:
 
 - TLS verification به‌صورت پیش‌فرض اجباری است؛
-- renderer دسکتاپ به Node دسترسی ندارد؛
+- دسکتاپ Avalonia/.NET فقط با دسترسی Administrator و پیکربندی TUN اجرا می‌شود؛
 - inboundهای desktop فقط روی loopback گوش می‌دهند؛
 - فایل‌های موقت کانفیگ با دسترسی محدود ساخته و پس از توقف حذف می‌شوند؛
 - runtimeها در CI از release/tag pin‌شده دریافت می‌شوند؛

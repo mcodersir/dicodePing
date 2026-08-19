@@ -1,7 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
+  - package-ecosystem: nuget
+    directory: /apps/desktop
     schedule: { interval: weekly }
   - package-ecosystem: gradle
     directory: /apps/android

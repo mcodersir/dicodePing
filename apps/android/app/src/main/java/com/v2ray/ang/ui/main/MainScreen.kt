@@ -264,6 +264,7 @@ fun MainScreen(
                     isDarkTheme = isDarkTheme,
                     isAutoConnecting = autoConnectPending,
                     onAction = onAction,
+                    onManualConnect = { onAction(MainAction.ToggleService) },
                     onAutoConnect = {
                         if (isRunning) {
                             onAction(MainAction.ToggleService)
@@ -272,7 +273,8 @@ fun MainScreen(
                             autoConnectStarted = false
                             onAction(MainAction.TestRealAllServers)
                         }
-                    }
+                    },
+                    onLocationTest = { onAction(MainAction.TestCurrentServer) },
                 )
             },
             floatingActionButton = {},

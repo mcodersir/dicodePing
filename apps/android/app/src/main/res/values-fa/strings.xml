@@ -3,6 +3,8 @@
     <string name="app_name" translatable="false">DicodePing</string>
     <string name="fab_auto_connect_best">اتصال به بهترین</string>
     <string name="fab_finding_best">یافتن بهترین…</string>
+    <string name="fab_manual_connect">اتصال به کانفیگ انتخاب‌شده</string>
+    <string name="fab_location_beta">آزمایش لوکیشن (بتا)</string>
     <string name="app_widget_name">تعویض</string>
     <string name="app_tile_name">تعویض</string>
     <string name="app_tile_first_use">برای اولین استفاده از این قابلیت، لطفاً ابتدا از داخل برنامه یک سرور اضافه کنید</string>

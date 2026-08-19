@@ -1,0 +1,158 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace ServiceLib.Common;
+
+public static class Extension
+{
+    public static bool IsNullOrEmpty([NotNullWhen(false)] this string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) || string.IsNullOrEmpty(value);
+    }
+
+    public static bool IsNotEmpty([NotNullWhen(false)] this string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    public static string? NullIfEmpty(this string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    public static bool BeginWithAny(this string s, IEnumerable<char> chars)
+    {
+        if (s.IsNullOrEmpty())
+        {
+            return false;
+        }
+        return chars.Contains(s.First());
+    }
+
+    private static bool IsWhiteSpace(this string value)
+    {
+        return value.All(char.IsWhiteSpace);
+    }
+
+    public static IEnumerable<string> NonWhiteSpaceLines(this TextReader reader)
+    {
+        while (reader.ReadLine() is { } line)
+        {
+            if (line.IsWhiteSpace())
+            {
+                continue;
+            }
+            yield return line;
+        }
+    }
+
+    public static string TrimEx(this string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    public static string RemovePrefix(this string value, char prefix)
+    {
+        return value.StartsWith(prefix) ? value[1..] : value;
+    }
+
+    public static string RemovePrefix(this string value, string prefix)
+    {
+        return value.StartsWith(prefix) ? value[prefix.Length..] : value;
+    }
+
+    public static string UpperFirstChar(this string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return char.ToUpper(value.First()) + value[1..];
+    }
+
+    public static string AppendQuotes(this string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty : $"\"{value}\"";
+    }
+
+    public static int ToInt(this string? value, int defaultValue = 0)
+    {
+        return int.TryParse(value, out var result) ? result : defaultValue;
+    }
+
+    public static List<string> AppendEmpty(this IEnumerable<string> source)
+    {
+        return source.Concat(new[] { string.Empty }).ToList();
+    }
+
+    public static bool IsGroupType(this EConfigType configType)
+    {
+        return configType is EConfigType.PolicyGroup or EConfigType.ProxyChain;
+    }
+
+    public static bool IsComplexType(this EConfigType configType)
+    {
+        return configType is EConfigType.Custom or EConfigType.Outbound or EConfigType.PolicyGroup or EConfigType.ProxyChain;
+    }
+
+    /// <summary>
+    /// Safely adds elements from a collection to the list. Does nothing if the source is null.
+    /// </summary>
+    public static void AddRangeSafe<T>(this ICollection<T> destination, IEnumerable<T>? source)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        if (source is null)
+        {
+            return;
+        }
+
+        if (destination is List<T> list)
+        {
+            list.AddRange(source);
+            return;
+        }
+
+        foreach (var item in source)
+        {
+            destination.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// Replace all cross-platform newline characters with the specified string
+    /// </summary>
+    public static string ReplaceLineBreaks(this string input, string replacement)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        // You must replace \r\n first, and then replace the single characters \r and \n.
+        return input.Replace("\r\n", replacement)
+                    .Replace("\r", replacement)
+                    .Replace("\n", replacement);
+    }
+
+    public static async Task<TOutput> HandleSafe<TInput, TOutput>(
+        this Interaction<TInput, TOutput> interaction,
+        TInput input,
+        TOutput defaultValue = default!)
+    {
+        try
+        {
+            return await interaction.Handle(input);
+        }
+        catch (UnhandledInteractionException<TInput, TOutput> ex)
+        {
+            Logging.SaveLog($"Unhandled interaction exception for input: {input}", ex);
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog($"Exception occurred while handling interaction for input: {input}", ex);
+            return defaultValue;
+        }
+    }
+}
