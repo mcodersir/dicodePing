@@ -13,8 +13,8 @@ android {
         applicationId = "ir.dicode.ping"
         minSdk = 24
         targetSdk = 37
-        versionCode = 300009
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "3.0.0-pre.3"
+        versionCode = 300010
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "3.0.0-pre.4"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -39,8 +39,18 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Same application id as the previous prerelease, so Android treats it as an upgrade.
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.maybeCreate("dicodeRelease").apply {
+                storeFile = System.getenv("DICODE_KEYSTORE_PATH")?.let(::file)
+                storePassword = System.getenv("DICODE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("DICODE_KEY_ALIAS")
+                keyPassword = System.getenv("DICODE_KEY_PASSWORD")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

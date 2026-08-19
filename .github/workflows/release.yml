@@ -41,9 +41,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.3
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.4
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.3 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.4 -o publish
       - name: Bundle pinned Xray runtime
         shell: pwsh
         run: |
@@ -62,9 +62,17 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.0-pre.3-${{ matrix.artifact }}.zip"
+          $archive = "dist/DicodePing-3.0.0-pre.4-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress --yes
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
+          $installer = Get-Item dist\DicodePing-3.0.0-pre.4-windows-x64-installer.exe
+          Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
@@ -93,10 +101,16 @@ jobs:
           mkdir -p apps/android/app/libs
           curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar https://github.com/patterniha/AndroidLibXrayLite/releases/download/v26.8.19-P/libv2ray.aar
       - name: Build installable prerelease APKs
+        env:
+          DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         working-directory: apps/android
         run: |
+          echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
+          export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidDebug --no-daemon -PdicodeVersion=3.0.0-pre.3
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0-pre.4
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -122,21 +136,22 @@ jobs:
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.0 Pre 3
+            ## DicodePing 3.0.0 Pre 4
 
-            دسکتاپ مستقل Avalonia/.NET بر پایهٔ v2rayN 7.24.7 با برند DicodePing، اجرای اجباری با Administrator و TUN-only.
+            DicodePing با هویت مستقل، اجرای اجباری Administrator و TUN-only؛ بدون نام v2rayN در محصول و خروجی‌ها.
 
             - به‌روزرسانی خودکار Subscription پیش‌فرض در شروع
             - تست مسیر واقعی و مرتب‌سازی سریع‌ترین کانفیگ‌ها
-            - رابط همسو با Android، دو دکمهٔ اتصال دستی و اتصال هوشمند
-            - آزمایش Location بتا و نمایش پرچم کشور برای اتصال فعال
+            - دکمه‌های آیکونی اتصال دستی/هوشمند با وضعیت درحال بررسی
+            - APK امضاشده و قابل ارتقا، بررسی به‌روزرسانی از GitHub
 
             | Platform | Download |
             | --- | --- |
-            | Windows x64 | `DicodePing-3.0.0-pre.3-windows-x64.zip` |
-            | Linux x64 | `DicodePing-3.0.0-pre.3-linux-x64.zip` |
-            | macOS Intel | `DicodePing-3.0.0-pre.3-macos-x64.zip` |
-            | macOS Apple Silicon | `DicodePing-3.0.0-pre.3-macos-arm64.zip` |
+            | Windows x64 Portable | `DicodePing-3.0.0-pre.4-windows-x64-portable.zip` |
+            | Windows x64 Installer | `DicodePing-3.0.0-pre.4-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.0-pre.4-linux-x64-portable.zip` |
+            | macOS Intel | `DicodePing-3.0.0-pre.4-macos-x64-portable.zip` |
+            | macOS Apple Silicon | `DicodePing-3.0.0-pre.4-macos-arm64-portable.zip` |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه Pre-release است.

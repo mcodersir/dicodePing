@@ -252,6 +252,7 @@ fun MainScreen(
                             MainMoreMenuAction.SortByTestResults -> onAction(MainAction.SortByTestResults)
                             MainMoreMenuAction.TestAll -> onAction(MainAction.TestAllServers)
                             MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
+                            MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestCurrentServer)
                             MainMoreMenuAction.UpdateSubscriptions -> onAction(MainAction.UpdateSubscriptions)
                         }
                     }
@@ -263,7 +264,6 @@ fun MainScreen(
                     isRunning = isRunning,
                     isDarkTheme = isDarkTheme,
                     isAutoConnecting = autoConnectPending,
-                    onAction = onAction,
                     onManualConnect = { onAction(MainAction.ToggleService) },
                     onAutoConnect = {
                         if (isRunning) {
@@ -274,7 +274,6 @@ fun MainScreen(
                             onAction(MainAction.TestRealAllServers)
                         }
                     },
-                    onLocationTest = { onAction(MainAction.TestCurrentServer) },
                 )
             },
             floatingActionButton = {},

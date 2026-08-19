@@ -36,6 +36,7 @@ enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
     SortByTestResults(R.string.title_sort_by_test_results),
     TestAll(R.string.title_ping_all_server),
     TestAllRealPing(R.string.title_real_ping_all_server),
+    TestLocationBeta(R.string.fab_location_beta),
     UpdateSubscriptions(R.string.title_sub_update)
 }
 

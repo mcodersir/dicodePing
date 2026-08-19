@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0-pre.4
+
+- خروجی محصول و updater دسکتاپ با نام DicodePing منتشر می‌شود؛ Windows دارای installer و portable مستقل است.
+- Android با package id ثابت و امضای release در CI ساخته می‌شود تا مسیر به‌روزرسانی حفظ شود.
+- تب‌های Android به «همه» و «Dicode Config Checker» محدود شد؛ گروه Local configs مخفی است و کانفیگ‌های دستی حفظ می‌شوند.
+- دو FAB آیکونی در دو سمت صفحه قرار گرفتند، اتصال هوشمند حین تست spinner نشان می‌دهد و Location beta به منوی سه‌نقطه رفت.
+- زبان پیش‌فرض و جهت رابط دسکتاپ فارسی/RTL و منوی تبلیغاتی حذف شد.
+
 ## 3.0.0-pre.3
 
 - Electron از دسکتاپ حذف و کلاینت مستقل Avalonia/.NET مبتنی بر v2rayN 7.24.7 جایگزین شد.

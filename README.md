@@ -2,7 +2,7 @@
 
 یک کلاینت چندسکویی Xray و اسکنر هم‌زمان کانفیگ برای Windows، Linux، macOS و Android.
 
-> وضعیت: `3.0.0-pre.3` — پیش‌انتشار کلاینت مستقل TUN-only برای آزمون عمومی. برای شبکه‌های حساس، ابتدا با تعداد کمی کانفیگ آزمایش کنید.
+> وضعیت: `3.0.0-pre.4` — پیش‌انتشار کلاینت مستقل TUN-only برای آزمون عمومی. برای شبکه‌های حساس، ابتدا با تعداد کمی کانفیگ آزمایش کنید.
 
 ## چرا پینگ این برنامه واقعی است؟
 
@@ -21,7 +21,7 @@ DicodePing عدد ICMP یا زمان اتصال مستقیم به IP سرور ر
 - پشتیبانی از REALITY، TLS، WebSocket، gRPC، HTTPUpgrade و XHTTP در سازندهٔ Xray؛
 - subscription پیش‌فرض ثابت DicodeConfigChecker در کنار منابع دلخواه کاربر؛
 - اسکن هم‌زمان bounded، cancellation، حذف تکراری‌ها و مرتب‌سازی بر اساس کیفیت واقعی؛
-- کلاینت desktop مستقل Avalonia/.NET مبتنی بر v2rayN 7.24.7 با اجرای Administrator و TUN-only؛
+- کلاینت desktop مستقل Avalonia/.NET با اجرای Administrator و TUN-only؛
 - کلاینت Android مبتنی بر VpnService، libv2ray و hev-socks5-tunnel؛
 - تنظیمات IPv4-first، DNS over HTTPS و retry مناسب اختلال‌های رایج شبکهٔ ایران؛
 - اعتبارسنجی TLS؛ گزینهٔ ناامن به‌طور پیش‌فرض فعال نیست.

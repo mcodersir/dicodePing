@@ -134,7 +134,8 @@ class MainRepository(
                 remarks = localizedContext.getString(R.string.filter_config_all)
             }
         )
-        result += MmkvManager.decodeSubscriptions()
+        // Manual configs remain available through All but never become a separate tab.
+        result += MmkvManager.decodeSubscriptions().filter { it.guid != AppConfig.DEFAULT_SUBSCRIPTION_ID }
         return result
     }
 

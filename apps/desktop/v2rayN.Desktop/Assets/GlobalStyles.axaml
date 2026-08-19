@@ -10,11 +10,11 @@
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
     </Style>
 
-    <!-- Shared visual language with the Android client: calm surfaces, generous rows and
-         rounded, touch-friendly controls while retaining v2rayN's proven profile workflow. -->
+    <!-- Shared DicodePing visual language: calm surfaces, generous rows and rounded controls. -->
     <Style Selector="Window">
         <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Vazirmatn" />
         <Setter Property="Background" Value="#111820" />
+        <Setter Property="FlowDirection" Value="RightToLeft" />
     </Style>
 
     <Style Selector="TextBlock">
@@ -28,6 +28,7 @@
 
     <Style Selector="Menu">
         <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Background" Value="#18212B" />
     </Style>
 
     <Style Selector="PathIcon">

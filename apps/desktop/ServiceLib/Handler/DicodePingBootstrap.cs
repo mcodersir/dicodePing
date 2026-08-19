@@ -29,7 +29,7 @@ public static class DicodePingBootstrap
         await ConfigHandler.AddSubItem(config, new SubItem
         {
             Id = string.Empty,
-            Remarks = "DicodePing",
+            Remarks = "Dicode Config Checker",
             Url = DefaultSubscriptionUrl,
             Enabled = true,
             AutoUpdateInterval = 1,
