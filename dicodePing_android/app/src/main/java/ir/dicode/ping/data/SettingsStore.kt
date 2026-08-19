@@ -64,6 +64,18 @@ class SettingsStore(context: Context) {
     var secureDnsDoh: Boolean
         get() = prefs.getBoolean("secure_dns_doh", false)
         set(value) = prefs.edit().putBoolean("secure_dns_doh", value).apply()
+    /** PattNG-style user-selectable endpoint for real proxy delay checks. */
+    var delayTestUrl: String
+        get() = prefs.getString("delay_test_url", DEFAULT_DELAY_TEST_URL) ?: DEFAULT_DELAY_TEST_URL
+        set(value) {
+            val normalized = value.trim()
+            prefs.edit().putString(
+                "delay_test_url",
+                normalized.takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: DEFAULT_DELAY_TEST_URL,
+            ).apply()
+        }
+
+    fun delayTestUrls(): List<String> = listOf(delayTestUrl, DEFAULT_DELAY_TEST_URL, FALLBACK_DELAY_TEST_URL).distinct()
     var scannerVpnNoticeSeen: Boolean
         get() = prefs.getBoolean("scanner_vpn_notice_seen", false)
         set(value) = prefs.edit().putBoolean("scanner_vpn_notice_seen", value).apply()
@@ -172,6 +184,8 @@ class SettingsStore(context: Context) {
     }
 
     companion object {
+        const val DEFAULT_DELAY_TEST_URL = "http://captive.apple.com/hotspot-detect.html"
+        const val FALLBACK_DELAY_TEST_URL = "https://www.gstatic.com/generate_204"
         const val DEFAULT_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
         // jsdelivr CDN mirror so the first-launch splash can still
         // download the default subscription when raw.githubusercontent.com is

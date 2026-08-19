@@ -131,6 +131,29 @@
                                 android:text="@string/secure_dns_doh"
                                 android:textColor="@color/text_primary" />
 
+                            <com.google.android.material.textfield.TextInputLayout
+                                style="@style/Widget.DicodePing.TextInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:hint="@string/delay_test_url">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/delayTestUrl"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="52dp"
+                                    android:inputType="textUri"
+                                    android:textDirection="ltr" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="@string/delay_test_url_help"
+                                android:textColor="@color/text_tertiary"
+                                android:textSize="11sp" />
+
                             <TextView
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"

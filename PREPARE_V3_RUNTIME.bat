@@ -10,7 +10,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo dicodePing 3.0.0-pre.6 - Offline runtime verification and complete package builder
+echo dicodePing 3.0.0-pre.7 - Offline runtime verification and complete package builder
 echo.
 py -3 tools\fetch_runtime_assets.py --verify-only
 if errorlevel 1 (
@@ -34,7 +34,7 @@ if errorlevel 1 (
 
 echo.
 echo [OK] Complete Version 3 package is ready:
-echo      dist\dicodePing-3.0.0-pre.6-complete.zip
+echo      dist\dicodePing-3.0.0-pre.7-complete.zip
 echo.
 echo This ZIP includes all pinned Xray, sing-box, Wintun and Android runtime files.
 echo No network access was used while packaging.

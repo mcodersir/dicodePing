@@ -767,7 +767,8 @@ class AppRepository private constructor(context: Context) {
                                     XrayConfigBuilder.build(
                                         server.raw,
                                         bufferSizeKiB = tuning.bufferSizeKiB,
-                                    )
+                                    ),
+                                    settings.delayTestUrl,
                                 )
                             }.getOrDefault(-1L)
                             val pingMs = measured.takeIf { it in 1..60_000 }
@@ -902,7 +903,8 @@ class AppRepository private constructor(context: Context) {
                                 XrayConfigBuilder.build(
                                     server.raw,
                                     bufferSizeKiB = tuning.bufferSizeKiB,
-                                )
+                                ),
+                                settings.delayTestUrl,
                             )
                         }.getOrDefault(-1L)
                         if (measured in 1..SCANNER_MAX_DELAY_MS) samples += measured

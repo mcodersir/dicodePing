@@ -24,7 +24,7 @@ class FontLoadResult:
 
     @property
     def ok(self) -> bool:
-        return self.family.casefold() == "vazirmatn" and len(self.loaded_files) == len(FONT_FILES)
+        return bool(self.family) and len(self.loaded_files) == len(FONT_FILES)
 
 
 def register_vazirmatn() -> FontLoadResult:
@@ -50,10 +50,15 @@ def register_vazirmatn() -> FontLoadResult:
         families.extend(names)
         loaded.append(filename)
 
-    family = next((name for name in families if name.casefold() == "vazirmatn"), "")
+    # Iran Sans is proprietary and is never copied into dicodePing. If the
+    # user has a licensed system installation, prefer it; otherwise retain
+    # the bundled/open Vazirmatn fallback.
+    installed = {name.casefold(): name for name in QFontDatabase.families()}
+    iran_sans = next((installed[key] for key in installed if key.replace(" ", "") in {"iransans", "iransansx"}), "")
+    family = iran_sans or next((name for name in families if name.casefold() == "vazirmatn"), "")
     result = FontLoadResult(family, tuple(loaded), tuple(missing))
     if result.ok:
-        LOGGER.info("Bundled Vazirmatn registered: family=%s weights=%s", family, ",".join(loaded))
+        LOGGER.info("Application font selected: family=%s bundled_weights=%s", family, ",".join(loaded))
         return result
 
     LOGGER.error(

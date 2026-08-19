@@ -48,12 +48,12 @@
 
     <style name="Widget.DicodePing.TextInput" parent="Widget.Material3.TextInputLayout.FilledBox.Dense">
         <item name="boxBackgroundColor">@color/input_surface</item>
-        <item name="boxCornerRadiusTopStart">14dp</item>
-        <item name="boxCornerRadiusTopEnd">14dp</item>
-        <item name="boxCornerRadiusBottomStart">14dp</item>
-        <item name="boxCornerRadiusBottomEnd">14dp</item>
-        <item name="boxStrokeColor">@color/brand</item>
-        <item name="boxStrokeWidth">0dp</item>
+        <item name="boxCornerRadiusTopStart">6dp</item>
+        <item name="boxCornerRadiusTopEnd">6dp</item>
+        <item name="boxCornerRadiusBottomStart">6dp</item>
+        <item name="boxCornerRadiusBottomEnd">6dp</item>
+        <item name="boxStrokeColor">@color/outline_soft</item>
+        <item name="boxStrokeWidth">1dp</item>
         <item name="boxStrokeWidthFocused">1dp</item>
         <item name="hintTextColor">@color/text_secondary</item>
         <item name="startIconTint">@color/text_tertiary</item>
@@ -92,10 +92,10 @@
 
     <style name="Widget.DicodePing.Card" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/surface_card</item>
-        <item name="cardCornerRadius">20dp</item>
+        <item name="cardCornerRadius">8dp</item>
         <item name="cardElevation">0dp</item>
         <item name="strokeColor">@color/outline_soft</item>
-        <item name="strokeWidth">0dp</item>
+        <item name="strokeWidth">1dp</item>
     </style>
 
     <style name="Widget.DicodePing.Card.Compact" parent="Widget.DicodePing.Card">
@@ -110,7 +110,7 @@
     </style>
 
     <style name="Widget.DicodePing.Button.Primary" parent="Widget.Material3.Button">
-        <item name="cornerRadius">13dp</item>
+        <item name="cornerRadius">6dp</item>
         <item name="android:minHeight">46dp</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:insetTop">0dp</item>
@@ -121,7 +121,7 @@
     </style>
 
     <style name="Widget.DicodePing.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="cornerRadius">13dp</item>
+        <item name="cornerRadius">6dp</item>
         <item name="strokeColor">@color/outline_soft</item>
         <item name="android:textColor">@color/brand</item>
         <item name="android:minHeight">46dp</item>

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from dicodeping.client import CoreHostClient
 from dicodeping.diagnostics import configure_logging, get_logger
-from dicodeping.font_loader import register_vazirmatn
+from dicodeping.font_loader import application_font, register_vazirmatn
 from dicodeping.service import AppService
 from dicodeping.storage import JsonStore
 from dicodeping.ui import MainWindow
@@ -23,7 +23,7 @@ def main() -> int:
     app.setOrganizationName("dicode")
     app.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
     try:
-        register_vazirmatn()
+        app.setFont(application_font(register_vazirmatn()))
     except Exception:
         LOGGER.debug("Bundled font is unavailable", exc_info=True)
 

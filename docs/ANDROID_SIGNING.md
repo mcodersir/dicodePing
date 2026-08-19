@@ -41,5 +41,5 @@ The Version 3 standard pipeline produces one universal APK containing:
 Public filename:
 
 ```text
-dicodePing-v3.0.0-pre.6-android.apk
+dicodePing-v3.0.0-pre.7-android.apk
 ```

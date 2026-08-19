@@ -16,9 +16,9 @@ for path in [ROOT / "app/src/main/AndroidManifest.xml", *sorted((ROOT / "app/src
 
 build = (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")
 for marker in (
-    'versionCode = 75',
-    'versionName = "3.0.0-pre.6"',
-    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.6\\"")',
+    'versionCode = 76',
+    'versionName = "3.0.0-pre.7"',
+    'buildConfigField("String", "RELEASE_VERSION", "\\"3.0.0-pre.7\\"")',
     'setOf("arm64-v8a", "armeabi-v7a", "x86_64")',
     'implementation("ir.dicode.local:libv2ray:$coreVersion@aar")',
     'coreSha256 = "0c79bb52dc4329aaa266601e56ce4f0cc756b43f97a43dccd08d4a4bfc9aa352"',
@@ -29,7 +29,7 @@ for marker in (
 source_text = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in (ROOT / "app/src").rglob("*.kt"))
 
 vpn = (ROOT / "app/src/main/java/ir/dicode/ping/vpn/DicodeVpnService.kt").read_text(encoding="utf-8")
-for marker in ("CoreBridge(applicationContext)", "XrayConfigBuilder.build(", "core!!.start(runtimeConfig, tun!!.fd)", "verifyProxyConnection()"):
+for marker in ("CoreBridge(applicationContext)", "XrayConfigBuilder.build(", "core!!.start(runtimeConfig, tun!!.fd)", "verifyProxyConnection(probeUrls)"):
     if marker not in vpn:
         errors.append(f"Android runtime integration missing: {marker}")
 

@@ -2,8 +2,8 @@
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
-set "VERSION=3.0.0-pre.6"
-set "TAG=v3.0.0-pre.6"
+set "VERSION=3.0.0-pre.7"
+set "TAG=v3.0.0-pre.7"
 set "REPO=mcodersir/dicodePing"
 set "REPO_URL=https://github.com/mcodersir/dicodePing.git"
 set "WORKFLOW=release-v3.yml"

@@ -245,7 +245,8 @@ class DicodeVpnService : VpnService() {
             core!!.start(runtimeConfig, tun!!.fd)
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             publishConnectingState(serverId, name, getString(R.string.verifying_connection), generation)
-            val verifiedPing = verifyProxyConnection() ?: error(PROXY_VALIDATION_ERROR)
+            val probeUrls = settings.delayTestUrls()
+            val verifiedPing = verifyProxyConnection(probeUrls) ?: error(PROXY_VALIDATION_ERROR)
             if (core?.isRunning() != true) error("Xray stopped immediately after connection verification")
             if (generation != startGeneration.get()) throw CancellationException("Superseded VPN start")
             AppLog.i("VPN", "Connection verified for $name in ${verifiedPing}ms")
@@ -269,7 +270,7 @@ class DicodeVpnService : VpnService() {
             )
             getSystemService(NotificationManager::class.java)
                 .notify(NOTIFICATION_ID, notification(name, getString(R.string.connected)))
-            startMetrics(name, verifiedPing, generation)
+            startMetrics(name, verifiedPing, generation, probeUrls)
         } catch (cancelled: CancellationException) {
             AppLog.i("VPN", "Connection start cancelled for $name")
             throw cancelled
@@ -300,12 +301,12 @@ class DicodeVpnService : VpnService() {
         )
     }
 
-    private suspend fun verifyProxyConnection(): Long? {
+    private suspend fun verifyProxyConnection(urls: List<String>): Long? {
         val timeoutMs = XRAY_VERIFY_TIMEOUT_MS
         val intervalMs = 350L
         val deadline = android.os.SystemClock.elapsedRealtime() + timeoutMs
         do {
-            val measured = core?.measureDelay()
+            val measured = core?.measureDelay(urls)
             if (measured != null && measured >= 0) return measured
             if (core?.isRunning() != true) return null
             delay(intervalMs)
@@ -346,7 +347,7 @@ class DicodeVpnService : VpnService() {
             .onFailure { AppLog.w("VPN", "Cannot set underlying network: ${it.message}") }
     }
 
-    private fun startMetrics(name: String, initialPing: Long, generation: Long) {
+    private fun startMetrics(name: String, initialPing: Long, generation: Long, probeUrls: List<String>) {
         metricsJob?.cancel()
         metricsJob = scope.launch {
             var ping: Long? = initialPing
@@ -375,7 +376,7 @@ class DicodeVpnService : VpnService() {
                 uploadTotal += delta.first
                 downloadTotal += delta.second
                 if (pingCountdown <= 0) {
-                    val checked = runtime.measureDelay()
+                    val checked = runtime.measureDelay(probeUrls)
                     if (checked == null) {
                         consecutiveProbeFailures++
                         if (consecutiveProbeFailures >= 3) ping = null

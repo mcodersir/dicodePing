@@ -131,6 +131,8 @@
     <string name="logs_cleared">لاگ تشخیصی پاک شد</string>
     <string name="diagnostic_logging">ثبت گزارش عیب‌یابی (پیش‌فرض خاموش)</string>
     <string name="secure_dns_doh">DNS امن (DNS-over-HTTPS، برگرفته از Intra)</string>
+    <string name="delay_test_url">آدرس تست پینگ واقعی</string>
+    <string name="delay_test_url_help">این آدرس برای سنجش تاخیر واقعی از مسیر پراکسی استفاده می‌شود؛ در صورت عدم دسترسی، مسیر جایگزین امن اجرا می‌شود.</string>
     <string name="log_share_failed">اشتراک لاگ تشخیصی انجام نشد</string>
     <string name="runtime_log_preview">پیش‌نمایش لاگ اجرا</string>
     <string name="log_preview_empty">هنوز گزارش عیب‌یابی ثبت نشده است. برای ثبت لاگ‌های اجرا، گزارش عیب‌یابی را در تنظیمات فعال کنید.</string>

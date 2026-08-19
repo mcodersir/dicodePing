@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.0-pre.7
+
+- Reworked the desktop and Android visual system toward a calmer linear client layout: square-soft controls, divider-led sections, and reduced card emphasis.
+- Desktop now prefers a locally installed, licensed Iran Sans / Iran Sans X family while retaining bundled Vazirmatn as a reliable fallback; no proprietary font is redistributed.
+- Added PattNG-style configurable real-ping test URL on Android. It is used by connection validation, background latency monitoring, scanner probes, and manual profile checks with safe fallbacks.
+
 ## 3.0.0-pre.6
 
 - Desktop connection state is now gated by a real HTTP request through the newly started local SOCKS proxy, before TUN/system-proxy state is published on Windows, Linux, and macOS.

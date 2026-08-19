@@ -131,6 +131,8 @@
     <string name="logs_cleared">Diagnostic log cleared</string>
     <string name="diagnostic_logging">Enable diagnostic reporting (off by default)</string>
     <string name="secure_dns_doh">Secure DNS (DNS-over-HTTPS, inspired by Intra)</string>
+    <string name="delay_test_url">Real-ping test URL</string>
+    <string name="delay_test_url_help">The selected URL is used for real proxy latency checks; a safe fallback is used if it is unavailable.</string>
     <string name="log_share_failed">Could not share the diagnostic log</string>
     <string name="runtime_log_preview">Runtime log preview</string>
     <string name="log_preview_empty">No diagnostic entries have been recorded yet. Enable diagnostic reporting in Settings to collect runtime logs.</string>

@@ -79,6 +79,13 @@ class SettingsFragment : Fragment() {
         binding.secureDnsDoh.setOnCheckedChangeListener { _, enabled ->
             store.secureDnsDoh = enabled
         }
+        binding.delayTestUrl.setText(store.delayTestUrl)
+        binding.delayTestUrl.doAfterTextChanged { text ->
+            val value = text?.toString()?.trim().orEmpty()
+            if (value.isBlank() || value.startsWith("http://") || value.startsWith("https://")) {
+                store.delayTestUrl = value
+            }
+        }
 
         binding.bypassDomains.setText(store.bypassDomains)
         binding.saveBypass.setOnClickListener {

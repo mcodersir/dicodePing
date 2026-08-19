@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 APP_NAME = "dicodePing"
-APP_VERSION = "3.0.0-pre.6"
+APP_VERSION = "3.0.0-pre.7"
 ROOT = Path(__file__).resolve().parents[1]
 
 
