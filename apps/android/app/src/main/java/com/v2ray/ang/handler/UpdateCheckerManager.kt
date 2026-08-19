@@ -64,14 +64,15 @@ object UpdateCheckerManager {
             }
         }
 
+        val responseBody = response ?: throw IllegalStateException("Failed to reach the update service")
         val latestRelease = if (includePreRelease) {
-            JsonUtil.fromJsonSafe(response, Array<GitHubRelease>::class.java)
+            JsonUtil.fromJsonSafe(responseBody, Array<GitHubRelease>::class.java)
                 ?.filterNot { it.draft }
                 ?.maxByOrNull { it.publishedAt }
                 ?: throw IllegalStateException("No release found")
         } else {
-            JsonUtil.fromJsonSafe(response, GitHubRelease::class.java)
-                ?: JsonUtil.fromJsonSafe(response, Array<GitHubRelease>::class.java)
+            JsonUtil.fromJsonSafe(responseBody, GitHubRelease::class.java)
+                ?: JsonUtil.fromJsonSafe(responseBody, Array<GitHubRelease>::class.java)
                     ?.filter { !it.prerelease && !it.draft }
                     ?.maxByOrNull { it.publishedAt }
         }
