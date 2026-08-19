@@ -457,7 +457,9 @@ object Utils {
      *
      * @return True if the package is Xray, false otherwise.
      */
-    fun isXray(): Boolean = BuildConfig.APPLICATION_ID.startsWith("com.v2ray.ang")
+    // DicodePing ships the Xray-compatible native library under its own package id.
+    // Do not infer the runtime from the former upstream application id.
+    fun isXray(): Boolean = BuildConfig.APPLICATION_ID.startsWith("ir.dicode.ping")
 
     /**
      * Converts an InetAddress to its long representation

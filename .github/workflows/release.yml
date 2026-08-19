@@ -18,21 +18,33 @@ jobs:
             rid: win-x64
             xray_asset: Xray-windows-64.zip
             xray_binary: xray.exe
+            singbox_asset: sing-box-1.13.19-windows-amd64.zip
+            singbox_binary: sing-box.exe
+            singbox_sha256: e011a4def2f5e2b143ed54adb2b1a20a6be407806ab4442f3667f1dd817a2c8d
             artifact: windows-x64
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
             xray_binary: xray
+            singbox_asset: sing-box-1.13.19-linux-amd64.tar.gz
+            singbox_binary: sing-box
+            singbox_sha256: ef88a9e577d474210867bd708933d042e9b70106529df2656182c9db90106aa1
             artifact: linux-x64
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
             xray_binary: xray
+            singbox_asset: sing-box-1.13.19-darwin-amd64.tar.gz
+            singbox_binary: sing-box
+            singbox_sha256: 31ee722237d95774e101fbffeae6be6776249c5f7db229ad8ff00b45b22e6a00
             artifact: macos-x64
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
             xray_binary: xray
+            singbox_asset: sing-box-1.13.19-darwin-arm64.tar.gz
+            singbox_binary: sing-box
+            singbox_sha256: 23bf191906f2dfc9f00e9f0092f274f3426ba9377327e903ff94e636b64d0997
             artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -41,13 +53,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.4
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.5
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.4 -o publish
-      - name: Bundle pinned Xray runtime
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.5 -o publish
+      - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.xray_asset }}"
+          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.3.27/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
           $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
@@ -57,12 +69,26 @@ jobs:
           if (-not (Test-Path "xray-runtime/${{ matrix.xray_binary }}")) { throw "Xray binary missing from archive" }
           New-Item -ItemType Directory -Force publish/bin | Out-Null
           Copy-Item xray-runtime/* publish/bin -Recurse -Force
+          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/${{ matrix.singbox_asset }}"
+          Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
+          $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
+          if ($singboxActual -ne '${{ matrix.singbox_sha256 }}') { throw "sing-box SHA-256 verification failed" }
+          New-Item -ItemType Directory -Force sing-box-runtime | Out-Null
+          if ('${{ matrix.singbox_asset }}'.EndsWith('.zip')) {
+            Expand-Archive sing-box.archive -DestinationPath sing-box-runtime -Force
+          } else {
+            tar -xzf sing-box.archive -C sing-box-runtime
+          }
+          $singbox = Get-ChildItem sing-box-runtime -Recurse -File -Filter '${{ matrix.singbox_binary }}' | Select-Object -First 1
+          if ($null -eq $singbox) { throw "sing-box binary missing from archive" }
+          Copy-Item $singbox.FullName "publish/bin/${{ matrix.singbox_binary }}" -Force
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/${{ matrix.xray_binary }}" }
+          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/${{ matrix.singbox_binary }}" }
       - name: Archive and checksum
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.0-pre.4-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.0-pre.5-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -71,7 +97,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.0-pre.4-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.0-pre.5-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -110,7 +136,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0-pre.4
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0-pre.5
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -136,22 +162,22 @@ jobs:
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.0 Pre 4
+            ## DicodePing 3.0.0 Pre 5
 
-            DicodePing با هویت مستقل، اجرای اجباری Administrator و TUN-only؛ بدون نام v2rayN در محصول و خروجی‌ها.
+            DicodePing با هویت مستقل، اجرای اجباری Administrator و TUN-only؛ بدون نام‌های قدیمی در رابط، فایل‌های خروجی و فرایند به‌روزرسانی.
 
-            - به‌روزرسانی خودکار Subscription پیش‌فرض در شروع
-            - تست مسیر واقعی و مرتب‌سازی سریع‌ترین کانفیگ‌ها
-            - دکمه‌های آیکونی اتصال دستی/هوشمند با وضعیت درحال بررسی
+            - دریافت خودکار Subscription پیش‌فرض، تست مسیر واقعی و مرتب‌سازی سریع‌ترین کانفیگ‌ها در شروع
+            - اتصال هوشمند واکنش‌گرا با انتخاب گرهٔ برتر و دو دکمهٔ آیکونی اتصال
+            - Xray 26.3.27 و sing-box 1.13.19 همراه تمام بسته‌های دسکتاپ، با کنترل SHA-256
             - APK امضاشده و قابل ارتقا، بررسی به‌روزرسانی از GitHub
 
             | Platform | Download |
             | --- | --- |
-            | Windows x64 Portable | `DicodePing-3.0.0-pre.4-windows-x64-portable.zip` |
-            | Windows x64 Installer | `DicodePing-3.0.0-pre.4-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.0-pre.4-linux-x64-portable.zip` |
-            | macOS Intel | `DicodePing-3.0.0-pre.4-macos-x64-portable.zip` |
-            | macOS Apple Silicon | `DicodePing-3.0.0-pre.4-macos-arm64-portable.zip` |
+            | Windows x64 Portable | `DicodePing-3.0.0-pre.5-windows-x64-portable.zip` |
+            | Windows x64 Installer | `DicodePing-3.0.0-pre.5-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.0-pre.5-linux-x64-portable.zip` |
+            | macOS Intel | `DicodePing-3.0.0-pre.5-macos-x64-portable.zip` |
+            | macOS Apple Silicon | `DicodePing-3.0.0-pre.5-macos-arm64-portable.zip` |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه Pre-release است.

@@ -235,6 +235,9 @@ class MainViewModel(
                 // The default source is refreshed in the background at startup. Once loaded,
                 // use the existing real-path tester and persist the fastest-first ordering.
                 dataSource.updateConfigViaSubAll()
+                // Always begin on the aggregate tab so the first test covers every enabled
+                // subscription, then persist the best-first order for each source.
+                dataSource.setSelectedSubscriptionId("")
                 setupGroupTab(forceRefresh = true).join()
                 testAllRealPing()
             } catch (cancelled: CancellationException) {

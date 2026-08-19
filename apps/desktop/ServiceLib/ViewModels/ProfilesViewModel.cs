@@ -653,6 +653,15 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
+        // The first smart-connect action must be useful on a fresh install too.  Wait for
+        // real-path measurements before selecting when no usable result has been recorded.
+        if (!ProfileItems.Any(item => item.Delay > 0))
+        {
+            NoticeManager.Instance.Enqueue("در حال آزمایش مسیر واقعی برای اتصال هوشمند…");
+            await ServerSpeedtest(ESpeedActionType.FastRealping);
+            await RefreshServersBiz();
+        }
+
         var best = ProfileItems
             .Where(item => item.Delay > 0)
             .OrderBy(item => item.Delay)
@@ -822,7 +831,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             });
             await Task.CompletedTask;
         });
-        _speedtestService?.RunLoop(actionType, lstSelected);
+        await _speedtestService.RunLoop(actionType, lstSelected);
     }
 
     public void ServerSpeedtestStop()

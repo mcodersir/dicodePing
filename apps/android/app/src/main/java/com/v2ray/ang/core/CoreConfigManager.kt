@@ -44,11 +44,11 @@ object CoreConfigManager {
             }
             return toConfigResult(configContext, buildUnifiedConfig(configContext))
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to get V2ray config", e)
+            LogUtil.e(AppConfig.TAG, "Failed to build DicodePing runtime config", e)
             return ConfigResult(
                 status = false,
                 guid = guid,
-                errorMessage = "Failed to get V2ray config: ${e.message ?: e.javaClass.simpleName}"
+                errorMessage = "Failed to build DicodePing runtime config: ${e.message ?: e.javaClass.simpleName}"
             )
         }
     }
@@ -74,11 +74,11 @@ object CoreConfigManager {
 
             return toConfigResult(configContext, v2rayConfig)
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to get V2ray config for speedtest", e)
+            LogUtil.e(AppConfig.TAG, "Failed to build DicodePing test config", e)
             return ConfigResult(
                 status = false,
                 guid = guid,
-                errorMessage = "Failed to get V2ray config: ${e.message ?: e.javaClass.simpleName}"
+                errorMessage = "Failed to build DicodePing test config: ${e.message ?: e.javaClass.simpleName}"
             )
         }
     }

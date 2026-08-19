@@ -127,7 +127,7 @@ class MainRepository(
 
     override fun getSubscriptions(): List<SubscriptionCache> {
         val result = mutableListOf<SubscriptionCache>()
-        // The first presentation tab is always the aggregate v2rayN-style view.
+        // The first presentation tab is always the aggregate DicodePing view.
         result += SubscriptionCache(
             guid = "",
             subscription = SubscriptionItem().apply {

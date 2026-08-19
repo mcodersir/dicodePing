@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Monochrome DicodePing bolt: suitable for Android status bars and quick settings. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.2,1.8L4.5,13h5.1L8.8,22.2 19.5,9.4h-5.2z" />
+</vector>

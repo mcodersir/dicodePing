@@ -11,9 +11,9 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private readonly int _speedTestPageSize = config.SpeedTestItem.SpeedTestPageSize ?? Global.SpeedTestPageSize;
     private readonly TimeSpan _delayInterval = TimeSpan.FromSeconds(config.SpeedTestItem.SpeedTestDelayInterval ?? 1);
 
-    public void RunLoop(ESpeedActionType actionType, List<ProfileItem> selecteds)
+    public Task RunLoop(ESpeedActionType actionType, List<ProfileItem> selecteds)
     {
-        Task.Run(async () =>
+        return Task.Run(async () =>
         {
             await RunAsync(actionType, selecteds);
             await ProfileExManager.Instance.SaveTo();
