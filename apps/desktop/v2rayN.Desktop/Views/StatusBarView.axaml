@@ -12,7 +12,8 @@
     mc:Ignorable="d">
     <Grid>
         <DockPanel Margin="{StaticResource Margin8}">
-            <StackPanel
+        <StackPanel
+            IsVisible="False"
                 Margin="{StaticResource MarginLr8}"
                 VerticalAlignment="Center"
                 DockPanel.Dock="Right">
@@ -49,6 +50,7 @@
             </StackPanel>
 
             <StackPanel
+                IsVisible="False"
                 Margin="{StaticResource MarginLr8}"
                 VerticalAlignment="Center"
                 DockPanel.Dock="Left"

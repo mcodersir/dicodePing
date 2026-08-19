@@ -1,0 +1,29 @@
+name: .NET
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4.2.2
+
+    - name: Setup
+      uses: actions/setup-dotnet@v4.3.0
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore src/
+
+    - name: Build
+      run: dotnet build src/ --no-restore
+
+    - name: Test
+      run: dotnet test src/ --no-build --verbosity normal
