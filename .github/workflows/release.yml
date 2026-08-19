@@ -17,22 +17,22 @@ jobs:
           - runner: windows-latest
             asset: Xray-windows-64.zip
             binary: xray.exe
-            command: npx electron-builder --win --x64
+            command: npx electron-builder --win --x64 --publish never
             artifact: windows-x64
           - runner: ubuntu-latest
             asset: Xray-linux-64.zip
             binary: xray
-            command: npx electron-builder --linux --x64
+            command: npx electron-builder --linux --x64 --publish never
             artifact: linux-x64
           - runner: macos-14
             asset: Xray-macos-64.zip
             binary: xray
-            command: npx electron-builder --mac --x64
+            command: npx electron-builder --mac --x64 --publish never
             artifact: macos-x64
           - runner: macos-14
             asset: Xray-macos-arm64-v8a.zip
             binary: xray
-            command: npx electron-builder --mac --arm64
+            command: npx electron-builder --mac --arm64 --publish never
             artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -79,9 +79,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - name: Install SDK and NDK
-        run: yes | sdkmanager "platforms;android-37" "build-tools;37.0.0" "ndk;29.0.14206865"
+        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"
       - name: Build pinned hev TUN
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
