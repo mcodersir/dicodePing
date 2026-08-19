@@ -181,14 +181,13 @@ jobs:
             - Xray 26.3.27 و sing-box 1.13.19 همراه تمام بسته‌های دسکتاپ، با کنترل SHA-256
             - APK امضاشده و قابل ارتقا، بررسی به‌روزرسانی از GitHub
 
-            | Platform | Download |
-            | --- | --- |
-            | Windows x64 Portable | `DicodePing-3.0.0-pre.8-windows-x64-portable.zip` |
-            | Windows x64 Installer | `DicodePing-3.0.0-pre.8-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.0-pre.8-linux-x64-portable.zip` |
-            | macOS Intel | `DicodePing-3.0.0-pre.8-macos-x64-portable.zip` |
-            | macOS Apple Silicon | `DicodePing-3.0.0-pre.8-macos-arm64-portable.zip` |
-            | Android | APKهای Universal و تفکیک‌شدهٔ ABI |
+            | Platform | Portable / direct | Installer / package |
+            | --- | --- | --- |
+            | Windows x64 | `DicodePing.3.0.0-pre.8.exe` | `DicodePing.Setup.3.0.0-pre.8.exe` |
+            | Linux x64 | `DicodePing-3.0.0-pre.8.AppImage` | `dicodeping-3.0.0-pre.8.tar.gz` |
+            | macOS Intel | `DicodePing-3.0.0-pre.8-mac.zip` | `DicodePing-3.0.0-pre.8.dmg` |
+            | macOS Apple Silicon | `DicodePing-3.0.0-pre.8-arm64-mac.zip` | `DicodePing-3.0.0-pre.8-arm64.dmg` |
+            | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه Pre-release است.
           files: artifacts/*
