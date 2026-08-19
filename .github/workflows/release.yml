@@ -144,6 +144,13 @@ jobs:
         run: |
           mkdir -p dist-android
           find apps/android/app/build/outputs/apk -type f -name '*.apk' -exec cp {} dist-android/ \;
+          # AGP may keep the internal compatibility flavor in the generated
+          # filename; never expose that implementation detail in releases.
+          for apk in dist-android/*-fdroid-*.apk; do
+            [ -e "$apk" ] || continue
+            clean="$(printf '%s' "$apk" | sed 's/-fdroid-/-/')"
+            mv "$apk" "$clean"
+          done
           cd dist-android
           sha256sum *.apk > SHA256SUMS-android.txt
       - uses: actions/upload-artifact@v7
