@@ -20,6 +20,7 @@ public class SimpleViewLocator : IDataTemplate
         RegisterViewFactory<ClashConnectionsViewModel, ClashConnectionsView>();
         RegisterViewFactory<ClashProxiesViewModel, ClashProxiesView>();
         RegisterViewFactory<DNSSettingViewModel, DNSSettingWindow>();
+        RegisterViewFactory<DomainFilterSettingViewModel, DomainFilterSettingWindow>();
         RegisterViewFactory<FullConfigTemplateViewModel, FullConfigTemplateWindow>();
         RegisterViewFactory<GlobalHotkeySettingViewModel, GlobalHotkeySettingWindow>();
         RegisterViewFactory<MainWindowViewModel, MainWindow>();

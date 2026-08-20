@@ -196,6 +196,7 @@ class MainViewModel(
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
             MainAction.TestAllLocations -> testAllLocations()
+            MainAction.TestAllSecurity -> testAllSecurity()
             MainAction.CancelTesting -> cancelAllPing()
             MainAction.RemoveAllServers -> removeAllServerAsync()
             MainAction.RemoveDuplicateServers -> removeDuplicateServerAsync()
@@ -738,6 +739,23 @@ class MainViewModel(
                     onlyTcp = onlyTcp
                 )
             )
+        }
+    }
+
+    private fun testAllSecurity() {
+        groupPageFlows.forEach { (groupId, flow) ->
+            val assessed = flow.value.map { server ->
+                val profile = server.profile
+                val result = when {
+                    profile.insecure == true -> "پرخطر · گواهی ناامن"
+                    !profile.security.isNullOrBlank() -> "ایمن · ${profile.security!!.uppercase()}"
+                    profile.configType.name in setOf("SOCKS", "HTTP") -> "پرخطر · بدون رمزنگاری"
+                    else -> "متوسط · بدون TLS"
+                }
+                server.copy(securityInfo = result)
+            }
+            flow.value = assessed
+            groupDataCache[groupId] = assessed
         }
     }
 

@@ -244,6 +244,11 @@
 
     <string name="title_pref_ip_api_url">Current connection info test URL</string>
     <string name="title_pref_domain_filter_mode">Domain filter mode</string>
+    <string name="title_domain_filter">Domain filter</string>
+    <string name="domain_filter_only">Route only these domains through VPN</string>
+    <string name="domain_filter_bypass">Do not route these domains through VPN</string>
+    <string name="save_and_apply">Save and apply now</string>
+    <string name="security_test_beta">Security test (Beta)</string>
     <string name="title_pref_domain_filter_list">Filtered domains (comma or newline separated)</string>
     <string-array name="domain_filter_mode_entries">
         <item>Disabled</item>

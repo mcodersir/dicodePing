@@ -149,6 +149,7 @@ public class ProfileExManager
 
     public void SetTestDelay(string indexId, int delay)
     {
+        if (delay <= 0) return;
         var profileEx = GetProfileExItem(indexId);
 
         profileEx.Delay = delay;
@@ -157,6 +158,7 @@ public class ProfileExManager
 
     public void SetTestSpeed(string indexId, decimal speed)
     {
+        if (speed <= 0) return;
         var profileEx = GetProfileExItem(indexId);
 
         profileEx.Speed = speed;
@@ -173,6 +175,7 @@ public class ProfileExManager
 
     public void SetTestIpInfo(string indexId, string ipInfo)
     {
+        if (ipInfo.IsNullOrEmpty() || ipInfo.Equals(Global.None, StringComparison.OrdinalIgnoreCase) || ipInfo.Contains("testing", StringComparison.OrdinalIgnoreCase)) return;
         var profileEx = GetProfileExItem(indexId);
 
         profileEx.IpInfo = ipInfo;

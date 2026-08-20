@@ -257,6 +257,7 @@ private fun ServerItemRow(
         testDelayMillis = serverCache.testDelayMillis,
         countryCode = serverCache.countryCode,
         ipAddress = serverCache.ipAddress,
+        securityInfo = serverCache.securityInfo,
         isSelected = serverCache.guid == selectedGuid,
         subscriptionRemarks = subRemarks,
         doubleColumnDisplay = false,
@@ -292,6 +293,7 @@ private fun ServerItemColumn(
             testDelayMillis = serverCache.testDelayMillis,
             countryCode = serverCache.countryCode,
             ipAddress = serverCache.ipAddress,
+            securityInfo = serverCache.securityInfo,
             isSelected = serverCache.guid == selectedGuid,
             subscriptionRemarks = subRemarks,
             doubleColumnDisplay = doubleColumnDisplay,
@@ -313,6 +315,7 @@ fun ServerListItem(
     testDelayMillis: Long,
     countryCode: String?,
     ipAddress: String?,
+    securityInfo: String?,
     isSelected: Boolean,
     subscriptionRemarks: String,
     doubleColumnDisplay: Boolean,
@@ -457,6 +460,13 @@ fun ServerListItem(
                         testResult,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (testDelayMillis < 0L) colorPingRed else colorPing,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (!securityInfo.isNullOrBlank()) Text(
+                        securityInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

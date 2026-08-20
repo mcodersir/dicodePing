@@ -16,6 +16,7 @@ import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.toSpeedString
+import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.main.MainActivity
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CoroutineScope
@@ -38,13 +39,17 @@ object NotificationManager {
     private var mBuilder: NotificationCompat.Builder? = null
     private var speedNotificationJob: Job? = null
     private var mNotificationManager: NotificationManager? = null
+    @Volatile private var totalUplink = 0L
+    @Volatile private var totalDownlink = 0L
+
+    fun trafficTotals(): Pair<Long, Long> = totalUplink to totalDownlink
 
     /**
      * Starts the speed notification.
      * @param currentConfig The current profile configuration.
      */
     fun startSpeedNotification() {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) != true) return
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED, true) != true) return
         if (speedNotificationJob != null || CoreServiceManager.isRunning() == false) return
 
         var lastZeroSpeed = false
@@ -66,6 +71,8 @@ object NotificationManager {
 
         // Reset last query time to avoid querying stats too soon after showing the notification
         lastQueryTime = System.currentTimeMillis()
+        totalUplink = 0L
+        totalDownlink = 0L
 
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
@@ -260,6 +267,8 @@ object NotificationManager {
 
         val proxyTotal = proxyUplink + proxyDownlink
         val directTotal = directUplink + directDownlink
+        totalUplink += proxyUplink + directUplink
+        totalDownlink += proxyDownlink + directDownlink
         val zeroSpeed = proxyTotal + directTotal == 0L
         if (!zeroSpeed || !lastZeroSpeed) {
             val text = StringBuilder()
@@ -268,12 +277,12 @@ object NotificationManager {
                 proxyUplink / sinceLastQueryInSeconds,
                 proxyDownlink / sinceLastQueryInSeconds
             )
-
             appendSpeedString(
                 text, AppConfig.TAG_DIRECT,
                 directUplink / sinceLastQueryInSeconds,
                 directDownlink / sinceLastQueryInSeconds
             )
+            text.append("کل • ${totalUplink.toTrafficString()}↑  ${totalDownlink.toTrafficString()}↓")
             updateNotification(text.toString(), proxyTotal, directTotal)
         }
         lastQueryTime = queryTime

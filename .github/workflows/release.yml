@@ -53,9 +53,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.1
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.1 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -100,7 +100,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.0-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.1-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -109,7 +109,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.1-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -148,7 +148,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.1
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -181,21 +181,22 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.0 Stable
+            ## DicodePing 3.0.1 Stable
 
-            DicodePing با هویت مستقل، اجرای اجباری Administrator و TUN-only؛ بدون نام‌های قدیمی در رابط، فایل‌های خروجی و فرایند به‌روزرسانی.
+            نسخهٔ نگه‌داری و قابلیت‌های شبکهٔ DicodePing با فیلتر دامنهٔ آنی، نوار وضعیت تازه و نتایج پایدارتر.
 
-            - دریافت خودکار Subscription پیش‌فرض، تست مسیر واقعی و مرتب‌سازی سریع‌ترین کانفیگ‌ها در شروع
-            - اتصال هوشمند واکنش‌گرا با انتخاب گرهٔ برتر و دو دکمهٔ آیکونی اتصال
-            - Xray 26.3.27 و sing-box 1.13.19 همراه تمام بسته‌های دسکتاپ، با کنترل SHA-256
-            - APK امضاشده و قابل ارتقا، بررسی به‌روزرسانی از GitHub
+            - فیلتر دامنهٔ Only/Bypass با ذخیره و اعمال آنی در دسکتاپ و اندروید
+            - ماندگاری پینگ، سرعت و لوکیشن تا دریافت نتیجهٔ معتبر بعدی
+            - آزمایش امنیت پیکربندی سرورها (بتا) و نمایش مینیمال نتیجه
+            - مجموع دانلود/آپلود در نوار وضعیت همهٔ پلتفرم‌ها و اعلان اندروید
+            - کنترل اتصال تکرارشده در پایین دسکتاپ، تم‌های اصلاح‌شده و گزارش‌های منتقل‌شده به تنظیمات
 
             | Platform | Portable / direct | Installer / package |
             | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.0-windows-x64-portable.zip` | `DicodePing-3.0.0-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.0-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.0-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.0-macos-arm64-portable.zip` | — |
+            | Windows x64 | `DicodePing-3.0.1-windows-x64-portable.zip` | `DicodePing-3.0.1-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.1-linux-x64-portable.zip` | — |
+            | macOS Intel | `DicodePing-3.0.1-macos-x64-portable.zip` | — |
+            | macOS Apple Silicon | `DicodePing-3.0.1-macos-arm64-portable.zip` | — |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.

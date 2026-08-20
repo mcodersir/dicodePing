@@ -52,6 +52,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> OptionSettingCmd { get; }
 
     public ReactiveCommand<RxVoid, RxVoid> RoutingSettingCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> DomainFilterSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> DNSSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> FullConfigTemplateCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> GlobalHotkeySettingCmd { get; }
@@ -201,6 +202,13 @@ public partial class MainWindowViewModel : MyReactiveObject
         {
             await RoutingSettingAsync();
         });
+        DomainFilterSettingCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            if (await AppManager.Instance.WindowDialog.ShowDialogAsync(new DomainFilterSettingViewModel()) == true)
+            {
+                await Reload();
+            }
+        });
         DNSSettingCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await DNSSettingAsync();
@@ -312,6 +320,20 @@ public partial class MainWindowViewModel : MyReactiveObject
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async blProxy => await UpdateSubscriptionProcess("", blProxy));
+
+        StatusBarViewModel.ToggleConnectionRequested.AsObservable()
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(async _ => await ProfilesViewModel.ConnectSelectedAsync());
+        StatusBarViewModel.SmartConnectionRequested.AsObservable()
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(async _ => await ProfilesViewModel.ConnectBestAsync());
+        ProfilesViewModel.WhenAnyValue(x => x.IsConnected, x => x.ConnectionStatusText)
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(state =>
+            {
+                StatusBarViewModel.IsConnected = state.Item1;
+                StatusBarViewModel.ConnectionStatusText = state.Item2;
+            });
 
         _ = Init();
     }

@@ -79,6 +79,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> TcpingServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RealPingServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> LocationTestCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SecurityTestCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> UdpTestServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SpeedServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SortServerResultCmd { get; }
@@ -223,6 +224,22 @@ public partial class ProfilesViewModel : MyReactiveObject
         LocationTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await ServerSpeedtest(ESpeedActionType.Location);
+        });
+        SecurityTestCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            foreach (var model in ProfileItems)
+            {
+                var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
+                if (profile is null) continue;
+                model.SecurityInfo = profile.GetAllowInsecure()
+                    ? "پرخطر · تأیید گواهی غیرفعال"
+                    : profile.StreamSecurity.IsNotEmpty()
+                        ? $"ایمن · {profile.StreamSecurity.ToUpperInvariant()}"
+                        : profile.ConfigType is EConfigType.SOCKS or EConfigType.HTTP
+                            ? "پرخطر · بدون رمزنگاری"
+                            : "متوسط · بدون TLS";
+            }
+            NoticeManager.Instance.Enqueue("آزمایش امنیت پیکربندی همهٔ سرورها انجام شد");
         });
         UdpTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -678,7 +695,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
     }
 
-    private async Task ConnectSelectedAsync()
+    public async Task ConnectSelectedAsync()
     {
         if (CoreManager.Instance.IsRunning)
         {
@@ -709,7 +726,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         await WaitForConnectionAsync();
     }
 
-    private async Task ConnectBestAsync()
+    public async Task ConnectBestAsync()
     {
         if (CoreManager.Instance.IsRunning)
         {

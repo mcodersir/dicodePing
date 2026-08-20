@@ -15,6 +15,8 @@ public partial class StatusBarViewModel : MyReactiveObject
     public EventChannel<RxVoid> ReloadRequested { get; } = new();
     public EventChannel<RxVoid> AddServerViaScanRequested { get; } = new();
     public EventChannel<RxVoid> AddServerViaClipboardRequested { get; } = new();
+    public EventChannel<RxVoid> ToggleConnectionRequested { get; } = new();
+    public EventChannel<RxVoid> SmartConnectionRequested { get; } = new();
 
     #region ObservableCollection
 
@@ -41,6 +43,8 @@ public partial class StatusBarViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> NotifyLeftClickCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> ShowWindowCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> HideWindowCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> ToggleConnectionCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SmartConnectionCmd { get; }
 
     #region System Proxy
 
@@ -94,6 +98,9 @@ public partial class StatusBarViewModel : MyReactiveObject
 
     [Reactive]
     public partial string SpeedDirectDisplay { get; set; }
+    [Reactive] public partial string TotalTrafficDisplay { get; set; }
+    [Reactive] public partial bool IsConnected { get; set; }
+    [Reactive] public partial string ConnectionStatusText { get; set; }
 
     [Reactive]
     public partial bool EnableTun { get; set; }
@@ -109,6 +116,8 @@ public partial class StatusBarViewModel : MyReactiveObject
         SelectedRouting = new();
         SelectedServer = new();
         RunningServerToolTipText = GetRunningServerToolTipText("-");
+        ConnectionStatusText = "اتصال TUN";
+        TotalTrafficDisplay = "کل ↑ 0 KB  ↓ 0 KB";
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
 
@@ -162,6 +171,16 @@ public partial class StatusBarViewModel : MyReactiveObject
         HideWindowCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             ShowHideWindowRequested.Publish(false);
+            await Task.CompletedTask;
+        });
+        ToggleConnectionCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            ToggleConnectionRequested.Publish();
+            await Task.CompletedTask;
+        });
+        SmartConnectionCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            SmartConnectionRequested.Publish();
             await Task.CompletedTask;
         });
 
@@ -462,6 +481,7 @@ public partial class StatusBarViewModel : MyReactiveObject
                     return;
                 }
             }
+            TotalTrafficDisplay = $"کل ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
         }
 
         await ConfigHandler.SaveConfig(_config);

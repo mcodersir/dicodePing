@@ -244,6 +244,11 @@
 
     <string name="title_pref_ip_api_url">URL آزمایش اطلاعات اتصال فعلی</string>
     <string name="title_pref_domain_filter_mode">حالت فیلتر دامنه</string>
+    <string name="title_domain_filter">فیلتر دامنه</string>
+    <string name="domain_filter_only">ترافیک فقط از این دامنه‌ها رد شود</string>
+    <string name="domain_filter_bypass">ترافیک از این دامنه‌ها رد نشود</string>
+    <string name="save_and_apply">ذخیره و اعمال آنی</string>
+    <string name="security_test_beta">آزمایش امنیت (بتا)</string>
     <string name="title_pref_domain_filter_list">دامنه‌ها (با ویرگول یا خط جدید جدا کنید)</string>
     <string-array name="domain_filter_mode_entries">
         <item>خاموش</item>

@@ -39,6 +39,8 @@ import com.v2ray.ang.ui.compose.LocalDarkTheme
 import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.compose.colorFabActive
 import com.v2ray.ang.extension.delay
+import com.v2ray.ang.extension.toTrafficString
+import com.v2ray.ang.handler.NotificationManager
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -72,6 +74,13 @@ fun MainScreen(
     var showRemoveConfirm by remember { mutableStateOf<String?>(null) }
     var autoConnectPending by remember { mutableStateOf(false) }
     var autoConnectStarted by remember { mutableStateOf(false) }
+    var trafficTotals by remember { mutableStateOf(0L to 0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            trafficTotals = NotificationManager.trafficTotals()
+            delay(1000)
+        }
+    }
 
     LaunchedEffect(autoConnectPending, uiState.isTesting, allServers) {
         if (!autoConnectPending) return@LaunchedEffect
@@ -269,6 +278,7 @@ fun MainScreen(
                             MainMoreMenuAction.TestAll -> onAction(MainAction.TestAllServers)
                             MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
                             MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestAllLocations)
+                            MainMoreMenuAction.TestSecurityBeta -> onAction(MainAction.TestAllSecurity)
                             MainMoreMenuAction.UpdateSubscriptions -> onAction(MainAction.UpdateSubscriptions)
                         }
                     }
@@ -277,6 +287,8 @@ fun MainScreen(
             bottomBar = {
                 MainBottomBar(
                     displayText = displayText,
+                    trafficText = "کل ↑ ${trafficTotals.first.toTrafficString()}  ↓ ${trafficTotals.second.toTrafficString()}",
+                    onClick = { onAction(MainAction.TestCurrentServer) }
                 )
             },
             // Persian is RTL: End maps to the visual left edge requested for

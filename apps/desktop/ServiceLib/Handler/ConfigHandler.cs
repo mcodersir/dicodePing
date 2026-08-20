@@ -104,6 +104,8 @@ public static class ConfigHandler
         // on first launch as well, so no non-TUN traffic mode can be selected afterwards.
         config.TunModeItem.EnableTun = true;
         config.GuiItem ??= new();
+        config.GuiItem.EnableStatistics = true;
+        config.GuiItem.DisplayRealTimeSpeed = true;
         if (!Global.RootCertProviders.Contains(config.GuiItem.RootCertProvider))
         {
             config.GuiItem.RootCertProvider = Global.RootCertProviders.First();

@@ -1,0 +1,25 @@
+<Window
+    x:Class="v2rayN.Desktop.Views.DomainFilterSettingWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    Width="620" Height="520" MinWidth="460" MinHeight="420"
+    Title="فیلتر دامنه" x:DataType="vms:DomainFilterSettingViewModel"
+    ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto">
+    <TextBlock FontSize="24" FontWeight="SemiBold" Text="فیلتر دامنه" />
+    <TextBlock Grid.Row="1" Margin="0,8,0,18" Opacity="0.72" TextWrapping="Wrap"
+               Text="مشخص کنید تونل روی دامنه‌های فهرست‌شده اعمال شود یا این دامنه‌ها مستقیماً باز شوند." />
+    <StackPanel Grid.Row="2" Spacing="10">
+      <ToggleSwitch x:Name="togOnly" Content="ترافیک فقط از این دامنه‌ها رد شود" />
+      <ToggleSwitch x:Name="togBypass" Content="ترافیک از این دامنه‌ها رد نشود" />
+    </StackPanel>
+    <TextBox x:Name="txtDomains" Grid.Row="3" Margin="0,18,0,18" AcceptsReturn="True"
+             TextWrapping="Wrap" VerticalContentAlignment="Top"
+             Watermark="example.com — هر دامنه در یک خط" />
+    <StackPanel Grid.Row="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+      <Button x:Name="btnCancel" MinWidth="96" Content="انصراف" />
+      <Button x:Name="btnSave" MinWidth="120" Classes="Accent" Content="ذخیره و اعمال" />
+    </StackPanel>
+  </Grid>
+</Window>

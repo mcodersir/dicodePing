@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,8 @@ import com.v2ray.ang.ui.compose.AppDivider
 @Composable
 fun MainBottomBar(
     displayText: String,
+    trafficText: String,
+    onClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -35,6 +38,7 @@ fun MainBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -44,6 +48,7 @@ fun MainBottomBar(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.semantics { contentDescription = displayText }
             )
+            Text(text = trafficText, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

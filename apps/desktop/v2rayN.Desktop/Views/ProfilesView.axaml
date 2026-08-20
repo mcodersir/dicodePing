@@ -119,6 +119,8 @@
                         ToolTip.Tip="آزمایش لوکیشن همهٔ سرورها (بتا)">
                         <PathIcon Data="{StaticResource globe_location}" />
                     </Button>
+                    <Button x:Name="btnSecurityTest" Margin="4" Classes="IconButton Success"
+                            ToolTip.Tip="آزمایش امنیت همهٔ سرورها (بتا)" Content="🛡" />
                 </StackPanel>
 
             </WrapPanel>
@@ -318,6 +320,7 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
+                    <DataGridTextColumn Width="2*" Binding="{Binding SecurityInfo}" Header="امنیت (بتا)" Tag="SecurityInfo" />
 
                     <DataGridTextColumn
                         Width="1*"

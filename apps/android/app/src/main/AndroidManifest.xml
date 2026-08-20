@@ -128,6 +128,7 @@
         <activity
             android:name=".ui.perappproxy.PerAppProxyActivity"
             android:exported="false" />
+        <activity android:name=".ui.domainfilter.DomainFilterActivity" android:exported="false" />
         <activity
             android:name=".ui.apppicker.AppPickerActivity"
             android:exported="false" />
