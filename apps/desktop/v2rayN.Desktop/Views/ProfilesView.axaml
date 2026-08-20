@@ -115,7 +115,7 @@
                         Margin="{StaticResource MarginLr4}"
                         Classes="IconButton Success"
                         ToolTip.Tip="آزمایش لوکیشن همهٔ سرورها (بتا)">
-                        <TextBlock Text="🌐" />
+                        <PathIcon Data="{StaticResource building_ping}" />
                     </Button>
                 </StackPanel>
 

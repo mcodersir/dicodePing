@@ -53,9 +53,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.10
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.0-pre.11
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.10 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.0-pre.11 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -71,6 +71,15 @@ jobs:
           $xray = Get-ChildItem xray-runtime -Recurse -File -Filter '${{ matrix.xray_binary }}' | Select-Object -First 1
           if ($null -eq $xray) { throw "Xray binary missing from archive" }
           Copy-Item $xray.FullName "$xrayDir/${{ matrix.xray_binary }}" -Force
+          # Routing rules such as geosite:google need Xray's data files beside
+          # the executable root. Without these files the main TUN core cannot
+          # start, even though temporary speed-test cores appear to work.
+          $dataDir = New-Item -ItemType Directory -Force publish/bin
+          foreach ($dataName in @('geosite.dat', 'geoip.dat')) {
+            $dataFile = Get-ChildItem xray-runtime -Recurse -File -Filter $dataName | Select-Object -First 1
+            if ($null -eq $dataFile) { throw "$dataName missing from Xray archive" }
+            Copy-Item $dataFile.FullName "$dataDir/$dataName" -Force
+          }
           $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/${{ matrix.singbox_asset }}"
           Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
           $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
@@ -91,7 +100,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.0-pre.10-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.0-pre.11-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -100,7 +109,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.0-pre.10-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.0-pre.11-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -139,7 +148,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0-pre.10
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.0-pre.11
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -172,7 +181,7 @@ jobs:
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.0 Pre 10
+            ## DicodePing 3.0.0 Pre 11
 
             DicodePing با هویت مستقل، اجرای اجباری Administrator و TUN-only؛ بدون نام‌های قدیمی در رابط، فایل‌های خروجی و فرایند به‌روزرسانی.
 
@@ -183,10 +192,10 @@ jobs:
 
             | Platform | Portable / direct | Installer / package |
             | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.0-pre.10-windows-x64-portable.zip` | `DicodePing-3.0.0-pre.10-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.0-pre.10-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.0-pre.10-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.0-pre.10-macos-arm64-portable.zip` | — |
+            | Windows x64 | `DicodePing-3.0.0-pre.11-windows-x64-portable.zip` | `DicodePing-3.0.0-pre.11-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.0-pre.11-linux-x64-portable.zip` | — |
+            | macOS Intel | `DicodePing-3.0.0-pre.11-macos-x64-portable.zip` | — |
+            | macOS Apple Silicon | `DicodePing-3.0.0-pre.11-macos-arm64-portable.zip` | — |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه Pre-release است.

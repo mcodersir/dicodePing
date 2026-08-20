@@ -4,7 +4,10 @@ public class ProfileExManager
 {
     private static readonly Lazy<ProfileExManager> _instance = new(() => new());
     private ConcurrentBag<ProfileExItem> _lstProfileEx = [];
-    private readonly Queue<string> _queIndexIds = new();
+    // Results arrive from parallel ping/location/speed workers. A normal Queue
+    // can lose or corrupt ids during a refresh, making rows appear to reset.
+    private readonly ConcurrentQueue<string> _queIndexIds = new();
+    private readonly ConcurrentDictionary<string, byte> _queuedIndexIds = new();
     public static ProfileExManager Instance => _instance.Value;
     private static readonly string _tag = "ProfileExHandler";
 
@@ -32,7 +35,7 @@ public class ProfileExManager
 
     private void IndexIdEnqueue(string indexId)
     {
-        if (indexId.IsNotEmpty() && !_queIndexIds.Contains(indexId))
+        if (indexId.IsNotEmpty() && _queuedIndexIds.TryAdd(indexId, 0))
         {
             _queIndexIds.Enqueue(indexId);
         }
@@ -40,16 +43,15 @@ public class ProfileExManager
 
     private async Task SaveQueueIndexIds()
     {
-        var cnt = _queIndexIds.Count;
-        if (cnt > 0)
+        if (!_queIndexIds.IsEmpty)
         {
             var lstExists = await SQLiteHelper.Instance.TableAsync<ProfileExItem>().ToListAsync();
             List<ProfileExItem> lstInserts = [];
             List<ProfileExItem> lstUpdates = [];
 
-            for (var i = 0; i < cnt; i++)
+            while (_queIndexIds.TryDequeue(out var id))
             {
-                var id = _queIndexIds.Dequeue();
+                _queuedIndexIds.TryRemove(id, out _);
                 var item = lstExists.FirstOrDefault(t => t.IndexId == id);
                 var itemNew = _lstProfileEx?.FirstOrDefault(t => t.IndexId == id);
                 if (itemNew is null)
