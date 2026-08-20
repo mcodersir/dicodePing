@@ -13,7 +13,7 @@ public partial class DomainFilterSettingWindow : WindowBase<DomainFilterSettingV
             this.Bind(ViewModel, x => x.OnlyListedDomains, v => v.togOnly.IsChecked).DisposeWith(disposables);
             this.Bind(ViewModel, x => x.BypassListedDomains, v => v.togBypass.IsChecked).DisposeWith(disposables);
             this.Bind(ViewModel, x => x.Domains, v => v.txtDomains.Text).DisposeWith(disposables);
-            ViewModel.SaveCmd.Subscribe(Close).DisposeWith(disposables);
+            ViewModel.SaveCmd.Subscribe(result => Close(result)).DisposeWith(disposables);
             this.BindCommand(ViewModel, x => x.SaveCmd, v => v.btnSave).DisposeWith(disposables);
         });
     }
