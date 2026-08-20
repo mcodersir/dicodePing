@@ -1,5 +1,3 @@
-using System.Reactive.Linq;
-
 namespace ServiceLib.ViewModels;
 
 public partial class ProfilesViewModel : MyReactiveObject
@@ -22,6 +20,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
     private SpeedtestService? _speedtestService;
     private string? _pendingSelectIndexId;
+    private readonly Timer _connectionStateTimer;
 
     #endregion private prop
 
@@ -129,13 +128,14 @@ public partial class ProfilesViewModel : MyReactiveObject
           y => y != null && _serverFilter != y)
               .Subscribe(async c => await ServerFilterChanged(c));
 
-        Observable.Interval(TimeSpan.FromMilliseconds(500))
-            .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(_ =>
+        _connectionStateTimer = new Timer(_ =>
+        {
+            RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
                 IsConnected = CoreManager.Instance.IsRunning;
                 ConnectionStatusText = IsConnected ? "متصل؛ برای قطع کلیک کنید" : "اتصال TUN";
             });
+        }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
         //servers delete
         EditServerCmd = ReactiveCommand.CreateFromTask(async () =>
