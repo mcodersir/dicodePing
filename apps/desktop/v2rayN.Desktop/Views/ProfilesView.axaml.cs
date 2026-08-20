@@ -76,8 +76,6 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
             this.BindCommand(ViewModel, vm => vm.SortServerResultCmd, v => v.menuSortServerResult).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.RemoveInvalidServerResultCmd, v => v.menuRemoveInvalidServerResult).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.FastRealPingCmd, v => v.btnFastRealPing).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.ConnectBestCmd, v => v.btnConnectBest).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.ConnectSelectedCmd, v => v.btnConnectSelected).DisposeWith(disposables);
 
             //servers export
             this.BindCommand(ViewModel, vm => vm.Export2ClientConfigCmd, v => v.menuExport2ClientConfig).DisposeWith(disposables);

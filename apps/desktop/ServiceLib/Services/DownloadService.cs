@@ -67,6 +67,10 @@ public class DownloadService
             {
                 Error?.Invoke(this, new ErrorEventArgs(ex.InnerException));
             }
+            if (blProxy)
+            {
+                await DownloadFileAsync(url, fileName, false, downloadTimeout);
+            }
         }
     }
 
@@ -107,7 +111,14 @@ public class DownloadService
     public async Task<string?> TryDownloadString(string url, bool blProxy, string userAgent)
     {
         var webProxy = await GetWebProxy(blProxy);
-        return await TryDownloadString(url, webProxy, userAgent);
+        var result = await TryDownloadString(url, webProxy, userAgent);
+        // A stale local listener can pass the socket check and disappear before
+        // the HTTP request begins. Recover directly instead of failing updates.
+        if (result.IsNullOrEmpty() && webProxy is not null)
+        {
+            return await TryDownloadString(url, (IWebProxy?)null, userAgent);
+        }
+        return result;
     }
 
     /// <summary>

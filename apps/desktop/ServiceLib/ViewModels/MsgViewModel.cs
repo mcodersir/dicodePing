@@ -34,6 +34,25 @@ public partial class MsgViewModel : MyReactiveObject
          .AsObservable()
          //.ObserveOn(RxSchedulers.MainThreadScheduler)
          .Subscribe(content => _ = AppendQueueMsg(content));
+
+        // The event stream only contains messages produced after this view model
+        // is created. Seed it from today's persistent file so opening the modal
+        // always shows useful startup, core and crash diagnostics as well.
+        try
+        {
+            var logFile = Utils.GetLogPath($"{DateTime.Now:yyyy-MM-dd}.txt");
+            if (File.Exists(logFile))
+            {
+                foreach (var line in File.ReadLines(logFile).TakeLast(NumMaxMsg))
+                {
+                    EnqueueQueueMsg(line + Environment.NewLine);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("LoadLogHistory", ex);
+        }
     }
 
     public void FlushQueueMsg()

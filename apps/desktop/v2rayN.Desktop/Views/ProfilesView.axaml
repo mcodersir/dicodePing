@@ -88,22 +88,6 @@
                         </Button.Content>
                     </Button>
                     <Button
-                        x:Name="btnConnectBest"
-                        Margin="8,0,0,0"
-                        Classes="FabButton Success"
-                        ToolTip.Tip="اتصال هوشمند به بهترین مسیر؛ در حالت اتصال برای قطع دوباره بزنید">
-                        <PathIcon Data="{StaticResource SemiIconBolt}" />
-                    </Button>
-                    <Button
-                        x:Name="btnConnectSelected"
-                        Margin="4,0,0,0"
-                        MinWidth="150"
-                        Padding="14,7"
-                        Classes.Success="{Binding IsConnected}"
-                        ToolTip.Tip="اتصال به مسیر انتخاب‌شده؛ هنگام اتصال برای قطع دوباره بزنید">
-                        <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" />
-                    </Button>
-                    <Button
                         x:Name="menuMixedTestServer"
                         Margin="{StaticResource MarginLr4}"
                         Classes="IconButton Success"
@@ -120,7 +104,9 @@
                         <PathIcon Data="{StaticResource globe_location}" />
                     </Button>
                     <Button x:Name="btnSecurityTest" Margin="4" Classes="IconButton Success"
-                            ToolTip.Tip="آزمایش امنیت همهٔ سرورها (بتا)" Content="🛡" />
+                            ToolTip.Tip="آزمایش امنیت همهٔ سرورها (بتا)">
+                        <PathIcon Data="{StaticResource shield_security}" />
+                    </Button>
                 </StackPanel>
 
             </WrapPanel>

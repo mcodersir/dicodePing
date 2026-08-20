@@ -99,6 +99,8 @@ public partial class StatusBarViewModel : MyReactiveObject
     [Reactive]
     public partial string SpeedDirectDisplay { get; set; }
     [Reactive] public partial string TotalTrafficDisplay { get; set; }
+    [Reactive] public partial string PingDisplay { get; set; }
+    [Reactive] public partial string LocationDisplay { get; set; }
     [Reactive] public partial bool IsConnected { get; set; }
     [Reactive] public partial string ConnectionStatusText { get; set; }
 
@@ -118,6 +120,8 @@ public partial class StatusBarViewModel : MyReactiveObject
         RunningServerToolTipText = GetRunningServerToolTipText("-");
         ConnectionStatusText = "اتصال TUN";
         TotalTrafficDisplay = "کل ↑ 0 KB  ↓ 0 KB";
+        PingDisplay = "پینگ: —";
+        LocationDisplay = "🏳️ —";
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
 
@@ -353,10 +357,13 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         await TestServerAvailabilitySub(ResUI.Speedtesting);
 
-        var msg = await Task.Run(ConnectionHandler.RunAvailabilityCheck);
-
+        var result = await Task.Run(ConnectionHandler.RunAvailabilityCheckDetailed);
+        var country = result.Location?.Country;
+        PingDisplay = result.Delay > 0 ? $"پینگ: {result.Delay} ms" : "پینگ: ناموفق";
+        LocationDisplay = country.IsNotEmpty() ? $"{CountryFlag(country!)} {country}" : "🏳️ —";
+        var msg = $"{PingDisplay} · {LocationDisplay}";
         NoticeManager.Instance.SendMessageEx(msg);
-        await TestServerAvailabilitySub(msg);
+        await TestServerAvailabilitySub(string.Empty);
     }
 
     private async Task TestServerAvailabilitySub(string msg)
@@ -372,6 +379,13 @@ public partial class StatusBarViewModel : MyReactiveObject
     {
         RunningInfoDisplay = msg;
         await Task.CompletedTask;
+    }
+
+    private static string CountryFlag(string country)
+    {
+        var code = country.Trim().ToUpperInvariant();
+        if (code.Length != 2 || code.Any(ch => ch is < 'A' or > 'Z')) return "🏳️";
+        return string.Concat(code.Select(ch => char.ConvertFromUtf32(0x1F1E6 + ch - 'A')));
     }
 
     #region System proxy and Routings

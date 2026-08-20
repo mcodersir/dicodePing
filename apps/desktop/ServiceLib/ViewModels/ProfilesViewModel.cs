@@ -21,6 +21,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     private SpeedtestService? _speedtestService;
     private string? _pendingSelectIndexId;
     private readonly Timer _connectionStateTimer;
+    private readonly SemaphoreSlim _speedtestLock = new(1, 1);
 
     #endregion private prop
 
@@ -442,7 +443,12 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         // A background subscription refresh may overlap a test. Prefer the
         // currently visible valid measurements if the DB snapshot is older.
-        var current = ProfileItems.ToDictionary(item => item.IndexId, item => item);
+        // Subscription sources can temporarily contain the same profile id more
+        // than once. Never let a UI refresh turn that data issue into a crash.
+        var current = ProfileItems
+            .Where(item => item.IndexId.IsNotEmpty())
+            .GroupBy(item => item.IndexId)
+            .ToDictionary(group => group.Key, group => group.First());
         foreach (var next in lstModel ?? [])
         {
             if (!current.TryGetValue(next.IndexId, out var previous))
@@ -679,6 +685,10 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         if (indexId == _config.IndexId)
         {
+            foreach (var profile in ProfileItems)
+            {
+                profile.IsActive = profile.IndexId == indexId;
+            }
             return;
         }
         var item = await AppManager.Instance.GetProfileItem(indexId);
@@ -690,6 +700,11 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         if (await ConfigHandler.SetDefaultServerIndex(_config, indexId) == 0)
         {
+            foreach (var profile in ProfileItems)
+            {
+                profile.IsActive = profile.IndexId == indexId;
+            }
+            SelectedProfile = ProfileItems.FirstOrDefault(profile => profile.IndexId == indexId) ?? SelectedProfile;
             await RefreshServers();
             Reload();
         }
@@ -905,6 +920,14 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ServerSpeedtest(ESpeedActionType actionType)
     {
+        if (!await _speedtestLock.WaitAsync(0))
+        {
+            NoticeManager.Instance.Enqueue("یک آزمایش در حال اجراست؛ پس از پایان دوباره تلاش کنید");
+            return;
+        }
+
+        try
+        {
         List<ProfileItem>? lstSelected;
         if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location)
         {
@@ -934,6 +957,11 @@ public partial class ProfilesViewModel : MyReactiveObject
             await Task.CompletedTask;
         });
         await _speedtestService.RunLoop(actionType, lstSelected);
+        }
+        finally
+        {
+            _speedtestLock.Release();
+        }
     }
 
     public void ServerSpeedtestStop()

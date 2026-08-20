@@ -125,7 +125,8 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             var result = await CheckHasUpdateOnly(type, preRelease);
             if (result.Success && result.Version != null)
             {
-                var msg = string.Format(ResUI.MsgCheckUpdateHasNewVersion, type, result.Version);
+                var displayType = type == ECoreType.v2rayN ? Global.AppName : type.ToString();
+                var msg = string.Format(ResUI.MsgCheckUpdateHasNewVersion, displayType, result.Version);
                 msgs.Add(msg);
                 AppManager.Instance.SetLastCheckUpdateResult(type, msg);
             }
@@ -291,7 +292,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
                 case ECoreType.v2rayN:
                     {
                         curVersion = new SemanticVersion(Utils.GetVersionInfo());
-                        message = string.Format(ResUI.IsLatestN, type, curVersion);
+                        message = string.Format(ResUI.IsLatestN, Global.AppName, curVersion);
                         url = string.Format(coreUrl, version);
                         break;
                     }

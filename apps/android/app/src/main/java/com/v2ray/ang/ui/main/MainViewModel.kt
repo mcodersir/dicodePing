@@ -168,7 +168,19 @@ class MainViewModel(
 
         val unknown = dataSource.getString(R.string.value_unknown)
         val country = result.country ?: unknown
-        return "$status\n${country.asCountryFlag()} $country ${result.ipAddress ?: unknown}"
+        return "$status\n${country.asCountryFlag()} $country"
+    }
+
+    internal fun formatPingStatus(status: MainStatus): String = when (status) {
+        is MainStatus.ConnectionTest -> if (status.result.delayMillis >= 0) {
+            dataSource.getString(R.string.server_test_delay_value, status.result.delayMillis)
+        } else dataSource.getString(R.string.connection_test_error, status.result.errorMessage)
+        else -> formatStatus(status)
+    }
+
+    internal fun formatLocationStatus(status: MainStatus): String = when (status) {
+        is MainStatus.ConnectionTest -> status.result.country?.let { "${it.asCountryFlag()} $it" }.orEmpty()
+        else -> ""
     }
 
     private fun String.asCountryFlag(): String {

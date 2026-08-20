@@ -9,10 +9,16 @@ public static class ConnectionHandler
     /// </summary>
     public static async Task<string> RunAvailabilityCheck()
     {
-        var time = await GetRealPingTimeInfo();
-        var ip = time > 0 ? await GetIPInfo() : Global.None;
+        var result = await RunAvailabilityCheckDetailed();
+        return string.Format(ResUI.TestMeOutput, result.Delay, result.Location?.ToString() ?? Global.None);
+    }
 
-        return string.Format(ResUI.TestMeOutput, time, ip);
+    public static async Task<(int Delay, IpInfoResult? Location)> RunAvailabilityCheckDetailed()
+    {
+        var time = await GetRealPingTimeInfo();
+        var webProxy = time > 0 ? await GetWebProxy() : null;
+        var location = time > 0 ? await GetIPInfo(webProxy) : null;
+        return (time, location);
     }
 
     /// <summary>

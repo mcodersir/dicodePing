@@ -138,7 +138,7 @@ public partial class CheckUpdateViewModel : MyReactiveObject
 
             if (item.IsGeoFile || item.CoreType == null)
             {
-                await UpdateView(item.CoreType, ResUI.menuCheckOnly + $" ({ResUI.MsgNotSupport})");
+                await UpdateView(item.CoreType, "GeoFile آمادهٔ دریافت آخرین داده‌های رسمی است");
                 continue;
             }
 
@@ -152,7 +152,7 @@ public partial class CheckUpdateViewModel : MyReactiveObject
             var result = await updateService.CheckHasUpdateOnly(item.CoreType.Value, EnableCheckPreReleaseUpdate);
             if (result.Success && result.Version != null)
             {
-                await UpdateView(item.CoreType, string.Format(ResUI.MsgCheckUpdateHasNewVersion, item.CoreType, result.Version));
+                await UpdateView(item.CoreType, string.Format(ResUI.MsgCheckUpdateHasNewVersion, DisplayCoreName(item.CoreType.Value), result.Version));
             }
             else
             {
@@ -413,6 +413,10 @@ public partial class CheckUpdateViewModel : MyReactiveObject
         });
         await Task.CompletedTask;
     }
+
+    private static string DisplayCoreName(ECoreType coreType) => coreType == ECoreType.v2rayN
+        ? Global.AppName
+        : coreType.ToString();
 
     public async Task UpdateViewResult(CheckUpdateModel model)
     {

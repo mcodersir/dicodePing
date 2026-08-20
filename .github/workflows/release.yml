@@ -18,6 +18,9 @@ jobs:
             rid: win-x64
             xray_asset: Xray-windows-64.zip
             xray_binary: xray.exe
+            mihomo_asset: mihomo-windows-amd64-v1-v1.19.30.zip
+            mihomo_binary: mihomo.exe
+            mihomo_sha256: 8b81fe2c5cd04ca6deb61eec6075150b44cc5ad13ab867750642e2422f7c1278
             singbox_asset: sing-box-1.13.19-windows-amd64.zip
             singbox_binary: sing-box.exe
             singbox_sha256: e011a4def2f5e2b143ed54adb2b1a20a6be407806ab4442f3667f1dd817a2c8d
@@ -26,6 +29,9 @@ jobs:
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
             xray_binary: xray
+            mihomo_asset: mihomo-linux-amd64-v1-v1.19.30.gz
+            mihomo_binary: mihomo
+            mihomo_sha256: cbe553d0319a414bd3a372c5976a252155b2c4882b66bce88a4d6bba9571a553
             singbox_asset: sing-box-1.13.19-linux-amd64.tar.gz
             singbox_binary: sing-box
             singbox_sha256: ef88a9e577d474210867bd708933d042e9b70106529df2656182c9db90106aa1
@@ -34,6 +40,9 @@ jobs:
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
             xray_binary: xray
+            mihomo_asset: mihomo-darwin-amd64-v1-v1.19.30.gz
+            mihomo_binary: mihomo
+            mihomo_sha256: b5355135a1446ca1af83c794f46435290a59ddd968dd73f7883b9c7977e14f8b
             singbox_asset: sing-box-1.13.19-darwin-amd64.tar.gz
             singbox_binary: sing-box
             singbox_sha256: 31ee722237d95774e101fbffeae6be6776249c5f7db229ad8ff00b45b22e6a00
@@ -42,6 +51,9 @@ jobs:
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
             xray_binary: xray
+            mihomo_asset: mihomo-darwin-arm64-v1.19.30.gz
+            mihomo_binary: mihomo
+            mihomo_sha256: 2c7f3a7904fa1cee291e124123e630e7b1ebd13765dd9bf26c0a28432004d9f4
             singbox_asset: sing-box-1.13.19-darwin-arm64.tar.gz
             singbox_binary: sing-box
             singbox_sha256: 23bf191906f2dfc9f00e9f0092f274f3426ba9377327e903ff94e636b64d0997
@@ -53,13 +65,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.1
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.2
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.1 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.2 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.3.27/${{ matrix.xray_asset }}"
+          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
           $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
@@ -80,6 +92,36 @@ jobs:
             if ($null -eq $dataFile) { throw "$dataName missing from Xray archive" }
             Copy-Item $dataFile.FullName "$dataDir/$dataName" -Force
           }
+          # Replace the archive defaults with the newest verified routing
+          # database release so both the bundled runtime and Geo updater agree.
+          $geoRelease = '202608192217'
+          $geoHashes = @{ 'geoip.dat' = 'b406dd3759037188b0674b110dcaf33664a699c0518152d0ca0d9023fc774c6b'; 'geosite.dat' = 'ca859f452bdb35cb32a0bab47a166ca2000e69a8a9641d92ed3847d7e2573369' }
+          foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
+            $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
+            Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
+            $geoActual = (Get-FileHash "publish/bin/$dataName" -Algorithm SHA256).Hash.ToLower()
+            if ($geoActual -ne $geoHashes[$dataName]) { throw "$dataName SHA-256 verification failed" }
+          }
+          $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/${{ matrix.mihomo_asset }}"
+          Invoke-WebRequest -Uri $mihomoUrl -OutFile mihomo.archive
+          $mihomoActual = (Get-FileHash mihomo.archive -Algorithm SHA256).Hash.ToLower()
+          if ($mihomoActual -ne '${{ matrix.mihomo_sha256 }}') { throw "Mihomo SHA-256 verification failed" }
+          $mihomoDir = New-Item -ItemType Directory -Force publish/bin/mihomo
+          if ('${{ matrix.mihomo_asset }}'.EndsWith('.zip')) {
+            Expand-Archive mihomo.archive -DestinationPath mihomo-runtime -Force
+            $mihomo = Get-ChildItem mihomo-runtime -Recurse -File | Where-Object { $_.Name -like 'mihomo*.exe' } | Select-Object -First 1
+            if ($null -eq $mihomo) { throw "Mihomo binary missing from archive" }
+            Copy-Item $mihomo.FullName "$mihomoDir/${{ matrix.mihomo_binary }}" -Force
+          } else {
+            $input = [IO.File]::OpenRead((Resolve-Path mihomo.archive))
+            try {
+              $gzip = [IO.Compression.GZipStream]::new($input, [IO.Compression.CompressionMode]::Decompress)
+              try {
+                $output = [IO.File]::Create((Join-Path $mihomoDir.FullName '${{ matrix.mihomo_binary }}'))
+                try { $gzip.CopyTo($output) } finally { $output.Dispose() }
+              } finally { $gzip.Dispose() }
+            } finally { $input.Dispose() }
+          }
           $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/${{ matrix.singbox_asset }}"
           Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
           $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
@@ -96,11 +138,12 @@ jobs:
           Copy-Item $singbox.FullName "$singboxDir/${{ matrix.singbox_binary }}" -Force
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
+          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
       - name: Archive and checksum
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.1-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.2-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -109,7 +152,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.1-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.2-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -148,7 +191,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.1
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.2
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -181,22 +224,22 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.1 Stable
+            ## DicodePing 3.0.2 Stable
 
-            نسخهٔ نگه‌داری و قابلیت‌های شبکهٔ DicodePing با فیلتر دامنهٔ آنی، نوار وضعیت تازه و نتایج پایدارتر.
+            نسخهٔ پایداری و بروزرسانی DicodePing با اتصال هوشمند واقعی و هسته‌های کامل دسکتاپ.
 
-            - فیلتر دامنهٔ Only/Bypass با ذخیره و اعمال آنی در دسکتاپ و اندروید
-            - ماندگاری پینگ، سرعت و لوکیشن تا دریافت نتیجهٔ معتبر بعدی
-            - آزمایش امنیت پیکربندی سرورها (بتا) و نمایش مینیمال نتیجه
-            - مجموع دانلود/آپلود در نوار وضعیت همهٔ پلتفرم‌ها و اعلان اندروید
-            - کنترل اتصال تکرارشده در پایین دسکتاپ، تم‌های اصلاح‌شده و گزارش‌های منتقل‌شده به تنظیمات
+            - رفع کرش اتصال هوشمند و انتخاب/اتصال واقعی به کم‌تاخیرترین سرور
+            - ماندگاری پینگ، سرعت و لوکیشن و امکان اجرای دوبارهٔ آزمون
+            - Xray 26.7.28، Mihomo 1.19.30 و GeoFile رسمی 202608192217 با کنترل SHA-256
+            - نوار وضعیت تفکیک‌شده برای پینگ، کشور، دانلود و آپلود در دسکتاپ و اندروید
+            - رابط بروزرسانی، اشتراک و گزارش‌های ساده‌تر بدون نام تجاری قدیمی
 
             | Platform | Portable / direct | Installer / package |
             | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.1-windows-x64-portable.zip` | `DicodePing-3.0.1-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.1-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.1-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.1-macos-arm64-portable.zip` | — |
+            | Windows x64 | `DicodePing-3.0.2-windows-x64-portable.zip` | `DicodePing-3.0.2-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.2-linux-x64-portable.zip` | — |
+            | macOS Intel | `DicodePing-3.0.2-macos-x64-portable.zip` | — |
+            | macOS Apple Silicon | `DicodePing-3.0.2-macos-arm64-portable.zip` | — |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.

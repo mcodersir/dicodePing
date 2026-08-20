@@ -54,13 +54,14 @@ fun MainScreen(
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
-    val displayText = mainViewModel.formatStatus(uiState.status)
+    val pingText = mainViewModel.formatPingStatus(uiState.status)
+    val locationText = mainViewModel.formatLocationStatus(uiState.status)
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
-    val allServers by remember(mainViewModel) {
-        mainViewModel.serversForGroup("")
+    val smartConnectServers by remember(mainViewModel, uiState.selectedGroupId) {
+        mainViewModel.serversForGroup(uiState.selectedGroupId)
     }.collectAsStateWithLifecycle()
 
     val isDarkTheme = LocalDarkTheme.current
@@ -82,7 +83,7 @@ fun MainScreen(
         }
     }
 
-    LaunchedEffect(autoConnectPending, uiState.isTesting, allServers) {
+    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
         if (!autoConnectPending) return@LaunchedEffect
         if (uiState.isTesting) {
             autoConnectStarted = true
@@ -90,7 +91,7 @@ fun MainScreen(
         }
         if (!autoConnectStarted) return@LaunchedEffect
 
-        val best = allServers
+        val best = smartConnectServers
             .filter { it.testDelayMillis > 0L }
             .minByOrNull { it.testDelayMillis }
         autoConnectPending = false
@@ -260,9 +261,16 @@ fun MainScreen(
                     isAutoConnecting = autoConnectPending,
                     onSmartConnect = {
                         if (!isRunning && !autoConnectPending) {
-                            autoConnectPending = true
-                            autoConnectStarted = false
-                            onAction(MainAction.TestRealAllServers)
+                            val cachedBest = smartConnectServers.filter { it.testDelayMillis > 0L }
+                                .minByOrNull { it.testDelayMillis }
+                            if (cachedBest != null) {
+                                onAction(MainAction.SelectServer(cachedBest.guid))
+                                scope.launch { delay(120); onAction(MainAction.ToggleService) }
+                            } else {
+                                autoConnectPending = true
+                                autoConnectStarted = false
+                                onAction(MainAction.TestRealAllServers)
+                            }
                         }
                     },
                     onAction = onAction,
@@ -286,7 +294,8 @@ fun MainScreen(
             },
             bottomBar = {
                 MainBottomBar(
-                    displayText = displayText,
+                    pingText = pingText,
+                    locationText = locationText,
                     trafficText = "کل ↑ ${trafficTotals.first.toTrafficString()}  ↓ ${trafficTotals.second.toTrafficString()}",
                     onClick = { onAction(MainAction.TestCurrentServer) }
                 )

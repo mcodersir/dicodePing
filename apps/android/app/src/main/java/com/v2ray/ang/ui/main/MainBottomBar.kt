@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,7 +24,8 @@ import com.v2ray.ang.ui.compose.AppDivider
 
 @Composable
 fun MainBottomBar(
-    displayText: String,
+    pingText: String,
+    locationText: String,
     trafficText: String,
     onClick: () -> Unit,
 ) {
@@ -43,11 +45,11 @@ fun MainBottomBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = displayText,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.semantics { contentDescription = displayText }
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = pingText, style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.semantics { contentDescription = pingText })
+                if (locationText.isNotBlank()) Text(text = locationText, style = MaterialTheme.typography.bodySmall)
+            }
             Text(text = trafficText, style = MaterialTheme.typography.bodySmall)
         }
     }

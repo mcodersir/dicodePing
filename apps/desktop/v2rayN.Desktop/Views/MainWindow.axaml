@@ -55,12 +55,7 @@
                     </MenuItem>
 
                     <MenuItem Header="{x:Static resx:ResUI.menuSubscription}">
-                        <MenuItem x:Name="menuSubSetting" Header="{x:Static resx:ResUI.menuSubSetting}" />
-                        <Separator />
                         <MenuItem x:Name="menuSubUpdate" Header="{x:Static resx:ResUI.menuSubUpdate}" />
-                        <MenuItem x:Name="menuSubUpdateViaProxy" Header="{x:Static resx:ResUI.menuSubUpdateViaProxy}" />
-                        <MenuItem x:Name="menuSubGroupUpdate" Header="{x:Static resx:ResUI.menuSubGroupUpdate}" />
-                        <MenuItem x:Name="menuSubGroupUpdateViaProxy" Header="{x:Static resx:ResUI.menuSubGroupUpdateViaProxy}" />
                     </MenuItem>
 
                     <MenuItem Header="{x:Static resx:ResUI.menuSetting}">
@@ -84,6 +79,7 @@
                             IsVisible="False" />
                         <MenuItem x:Name="menuClearServerStatistics" Header="{x:Static resx:ResUI.menuClearServerStatistics}" />
                         <MenuItem x:Name="menuViewLog" Header="مشاهده گزارش‌ها" />
+                        <MenuItem x:Name="menuCheckUpdate" Header="بروزرسانی DicodePing و هسته‌ها" />
                         <Separator />
                         <MenuItem Header="{x:Static resx:ResUI.menuRegionalPresets}">
                             <MenuItem x:Name="menuRegionalPresetsDefault" Header="{x:Static resx:ResUI.menuRegionalPresetsDefault}" />
@@ -92,11 +88,6 @@
                         </MenuItem>
                         <MenuItem x:Name="menuBackupAndRestore" Header="{x:Static resx:ResUI.menuBackupAndRestore}" />
                         <MenuItem x:Name="menuOpenTheFileLocation" Header="{x:Static resx:ResUI.menuOpenTheFileLocation}" />
-                    </MenuItem>
-
-                    <MenuItem x:Name="menuHelp" Header="{x:Static resx:ResUI.menuHelp}">
-                        <MenuItem x:Name="menuCheckUpdate" Header="{x:Static resx:ResUI.menuCheckUpdate}" />
-                        <Separator />
                     </MenuItem>
 
                     <MenuItem x:Name="menuReload" Header="{x:Static resx:ResUI.menuReload}" />
