@@ -240,6 +240,14 @@ fun MainScreen(
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
+                    isAutoConnecting = autoConnectPending,
+                    onSmartConnect = {
+                        if (!isRunning && !autoConnectPending) {
+                            autoConnectPending = true
+                            autoConnectStarted = false
+                            onAction(MainAction.TestRealAllServers)
+                        }
+                    },
                     onAction = onAction,
                     onMoreMenuAction = { action ->
                         when (action) {
@@ -252,7 +260,7 @@ fun MainScreen(
                             MainMoreMenuAction.SortByTestResults -> onAction(MainAction.SortByTestResults)
                             MainMoreMenuAction.TestAll -> onAction(MainAction.TestAllServers)
                             MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
-                            MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestCurrentServer)
+                            MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestAllLocations)
                             MainMoreMenuAction.UpdateSubscriptions -> onAction(MainAction.UpdateSubscriptions)
                         }
                     }
@@ -262,18 +270,7 @@ fun MainScreen(
                 MainBottomBar(
                     displayText = displayText,
                     isRunning = isRunning,
-                    isDarkTheme = isDarkTheme,
-                    isAutoConnecting = autoConnectPending,
                     onManualConnect = { onAction(MainAction.ToggleService) },
-                    onAutoConnect = {
-                        if (isRunning) {
-                            onAction(MainAction.ToggleService)
-                        } else if (!autoConnectPending) {
-                            autoConnectPending = true
-                            autoConnectStarted = false
-                            onAction(MainAction.TestRealAllServers)
-                        }
-                    },
                 )
             },
             floatingActionButton = {},

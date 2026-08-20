@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,24 +23,18 @@ import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.v2ray.ang.R
 import com.v2ray.ang.ui.compose.AppDivider
 import com.v2ray.ang.ui.compose.colorFabActive
-import com.v2ray.ang.ui.compose.colorFabInactiveDark
-import com.v2ray.ang.ui.compose.colorFabInactiveLight
 
 @Composable
 fun MainBottomBar(
     displayText: String,
     isRunning: Boolean,
-    isDarkTheme: Boolean,
-    isAutoConnecting: Boolean,
     onManualConnect: () -> Unit,
-    onAutoConnect: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -70,34 +63,14 @@ fun MainBottomBar(
             onClick = onManualConnect,
             modifier = Modifier
                 .align(AbsoluteAlignment.TopLeft)
-                .padding(start = 18.dp)
-                .offset(y = (-92).dp),
+                .padding(start = 28.dp)
+                .offset(y = (-104).dp),
             containerColor = if (isRunning) colorFabActive else MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
             Icon(
                 painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp) else painterResource(R.drawable.ic_play_24dp),
                 contentDescription = stringResource(if (isRunning) R.string.acc_stop else R.string.fab_manual_connect),
-            )
-        }
-        FloatingActionButton(
-            onClick = onAutoConnect,
-            modifier = Modifier
-                .align(AbsoluteAlignment.TopRight)
-                .padding(end = 18.dp)
-                .offset(y = (-92).dp),
-            containerColor = if (isRunning) colorFabActive else if (isDarkTheme) colorFabInactiveDark else colorFabInactiveLight,
-            contentColor = if (!isRunning && isDarkTheme) Color(0xFF111820) else Color.White,
-        ) {
-            if (isAutoConnecting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp,
-                )
-            } else Icon(
-                painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp) else painterResource(R.drawable.ic_flash_on_24dp),
-                contentDescription = stringResource(if (isRunning) R.string.acc_stop else R.string.fab_auto_connect_best),
             )
         }
     }

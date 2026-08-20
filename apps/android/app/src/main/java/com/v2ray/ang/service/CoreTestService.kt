@@ -123,6 +123,7 @@ class CoreTestService : Service() {
                 context = this,
                 guids = guidsList,
                 onlyTcp = message.onlyTcp,
+                locationOnly = message.locationOnly,
                 onEvent = { event -> handleWorkerEvent(event, message) { activeWorkers.remove(worker) } }
             )
             activeWorkers.add(worker)
@@ -146,7 +147,11 @@ class CoreTestService : Service() {
             }
 
             is RealPingEvent.Result -> {
-                MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
+                if (message.locationOnly) {
+                    MmkvManager.encodeServerLocation(event.guid, event.countryCode, event.ipAddress)
+                } else {
+                    MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
+                }
                 MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_SUCCESS, event.guid)
             }
 

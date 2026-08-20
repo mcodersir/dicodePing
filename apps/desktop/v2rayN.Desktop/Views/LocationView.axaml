@@ -1,0 +1,27 @@
+<UserControl
+    x:Class="v2rayN.Desktop.Views.LocationView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    x:DataType="vms:ProfilesViewModel">
+    <Border Margin="8" Padding="10" Theme="{DynamicResource CardBorder}">
+        <DockPanel>
+            <TextBlock
+                DockPanel.Dock="Top"
+                Margin="0,0,0,8"
+                Text="لوکیشن سرورها (بتا) — آزمایش لوکیشن از آیکون کره‌زمین اجرا می‌شود."
+                TextWrapping="Wrap" />
+            <DataGrid
+                AutoGenerateColumns="False"
+                CanUserResizeColumns="True"
+                IsReadOnly="True"
+                ItemsSource="{Binding ProfileItems}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Width="2*" Binding="{Binding Remarks}" Header="سرور" />
+                    <DataGridTextColumn Width="2*" Binding="{Binding Address}" Header="آدرس" />
+                    <DataGridTextColumn Width="2*" Binding="{Binding IpInfo}" Header="لوکیشن و IP" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+    </Border>
+</UserControl>

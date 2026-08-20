@@ -6,6 +6,8 @@ data class TestServiceMessage(
     val key: Int,
     val subscriptionId: String = "",
     val serverGuids: List<String> = emptyList(),
-    val onlyTcp: Boolean = false
+    val onlyTcp: Boolean = false,
+    /** Runs the independent server-location probe without replacing saved ping. */
+    val locationOnly: Boolean = false
 ) : Serializable
 

@@ -201,12 +201,12 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             await ServerSpeedtest(ESpeedActionType.Realping);
         }, canEditRemove);
-        // Location beta uses the same real proxy path as the delay test; the
-        // IPAPI response is persisted and rendered as country flag + address.
+        // Location beta probes every visible profile through its own temporary
+        // proxy and only updates the location field, never the saved latency.
         LocationTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            await ServerSpeedtest(ESpeedActionType.Realping);
-        }, canEditRemove);
+            await ServerSpeedtest(ESpeedActionType.Location);
+        });
         UdpTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await ServerSpeedtest(ESpeedActionType.UdpTest);
@@ -814,7 +814,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public async Task ServerSpeedtest(ESpeedActionType actionType)
     {
         List<ProfileItem>? lstSelected;
-        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping)
+        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location)
         {
             if (actionType == ESpeedActionType.FastRealping)
             {

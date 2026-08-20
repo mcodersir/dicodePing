@@ -8,6 +8,7 @@ import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
 import java.io.IOException
 import java.net.InetSocketAddress
+import java.net.InetAddress
 import java.net.Socket
 import java.net.UnknownHostException
 
@@ -90,5 +91,26 @@ object SpeedtestManager {
             country = country,
             ipAddress = ip,
         )
+    }
+
+    /**
+     * Beta location lookup for a configuration endpoint. This intentionally uses
+     * the endpoint address, rather than the currently selected VPN route, so a
+     * batch test can never overwrite or be confused with a saved real ping.
+     */
+    fun getServerLocationInfo(host: String?): RemoteEndpointInfo? {
+        if (host.isNullOrBlank()) return null
+        val ip = runCatching { InetAddress.getByName(host).hostAddress }.getOrNull() ?: return null
+        val baseUrl = MmkvManager.decodeSettingsString(AppConfig.PREF_IP_API_URL)
+            .takeIf { !it.isNullOrBlank() } ?: AppConfig.IP_API_URL
+        val content = HttpUtil.getUrlContent(
+            UrlContentRequest(url = "${baseUrl.trimEnd('/')}/$ip", timeout = 5000)
+        ) ?: return RemoteEndpointInfo(country = null, ipAddress = ip)
+        val info = JsonUtil.fromJsonSafe(content, IPAPIInfo::class.java)
+        val country = info?.let {
+            listOf(it.country_code, it.countryCode, it.location?.country_code, it.country)
+                .firstOrNull { value -> !value.isNullOrBlank() }
+        }
+        return RemoteEndpointInfo(country = country, ipAddress = ip)
     }
 }

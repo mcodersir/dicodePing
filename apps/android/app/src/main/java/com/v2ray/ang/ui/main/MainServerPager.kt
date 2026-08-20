@@ -433,17 +433,28 @@ fun ServerListItem(
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(typeDescription, style = MaterialTheme.typography.bodySmall, color = colorConfigType, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.End) {
                     val flag = countryCode?.asCountryFlag()
-                    if (!flag.isNullOrBlank()) {
-                        Text(flag, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.width(4.dp))
+                    val locationText = listOfNotNull(countryCode, ipAddress)
+                        .joinToString(" ")
+                        .takeIf { it.isNotBlank() }
+                    if (!locationText.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!flag.isNullOrBlank()) {
+                                Text(flag, style = MaterialTheme.typography.bodySmall)
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(
+                                locationText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
-                    Text(
-                        listOfNotNull(
-                            listOfNotNull(countryCode, ipAddress).joinToString(" ").takeIf { it.isNotBlank() },
-                            testResult.takeIf { it.isNotBlank() }
-                        ).joinToString("  •  "),
+                    if (testResult.isNotBlank()) Text(
+                        testResult,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (testDelayMillis < 0L) colorPingRed else colorPing,
                         maxLines = 1,

@@ -46,6 +46,7 @@ class RealPingWorkerService(
     private val context: Context,
     private val guids: List<String>,
     private val onlyTcp: Boolean = false,
+    private val locationOnly: Boolean = false,
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
     private val job = SupervisorJob()
@@ -63,8 +64,11 @@ class RealPingWorkerService(
                 runningCount.incrementAndGet()
                 try {
                     val result = if (onlyTcp) startTcping(guid) else startRealPing(guid)
+                    val location = if (locationOnly) {
+                        SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server)
+                    } else null
                     if (scope.isActive) {
-                        onEvent(RealPingEvent.Result(guid, result))
+                        onEvent(RealPingEvent.Result(guid, result, location?.country, location?.ipAddress))
                     }
                 } catch (_: Throwable) {
                     // ignore

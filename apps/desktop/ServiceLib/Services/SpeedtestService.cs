@@ -53,6 +53,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 await RunRealPingBatchAsync(lstSelected, exitLoopKey);
                 break;
 
+            case ESpeedActionType.Location:
+                await RunRealPingBatchAsync(lstSelected, exitLoopKey, locationOnly: true);
+                break;
+
             case ESpeedActionType.UdpTest:
                 await RunUdpTestBatchAsync(lstSelected, exitLoopKey);
                 break;
@@ -123,6 +127,11 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                     ProfileExManager.Instance.SetTestDelay(it.IndexId, 0);
                     ProfileExManager.Instance.SetTestSpeed(it.IndexId, 0);
                     break;
+
+                case ESpeedActionType.Location:
+                    // Location tests must leave the last saved ping untouched.
+                    await UpdateIpInfoFunc(it.IndexId, ResUI.Speedtesting);
+                    break;
             }
         }
 
@@ -183,7 +192,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         }
     }
 
-    private async Task RunRealPingBatchAsync(List<ServerTestItem> lstSelected, string exitLoopKey, int pageSize = 0)
+    private async Task RunRealPingBatchAsync(List<ServerTestItem> lstSelected, string exitLoopKey, int pageSize = 0, bool locationOnly = false)
     {
         if (pageSize <= 0)
         {
@@ -194,7 +203,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         List<ServerTestItem> lstFailed = [];
         foreach (var lst in lstTest)
         {
-            var ret = await RunRealPingAsync(lst, exitLoopKey);
+            var ret = await RunRealPingAsync(lst, exitLoopKey, locationOnly);
             if (ret == false)
             {
                 lstFailed.AddRange(lst);
@@ -216,16 +225,23 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
             if (pageSizeNext > _config.SpeedTestItem.MixedConcurrencyCount)
             {
-                await RunRealPingBatchAsync(lstFailed, exitLoopKey, pageSizeNext);
+                await RunRealPingBatchAsync(lstFailed, exitLoopKey, pageSizeNext, locationOnly);
             }
             else
             {
-                await RunMixedTestAsync(lstSelected, _config.SpeedTestItem.MixedConcurrencyCount, false, exitLoopKey);
+                if (locationOnly)
+                {
+                    await RunRealPingAsync(lstFailed, exitLoopKey, locationOnly: true);
+                }
+                else
+                {
+                    await RunMixedTestAsync(lstSelected, _config.SpeedTestItem.MixedConcurrencyCount, false, exitLoopKey);
+                }
             }
         }
     }
 
-    private async Task<bool> RunRealPingAsync(List<ServerTestItem> selecteds, string exitLoopKey)
+    private async Task<bool> RunRealPingAsync(List<ServerTestItem> selecteds, string exitLoopKey, bool locationOnly = false)
     {
         ProcessService processService = null;
         try
@@ -253,7 +269,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
                 tasks.Add(Task.Run(async () =>
                 {
-                    await DoRealPing(it);
+                    await DoRealPing(it, locationOnly);
                 }));
             }
             await Task.WhenAll(tasks);
@@ -416,13 +432,16 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         await Task.WhenAll(tasks);
     }
 
-    private async Task<int> DoRealPing(ServerTestItem it)
+    private async Task<int> DoRealPing(ServerTestItem it, bool locationOnly = false)
     {
         var webProxy = new WebProxy($"socks5://{Global.Loopback}:{it.Port}");
         var responseTime = await ConnectionHandler.GetRealPingTime(webProxy);
 
-        ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
-        await UpdateFunc(it.IndexId, responseTime.ToString());
+        if (!locationOnly)
+        {
+            ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+            await UpdateFunc(it.IndexId, responseTime.ToString());
+        }
 
         if (!_config.UiItem.HideColumnIpInfo && responseTime > 0)
         {

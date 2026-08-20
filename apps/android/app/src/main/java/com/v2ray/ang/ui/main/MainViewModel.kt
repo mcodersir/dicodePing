@@ -195,6 +195,7 @@ class MainViewModel(
             MainAction.RefreshGroups -> setupGroupTab(forceRefresh = true)
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
+            MainAction.TestAllLocations -> testAllLocations()
             MainAction.CancelTesting -> cancelAllPing()
             MainAction.RemoveAllServers -> removeAllServerAsync()
             MainAction.RemoveDuplicateServers -> removeDuplicateServerAsync()
@@ -735,6 +736,25 @@ class MainViewModel(
                     subscriptionId = groupId,
                     serverGuids = if (keywordFilter.isNotEmpty()) serverGuids else emptyList(),
                     onlyTcp = onlyTcp
+                )
+            )
+        }
+    }
+
+    fun testAllLocations() {
+        dataSource.cancelAllPing()
+        val groupId = uiState.value.selectedGroupId
+        val servers = currentServers()
+        if (servers.isEmpty()) return
+        testingGroupId = groupId
+        _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
+        viewModelScope.launch(ioDispatcher) {
+            dataSource.sendMsg2TestService(
+                TestServiceMessage(
+                    key = AppConfig.MSG_MEASURE_CONFIG_START,
+                    subscriptionId = groupId,
+                    serverGuids = if (keywordFilter.isNotEmpty()) servers.map { it.guid } else emptyList(),
+                    locationOnly = true
                 )
             )
         }

@@ -128,7 +128,8 @@ public static class ConfigHandler
         // open with the information/proxy/connections panel visible below the
         // server list. This is the useful DicodePing layout instead of a blank
         // hidden pane.
-        if (config.UiItem.MainGirdHeight1 <= 0 || config.UiItem.MainGirdHeight2 <= 0)
+        if (config.UiItem.MainGirdOrientation == EGirdOrientation.Tab
+            || config.UiItem.MainGirdHeight1 <= 0 || config.UiItem.MainGirdHeight2 <= 0)
         {
             config.UiItem.MainGirdOrientation = EGirdOrientation.Vertical;
             config.UiItem.MainGirdHeight1 = 3;

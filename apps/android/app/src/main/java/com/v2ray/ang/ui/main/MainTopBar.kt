@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,8 @@ fun MainTopBar(
     onSearchClose: () -> Unit,
     onSearchToggle: (Boolean) -> Unit,
     onMenuClick: () -> Unit,
+    isAutoConnecting: Boolean,
+    onSmartConnect: () -> Unit,
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit
 ) {
@@ -71,6 +75,13 @@ fun MainTopBar(
             if (!showSearch) {
                 IconButton(onClick = { onSearchToggle(true) }) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
+                }
+                IconButton(onClick = onSmartConnect, enabled = !isAutoConnecting) {
+                    if (isAutoConnecting) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(painterResource(R.drawable.ic_flash_on_24dp), contentDescription = stringResource(R.string.fab_auto_connect_best))
+                    }
                 }
             }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
