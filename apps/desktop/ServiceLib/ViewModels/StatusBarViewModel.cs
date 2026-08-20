@@ -481,7 +481,6 @@ public partial class StatusBarViewModel : MyReactiveObject
                     return;
                 }
             }
-            TotalTrafficDisplay = $"کل ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
         }
 
         await ConfigHandler.SaveConfig(_config);
@@ -543,6 +542,7 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         try
         {
+            TotalTrafficDisplay = $"کل ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
             if (AppManager.Instance.IsRunningCore(ECoreType.sing_box))
             {
                 SpeedProxyDisplay = string.Format(ResUI.SpeedDisplayText, EInboundProtocol.mixed, Utils.HumanFy(update.ProxyUp), Utils.HumanFy(update.ProxyDown));
