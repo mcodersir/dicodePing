@@ -9,6 +9,10 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
@@ -25,11 +29,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.ui.compose.LocalDarkTheme
 import com.v2ray.ang.ui.compose.QRCodeDialog
+import com.v2ray.ang.ui.compose.colorFabActive
 import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -269,11 +277,26 @@ fun MainScreen(
             bottomBar = {
                 MainBottomBar(
                     displayText = displayText,
-                    isRunning = isRunning,
-                    onManualConnect = { onAction(MainAction.ToggleService) },
                 )
             },
-            floatingActionButton = {},
+            // Persian is RTL: End maps to the visual left edge requested for
+            // the manual-connect control, while Scaffold keeps it above the bar.
+            floatingActionButtonPosition = FabPosition.End,
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { onAction(MainAction.ToggleService) },
+                    containerColor = if (isRunning) colorFabActive else MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(
+                        painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp)
+                        else painterResource(R.drawable.ic_play_24dp),
+                        contentDescription = stringResource(
+                            if (isRunning) R.string.acc_stop else R.string.fab_manual_connect
+                        ),
+                    )
+                }
+            },
         ) { innerPadding ->
             val layoutDirection = LocalLayoutDirection.current
 

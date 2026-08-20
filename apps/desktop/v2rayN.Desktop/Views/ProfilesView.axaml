@@ -97,9 +97,11 @@
                     <Button
                         x:Name="btnConnectSelected"
                         Margin="4,0,0,0"
-                        Classes="FabButton"
+                        MinWidth="150"
+                        Padding="14,7"
+                        Classes.Success="{Binding IsConnected}"
                         ToolTip.Tip="اتصال به مسیر انتخاب‌شده؛ هنگام اتصال برای قطع دوباره بزنید">
-                        <TextBlock Text="اتصال/قطع" FontSize="11" />
+                        <TextBlock Text="{Binding ConnectionStatusText}" FontSize="11" />
                     </Button>
                     <Button
                         x:Name="menuMixedTestServer"
@@ -115,7 +117,7 @@
                         Margin="{StaticResource MarginLr4}"
                         Classes="IconButton Success"
                         ToolTip.Tip="آزمایش لوکیشن همهٔ سرورها (بتا)">
-                        <PathIcon Data="{StaticResource building_ping}" />
+                        <PathIcon Data="{StaticResource globe_location}" />
                     </Button>
                 </StackPanel>
 

@@ -91,6 +91,12 @@ public class ProfileExManager
             catch (Exception ex)
             {
                 Logging.SaveLog(_tag, ex);
+                // A transient SQLite lock must not silently discard completed
+                // measurements. Put every failed row back on the next flush.
+                foreach (var failed in lstInserts.Concat(lstUpdates))
+                {
+                    IndexIdEnqueue(failed.IndexId);
+                }
             }
         }
         }

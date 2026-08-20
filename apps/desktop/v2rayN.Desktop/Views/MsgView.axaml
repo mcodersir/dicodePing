@@ -12,11 +12,12 @@
     Design.DataContext="{x:Static dd:DesignData.Msg}"
     mc:Ignorable="d">
     <DockPanel Margin="2">
-        <WrapPanel
+        <Border
             Margin="{StaticResource Margin4}"
-            VerticalAlignment="Center"
             DockPanel.Dock="Top"
-            Orientation="Horizontal">
+            Padding="8"
+            Theme="{DynamicResource CardBorder}">
+        <WrapPanel VerticalAlignment="Center" Orientation="Horizontal">
 
             <TextBox
                 x:Name="cmbMsgFilter"
@@ -66,12 +67,22 @@
                 IsChecked="True"
                 Theme="{DynamicResource SimpleToggleSwitch}" />
         </WrapPanel>
+        </Border>
 
         <Border
             Margin="{StaticResource Margin8}"
-            Padding="6"
+            Padding="10"
             Theme="{DynamicResource CardBorder}">
+            <Grid RowDefinitions="Auto,*">
+            <Border
+                Grid.Row="0"
+                Margin="0,0,0,8"
+                Padding="10,6"
+                Background="{DynamicResource SemiColorFill0}">
+                <TextBlock FontWeight="SemiBold" Text="رویدادهای DicodePing" />
+            </Border>
             <avaloniaEdit:TextEditor
+                Grid.Row="1"
                 Name="txtMsg"
                 FlowDirection="LeftToRight"
                 IsReadOnly="True"
@@ -104,6 +115,7 @@
                 </MenuFlyout>
             </avaloniaEdit:TextEditor.ContextFlyout>
             </avaloniaEdit:TextEditor>
+            </Grid>
         </Border>
 
     </DockPanel>

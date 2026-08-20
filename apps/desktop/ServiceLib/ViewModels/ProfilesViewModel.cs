@@ -43,6 +43,12 @@ public partial class ProfilesViewModel : MyReactiveObject
     [Reactive]
     public partial string ServerFilter { get; set; }
 
+    [Reactive]
+    public partial bool IsConnected { get; set; }
+
+    [Reactive]
+    public partial string ConnectionStatusText { get; set; }
+
     #endregion ObservableCollection
 
     #region Menu
@@ -99,6 +105,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ProfilesViewModel()
     {
         _config = AppManager.Instance.Config;
+        ConnectionStatusText = "اتصال TUN";
 
         #region WhenAnyValue && ReactiveCommand
 
@@ -119,6 +126,14 @@ public partial class ProfilesViewModel : MyReactiveObject
           x => x.ServerFilter,
           y => y != null && _serverFilter != y)
               .Subscribe(async c => await ServerFilterChanged(c));
+
+        Observable.Interval(TimeSpan.FromMilliseconds(500))
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(_ =>
+            {
+                IsConnected = CoreManager.Instance.IsRunning;
+                ConnectionStatusText = IsConnected ? "متصل؛ برای قطع کلیک کنید" : "اتصال TUN";
+            });
 
         //servers delete
         EditServerCmd = ReactiveCommand.CreateFromTask(async () =>
@@ -300,7 +315,9 @@ public partial class ProfilesViewModel : MyReactiveObject
             NoticeManager.Instance.Enqueue(result.Delay);
             if (result.Delay == ResUI.SpeedtestingCompleted)
             {
-                await RefreshServersBiz();
+                // Every successful row is already updated and persisted live.
+                // Rebuilding the collection here caused the whole grid to flash.
+                await ProfileExManager.Instance.SaveTo();
             }
             return;
         }
@@ -313,12 +330,14 @@ public partial class ProfilesViewModel : MyReactiveObject
         // Progress messages such as "testing" must not overwrite the last
         // measured value. Keep the previous real ping visible until a numeric
         // result arrives, and persist every completed result immediately.
-        if (result.Delay.IsNotEmpty() && int.TryParse(result.Delay, out var parsedDelay))
+        if (result.Delay.IsNotEmpty() && int.TryParse(result.Delay, out var parsedDelay) && parsedDelay > 0)
         {
             item.Delay = parsedDelay;
             item.DelayVal = result.Delay ?? string.Empty;
         }
-        if (result.Speed.IsNotEmpty())
+        if (result.Speed.IsNotEmpty()
+            && decimal.TryParse(result.Speed, out var parsedSpeed)
+            && parsedSpeed > 0)
         {
             item.SpeedVal = result.Speed ?? string.Empty;
         }
@@ -402,8 +421,31 @@ public partial class ProfilesViewModel : MyReactiveObject
         var lstModel = await GetProfileItemsEx(_config.SubIndexId, _serverFilter);
         _lstProfile = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(lstModel)) ?? [];
 
-        ProfileItems.Clear();
-        ProfileItems.AddRange(lstModel ?? []);
+        // A background subscription refresh may overlap a test. Prefer the
+        // currently visible valid measurements if the DB snapshot is older.
+        var current = ProfileItems.ToDictionary(item => item.IndexId, item => item);
+        foreach (var next in lstModel ?? [])
+        {
+            if (!current.TryGetValue(next.IndexId, out var previous))
+            {
+                continue;
+            }
+            if (next.Delay <= 0 && previous.Delay > 0)
+            {
+                next.Delay = previous.Delay;
+                next.DelayVal = previous.DelayVal;
+            }
+            if (next.Speed <= 0 && previous.Speed > 0)
+            {
+                next.Speed = previous.Speed;
+                next.SpeedVal = previous.SpeedVal;
+            }
+            if (next.IpInfo.IsNullOrEmpty() && previous.IpInfo.IsNotEmpty())
+            {
+                next.IpInfo = previous.IpInfo;
+            }
+        }
+        ProfileItems.ReplaceAll(lstModel ?? []);
         if (lstModel?.Count > 0)
         {
             ProfileItemModel? selected = null;
@@ -639,7 +681,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (CoreManager.Instance.IsRunning)
         {
             await CoreManager.Instance.CoreStop();
-            NoticeManager.Instance.Enqueue("TUN disconnected");
+            IsConnected = false;
+            NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
             return;
         }
 
@@ -649,14 +692,19 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
+        _config.TunModeItem.EnableTun = true;
+        await ConfigHandler.SaveConfig(_config);
         if (SelectedProfile.IndexId == _config.IndexId)
         {
             NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
             Reload();
-            return;
         }
-        NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
-        await SetDefaultServer(SelectedProfile.IndexId);
+        else
+        {
+            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            await SetDefaultServer(SelectedProfile.IndexId);
+        }
+        await WaitForConnectionAsync();
     }
 
     private async Task ConnectBestAsync()
@@ -664,7 +712,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (CoreManager.Instance.IsRunning)
         {
             await CoreManager.Instance.CoreStop();
-            NoticeManager.Instance.Enqueue("TUN disconnected");
+            IsConnected = false;
+            NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
             return;
         }
 
@@ -688,14 +737,31 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
 
         SelectedProfile = best;
+        _config.TunModeItem.EnableTun = true;
+        await ConfigHandler.SaveConfig(_config);
         if (best.IndexId == _config.IndexId)
         {
             NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
             Reload();
-            return;
         }
-        NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
-        await SetDefaultServer(best.IndexId);
+        else
+        {
+            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            await SetDefaultServer(best.IndexId);
+        }
+        await WaitForConnectionAsync();
+    }
+
+    private async Task WaitForConnectionAsync()
+    {
+        for (var attempt = 0; attempt < 40 && !CoreManager.Instance.IsRunning; attempt++)
+        {
+            await Task.Delay(100);
+        }
+        IsConnected = CoreManager.Instance.IsRunning;
+        NoticeManager.Instance.Enqueue(IsConnected
+            ? "اتصال TUN برقرار شد"
+            : "اتصال TUN برقرار نشد؛ جزئیات را در لاگ بررسی کنید");
     }
 
     public async Task ShareServerAsync()

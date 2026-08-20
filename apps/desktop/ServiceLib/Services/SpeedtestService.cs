@@ -168,7 +168,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                     {
                         var responseTime = await GetTcpingTime(it.Address, it.Port);
 
-                        ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+                        if (responseTime > 0)
+                        {
+                            ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+                        }
                         await UpdateFunc(it.IndexId, responseTime.ToString());
                     }
                     catch (Exception ex)
@@ -445,12 +448,19 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
         // The location action deliberately has no ping requirement: its sole
         // job is to discover the egress country through the temporary proxy.
-        if (!_config.UiItem.HideColumnIpInfo && (responseTime > 0 || locationOnly))
+        if ((locationOnly || !_config.UiItem.HideColumnIpInfo) && (responseTime > 0 || locationOnly))
         {
             var ipInfo = await ConnectionHandler.GetIPInfo(webProxy);
-            var ipStr = ipInfo?.ToString() ?? Global.None;
-            ProfileExManager.Instance.SetTestIpInfo(it.IndexId, ipStr);
-            await UpdateIpInfoFunc(it.IndexId, ipStr);
+            if (ipInfo is not null)
+            {
+                var ipStr = ipInfo.Value.ToString();
+                ProfileExManager.Instance.SetTestIpInfo(it.IndexId, ipStr);
+                await UpdateIpInfoFunc(it.IndexId, ipStr);
+            }
+            else
+            {
+                await UpdateIpInfoFunc(it.IndexId, ResUI.SpeedtestingSkip);
+            }
         }
         else
         {
@@ -491,7 +501,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             // ignored
         }
 
-        ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+        if (responseTime > 0)
+        {
+            ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+        }
         await UpdateFunc(it.IndexId, responseTime.ToString());
         return responseTime;
     }
@@ -547,7 +560,9 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task UpdateFunc(string indexId, string delay, string speed = "")
     {
         await _updateFunc?.Invoke(new() { IndexId = indexId, Delay = delay, Speed = speed });
-        if (indexId.IsNotEmpty() && speed.IsNotEmpty())
+        if (indexId.IsNotEmpty()
+            && decimal.TryParse(speed, out var completedSpeed)
+            && completedSpeed > 0)
         {
             ProfileExManager.Instance.SetTestMessage(indexId, speed);
         }
