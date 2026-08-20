@@ -245,7 +245,8 @@ public class WebDavItem
 [Serializable]
 public class CheckUpdateItem
 {
-    public bool CheckPreReleaseUpdate { get; set; }
+    // DicodePing is currently published through its own prerelease channel.
+    public bool CheckPreReleaseUpdate { get; set; } = true;
     public List<string>? SelectedCoreTypes { get; set; }
 }
 

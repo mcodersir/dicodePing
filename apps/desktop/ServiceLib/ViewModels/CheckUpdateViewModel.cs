@@ -32,7 +32,11 @@ public partial class CheckUpdateViewModel : MyReactiveObject
             _ = UpdateView(_v2rayN, ex.Message);
         });
 
-        EnableCheckPreReleaseUpdate = _config.CheckUpdateItem.CheckPreReleaseUpdate;
+        // DicodePing's release feed is intentionally prerelease-first during
+        // the v3 rollout. Migrate older saved settings so update checks do not
+        // hit GitHub's empty stable-only endpoint and report a false failure.
+        _config.CheckUpdateItem.CheckPreReleaseUpdate = true;
+        EnableCheckPreReleaseUpdate = true;
 
         this.WhenAnyValue(
         x => x.EnableCheckPreReleaseUpdate,

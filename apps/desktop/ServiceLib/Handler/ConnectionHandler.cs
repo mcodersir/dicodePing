@@ -105,29 +105,32 @@ public static class ConnectionHandler
     {
         try
         {
-            var url = AppManager.Instance.Config.SpeedTestItem.IPAPIUrl;
-            if (url.IsNullOrEmpty())
-            {
-                return null;
-            }
-
             var downloadHandle = new DownloadService();
-            var result = await downloadHandle.TryDownloadString(url, webProxy, "");
-            if (result == null)
+            var preferredUrl = AppManager.Instance.Config.SpeedTestItem.IPAPIUrl;
+            // Some IP APIs are intermittently blocked. Try the configured API
+            // first, then the product's supported fallbacks through the same
+            // temporary proxy; this is especially important for the beta
+            // location action and never touches the saved ping value.
+            var urls = Global.IPAPIUrls
+                .Prepend(preferredUrl)
+                .Where(url => url.IsNotEmpty())
+                .Distinct();
+            foreach (var url in urls)
             {
-                return null;
+                var result = await downloadHandle.TryDownloadString(url, webProxy, "");
+                var ipInfo = result.IsNotEmpty() ? JsonUtils.Deserialize<IPAPIInfo>(result) : null;
+                if (ipInfo == null)
+                {
+                    continue;
+                }
+                var ip = ipInfo.ip ?? ipInfo.clientIp ?? ipInfo.ip_addr ?? ipInfo.query;
+                var country = ipInfo.country_code ?? ipInfo.country ?? ipInfo.countryCode ?? ipInfo.location?.country_code;
+                if (country.IsNotEmpty())
+                {
+                    return new IpInfoResult(country, ip);
+                }
             }
-
-            var ipInfo = JsonUtils.Deserialize<IPAPIInfo>(result);
-            if (ipInfo == null)
-            {
-                return null;
-            }
-
-            var ip = ipInfo.ip ?? ipInfo.clientIp ?? ipInfo.ip_addr ?? ipInfo.query;
-            var country = ipInfo.country_code ?? ipInfo.country ?? ipInfo.countryCode ?? ipInfo.location?.country_code ?? "unknown";
-
-            return new IpInfoResult(country, ip);
+            return null;
         }
         catch
         {

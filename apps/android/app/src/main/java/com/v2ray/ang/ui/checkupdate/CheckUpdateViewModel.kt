@@ -14,8 +14,15 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class CheckUpdateViewModel(application: Application) : BaseViewModel(application) {
 
+    init {
+        // Migrate installations created before the prerelease feed became the
+        // product channel; otherwise GitHub's stable-only endpoint has no item.
+        MmkvManager.encodeSettings(AppConfig.PREF_CHECK_UPDATE_PRE_RELEASE, true)
+    }
+
     private val _checkPreRelease = MutableStateFlow(
-        MmkvManager.decodeSettingsBool(AppConfig.PREF_CHECK_UPDATE_PRE_RELEASE, false)
+        // This product is distributed through its own prerelease channel.
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_CHECK_UPDATE_PRE_RELEASE, true)
     )
     val checkPreRelease: StateFlow<Boolean> = _checkPreRelease.asStateFlow()
 

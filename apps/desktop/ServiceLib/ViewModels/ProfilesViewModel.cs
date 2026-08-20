@@ -322,7 +322,10 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.SpeedVal = result.Speed ?? string.Empty;
         }
-        if (result.IpInfo.IsNotEmpty())
+        if (result.IpInfo.IsNotEmpty()
+            && result.IpInfo != ResUI.Speedtesting
+            && result.IpInfo != ResUI.SpeedtestingSkip
+            && result.IpInfo != Global.None)
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
@@ -648,9 +651,11 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         if (SelectedProfile.IndexId == _config.IndexId)
         {
+            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
             Reload();
             return;
         }
+        NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
         await SetDefaultServer(SelectedProfile.IndexId);
     }
 
@@ -685,9 +690,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         SelectedProfile = best;
         if (best.IndexId == _config.IndexId)
         {
+            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
             Reload();
             return;
         }
+        NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
         await SetDefaultServer(best.IndexId);
     }
 

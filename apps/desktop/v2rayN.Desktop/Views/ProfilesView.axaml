@@ -91,15 +91,15 @@
                         x:Name="btnConnectBest"
                         Margin="8,0,0,0"
                         Classes="FabButton Success"
-                        ToolTip.Tip="اتصال هوشمند به بهترین مسیر">
+                        ToolTip.Tip="اتصال هوشمند به بهترین مسیر؛ در حالت اتصال برای قطع دوباره بزنید">
                         <PathIcon Data="{StaticResource SemiIconBolt}" />
                     </Button>
                     <Button
                         x:Name="btnConnectSelected"
                         Margin="4,0,0,0"
                         Classes="FabButton"
-                        ToolTip.Tip="اتصال به مسیر انتخاب‌شده">
-                        <TextBlock Text="⏻" />
+                        ToolTip.Tip="اتصال به مسیر انتخاب‌شده؛ هنگام اتصال برای قطع دوباره بزنید">
+                        <TextBlock Text="اتصال/قطع" FontSize="11" />
                     </Button>
                     <Button
                         x:Name="menuMixedTestServer"

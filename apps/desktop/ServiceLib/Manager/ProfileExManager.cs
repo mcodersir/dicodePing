@@ -8,6 +8,10 @@ public class ProfileExManager
     // can lose or corrupt ids during a refresh, making rows appear to reset.
     private readonly ConcurrentQueue<string> _queIndexIds = new();
     private readonly ConcurrentDictionary<string, byte> _queuedIndexIds = new();
+    // UI callbacks and test workers can save at the same time. Serialising the
+    // database flush prevents a stale flush from overwriting a newer result.
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
+    private readonly object _profileLock = new();
     public static ProfileExManager Instance => _instance.Value;
     private static readonly string _tag = "ProfileExHandler";
 
@@ -43,6 +47,9 @@ public class ProfileExManager
 
     private async Task SaveQueueIndexIds()
     {
+        await _saveLock.WaitAsync();
+        try
+        {
         if (!_queIndexIds.IsEmpty)
         {
             var lstExists = await SQLiteHelper.Instance.TableAsync<ProfileExItem>().ToListAsync();
@@ -86,6 +93,11 @@ public class ProfileExManager
                 Logging.SaveLog(_tag, ex);
             }
         }
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
     }
 
     private ProfileExItem AddProfileEx(string indexId)
@@ -105,7 +117,10 @@ public class ProfileExManager
 
     private ProfileExItem GetProfileExItem(string? indexId)
     {
-        return _lstProfileEx.FirstOrDefault(t => t.IndexId == indexId) ?? AddProfileEx(indexId);
+        lock (_profileLock)
+        {
+            return _lstProfileEx.FirstOrDefault(t => t.IndexId == indexId) ?? AddProfileEx(indexId);
+        }
     }
 
     public async Task ClearAll()

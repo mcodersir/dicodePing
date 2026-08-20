@@ -24,6 +24,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
         KeyDown += MainWindow_KeyDown;
+        Opened += async (_, _) => await ShowTelegramChannelPromptAsync();
         menuSettingsSetUWP.Click += MenuSettingsSetUWP_Click;
         menuCheckUpdate.Click += MenuCheckUpdate_Click;
         btnNewUpdate.Click += MenuCheckUpdate_Click;
@@ -366,6 +367,29 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         {
             _dicodePingStartupScheduled = true;
             _ = RunDicodePingStartupAsync();
+        }
+    }
+
+    private async Task ShowTelegramChannelPromptAsync()
+    {
+        try
+        {
+            var promptFile = Utils.GetConfigPath("dicodeping-channel-prompt.txt");
+            var count = File.Exists(promptFile) && int.TryParse(await File.ReadAllTextAsync(promptFile), out var saved)
+                ? saved : 0;
+            if (count >= 3)
+            {
+                return;
+            }
+            await File.WriteAllTextAsync(promptFile, (count + 1).ToString());
+            if (await UI.ShowYesNo("به کانال رسمی دیکد پینگ بپیوندید؟\nhttps://t.me/dicodeping") == ButtonResult.Yes)
+            {
+                ProcUtils.ProcessStart("https://t.me/dicodeping");
+            }
+        }
+        catch
+        {
+            // A non-essential welcome prompt must never prevent startup.
         }
     }
 

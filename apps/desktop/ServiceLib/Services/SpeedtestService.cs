@@ -119,13 +119,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
                 case ESpeedActionType.Speedtest:
                     await UpdateFunc(it.IndexId, "", ResUI.SpeedtestingWait);
-                    ProfileExManager.Instance.SetTestSpeed(it.IndexId, 0);
                     break;
 
                 case ESpeedActionType.Mixedtest:
                     await UpdateFunc(it.IndexId, ResUI.Speedtesting, ResUI.SpeedtestingWait);
-                    ProfileExManager.Instance.SetTestDelay(it.IndexId, 0);
-                    ProfileExManager.Instance.SetTestSpeed(it.IndexId, 0);
                     break;
 
                 case ESpeedActionType.Location:
@@ -439,11 +436,16 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
         if (!locationOnly)
         {
-            ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+            if (responseTime > 0)
+            {
+                ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+            }
             await UpdateFunc(it.IndexId, responseTime.ToString());
         }
 
-        if (!_config.UiItem.HideColumnIpInfo && responseTime > 0)
+        // The location action deliberately has no ping requirement: its sole
+        // job is to discover the egress country through the temporary proxy.
+        if (!_config.UiItem.HideColumnIpInfo && (responseTime > 0 || locationOnly))
         {
             var ipInfo = await ConnectionHandler.GetIPInfo(webProxy);
             var ipStr = ipInfo?.ToString() ?? Global.None;

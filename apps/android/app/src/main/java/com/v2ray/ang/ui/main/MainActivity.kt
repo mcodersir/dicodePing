@@ -8,7 +8,12 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
@@ -101,6 +106,14 @@ class MainActivity : HelperBaseComponentActivity() {
 
     @Composable
     override fun ScreenContent() {
+        val promptCount = remember {
+            MmkvManager.decodeSettingsInt(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 0)
+        }
+        val showTelegramPrompt = remember { mutableStateOf(promptCount < 3) }
+        fun dismissTelegramPrompt() {
+            MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, promptCount + 1)
+            showTelegramPrompt.value = false
+        }
         BackHandler { moveTaskToBack(false) }
         MainScreen(
             mainViewModel = mainViewModel,
@@ -123,6 +136,22 @@ class MainActivity : HelperBaseComponentActivity() {
             },
             onNavigate = { route -> navigateTo(route) },
         )
+        if (showTelegramPrompt.value) {
+            AlertDialog(
+                onDismissRequest = ::dismissTelegramPrompt,
+                title = { Text("کانال دیکد پینگ") },
+                text = { Text("برای اطلاع از نسخه‌ها و خبرهای جدید، به کانال رسمی دیکد پینگ بپیوندید.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        Utils.openUri(this, AppConfig.TG_CHANNEL_URL)
+                        dismissTelegramPrompt()
+                    }) { Text("عضویت در کانال") }
+                },
+                dismissButton = {
+                    TextButton(onClick = ::dismissTelegramPrompt) { Text("بعداً") }
+                }
+            )
+        }
     }
 
     private fun shareToClipboard(guid: String): Boolean =

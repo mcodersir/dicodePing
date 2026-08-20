@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -19,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,9 +60,10 @@ fun MainBottomBar(
         FloatingActionButton(
             onClick = onManualConnect,
             modifier = Modifier
-                .align(AbsoluteAlignment.TopLeft)
-                .padding(start = 28.dp)
-                .offset(y = (-104).dp),
+                // Anchor to the bar rather than a fixed negative screen offset;
+                // this stays clear of the last card on gesture-navigation phones.
+                .align(Alignment.TopStart)
+                .padding(start = 24.dp, top = 12.dp),
             containerColor = if (isRunning) colorFabActive else MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
