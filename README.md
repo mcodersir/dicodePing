@@ -1,62 +1,224 @@
 # DicodePing 3
 
-یک کلاینت چندسکویی Xray و اسکنر هم‌زمان کانفیگ برای Windows، Linux، macOS و Android.
+<div align="center">
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/cf8274f6-8361-4c79-b6f3-8e29e435c85d" />
 
-> وضعیت: `3.0.0` — نسخهٔ پایدار کلاینت مستقل TUN-only برای Windows، Linux، macOS و Android.
 
-## چرا پینگ این برنامه واقعی است؟
+### یک کلاینت هوشمند Xray برای تست، رتبه‌بندی و استفاده واقعی از کانفیگ‌ها
 
-DicodePing عدد ICMP یا زمان اتصال مستقیم به IP سرور را به‌عنوان پینگ کانفیگ نشان نمی‌دهد. برای هر کانفیگ، Xray یک outbound مستقل می‌سازد و برنامه از مسیر SOCKS همان outbound اتصال TLS معتبر و درخواست HTTP واقعی می‌فرستد. نتیجه از چند تلاش محاسبه می‌شود:
+**Windows • Linux • macOS • Android**
 
-- `median`: میانهٔ زمان کامل درخواست از داخل تونل؛
-- `jitter`: نوسان بین نمونه‌ها؛
-- `loss`: درصد تلاش‌های ناموفق؛
-- `score`: امتیاز ترکیبی پایداری و سرعت.
+[![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-این روش کندتر از fake ping است، اما نشان می‌دهد کانفیگ واقعاً قادر به عبور ترافیک است.
+</div>
 
-## قابلیت‌ها
+---
 
-- import لینک و subscription برای VMess، VLESS، Trojan، Shadowsocks، SOCKS، HTTP و Hysteria2؛
-- پشتیبانی از REALITY، TLS، WebSocket، gRPC، HTTPUpgrade و XHTTP در سازندهٔ Xray؛
-- subscription پیش‌فرض ثابت DicodeConfigChecker در کنار منابع دلخواه کاربر؛
-- اسکن هم‌زمان bounded، cancellation، حذف تکراری‌ها و مرتب‌سازی بر اساس کیفیت واقعی؛
-- کلاینت desktop مستقل Avalonia/.NET با اجرای Administrator و TUN-only؛
-- کلاینت Android مبتنی بر VpnService، libv2ray و hev-socks5-tunnel؛
-- تنظیمات IPv4-first، DNS over HTTPS و retry مناسب اختلال‌های رایج شبکهٔ ایران؛
-- اعتبارسنجی TLS؛ گزینهٔ ناامن به‌طور پیش‌فرض فعال نیست.
+## معرفی
 
-## ساب پیش‌فرض
+**DicodePing** یک کلاینت چندسکویی مبتنی بر Xray است که برای بررسی کیفیت واقعی کانفیگ‌ها، اسکن هم‌زمان، مدیریت اتصال و اجرای تونل امن طراحی شده است.
+
+برخلاف ابزارهایی که فقط IP سرور را Ping می‌کنند، DicodePing مسیر واقعی ترافیک را بررسی می‌کند؛ یعنی هر کانفیگ از داخل تونل خودش تست می‌شود تا مشخص شود آیا واقعاً توانایی عبور ترافیک دارد یا خیر.
+
+> نسخه فعلی: **3.0.0**
+> کلاینت مستقل با معماری **TUN-only** برای Desktop و Android
+
+---
+
+# چرا پینگ DicodePing واقعی است؟
+
+بسیاری از ابزارها برای نمایش سرعت کانفیگ فقط یک ICMP Ping یا زمان اتصال TCP به IP سرور را اندازه‌گیری می‌کنند. این مقدار معمولاً کیفیت واقعی یک تونل را نشان نمی‌دهد.
+
+DicodePing برای هر کانفیگ یک مسیر مستقل Xray ایجاد می‌کند و سپس از داخل همان تونل، درخواست واقعی ارسال می‌کند.
+
+نتیجه بر اساس چند معیار محاسبه می‌شود:
+
+* **Median**
+  زمان میانه درخواست کامل از داخل تونل
+
+* **Jitter**
+  میزان نوسان بین تست‌ها
+
+* **Loss**
+  درصد درخواست‌های ناموفق
+
+* **Score**
+  امتیاز ترکیبی پایداری و سرعت
+
+این روش نسبت به Fake Ping زمان بیشتری نیاز دارد، اما نتیجه آن نشان می‌دهد یک کانفیگ در شرایط واقعی شبکه چگونه عمل می‌کند.
+
+---
+
+# قابلیت‌ها
+
+## اسکن و مدیریت کانفیگ
+
+* پشتیبانی از:
+
+  * VMess
+  * VLESS
+  * Trojan
+  * Shadowsocks
+  * SOCKS
+  * HTTP
+  * Hysteria2
+
+* Import مستقیم لینک و Subscription
+
+* اسکن هم‌زمان تعداد زیادی کانفیگ
+
+* حذف خودکار موارد تکراری
+
+* مرتب‌سازی بر اساس کیفیت واقعی اتصال
+
+* محاسبه سرعت، پایداری و وضعیت هر کانفیگ
+
+---
+
+## پشتیبانی کامل Xray
+
+پشتیبانی از:
+
+* REALITY
+* TLS
+* WebSocket
+* gRPC
+* HTTPUpgrade
+* XHTTP
+
+همراه با اعتبارسنجی TLS و جلوگیری از فعال بودن تنظیمات ناامن به‌صورت پیش‌فرض.
+
+---
+
+# Desktop Client
+
+پشتیبانی از:
+
+* Windows
+* Linux
+* macOS
+
+ویژگی‌ها:
+
+* معماری مستقل Avalonia/.NET
+* اجرای TUN بدون نیاز به کلاینت‌های جانبی
+* اجرای Administrator برای مدیریت شبکه
+* کنترل کامل Proxy و اتصال
+* نمایش Log و وضعیت لحظه‌ای
+
+---
+
+# Android Client
+
+نسخه Android بر پایه:
+
+* Android VpnService
+* libv2ray
+* hev-socks5-tunnel
+
+ساخته شده است.
+
+ویژگی‌ها:
+
+* اجرای مستقیم تونل VPN
+* مصرف بهینه منابع
+* مدیریت اتصال در پس‌زمینه
+* سازگار با ساختار AndroidLibXrayLite
+
+راهنمای ساخت:
+
+[Android Build Guide](https://github.com/mcodersir/dicodePing/blob/main/docs/ANDROID.md)
+
+---
+
+# Subscription پیش‌فرض
+
+DicodePing به‌صورت پیش‌فرض منبع رسمی DicodeConfigChecker را دارد:
 
 ```text
 https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt
 ```
 
-منابع افزوده‌شده توسط کاربر این منبع را حذف یا جایگزین نمی‌کنند.
+منابع اضافه‌شده توسط کاربر مستقل هستند و این منبع را حذف یا جایگزین نمی‌کنند.
 
-## اجرا و تست دسکتاپ
+---
 
-پیش‌نیاز: .NET SDK 10.
+# نصب و دریافت
 
-```bash
-dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj
-dotnet run --project apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj
+آخرین نسخه‌ها:
+
+[Download Releases](https://github.com/mcodersir/dicodePing/releases)
+
+نسخه‌های منتشرشده شامل:
+
+* Desktop Builds
+* Android APK
+* فایل‌های وابسته Xray
+* بررسی SHA-256 فایل‌های runtime
+
+---
+
+
+# معماری
+
+مستندات فنی:
+
+* [Architecture](https://github.com/mcodersir/dicodePing/blob/main/docs/ARCHITECTURE.md)
+
+* [Real Ping Model](https://github.com/mcodersir/dicodePing/blob/main/docs/REAL_PING.md)
+
+* [Security](https://github.com/mcodersir/dicodePing/blob/main/SECURITY.md)
+
+* [Privacy](https://github.com/mcodersir/dicodePing/blob/main/PRIVACY.md)
+
+* [Third Party Notices](https://github.com/mcodersir/dicodePing/blob/main/THIRD_PARTY_NOTICES.md)
+
+---
+
+# امنیت و حریم خصوصی
+
+DicodePing:
+
+* اطلاعات کانفیگ‌ها را به سرور خارجی ارسال نمی‌کند.
+* تست‌ها را از مسیر واقعی هر کانفیگ انجام می‌دهد.
+* اجرای TLS ناامن را به‌صورت پیش‌فرض فعال نمی‌کند.
+* اجزای runtime را با checksum بررسی می‌کند.
+
+---
+
+# License
+
+این پروژه تحت مجوز:
+
+```
+GPL-3.0-or-later
 ```
 
-برای اجرای اتصال، فایل‌های سازگار در بسته‌های Release داخل `bin/xray/` و `bin/sing_box/` قرار دارند و با SHA-256 کنترل می‌شوند. اجرای TUN به دسترسی Administrator نیاز دارد.
+منتشر شده است.
 
-## Android
+بخش Android از پروژه‌های متن‌باز مرتبط با v2rayNG/PattNG مشتق شده و attribution کامل در فایل:
 
-سورس native در `apps/android` است. build رسمی در GitHub Actions، `libv2ray.aar` متناظر با AndroidLibXrayLite و کتابخانهٔ TUN را با نسخه‌های pin‌شده آماده می‌کند. برای build محلی راهنمای [Android](docs/ANDROID.md) را ببینید.
+```
+THIRD_PARTY_NOTICES.md
+```
 
-## معماری و امنیت
+قرار دارد.
 
-- [معماری](docs/ARCHITECTURE.md)
-- [مدل پینگ واقعی](docs/REAL_PING.md)
-- [امنیت](SECURITY.md)
-- [حریم خصوصی](PRIVACY.md)
-- [اجزای شخص ثالث](THIRD_PARTY_NOTICES.md)
+Xray-core به‌صورت runtime جداگانه و تحت مجوز:
 
-## مجوز
+```
+MPL-2.0
+```
 
-GPL-3.0-or-later. بخش Android از PattNG/v2rayNG مشتق شده و attribution کامل در `THIRD_PARTY_NOTICES.md` آمده است. Xray-core به‌صورت runtime جداگانه و تحت MPL-2.0 توزیع می‌شود.
+استفاده می‌شود.
+
+---
+
+<div align="center">
+
+ساخته شده با تمرکز روی تست واقعی شبکه و تجربه ساده کاربر
+
+**DicodePing**
+
+</div>
