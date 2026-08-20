@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+
 namespace ServiceLib.ViewModels;
 
 public partial class ProfilesViewModel : MyReactiveObject
