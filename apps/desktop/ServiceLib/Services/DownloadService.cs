@@ -7,6 +7,8 @@ namespace ServiceLib.Services;
 /// </summary>
 public class DownloadService
 {
+    public IReadOnlyDictionary<string, string> LastResponseHeaders { get; private set; }
+        = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public event EventHandler<UpdateResult>? UpdateCompleted;
 
     public event ErrorEventHandler? Error;
@@ -209,7 +211,12 @@ public class DownloadService
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromSeconds(timeout));
 
-            return await client.GetStringAsync(url, cts.Token);
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            response.EnsureSuccessStatusCode();
+            LastResponseHeaders = response.Headers
+                .Concat(response.Content.Headers)
+                .ToDictionary(x => x.Key, x => string.Join(";", x.Value), StringComparer.OrdinalIgnoreCase);
+            return await response.Content.ReadAsStringAsync(cts.Token);
         }
         catch (Exception ex)
         {

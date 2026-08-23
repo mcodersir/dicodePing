@@ -7,20 +7,18 @@
 
     <Style Selector="DataGrid">
         <Setter Property="RowHeight" Value="42" />
-        <Setter Property="Background" Value="#121A23" />
-        <Setter Property="BorderBrush" Value="#2A3948" />
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
     </Style>
 
     <!-- Shared DicodePing visual language: calm surfaces, generous rows and rounded controls. -->
     <Style Selector="Window">
-        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Vazirmatn" />
-        <Setter Property="Background" Value="#111820" />
+        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
+        <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
         <Setter Property="FlowDirection" Value="RightToLeft" />
     </Style>
 
     <Style Selector="TextBlock">
-        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Vazirmatn" />
+        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
     </Style>
 
     <Style Selector="Button">
@@ -31,7 +29,6 @@
 
     <Style Selector="Menu">
         <Setter Property="Padding" Value="8,6" />
-        <Setter Property="Background" Value="#18212B" />
     </Style>
 
     <Style Selector="PathIcon">

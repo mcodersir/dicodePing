@@ -267,11 +267,26 @@
                         Binding="{Binding StreamSecurity}"
                         Header="{x:Static resx:ResUI.LvTLS}"
                         Tag="StreamSecurity" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding SubRemarks}"
-                        Header="{x:Static resx:ResUI.LvSubscription}"
-                        Tag="SubRemarks" />
+                    <DataGridTemplateColumn Width="1.4*" Tag="SubRemarks">
+                        <DataGridTemplateColumn.Header>
+                            <TextBlock Text="{x:Static resx:ResUI.LvSubscription}" />
+                        </DataGridTemplateColumn.Header>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="6,2">
+                                    <TextBlock Text="{Binding SubRemarks}" TextTrimming="CharacterEllipsis" />
+                                    <Border
+                                        Margin="0,3,0,0"
+                                        Padding="6,2"
+                                        Background="{DynamicResource SemiColorFill1}"
+                                        CornerRadius="6"
+                                        IsVisible="{Binding HasSubscriptionUsage}">
+                                        <TextBlock FontSize="11" Text="{Binding SubscriptionUsage}" />
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTemplateColumn Width="1*" SortMemberPath="Delay" Tag="DelayVal">
                         <DataGridTemplateColumn.Header>
                             <TextBlock Text="{x:Static resx:ResUI.LvTestDelay}" />

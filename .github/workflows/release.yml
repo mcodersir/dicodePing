@@ -65,9 +65,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.2
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.3
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.2 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.3 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -143,7 +143,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.2-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.3-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -152,7 +152,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.2-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.3-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -174,13 +174,15 @@ jobs:
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
         run: |
-          git clone --branch 2.3.4-P26 --depth 1 --recurse-submodules --shallow-submodules https://github.com/patterniha/PattNG.git native-upstream
+          git clone --branch 2.3.5-P30 --depth 1 --recurse-submodules --shallow-submodules https://github.com/patterniha/PattNG.git native-upstream
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
-      - name: Fetch pinned libv2ray
+      - name: Fetch the libv2ray pinned by PattNG P30
         run: |
           mkdir -p apps/android/app/libs
-          curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar https://github.com/patterniha/AndroidLibXrayLite/releases/download/v26.8.19-P/libv2ray.aar
+          CORE_TAG="$(git -C native-upstream/AndroidLibXrayLite describe --tags --abbrev=0)"
+          test -n "$CORE_TAG"
+          curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
       - name: Build installable prerelease APKs
         env:
           DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -191,7 +193,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.2
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.3
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -224,22 +226,24 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.2 Stable
+            ## DicodePing 3.0.3 Stable
 
-            نسخهٔ پایداری و بروزرسانی DicodePing با اتصال هوشمند واقعی و هسته‌های کامل دسکتاپ.
+            نسخهٔ پایدار DicodePing با تمرکز بر پایداری دسکتاپ، مصرف واقعی و مسیریابی دقیق.
 
-            - رفع کرش اتصال هوشمند و انتخاب/اتصال واقعی به کم‌تاخیرترین سرور
-            - ماندگاری پینگ، سرعت و لوکیشن و امکان اجرای دوبارهٔ آزمون
-            - Xray 26.7.28، Mihomo 1.19.30 و GeoFile رسمی 202608192217 با کنترل SHA-256
-            - نوار وضعیت تفکیک‌شده برای پینگ، کشور، دانلود و آپلود در دسکتاپ و اندروید
-            - رابط بروزرسانی، اشتراک و گزارش‌های ساده‌تر بدون نام تجاری قدیمی
+            - رفع ناپدیدشدن پینگ، سرعت و لوکیشن و جلوگیری از تغییر خودکار انتخاب دستی
+            - تم روشن/تیرهٔ واقعی و فونت Open Sans برای متن انگلیسی در دسکتاپ و اندروید
+            - گزارش روزانهٔ مصرف، شمارندهٔ زنده و مصرف تفکیک‌شدهٔ هر سرور در اندروید
+            - فیلتر دامنهٔ عملیاتی در حالت فقط/استثنا، شامل کانفیگ‌های JSON و زنجیره‌ای
+            - پشتیبانی Base64 استاندارد، URL-safe و بدون padding و نمایش سهمیهٔ اشتراک
+            - همگام‌سازی بهبودهای PattNG 2.3.5-P30 و بسته‌های پایدار دسکتاپ 7.24.8
+            - Xray 26.7.28، Mihomo 1.19.30، sing-box 1.13.19 و GeoFile رسمی با کنترل SHA-256
 
             | Platform | Portable / direct | Installer / package |
             | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.2-windows-x64-portable.zip` | `DicodePing-3.0.2-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.2-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.2-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.2-macos-arm64-portable.zip` | — |
+            | Windows x64 | `DicodePing-3.0.3-windows-x64-portable.zip` | `DicodePing-3.0.3-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.3-linux-x64-portable.zip` | — |
+            | macOS Intel | `DicodePing-3.0.3-macos-x64-portable.zip` | — |
+            | macOS Apple Silicon | `DicodePing-3.0.3-macos-arm64-portable.zip` | — |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.

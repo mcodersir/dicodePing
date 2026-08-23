@@ -144,9 +144,10 @@ public static class Extension
         {
             return await interaction.Handle(input);
         }
-        catch (UnhandledInteractionException<TInput, TOutput> ex)
+        catch (UnhandledInteractionException<TInput, TOutput>)
         {
-            Logging.SaveLog($"Unhandled interaction exception for input: {input}", ex);
+            // View models can publish before a view is mounted or while it is
+            // closing. This is an expected no-op, not a crash-worthy log entry.
             return defaultValue;
         }
         catch (Exception ex)

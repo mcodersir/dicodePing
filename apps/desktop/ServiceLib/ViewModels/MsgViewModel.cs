@@ -43,7 +43,15 @@ public partial class MsgViewModel : MyReactiveObject
             var logFile = Utils.GetLogPath($"{DateTime.Now:yyyy-MM-dd}.txt");
             if (File.Exists(logFile))
             {
-                foreach (var line in File.ReadLines(logFile).TakeLast(NumMaxMsg))
+                using var stream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream, Encoding.UTF8, true);
+                var lines = new Queue<string>(NumMaxMsg);
+                while (reader.ReadLine() is { } line)
+                {
+                    if (lines.Count == NumMaxMsg) lines.Dequeue();
+                    lines.Enqueue(line);
+                }
+                foreach (var line in lines)
                 {
                     EnqueueQueueMsg(line + Environment.NewLine);
                 }

@@ -54,6 +54,7 @@ import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.extension.nullIfBlank
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.TrafficStatsManager
 import com.v2ray.ang.ui.compose.ItemDivider
 import com.v2ray.ang.ui.compose.ReorderableGridItem
 import com.v2ray.ang.ui.compose.ReorderableListItem
@@ -65,6 +66,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.abs
+import java.util.Locale
 
 @Composable
 fun GroupPagerPage(
@@ -244,15 +246,17 @@ private fun ServerItemRow(
     onRemoveServer: (String) -> Unit
 ) {
     val profile = serverCache.profile
+    val subscription = MmkvManager.decodeSubscription(profile.subscriptionId)
+    val dailyTraffic = TrafficStatsManager.today(serverCache.guid)
     val subRemarks = if (subscriptionId.isEmpty()) {
-        MmkvManager.decodeSubscription(profile.subscriptionId)?.remarks?.firstOrNull()
+        subscription?.remarks?.firstOrNull()
             ?.toString() ?: ""
     } else ""
 
     ServerListItem(
         remarks = profile.remarks,
-        statistics = profile.description.nullIfBlank()
-            ?: AngConfigManager.generateDescription(profile),
+        statistics = listOfNotNull(profile.description.nullIfBlank() ?: AngConfigManager.generateDescription(profile),
+            (dailyTraffic.upload + dailyTraffic.download).takeIf { it > 0 }?.let { stringResource(R.string.traffic_today, formatBytes(it)) }).joinToString(" • "),
         typeDescription = getProtocolDescription(profile),
         testDelayMillis = serverCache.testDelayMillis,
         countryCode = serverCache.countryCode,
@@ -260,6 +264,7 @@ private fun ServerItemRow(
         securityInfo = serverCache.securityInfo,
         isSelected = serverCache.guid == selectedGuid,
         subscriptionRemarks = subRemarks,
+        subscriptionUsage = formatSubscriptionUsage(subscription?.uploadBytes ?: 0, subscription?.downloadBytes ?: 0, subscription?.totalBytes ?: 0),
         doubleColumnDisplay = false,
         onClick = { onSelectServer(serverCache.guid) },
         onShare = { onShareServer(serverCache.guid, profile) },
@@ -282,13 +287,16 @@ private fun ServerItemColumn(
     onRemoveServer: (String) -> Unit
 ) {
     val profile = serverCache.profile
+    val subscription = MmkvManager.decodeSubscription(profile.subscriptionId)
+    val dailyTraffic = TrafficStatsManager.today(serverCache.guid)
     val subRemarks = if (subscriptionId.isEmpty()) {
-        MmkvManager.decodeSubscription(profile.subscriptionId)?.remarks?.firstOrNull()?.toString() ?: ""
+        subscription?.remarks?.firstOrNull()?.toString() ?: ""
     } else ""
     Column {
         ServerListItem(
             remarks = profile.remarks,
-            statistics = profile.description.nullIfBlank() ?: AngConfigManager.generateDescription(profile),
+            statistics = listOfNotNull(profile.description.nullIfBlank() ?: AngConfigManager.generateDescription(profile),
+                (dailyTraffic.upload + dailyTraffic.download).takeIf { it > 0 }?.let { stringResource(R.string.traffic_today, formatBytes(it)) }).joinToString(" • "),
             typeDescription = getProtocolDescription(profile),
             testDelayMillis = serverCache.testDelayMillis,
             countryCode = serverCache.countryCode,
@@ -296,6 +304,7 @@ private fun ServerItemColumn(
             securityInfo = serverCache.securityInfo,
             isSelected = serverCache.guid == selectedGuid,
             subscriptionRemarks = subRemarks,
+            subscriptionUsage = formatSubscriptionUsage(subscription?.uploadBytes ?: 0, subscription?.downloadBytes ?: 0, subscription?.totalBytes ?: 0),
             doubleColumnDisplay = doubleColumnDisplay,
             onClick = { onSelectServer(serverCache.guid) },
             onEdit = { onEditServer(serverCache.guid, profile) },
@@ -318,6 +327,7 @@ fun ServerListItem(
     securityInfo: String?,
     isSelected: Boolean,
     subscriptionRemarks: String,
+    subscriptionUsage: String,
     doubleColumnDisplay: Boolean,
     onClick: () -> Unit,
     onEdit: () -> Unit,
@@ -433,6 +443,17 @@ fun ServerListItem(
                 }
                 Text(statistics, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            if (subscriptionUsage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(5.dp))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(subscriptionUsage, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+            }
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(typeDescription, style = MaterialTheme.typography.bodySmall, color = colorConfigType, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -474,6 +495,22 @@ fun ServerListItem(
             }
         }
     }
+}
+
+private fun formatSubscriptionUsage(upload: Long, download: Long, total: Long): String {
+    if (total <= 0) return ""
+    return "${formatBytes((upload + download).coerceAtLeast(0))} / ${formatBytes(total)}"
+}
+
+private fun formatBytes(value: Long): String {
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    var amount = value.toDouble()
+    var unit = 0
+    while (amount >= 1024 && unit < units.lastIndex) {
+        amount /= 1024
+        unit++
+    }
+    return String.format(Locale.US, if (amount >= 10 || unit == 0) "%.0f %s" else "%.1f %s", amount, units[unit])
 }
 
 private fun String.asCountryFlag(): String? {

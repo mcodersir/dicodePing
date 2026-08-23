@@ -30,7 +30,9 @@ public partial class ThemeSettingViewModel : MyReactiveObject
 
     private void BindingUI()
     {
-        CurrentTheme = _config.UiItem.CurrentTheme;
+        CurrentTheme = Enum.TryParse<ETheme>(_config.UiItem.CurrentTheme, true, out var savedTheme)
+            ? savedTheme.ToString()
+            : nameof(ETheme.FollowSystem);
         CurrentFontSize = _config.UiItem.CurrentFontSize;
         CurrentLanguage = _config.UiItem.CurrentLanguage;
 
@@ -132,11 +134,7 @@ public partial class ThemeSettingViewModel : MyReactiveObject
 
     private void ModifyFontFamily()
     {
-        var currentFontFamily = _config.UiItem.CurrentFontFamily;
-        if (currentFontFamily.IsNullOrEmpty())
-        {
-            return;
-        }
+        var currentFontFamily = "avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn";
 
         try
         {

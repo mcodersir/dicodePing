@@ -94,15 +94,18 @@ object Utils {
     private fun tryDecodeBase64(text: String?): String? {
         if (text.isNullOrEmpty()) return null
 
+        val normalized = text.filterNot(Char::isWhitespace).let { raw ->
+            val standard = raw.replace('-', '+').replace('_', '/')
+            standard.padEnd(standard.length + (4 - standard.length % 4) % 4, '=')
+        }
+
         try {
-            return Base64.decode(text, Base64.NO_WRAP).toString(Charsets.UTF_8)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to decode standard base64", e)
+            return Base64.decode(normalized, Base64.NO_WRAP).toString(Charsets.UTF_8)
+        } catch (_: Exception) {
         }
         try {
-            return Base64.decode(text, Base64.NO_WRAP.or(Base64.URL_SAFE)).toString(Charsets.UTF_8)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to decode URL-safe base64", e)
+            return Base64.decode(normalized, Base64.NO_WRAP.or(Base64.URL_SAFE)).toString(Charsets.UTF_8)
+        } catch (_: Exception) {
         }
         return null
     }

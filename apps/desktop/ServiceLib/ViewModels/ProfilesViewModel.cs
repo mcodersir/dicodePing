@@ -368,7 +368,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
-        await ProfileExManager.Instance.SaveTo();
+        // The test service owns the durable flush at the end of each batch.
     }
 
     public async Task UpdateStatistics(ServerSpeedItem update)
@@ -508,10 +508,13 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         var lstModel = await AppManager.Instance.ProfileModels(_config.SubIndexId, filter);
 
-        await ConfigHandler.SetDefaultServer(_config, lstModel);
+        // Merely refreshing or filtering the grid must never change the user's
+        // manually selected server. Selection recovery is handled explicitly
+        // only after a removed subscription profile has been replaced.
 
         var lstServerStat = (_config.GuiItem.EnableStatistics ? StatisticsManager.Instance.ServerStat : null) ?? [];
         var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
+        var subscriptionMap = (await AppManager.Instance.SubItems()).ToDictionary(x => x.Id);
         lstModel = (from t in lstModel
                     join t2 in lstServerStat on t.IndexId equals t2.IndexId into t2b
                     from t22 in t2b.DefaultIfEmpty()
@@ -529,6 +532,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                         StreamSecurity = t.StreamSecurity,
                         Subid = t.Subid,
                         SubRemarks = t.SubRemarks,
+                        SubscriptionUsage = FormatSubscriptionUsage(subscriptionMap.GetValueOrDefault(t.Subid)),
                         IsActive = t.IndexId == _config.IndexId,
                         Sort = t33?.Sort ?? 0,
                         Delay = t33?.Delay ?? 0,
@@ -545,6 +549,13 @@ public partial class ProfilesViewModel : MyReactiveObject
                       .ToList();
 
         return lstModel;
+    }
+
+    private static string FormatSubscriptionUsage(SubItem? sub)
+    {
+        if (sub is null || sub.TotalBytes <= 0) return string.Empty;
+        var used = Math.Max(0, sub.UploadBytes + sub.DownloadBytes);
+        return $"{Utils.HumanFy(used / 1024)} / {Utils.HumanFy(sub.TotalBytes / 1024)}";
     }
 
     #endregion Servers && Groups
@@ -928,6 +939,9 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         try
         {
+        await ProfileOperationCoordinator.Gate.WaitAsync();
+        try
+        {
         List<ProfileItem>? lstSelected;
         if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location)
         {
@@ -950,13 +964,27 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         _speedtestService ??= new SpeedtestService(_config, async (SpeedTestResult result) =>
         {
-            RxSchedulers.MainThreadScheduler.Schedule(() =>
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            RxSchedulers.MainThreadScheduler.Schedule(async () =>
             {
-                _ = SetSpeedTestResult(result);
+                try
+                {
+                    await SetSpeedTestResult(result);
+                    completion.TrySetResult();
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                }
             });
-            await Task.CompletedTask;
+            await completion.Task;
         });
         await _speedtestService.RunLoop(actionType, lstSelected);
+        }
+        finally
+        {
+            ProfileOperationCoordinator.Gate.Release();
+        }
         }
         finally
         {

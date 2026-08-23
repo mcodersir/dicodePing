@@ -307,9 +307,17 @@ public class Utils
         {
             return false;
         }
-
-        var buffer = new Span<byte>(new byte[plainText.Length]);
-        return Convert.TryFromBase64String(plainText, buffer, out var _);
+        var normalized = plainText.Trim()
+            .ReplaceLineBreaks("")
+            .Replace('_', '/')
+            .Replace('-', '+')
+            .Replace(" ", "");
+        if (normalized.Length % 4 > 0)
+        {
+            normalized = normalized.PadRight(normalized.Length + 4 - normalized.Length % 4, '=');
+        }
+        var buffer = new Span<byte>(new byte[normalized.Length]);
+        return Convert.TryFromBase64String(normalized, buffer, out _);
     }
 
     public static string Convert2Comma(string text)

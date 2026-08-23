@@ -25,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.v2ray.ang.AppConfig
@@ -139,19 +140,30 @@ private val VazirmatnFamily = FontFamily(
     Font(com.v2ray.ang.R.font.vazirmatn_bold, FontWeight.Bold),
 )
 
-private fun vazirStyle(size: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-    fontFamily = VazirmatnFamily,
-    fontWeight = weight,
-    fontSize = size.sp,
-    lineHeight = (size + 7).sp,
+private val OpenSansFamily = FontFamily(
+    Font(com.v2ray.ang.R.font.open_sans_variable, FontWeight.Normal),
+    Font(com.v2ray.ang.R.font.open_sans_variable, FontWeight.Medium),
+    Font(com.v2ray.ang.R.font.open_sans_variable, FontWeight.Bold),
 )
 
-private val DicodeTypography = Typography(
-    displayLarge = vazirStyle(54, FontWeight.Bold), displayMedium = vazirStyle(44, FontWeight.Bold), displaySmall = vazirStyle(34, FontWeight.Bold),
-    headlineLarge = vazirStyle(30, FontWeight.Bold), headlineMedium = vazirStyle(26, FontWeight.Bold), headlineSmall = vazirStyle(22, FontWeight.Bold),
-    titleLarge = vazirStyle(20, FontWeight.Bold), titleMedium = vazirStyle(16, FontWeight.Medium), titleSmall = vazirStyle(14, FontWeight.Medium),
-    bodyLarge = vazirStyle(16), bodyMedium = vazirStyle(14), bodySmall = vazirStyle(12),
-    labelLarge = vazirStyle(14, FontWeight.Medium), labelMedium = vazirStyle(12, FontWeight.Medium), labelSmall = vazirStyle(10, FontWeight.Medium),
+private fun appStyle(
+    size: Int,
+    family: FontFamily,
+    weight: FontWeight = FontWeight.Normal,
+    sizeAdjustment: Int = 0,
+) = TextStyle(
+    fontFamily = family,
+    fontWeight = weight,
+    fontSize = (size + sizeAdjustment).sp,
+    lineHeight = (size + sizeAdjustment + 7).sp,
+)
+
+private fun dicodeTypography(family: FontFamily, adjustment: Int) = Typography(
+    displayLarge = appStyle(54, family, FontWeight.Bold, adjustment), displayMedium = appStyle(44, family, FontWeight.Bold, adjustment), displaySmall = appStyle(34, family, FontWeight.Bold, adjustment),
+    headlineLarge = appStyle(30, family, FontWeight.Bold, adjustment), headlineMedium = appStyle(26, family, FontWeight.Bold, adjustment), headlineSmall = appStyle(22, family, FontWeight.Bold, adjustment),
+    titleLarge = appStyle(20, family, FontWeight.Bold, adjustment), titleMedium = appStyle(16, family, FontWeight.Medium, adjustment), titleSmall = appStyle(14, family, FontWeight.Medium, adjustment),
+    bodyLarge = appStyle(16, family, sizeAdjustment = adjustment), bodyMedium = appStyle(14, family, sizeAdjustment = adjustment), bodySmall = appStyle(12, family, sizeAdjustment = adjustment),
+    labelLarge = appStyle(14, family, FontWeight.Medium, adjustment), labelMedium = appStyle(12, family, FontWeight.Medium, adjustment), labelSmall = appStyle(10, family, FontWeight.Medium, adjustment),
 )
 
 @Composable
@@ -170,6 +182,11 @@ fun AppTheme(
         else -> LightColor
     }
     val snackbarController = rememberAppSnackbarController()
+    val isPersian = Locale.current.language.equals("fa", ignoreCase = true)
+    val typography = dicodeTypography(
+        family = if (isPersian) VazirmatnFamily else OpenSansFamily,
+        adjustment = if (isPersian) 0 else 1,
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -189,7 +206,7 @@ fun AppTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = DicodeTypography,
+            typography = typography,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AppSnackbarBridge(controller = snackbarController)

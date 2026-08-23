@@ -3,7 +3,7 @@ namespace v2rayN.Desktop.Common;
 public static class AppBuilderExtension
 {
     private static readonly string DefaultFontFamilyName =
-        Path.Combine(Global.AvaAssets, "Fonts#Noto Sans SC");
+        Path.Combine(Global.AvaAssets, "Fonts#Open Sans");
 
     public static AppBuilder WithFontByDefault(this AppBuilder appBuilder)
     {
@@ -14,6 +14,10 @@ public static class AppBuilderExtension
         fallbacks.Add(new FontFallback
         {
             FontFamily = notoSansSc
+        });
+        fallbacks.Add(new FontFallback
+        {
+            FontFamily = new FontFamily(Path.Combine(Global.AvaAssets, "Fonts#Vazirmatn"))
         });
 
         if (OperatingSystem.IsWindows())

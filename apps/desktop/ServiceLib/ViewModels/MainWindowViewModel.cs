@@ -363,10 +363,8 @@ public partial class MainWindowViewModel : MyReactiveObject
 
         await Reload();
 
-        // Populate the first screen with real-path latency automatically. The
-        // temporary per-profile proxies are independent from the active TUN.
-        await Task.Delay(750);
-        await ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping);
+        // Startup subscription refresh and the first real-path test are
+        // orchestrated by the window after the cached list has been painted.
     }
 
     #endregion Init

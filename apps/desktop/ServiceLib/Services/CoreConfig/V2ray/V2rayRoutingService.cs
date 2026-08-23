@@ -89,17 +89,42 @@ public partial class CoreConfigV2rayService
         var mode = _config.RoutingBasicItem.DomainFilterMode;
         if (domains is not { Count: > 0 } || mode == "off") return;
 
+        var normalizedDomains = domains
+            .Select(NormalizeDomainFilterEntry)
+            .Where(x => x.IsNotEmpty())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (normalizedDomains.Count == 0) return;
+
         _coreConfig.routing.rules.Insert(0, new RulesItem4Ray
         {
             type = "field",
-            domain = domains.ToList(),
+            domain = normalizedDomains,
             outboundTag = mode == "only" ? Global.ProxyTag : Global.DirectTag,
         });
         if (mode == "only")
         {
-            var finalRule = _coreConfig.routing.rules.LastOrDefault(x => x.outboundTag == Global.ProxyTag);
-            if (finalRule != null) finalRule.outboundTag = Global.DirectTag;
+            // Xray uses first-match routing. An explicit final rule is deterministic and
+            // avoids mutating an unrelated user rule when "only these domains" is enabled.
+            _coreConfig.routing.rules.Add(new RulesItem4Ray
+            {
+                type = "field",
+                network = "tcp,udp",
+                outboundTag = Global.DirectTag,
+            });
         }
+    }
+
+    private static string NormalizeDomainFilterEntry(string value)
+    {
+        var domain = value.Trim().TrimEnd('.');
+        if (domain.IsNullOrEmpty()) return string.Empty;
+        return domain.StartsWith("domain:", StringComparison.OrdinalIgnoreCase)
+            || domain.StartsWith("full:", StringComparison.OrdinalIgnoreCase)
+            || domain.StartsWith("regexp:", StringComparison.OrdinalIgnoreCase)
+            || domain.StartsWith("geosite:", StringComparison.OrdinalIgnoreCase)
+            ? domain
+            : $"domain:{domain}";
     }
 
     private void GenRoutingUserRule(RulesItem4Ray? userRule)
