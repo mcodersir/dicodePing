@@ -185,12 +185,14 @@ object CoreConfigManager {
         }
 
         val routing = json.get("routing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
-        val rules = routing.get("rules")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray()
-        rules.add(0, JsonObject().apply {
+        val existingRules = routing.get("rules")?.takeIf { it.isJsonArray }?.asJsonArray
+        val rules = JsonArray()
+        rules.add(JsonObject().apply {
             addProperty("type", "field")
             add("domain", JsonArray().apply { domains.forEach(::add) })
             addProperty("outboundTag", if (mode == "only") proxyTag else directTag)
         })
+        existingRules?.forEach { rules.add(it) }
         if (mode == "only") {
             rules.add(JsonObject().apply {
                 addProperty("type", "field")
