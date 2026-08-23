@@ -190,6 +190,30 @@ public class ProfileExManager
         IndexIdEnqueue(indexId);
     }
 
+    public void Clone(string sourceIndexId, string targetIndexId)
+    {
+        if (sourceIndexId.IsNullOrEmpty() || targetIndexId.IsNullOrEmpty() || sourceIndexId == targetIndexId)
+        {
+            return;
+        }
+
+        lock (_profileLock)
+        {
+            var source = _lstProfileEx.FirstOrDefault(t => t.IndexId == sourceIndexId);
+            if (source is null)
+            {
+                return;
+            }
+            var target = GetProfileExItem(targetIndexId);
+            target.Delay = source.Delay;
+            target.Speed = source.Speed;
+            target.Sort = source.Sort;
+            target.Message = source.Message;
+            target.IpInfo = source.IpInfo;
+            IndexIdEnqueue(targetIndexId);
+        }
+    }
+
     public int GetSort(string indexId)
     {
         var profileEx = _lstProfileEx.FirstOrDefault(t => t.IndexId == indexId);

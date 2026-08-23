@@ -20,6 +20,7 @@ import java.net.URL
 import java.util.concurrent.TimeUnit
 
 object HttpUtil {
+    data class UrlContentResponse(val content: String, val headers: Map<String, String>)
 
     /**
      * Converts the domain part of a URL string to its IDN (Punycode, ASCII Compatible Encoding) format.
@@ -146,6 +147,11 @@ object HttpUtil {
      */
     @Throws(IOException::class)
     fun getUrlContentWithUserAgent(request: UrlContentRequest): String {
+        return getUrlContentResponseWithUserAgent(request).content
+    }
+
+    @Throws(IOException::class)
+    fun getUrlContentResponseWithUserAgent(request: UrlContentRequest): UrlContentResponse {
         var currentUrl = request.url
         var redirects = 0
         val maxRedirects = 3
@@ -195,7 +201,10 @@ object HttpUtil {
                     }
 
                     response.isSuccessful -> {
-                        return response.body?.string() ?: ""
+                        return UrlContentResponse(
+                            response.body?.string() ?: "",
+                            response.headers.toMultimap().mapValues { it.value.joinToString(";") }
+                        )
                     }
 
                     else -> {

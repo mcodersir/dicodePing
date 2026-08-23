@@ -103,18 +103,18 @@ object CoreConfigManager {
             if (!json.has("stats")) {
                 json.add("stats", JsonObject())
             }
-            if (!json.has("policy")) {
-                val policyObj = JsonObject()
-                val systemObj = JsonObject()
-                systemObj.addProperty("statsOutboundUplink", true)
-                systemObj.addProperty("statsOutboundDownlink", true)
-                policyObj.add("system", systemObj)
-                json.add("policy", policyObj)
-            }
+            val policyObj = json.get("policy")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+            val systemObj = policyObj.get("system")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+            systemObj.addProperty("statsOutboundUplink", true)
+            systemObj.addProperty("statsOutboundDownlink", true)
+            policyObj.add("system", systemObj)
+            json.add("policy", policyObj)
         } else {
             json.remove("stats")
             json.remove("policy")
         }
+
+        applyDomainFilterToCustomConfig(json)
 
         if (!needTun()) {
             return JsonUtil.toJsonPretty(json)?.let { ConfigResult(true, configContext.guid, it) } ?: result
@@ -158,6 +158,64 @@ object CoreConfigManager {
 
         return JsonUtil.toJsonPretty(json)?.let { ConfigResult(true, configContext.guid, it) } ?: result
     }
+
+    private fun applyDomainFilterToCustomConfig(json: JsonObject) {
+        val mode = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off")
+        val domains = readDomainFilterEntries()
+        if (mode == "off" || domains.isEmpty()) return
+
+        val outbounds = json.get("outbounds")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray().also {
+            json.add("outbounds", it)
+        }
+        val proxyTag = outbounds.firstNotNullOfOrNull { element ->
+            val outbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@firstNotNullOfOrNull null
+            val tag = outbound.get("tag")?.takeIf { it.isJsonPrimitive }?.asString
+            tag?.takeIf { it != AppConfig.TAG_DIRECT && it != AppConfig.TAG_BLOCKED }
+        } ?: AppConfig.TAG_PROXY
+        var directTag = outbounds.firstNotNullOfOrNull { element ->
+            val outbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@firstNotNullOfOrNull null
+            if (outbound.get("protocol")?.asString == "freedom") outbound.get("tag")?.asString else null
+        }
+        if (directTag.isNullOrBlank()) {
+            directTag = AppConfig.TAG_DIRECT
+            outbounds.add(JsonObject().apply {
+                addProperty("tag", directTag)
+                addProperty("protocol", "freedom")
+            })
+        }
+
+        val routing = json.get("routing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+        val existingRules = routing.get("rules")?.takeIf { it.isJsonArray }?.asJsonArray
+        val rules = JsonArray()
+        rules.add(JsonObject().apply {
+            addProperty("type", "field")
+            add("domain", JsonArray().apply { domains.forEach(::add) })
+            addProperty("outboundTag", if (mode == "only") proxyTag else directTag)
+        })
+        existingRules?.forEach { rules.add(it) }
+        if (mode == "only") {
+            rules.add(JsonObject().apply {
+                addProperty("type", "field")
+                addProperty("network", "tcp,udp")
+                addProperty("outboundTag", directTag)
+            })
+        }
+        routing.add("rules", rules)
+        json.add("routing", routing)
+    }
+
+    private fun readDomainFilterEntries(): List<String> =
+        MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_LIST)
+            ?.split(',', '\n', '\r', ' ', '\t')
+            ?.map { it.trim().trimEnd('.') }
+            ?.filter { it.isNotEmpty() }
+            ?.map {
+                if (it.startsWith("domain:", true) || it.startsWith("full:", true)
+                    || it.startsWith("regexp:", true) || it.startsWith("geosite:", true)
+                ) it else "domain:$it"
+            }
+            ?.distinct()
+            .orEmpty()
 
     /**
      * Build one unified configuration for every non-custom profile type.
@@ -1153,13 +1211,12 @@ object CoreConfigManager {
             MmkvManager.decodeSettingsString(AppConfig.PREF_ROUTING_DOMAIN_STRATEGY)
                 ?: "AsIs"
 
-        val filterDomains = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_LIST)
-            ?.split(',', '\n', '\r', ' ', '\t')
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.distinct()
-            .orEmpty()
+        val filterDomains = readDomainFilterEntries()
         val filterMode = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off")
+        val rulesetItems = MmkvManager.decodeRoutingRulesets()
+        rulesetItems?.forEach { key ->
+            appendRoutingUserRule(configContext, key, v2rayConfig, policyGroupBalancerTags)
+        }
         if (filterDomains.isNotEmpty() && filterMode != "off") {
             val outbound = if (filterMode == "only") AppConfig.TAG_PROXY else AppConfig.TAG_DIRECT
             v2rayConfig.routing.rules.add(
@@ -1170,15 +1227,13 @@ object CoreConfigManager {
                 )
             )
             if (filterMode == "only") {
-                v2rayConfig.routing.rules.lastOrNull { it.outboundTag == AppConfig.TAG_PROXY }?.let {
-                    it.outboundTag = AppConfig.TAG_DIRECT
-                }
+                v2rayConfig.routing.rules.add(
+                    V2rayConfig.RoutingBean.RulesBean(
+                        network = "tcp,udp",
+                        outboundTag = AppConfig.TAG_DIRECT
+                    )
+                )
             }
-        }
-
-        val rulesetItems = MmkvManager.decodeRoutingRulesets()
-        rulesetItems?.forEach { key ->
-            appendRoutingUserRule(configContext, key, v2rayConfig, policyGroupBalancerTags)
         }
     }
 

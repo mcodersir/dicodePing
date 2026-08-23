@@ -173,6 +173,7 @@ class MainActivity : HelperBaseComponentActivity() {
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.DomainFilter -> Intent(this, DomainFilterActivity::class.java)
+            MainDestination.TrafficReport -> Intent(this, com.v2ray.ang.ui.traffic.TrafficReportActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)
             MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)

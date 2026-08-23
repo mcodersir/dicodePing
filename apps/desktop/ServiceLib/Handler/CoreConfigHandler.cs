@@ -18,7 +18,7 @@ public static class CoreConfigHandler
             result = node.CoreType switch
             {
                 ECoreType.mihomo => await new CoreConfigClashService(config, context.IsTunEnabled).GenerateClientCustomConfig(node, fileName),
-                _ => await GenerateClientCustomConfig(node, fileName)
+                _ => await GenerateClientCustomConfig(config, node, fileName)
             };
         }
         else if (context.RunCoreType == ECoreType.sing_box)
@@ -41,7 +41,7 @@ public static class CoreConfigHandler
         return result;
     }
 
-    private static async Task<RetResult> GenerateClientCustomConfig(ProfileItem node, string? fileName)
+    private static async Task<RetResult> GenerateClientCustomConfig(Config config, ProfileItem node, string? fileName)
     {
         var ret = new RetResult();
         try
@@ -71,6 +71,8 @@ public static class CoreConfigHandler
             File.Copy(addressFileName, fileName);
             File.SetAttributes(fileName, FileAttributes.Normal); //Copy will keep the attributes of addressFileName, so we need to add write permissions to fileName just in case of addressFileName is a read-only file.
 
+            ApplyDomainFilterToCustomConfig(config, fileName);
+
             //check again
             if (!File.Exists(fileName))
             {
@@ -88,6 +90,60 @@ public static class CoreConfigHandler
             ret.Msg = ResUI.FailedGenDefaultConfiguration;
             return ret;
         }
+    }
+
+    private static void ApplyDomainFilterToCustomConfig(Config config, string fileName)
+    {
+        var domains = config.RoutingBasicItem.DomainFilterList?
+            .Select(x => x.Trim().TrimEnd('.'))
+            .Where(x => x.IsNotEmpty())
+            .Select(x => x.StartsWith("domain:", StringComparison.OrdinalIgnoreCase)
+                || x.StartsWith("full:", StringComparison.OrdinalIgnoreCase)
+                || x.StartsWith("regexp:", StringComparison.OrdinalIgnoreCase)
+                || x.StartsWith("geosite:", StringComparison.OrdinalIgnoreCase) ? x : $"domain:{x}")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+        var mode = config.RoutingBasicItem.DomainFilterMode;
+        if (domains.Length == 0 || mode == "off") return;
+
+        if (JsonNode.Parse(File.ReadAllText(fileName)) is not JsonObject root) return;
+        var outbounds = root["outbounds"] as JsonArray;
+        var proxyTag = outbounds?.OfType<JsonObject>()
+            .Select(x => x["tag"]?.GetValue<string>())
+            .FirstOrDefault(x => x.IsNotEmpty() && x != Global.DirectTag && x != Global.BlockTag)
+            ?? Global.ProxyTag;
+        var directTag = outbounds?.OfType<JsonObject>()
+            .FirstOrDefault(x => x["protocol"]?.GetValue<string>() == "freedom")?["tag"]?.GetValue<string>();
+        if (directTag.IsNullOrEmpty())
+        {
+            directTag = Global.DirectTag;
+            outbounds ??= new JsonArray();
+            outbounds.Add(new JsonObject { ["tag"] = directTag, ["protocol"] = "freedom" });
+            root["outbounds"] = outbounds;
+        }
+
+        var routing = root["routing"] as JsonObject ?? new JsonObject();
+        var rules = routing["rules"] as JsonArray ?? new JsonArray();
+        var domainArray = new JsonArray();
+        foreach (var domain in domains) domainArray.Add(domain);
+        rules.Insert(0, new JsonObject
+        {
+            ["type"] = "field",
+            ["domain"] = domainArray,
+            ["outboundTag"] = mode == "only" ? proxyTag : directTag,
+        });
+        if (mode == "only")
+        {
+            rules.Add(new JsonObject
+            {
+                ["type"] = "field",
+                ["network"] = "tcp,udp",
+                ["outboundTag"] = directTag,
+            });
+        }
+        routing["rules"] = rules;
+        root["routing"] = routing;
+        File.WriteAllText(fileName, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
     public static async Task<RetResult> GenerateClientSpeedtestConfig(Config config, string fileName, List<ServerTestItem> selecteds, ECoreType coreType)

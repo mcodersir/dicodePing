@@ -35,4 +35,9 @@ public class SubItem
     public string? Memo { get; set; }
 
     public ECoreType? CustomCoreType { get; set; }
+
+    public long UploadBytes { get; set; }
+    public long DownloadBytes { get; set; }
+    public long TotalBytes { get; set; }
+    public long ExpireUnix { get; set; }
 }

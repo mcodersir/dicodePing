@@ -279,9 +279,16 @@ public partial class CoreConfigSingboxService
             var filterDomains = _config.RoutingBasicItem.DomainFilterList;
             if (filterDomains is { Count: > 0 } && domainFilterMode != "off")
             {
+                var normalizedDomains = filterDomains
+                    .Select(x => x.Trim().TrimEnd('.'))
+                    .Where(x => x.IsNotEmpty())
+                    .Select(x => x.StartsWith("domain:", StringComparison.OrdinalIgnoreCase) ? x[7..] : x)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 _coreConfig.route.rules.Insert(0, new Rule4Sbox
                 {
-                    domain = filterDomains.ToList(),
+                    // A plain entry in the UI means the domain and its subdomains.
+                    domain_suffix = normalizedDomains,
                     outbound = domainFilterMode == "only" ? Global.ProxyTag : Global.DirectTag,
                 });
             }

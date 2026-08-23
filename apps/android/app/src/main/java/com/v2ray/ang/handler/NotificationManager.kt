@@ -269,6 +269,7 @@ object NotificationManager {
         val directTotal = directUplink + directDownlink
         totalUplink += proxyUplink + directUplink
         totalDownlink += proxyDownlink + directDownlink
+        TrafficStatsManager.record(MmkvManager.getSelectServer(), proxyUplink + directUplink, proxyDownlink + directDownlink)
         val zeroSpeed = proxyTotal + directTotal == 0L
         if (!zeroSpeed || !lastZeroSpeed) {
             val text = StringBuilder()

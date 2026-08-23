@@ -569,4 +569,7 @@
     <string name="connection_test_empty_message">no details available</string>
     <string name="value_unknown">unknown</string>
 
+    <string name="title_traffic_report">Daily usage report</string>
+    <string name="traffic_report_empty">No traffic has been recorded today.</string>
+    <string name="traffic_today">Today %1$s</string>
 </resources>

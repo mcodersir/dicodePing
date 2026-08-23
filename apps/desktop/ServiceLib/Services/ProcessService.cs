@@ -107,8 +107,15 @@ public class ProcessService : IDisposable
                 _process.Kill();
             }
             catch { }
-
-            await Task.Delay(100);
+            try
+            {
+                using var exitTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                await _process.WaitForExitAsync(exitTimeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                await _updateFunc?.Invoke(false, "Core shutdown timed out; cleaning stale resources before restart.");
+            }
         }
         catch (Exception ex)
         {

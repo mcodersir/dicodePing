@@ -2084,17 +2084,18 @@ public static class ConfigHandler
         }
 
         var counter = 0;
-        if (Utils.IsBase64String(strData))
+        var decodedData = Utils.IsBase64String(strData) ? Utils.Base64Decode(strData) : string.Empty;
+        if (decodedData.IsNotEmpty())
         {
-            counter = await AddBatchServersCommon(config, Utils.Base64Decode(strData), subid, isSub);
+            counter = await AddBatchServersCommon(config, decodedData, subid, isSub);
         }
         if (counter < 1)
         {
             counter = await AddBatchServersCommon(config, strData, subid, isSub);
         }
-        if (counter < 1)
+        if (counter < 1 && decodedData.IsNotEmpty())
         {
-            counter = await AddBatchServersCommon(config, Utils.Base64Decode(strData), subid, isSub);
+            counter = await AddBatchServersCommon(config, decodedData, subid, isSub);
         }
 
         if (counter < 1)
@@ -2110,17 +2111,17 @@ public static class ConfigHandler
 
         //May be standard uri mixed with internal uri
         var innerUriCount = 0;
-        if (Utils.IsBase64String(strData))
+        if (decodedData.IsNotEmpty())
         {
-            innerUriCount = await AddBatchServers4InnerUri(config, Utils.Base64Decode(strData), subid, isSub);
+            innerUriCount = await AddBatchServers4InnerUri(config, decodedData, subid, isSub);
         }
         if (innerUriCount < 1)
         {
             innerUriCount = await AddBatchServers4InnerUri(config, strData, subid, isSub);
         }
-        if (innerUriCount < 1)
+        if (innerUriCount < 1 && decodedData.IsNotEmpty())
         {
-            innerUriCount = await AddBatchServers4InnerUri(config, Utils.Base64Decode(strData), subid, isSub);
+            innerUriCount = await AddBatchServers4InnerUri(config, decodedData, subid, isSub);
         }
         if (innerUriCount > 0)
         {
@@ -2161,9 +2162,12 @@ public static class ConfigHandler
                 if (existItem != null)
                 {
                     await StatisticsManager.Instance.CloneServerStatItem(existItem.IndexId, item.IndexId);
+                    ProfileExManager.Instance.Clone(existItem.IndexId, item.IndexId);
                 }
             }
         }
+
+        await ProfileExManager.Instance.SaveTo();
 
         return counter;
     }
@@ -2242,6 +2246,10 @@ public static class ConfigHandler
             item.PreSocksPort = subItem.PreSocksPort;
             item.Memo = subItem.Memo;
             item.CustomCoreType = subItem.CustomCoreType;
+            item.UploadBytes = subItem.UploadBytes;
+            item.DownloadBytes = subItem.DownloadBytes;
+            item.TotalBytes = subItem.TotalBytes;
+            item.ExpireUnix = subItem.ExpireUnix;
         }
 
         if (item.Id.IsNullOrEmpty())

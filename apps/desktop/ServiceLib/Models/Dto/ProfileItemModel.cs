@@ -13,6 +13,8 @@ public partial class ProfileItemModel : ReactiveObject
     public string StreamSecurity { get; set; }
     public string Subid { get; set; }
     public string SubRemarks { get; set; }
+    public string SubscriptionUsage { get; set; }
+    public bool HasSubscriptionUsage => SubscriptionUsage.IsNotEmpty();
     public int Sort { get; set; }
 
     [Reactive]

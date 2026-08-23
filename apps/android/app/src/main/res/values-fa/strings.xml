@@ -564,4 +564,7 @@
     <string name="connection_test_empty_message">جزئیاتی در دسترس نیست</string>
     <string name="value_unknown">ناشناخته</string>
 
+    <string name="title_traffic_report">گزارش کنترل مصرف</string>
+    <string name="traffic_report_empty">امروز هنوز ترافیکی ثبت نشده است.</string>
+    <string name="traffic_today">امروز %1$s</string>
 </resources>

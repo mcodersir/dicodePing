@@ -4,6 +4,9 @@ public static class SubscriptionHandler
 {
     public static async Task UpdateProcess(Config config, string subId, bool blProxy, Func<bool, string, Task> updateFunc)
     {
+        await ProfileOperationCoordinator.Gate.WaitAsync();
+        try
+        {
         await updateFunc?.Invoke(false, ResUI.MsgUpdateSubscriptionStart);
         var subItem = await AppManager.Instance.SubItems();
 
@@ -55,6 +58,11 @@ public static class SubscriptionHandler
         }
 
         await updateFunc?.Invoke(successCount > 0, $"{ResUI.MsgUpdateSubscriptionEnd}");
+        }
+        finally
+        {
+            ProfileOperationCoordinator.Gate.Release();
+        }
     }
 
     private static bool IsValidSubscription(SubItem item, string subId)
@@ -143,7 +151,26 @@ public static class SubscriptionHandler
         }
 
         // Download and return result directly
-        return await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent);
+        var content = await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent);
+        if (item.ConvertTarget.IsNullOrEmpty()
+            && downloadHandle.LastResponseHeaders.TryGetValue("subscription-userinfo", out var userInfo))
+        {
+            ApplySubscriptionUserInfo(item, userInfo);
+            await ConfigHandler.AddSubItem(config, item);
+        }
+        return content;
+    }
+
+    private static void ApplySubscriptionUserInfo(SubItem item, string header)
+    {
+        var values = header.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Split('=', 2, StringSplitOptions.TrimEntries))
+            .Where(x => x.Length == 2 && long.TryParse(x[1], out _))
+            .ToDictionary(x => x[0].ToLowerInvariant(), x => long.Parse(x[1]));
+        item.UploadBytes = values.GetValueOrDefault("upload");
+        item.DownloadBytes = values.GetValueOrDefault("download");
+        item.TotalBytes = values.GetValueOrDefault("total");
+        item.ExpireUnix = values.GetValueOrDefault("expire");
     }
 
     private static async Task<string> DownloadAdditionalSubscriptions(SubItem item, string mainResult, bool blProxy, DownloadService downloadHandle)
