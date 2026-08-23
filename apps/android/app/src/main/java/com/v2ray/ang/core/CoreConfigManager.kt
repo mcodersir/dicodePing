@@ -98,21 +98,17 @@ object CoreConfigManager {
 
         val json = JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
-        // Inject or remove traffic statistics configuration based on user preference
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED, true) == true) {
-            if (!json.has("stats")) {
-                json.add("stats", JsonObject())
-            }
-            val policyObj = json.get("policy")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
-            val systemObj = policyObj.get("system")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
-            systemObj.addProperty("statsOutboundUplink", true)
-            systemObj.addProperty("statsOutboundDownlink", true)
-            policyObj.add("system", systemObj)
-            json.add("policy", policyObj)
-        } else {
-            json.remove("stats")
-            json.remove("policy")
+        // Live traffic is a core DicodePing status feature. Always keep the Xray
+        // counters enabled, including for imported/custom JSON configurations.
+        if (!json.has("stats")) {
+            json.add("stats", JsonObject())
         }
+        val policyObj = json.get("policy")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+        val systemObj = policyObj.get("system")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+        systemObj.addProperty("statsOutboundUplink", true)
+        systemObj.addProperty("statsOutboundDownlink", true)
+        policyObj.add("system", systemObj)
+        json.add("policy", policyObj)
 
         applyDomainFilterToCustomConfig(json)
 
@@ -765,10 +761,8 @@ object CoreConfigManager {
      * Remove speed-test runtime sections when the feature is disabled.
      */
     private fun applySpeedDisabled(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED, true) != true) {
-            v2rayConfig.stats = null
-            v2rayConfig.policy = null
-        }
+        // Retained as an assembly hook for compatibility. Traffic counters are always
+        // enabled because both the status bar and notification depend on them.
     }
 
     /*

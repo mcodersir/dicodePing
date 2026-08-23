@@ -279,6 +279,13 @@ public partial class MainWindowViewModel : MyReactiveObject
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await RefreshServers());
 
+        ProfilesViewModel.ConnectionStartRequested.AsObservable()
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(async _ => await StartConnectionAsync());
+        ProfilesViewModel.ConnectionStopRequested.AsObservable()
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(async _ => await StopConnectionAsync());
+
         var vmReloadRequestedList = new List<IObservable<RxVoid>>
         {
             ProfilesViewModel.ReloadRequested.AsObservable(),
@@ -674,10 +681,53 @@ public partial class MainWindowViewModel : MyReactiveObject
     #region core job
 
     private bool _hasNextReloadJob = false;
+    private bool _connectionDesired;
+    private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
 
-    public async Task Reload()
+    private async Task StartConnectionAsync()
     {
+        _connectionDesired = true;
+        Interlocked.Increment(ref _connectionIntentVersion);
+        await Reload(forceStart: true);
+    }
+
+    private async Task StopConnectionAsync()
+    {
+        _connectionDesired = false;
+        Interlocked.Increment(ref _connectionIntentVersion);
+        _hasNextReloadJob = false;
+        // Serialize an explicit stop behind any in-flight core replacement. If the
+        // user clicks Disconnect during startup, the final state is still stopped.
+        await _reloadSemaphore.WaitAsync();
+        try
+        {
+            await CoreManager.Instance.CoreStop();
+        }
+        finally
+        {
+            _reloadSemaphore.Release();
+        }
+        ProfilesViewModel.IsConnected = false;
+        ProfilesViewModel.ConnectionStatusText = "اتصال TUN";
+        NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
+    }
+
+    public async Task Reload(bool forceStart = false)
+    {
+        // Settings, selection, subscription refreshes and background jobs may ask for a
+        // reload.  They are allowed to replace an already-running core, but must never
+        // undo an explicit user disconnect.
+        if (forceStart)
+        {
+            _connectionDesired = true;
+        }
+        if (!forceStart && !_connectionDesired && !CoreManager.Instance.IsRunning)
+        {
+            return;
+        }
+
+        var intentVersion = Interlocked.Read(ref _connectionIntentVersion);
         //If there are unfinished reload job, marked with next job.
         if (!await _reloadSemaphore.WaitAsync(0))
         {
@@ -707,12 +757,25 @@ public partial class MainWindowViewModel : MyReactiveObject
                 return;
             }
 
+            if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion))
+            {
+                return;
+            }
+
             await Task.Run(async () =>
             {
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion))
+                {
+                    return;
+                }
                 await LoadCore(allResult.MainResult.Context, allResult.PreSocksResult?.Context);
                 await SysProxyHandler.UpdateSysProxy(_config, false);
                 await Task.Delay(1000);
             });
+            if (!CoreManager.Instance.IsRunning)
+            {
+                _connectionDesired = false;
+            }
             RxSchedulers.MainThreadScheduler.Schedule(async () =>
             {
                 await StatusBarViewModel.TestServerAvailability();
@@ -740,7 +803,7 @@ public partial class MainWindowViewModel : MyReactiveObject
             SetReloadEnabled(true);
             _reloadSemaphore.Release();
             //If there is a next reload job, execute it.
-            if (_hasNextReloadJob)
+            if (_hasNextReloadJob && _connectionDesired)
             {
                 _hasNextReloadJob = false;
                 await Reload();

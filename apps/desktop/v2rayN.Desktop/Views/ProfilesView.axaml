@@ -13,11 +13,12 @@
     d:DesignWidth="800"
     x:DataType="vms:ProfilesViewModel"
     Design.DataContext="{x:Static dd:DesignData.Profiles}"
+    Background="{DynamicResource DicodePageBackground}"
     mc:Ignorable="d">
     <UserControl.Resources>
         <conv:DelayColorConverter x:Key="DelayColorConverter" />
     </UserControl.Resources>
-    <Grid>
+    <Grid Background="{DynamicResource DicodePageBackground}">
         <DockPanel>
             <WrapPanel Margin="2" DockPanel.Dock="Top">
                 <ListBox
@@ -118,7 +119,7 @@
                 CanUserResizeColumns="True"
                 Classes.InsetContent="True"
                 FlowDirection="LeftToRight"
-                GridLinesVisibility="All"
+                GridLinesVisibility="Horizontal"
                 HeadersVisibility="All"
                 IsReadOnly="True"
                 ItemsSource="{Binding ProfileItems}">
@@ -251,21 +252,25 @@
                         Width="2*"
                         Binding="{Binding Address}"
                         Header="{x:Static resx:ResUI.LvAddress}"
+                        IsVisible="False"
                         Tag="Address" />
                     <DataGridTextColumn
                         Width="1*"
                         Binding="{Binding Port}"
                         Header="{x:Static resx:ResUI.LvPort}"
+                        IsVisible="False"
                         Tag="Port" />
                     <DataGridTextColumn
                         Width="1*"
                         Binding="{Binding Network}"
                         Header="{x:Static resx:ResUI.LvTransportProtocol}"
+                        IsVisible="False"
                         Tag="Network" />
                     <DataGridTextColumn
                         Width="1*"
                         Binding="{Binding StreamSecurity}"
                         Header="{x:Static resx:ResUI.LvTLS}"
+                        IsVisible="False"
                         Tag="StreamSecurity" />
                     <DataGridTemplateColumn Width="1.4*" Tag="SubRemarks">
                         <DataGridTemplateColumn.Header>
@@ -337,11 +342,13 @@
                         Width="1*"
                         Binding="{Binding TotalUp}"
                         Header="{x:Static resx:ResUI.LvTotalUploadDataAmount}"
+                        IsVisible="False"
                         Tag="TotalUp" />
                     <DataGridTextColumn
                         Width="1*"
                         Binding="{Binding TotalDown}"
                         Header="{x:Static resx:ResUI.LvTotalDownloadDataAmount}"
+                        IsVisible="False"
                         Tag="TotalDown" />
                 </DataGrid.Columns>
             </DataGrid>

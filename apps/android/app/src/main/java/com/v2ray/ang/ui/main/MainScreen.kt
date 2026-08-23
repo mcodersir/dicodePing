@@ -75,13 +75,7 @@ fun MainScreen(
     var showRemoveConfirm by remember { mutableStateOf<String?>(null) }
     var autoConnectPending by remember { mutableStateOf(false) }
     var autoConnectStarted by remember { mutableStateOf(false) }
-    var trafficTotals by remember { mutableStateOf(0L to 0L) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            trafficTotals = NotificationManager.trafficTotals()
-            delay(1000)
-        }
-    }
+    val trafficTotals by NotificationManager.trafficTotalsFlow.collectAsStateWithLifecycle()
 
     LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
         if (!autoConnectPending) return@LaunchedEffect
@@ -296,7 +290,7 @@ fun MainScreen(
                 MainBottomBar(
                     pingText = pingText,
                     locationText = locationText,
-                    trafficText = "کل ↑ ${trafficTotals.first.toTrafficString()}  ↓ ${trafficTotals.second.toTrafficString()}",
+                    trafficText = "↑ ${trafficTotals.first.toTrafficString()}  •  ↓ ${trafficTotals.second.toTrafficString()}",
                     onClick = { onAction(MainAction.TestCurrentServer) }
                 )
             },

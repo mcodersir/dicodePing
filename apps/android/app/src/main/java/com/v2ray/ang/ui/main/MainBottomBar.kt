@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import com.v2ray.ang.ui.compose.AppDivider
 
 @Composable
@@ -49,7 +52,9 @@ fun MainBottomBar(
                     modifier = Modifier.semantics { contentDescription = pingText })
                 if (locationText.isNotBlank()) Text(text = locationText, style = MaterialTheme.typography.bodySmall)
             }
-            Text(text = trafficText, style = MaterialTheme.typography.bodySmall)
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Text(text = trafficText, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }

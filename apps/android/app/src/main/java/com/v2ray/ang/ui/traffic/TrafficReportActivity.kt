@@ -13,9 +13,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.handler.MmkvManager
@@ -34,9 +37,11 @@ class TrafficReportActivity : HelperBaseComponentActivity() {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp)) {
                             Text(name, style = MaterialTheme.typography.titleMedium)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("↑ ${traffic.upload.toTrafficString()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("↓ ${traffic.download.toTrafficString()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("↑ ${traffic.upload.toTrafficString()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("↓ ${traffic.download.toTrafficString()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
