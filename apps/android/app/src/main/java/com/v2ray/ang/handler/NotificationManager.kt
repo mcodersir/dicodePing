@@ -18,6 +18,7 @@ import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.extension.toTrafficString
 import com.v2ray.ang.ui.main.MainActivity
+import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ object NotificationManager {
     private const val NOTIFICATION_PENDING_INTENT_STOP_V2RAY = 1
     private const val NOTIFICATION_PENDING_INTENT_RESTART_V2RAY = 2
     private const val NOTIFICATION_ICON_THRESHOLD = 3000
-    private const val QUERY_INTERVAL_MS = 3000L
+    private const val QUERY_INTERVAL_MS = 1000L
 
     private var lastQueryTime = 0L
     private var mBuilder: NotificationCompat.Builder? = null
@@ -80,7 +81,7 @@ object NotificationManager {
         val service = getService() ?: return
 
         // Reset last query time to avoid querying stats too soon after showing the notification
-        lastQueryTime = System.currentTimeMillis()
+        lastQueryTime = System.currentTimeMillis() - QUERY_INTERVAL_MS
         totalUplink = 0L
         totalDownlink = 0L
         _trafficTotals.value = 0L to 0L
@@ -247,7 +248,6 @@ object NotificationManager {
         // If the query interval is too short, skip this round to avoid excessive CPU usage
         if (sinceLastQueryIn < QUERY_INTERVAL_MS) {
             LogUtil.w(AppConfig.TAG, "Query interval too short: ${sinceLastQueryIn}ms, skipping")
-            lastQueryTime = queryTime
             return lastZeroSpeed
         }
         val sinceLastQueryInSeconds = sinceLastQueryIn / 1000.0
@@ -281,6 +281,16 @@ object NotificationManager {
         totalUplink += proxyUplink + directUplink
         totalDownlink += proxyDownlink + directDownlink
         _trafficTotals.value = totalUplink to totalDownlink
+        // The daemon runs in :RunSoLibV2RayDaemon, while Compose runs in the main
+        // process. A process-local StateFlow can update the notification but can never
+        // update the bottom bar, so publish the totals through the existing IPC channel.
+        getService()?.let { service ->
+            MessageHelper.sendMsg2UI(
+                service,
+                AppConfig.MSG_TRAFFIC_STATS,
+                "$totalUplink,$totalDownlink"
+            )
+        }
         TrafficStatsManager.record(MmkvManager.getSelectServer(), proxyUplink + directUplink, proxyDownlink + directDownlink)
         val zeroSpeed = proxyTotal + directTotal == 0L
         if (!zeroSpeed || !lastZeroSpeed) {

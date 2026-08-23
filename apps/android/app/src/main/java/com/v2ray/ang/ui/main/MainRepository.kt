@@ -57,6 +57,15 @@ class MainRepository(
                 AppConfig.MSG_STATE_START_FAILURE -> MainServiceEvent.StateStartFailure
 
                 AppConfig.MSG_STATE_STOP_SUCCESS -> MainServiceEvent.StateStopSuccess
+                AppConfig.MSG_TRAFFIC_STATS -> safeIntent.getStringExtra("content")
+                    ?.split(',', limit = 2)
+                    ?.takeIf { it.size == 2 }
+                    ?.let { values ->
+                        MainServiceEvent.TrafficStats(
+                            uplink = values[0].toLongOrNull() ?: 0L,
+                            downlink = values[1].toLongOrNull() ?: 0L,
+                        )
+                    }
                 AppConfig.MSG_MEASURE_DELAY_RESULT -> safeIntent
                     .serializable<ConnectionTestResult>("content")
                     ?.let { MainServiceEvent.MeasureDelayResult(it) }

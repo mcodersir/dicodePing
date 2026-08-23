@@ -40,7 +40,6 @@ import com.v2ray.ang.ui.compose.QRCodeDialog
 import com.v2ray.ang.ui.compose.colorFabActive
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.toTrafficString
-import com.v2ray.ang.handler.NotificationManager
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -75,7 +74,6 @@ fun MainScreen(
     var showRemoveConfirm by remember { mutableStateOf<String?>(null) }
     var autoConnectPending by remember { mutableStateOf(false) }
     var autoConnectStarted by remember { mutableStateOf(false) }
-    val trafficTotals by NotificationManager.trafficTotalsFlow.collectAsStateWithLifecycle()
 
     LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
         if (!autoConnectPending) return@LaunchedEffect
@@ -290,7 +288,7 @@ fun MainScreen(
                 MainBottomBar(
                     pingText = pingText,
                     locationText = locationText,
-                    trafficText = "↑ ${trafficTotals.first.toTrafficString()}  •  ↓ ${trafficTotals.second.toTrafficString()}",
+                    trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  •  ↓ ${uiState.trafficDownlink.toTrafficString()}",
                     onClick = { onAction(MainAction.TestCurrentServer) }
                 )
             },

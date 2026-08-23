@@ -20,7 +20,7 @@
     </UserControl.Resources>
     <Grid Background="{DynamicResource DicodePageBackground}">
         <DockPanel>
-            <WrapPanel Margin="2" DockPanel.Dock="Top">
+            <WrapPanel Margin="12,4" Background="{DynamicResource DicodeSurface}" DockPanel.Dock="Top">
                 <ListBox
                     x:Name="lstGroup"
                     Margin="{StaticResource MarginLr4}"
@@ -113,6 +113,7 @@
             </WrapPanel>
             <DataGrid
                 x:Name="lstProfiles"
+                Margin="12,4,12,12"
                 AutoGenerateColumns="False"
                 BorderThickness="1"
                 CanUserReorderColumns="True"
@@ -283,7 +284,7 @@
                                     <Border
                                         Margin="0,3,0,0"
                                         Padding="6,2"
-                                        Background="{DynamicResource SemiColorFill1}"
+                                        Background="{DynamicResource DicodeSurfaceElevated}"
                                         CornerRadius="6"
                                         IsVisible="{Binding HasSubscriptionUsage}">
                                         <TextBlock FontSize="11" Text="{Binding SubscriptionUsage}" />

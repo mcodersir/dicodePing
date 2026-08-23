@@ -107,7 +107,13 @@ class MainViewModel(
                 updateRunningState(false)
             }
 
-            MainServiceEvent.StateStopSuccess -> updateRunningState(false)
+            MainServiceEvent.StateStopSuccess -> {
+                _uiState.update { it.copy(trafficUplink = 0L, trafficDownlink = 0L) }
+                updateRunningState(false)
+            }
+            is MainServiceEvent.TrafficStats -> _uiState.update {
+                it.copy(trafficUplink = event.uplink, trafficDownlink = event.downlink)
+            }
             is MainServiceEvent.MeasureDelayResult -> {
                 _uiState.update { it.copy(status = MainStatus.ConnectionTest(event.result)) }
                 val selectedGuid = dataSource.getSelectServer()
@@ -839,6 +845,8 @@ class MainViewModel(
         _uiState.update { state ->
             state.copy(
                 isRunning = running,
+                trafficUplink = if (running) state.trafficUplink else 0L,
+                trafficDownlink = if (running) state.trafficDownlink else 0L,
                 status = if (!clearTestingText && state.isTesting) state.status
                 else if (running) MainStatus.Connected else MainStatus.Disconnected
             )

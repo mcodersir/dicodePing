@@ -80,7 +80,7 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         var app = Application.Current;
         if (app is not null)
         {
-            app.RequestedThemeVariant = CurrentTheme switch
+            var requestedVariant = CurrentTheme switch
             {
                 nameof(ETheme.Dark) => ThemeVariant.Dark,
                 nameof(ETheme.Light) => ThemeVariant.Light,
@@ -90,8 +90,51 @@ public partial class ThemeSettingViewModel : MyReactiveObject
                 nameof(ETheme.NightSky) => SemiTheme.NightSky,
                 _ => ThemeVariant.Default,
             };
+
+            // Semi custom variants and Avalonia built-in variants do not share the
+            // same resource ancestry. Apply both the variant and one explicit palette
+            // so a live switch can never mix light surfaces with dark foregrounds.
+            app.RequestedThemeVariant = requestedVariant;
+            if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                foreach (var window in desktop.Windows)
+                {
+                    window.RequestedThemeVariant = requestedVariant;
+                }
+            }
+
+            ApplyDicodePalette(app, CurrentTheme, app.ActualThemeVariant == ThemeVariant.Dark);
+            Dispatcher.UIThread.Post(
+                () => ApplyDicodePalette(app, CurrentTheme, app.ActualThemeVariant == ThemeVariant.Dark),
+                DispatcherPriority.Render);
         }
     }
+
+    private static void ApplyDicodePalette(Application app, string themeName, bool systemIsDark)
+    {
+        var palette = themeName switch
+        {
+            nameof(ETheme.Dark) => ("#0D141C", "#121B25", "#18232F", "#293746", "#F2F5F8", "#ADB8C5", "#1D3A58", "#63A9FF"),
+            nameof(ETheme.Aquatic) => ("#071B20", "#0C252B", "#123139", "#24505A", "#EAFBFC", "#A9D0D4", "#164957", "#48C6D4"),
+            nameof(ETheme.Desert) => ("#FBF5E9", "#FFFDF8", "#F5EBD9", "#E2D2B8", "#2B241B", "#746653", "#F2DFC0", "#B8762D"),
+            nameof(ETheme.Dusk) => ("#1B1422", "#241A2D", "#30213B", "#503B5E", "#FAF3FF", "#C8B3D2", "#49305D", "#C58AE2"),
+            nameof(ETheme.NightSky) => ("#080F20", "#0E1930", "#15233E", "#293D60", "#F2F6FF", "#AAB9D3", "#183A66", "#72A8FF"),
+            nameof(ETheme.FollowSystem) when systemIsDark => ("#0D141C", "#121B25", "#18232F", "#293746", "#F2F5F8", "#ADB8C5", "#1D3A58", "#63A9FF"),
+            _ => ("#F5F7FA", "#FFFFFF", "#F9FAFC", "#DCE2EA", "#17212B", "#5F6B7A", "#E0EDFF", "#3278D3"),
+        };
+
+        SetBrush(app, "DicodePageBackground", palette.Item1);
+        SetBrush(app, "DicodeSurface", palette.Item2);
+        SetBrush(app, "DicodeSurfaceElevated", palette.Item3);
+        SetBrush(app, "DicodeBorder", palette.Item4);
+        SetBrush(app, "DicodeTextPrimary", palette.Item5);
+        SetBrush(app, "DicodeTextSecondary", palette.Item6);
+        SetBrush(app, "DicodeSelection", palette.Item7);
+        SetBrush(app, "DicodeAccent", palette.Item8);
+    }
+
+    private static void SetBrush(Application app, string key, string color) =>
+        app.Resources[key] = new SolidColorBrush(Color.Parse(color));
 
     private void ModifyFontSize()
     {
