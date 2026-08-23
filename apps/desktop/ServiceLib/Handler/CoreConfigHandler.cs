@@ -110,7 +110,7 @@ public static class CoreConfigHandler
         var outbounds = root["outbounds"] as JsonArray;
         var proxyTag = outbounds?.OfType<JsonObject>()
             .Select(x => x["tag"]?.GetValue<string>())
-            .FirstOrDefault(x => x.IsNotEmpty() && x != Global.DirectTag && x != Global.BlockedTag)
+            .FirstOrDefault(x => x.IsNotEmpty() && x != Global.DirectTag && x != Global.BlockTag)
             ?? Global.ProxyTag;
         var directTag = outbounds?.OfType<JsonObject>()
             .FirstOrDefault(x => x["protocol"]?.GetValue<string>() == "freedom")?["tag"]?.GetValue<string>();
