@@ -22,7 +22,8 @@
     mc:Ignorable="d">
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <DockPanel Background="{DynamicResource DicodePageBackground}">
-            <DockPanel Margin="8" Background="{DynamicResource DicodeSurface}" DockPanel.Dock="Top">
+            <Border Margin="12,12,12,8" Padding="6" Classes="DicodeCard" DockPanel.Dock="Top">
+              <DockPanel>
                 <ContentControl x:Name="conTheme" DockPanel.Dock="Right" />
                 <Menu Margin="{StaticResource Margin4}">
                     <MenuItem Header="{x:Static resx:ResUI.menuServers}">
@@ -102,7 +103,8 @@
                     HorizontalAlignment="Left"
                     Content="{x:Static resx:ResUI.menuNewUpdate}"
                     IsVisible="False" />
-            </DockPanel>
+              </DockPanel>
+            </Border>
 
             <ContentControl x:Name="contentStatusBarView" DockPanel.Dock="Bottom" />
 

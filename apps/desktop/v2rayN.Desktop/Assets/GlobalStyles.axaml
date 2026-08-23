@@ -20,6 +20,19 @@
 
     <Style Selector="DataGridRow:selected">
         <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="DataGridCell">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
     </Style>
 
     <!-- Shared DicodePing visual language: calm surfaces, generous rows and rounded controls. -->
@@ -46,6 +59,16 @@
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
     </Style>
 
+    <Style Selector="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
     <Style Selector="FlyoutPresenter">
         <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
@@ -59,7 +82,6 @@
     <Style Selector="PathIcon">
         <Setter Property="Width" Value="16" />
         <Setter Property="Height" Value="16" />
-        <Setter Property="Foreground" Value="{DynamicResource ButtonDefaultTertiaryForeground}" />
     </Style>
 
     <Style Selector="TextBox">
@@ -69,8 +91,16 @@
     </Style>
 
     <Style Selector="SelectableTextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
         <Setter Property="FlowDirection" Value="LeftToRight" />
         <Setter Property="TextAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="Border.DicodeCard">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
     </Style>
 
     <Style Selector="Button.FabButton">
