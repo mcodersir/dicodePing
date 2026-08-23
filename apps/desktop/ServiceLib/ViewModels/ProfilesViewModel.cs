@@ -11,6 +11,8 @@ public partial class ProfilesViewModel : MyReactiveObject
     public Interaction<RxVoid, RxVoid> AdjustMainLvColWidthInteraction { get; } = new();
 
     public EventChannel<RxVoid> ReloadRequested { get; } = new();
+    public EventChannel<RxVoid> ConnectionStartRequested { get; } = new();
+    public EventChannel<RxVoid> ConnectionStopRequested { get; } = new();
     public EventChannel<RxVoid> RefreshServersRequested { get; } = new();
 
     #region private prop
@@ -709,6 +711,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
+        var restartRunningConnection = CoreManager.Instance.IsRunning;
         if (await ConfigHandler.SetDefaultServerIndex(_config, indexId) == 0)
         {
             foreach (var profile in ProfileItems)
@@ -717,7 +720,12 @@ public partial class ProfilesViewModel : MyReactiveObject
             }
             SelectedProfile = ProfileItems.FirstOrDefault(profile => profile.IndexId == indexId) ?? SelectedProfile;
             await RefreshServers();
-            Reload();
+            // Selecting a row while disconnected must never start the tunnel.  Only
+            // replace the active route when the user was already connected.
+            if (restartRunningConnection)
+            {
+                Reload();
+            }
         }
     }
 
@@ -725,9 +733,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         if (CoreManager.Instance.IsRunning)
         {
-            await CoreManager.Instance.CoreStop();
-            IsConnected = false;
-            NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
+            ConnectionStopRequested.Publish();
             return;
         }
 
@@ -742,13 +748,13 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (SelectedProfile.IndexId == _config.IndexId)
         {
             NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
-            Reload();
         }
         else
         {
             NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
             await SetDefaultServer(SelectedProfile.IndexId);
         }
+        ConnectionStartRequested.Publish();
         await WaitForConnectionAsync();
     }
 
@@ -756,9 +762,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         if (CoreManager.Instance.IsRunning)
         {
-            await CoreManager.Instance.CoreStop();
-            IsConnected = false;
-            NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
+            ConnectionStopRequested.Publish();
             return;
         }
 
@@ -787,13 +791,13 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (best.IndexId == _config.IndexId)
         {
             NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
-            Reload();
         }
         else
         {
             NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
             await SetDefaultServer(best.IndexId);
         }
+        ConnectionStartRequested.Publish();
         await WaitForConnectionAsync();
     }
 

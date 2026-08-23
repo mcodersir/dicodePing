@@ -25,6 +25,8 @@ import kotlinx.coroutines.Job
 import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.min
 
 object NotificationManager {
@@ -41,6 +43,8 @@ object NotificationManager {
     private var mNotificationManager: NotificationManager? = null
     @Volatile private var totalUplink = 0L
     @Volatile private var totalDownlink = 0L
+    private val _trafficTotals = MutableStateFlow(0L to 0L)
+    val trafficTotalsFlow = _trafficTotals.asStateFlow()
 
     fun trafficTotals(): Pair<Long, Long> = totalUplink to totalDownlink
 
@@ -49,14 +53,20 @@ object NotificationManager {
      * @param currentConfig The current profile configuration.
      */
     fun startSpeedNotification() {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED, true) != true) return
         if (speedNotificationJob != null || CoreServiceManager.isRunning() == false) return
 
         var lastZeroSpeed = false
 
         speedNotificationJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
-                lastZeroSpeed = updateSpeedNotificationOnce(lastZeroSpeed)
+                lastZeroSpeed = try {
+                    updateSpeedNotificationOnce(lastZeroSpeed)
+                } catch (error: Exception) {
+                    // A transient stats query must not terminate the only live-traffic
+                    // collector. Keep the job alive across core/network handovers.
+                    LogUtil.w(AppConfig.TAG, "Traffic stats query failed; retrying: ${error.message}")
+                    lastZeroSpeed
+                }
                 delay(QUERY_INTERVAL_MS)
             }
         }
@@ -73,6 +83,7 @@ object NotificationManager {
         lastQueryTime = System.currentTimeMillis()
         totalUplink = 0L
         totalDownlink = 0L
+        _trafficTotals.value = 0L to 0L
 
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
@@ -269,6 +280,7 @@ object NotificationManager {
         val directTotal = directUplink + directDownlink
         totalUplink += proxyUplink + directUplink
         totalDownlink += proxyDownlink + directDownlink
+        _trafficTotals.value = totalUplink to totalDownlink
         TrafficStatsManager.record(MmkvManager.getSelectServer(), proxyUplink + directUplink, proxyDownlink + directDownlink)
         val zeroSpeed = proxyTotal + directTotal == 0L
         if (!zeroSpeed || !lastZeroSpeed) {
@@ -283,7 +295,7 @@ object NotificationManager {
                 directUplink / sinceLastQueryInSeconds,
                 directDownlink / sinceLastQueryInSeconds
             )
-            text.append("کل • ${totalUplink.toTrafficString()}↑  ${totalDownlink.toTrafficString()}↓")
+            text.append("\u2066TOTAL  ↑ ${totalUplink.toTrafficString()}  •  ↓ ${totalDownlink.toTrafficString()}\u2069")
             updateNotification(text.toString(), proxyTotal, directTotal)
         }
         lastQueryTime = queryTime

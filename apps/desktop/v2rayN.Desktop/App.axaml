@@ -25,7 +25,7 @@
 
         <Style Selector="dialogHost|DialogHost">
             <Setter Property="OverlayBackground" Value="{DynamicResource SemiColorOverlayBackground}" />
-            <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
+            <Setter Property="Background" Value="{DynamicResource DicodePageBackground}" />
 
             <Setter Property="dialogHost:DialogHostStyle.BoxShadow" Value="{DynamicResource SemiShadowElevated}" />
             <Setter Property="dialogHost:DialogHostStyle.CornerRadius" Value="6" />

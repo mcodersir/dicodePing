@@ -8,12 +8,25 @@
     <Style Selector="DataGrid">
         <Setter Property="RowHeight" Value="42" />
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="DataGridRow">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="DataGridRow:selected">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
     </Style>
 
     <!-- Shared DicodePing visual language: calm surfaces, generous rows and rounded controls. -->
     <Style Selector="Window">
         <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
-        <Setter Property="Background" Value="{DynamicResource SemiColorFill0}" />
+        <Setter Property="Background" Value="{DynamicResource DicodePageBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
         <Setter Property="FlowDirection" Value="RightToLeft" />
     </Style>
 
@@ -29,6 +42,18 @@
 
     <Style Selector="Menu">
         <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="FlyoutPresenter">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
     </Style>
 
     <Style Selector="PathIcon">
