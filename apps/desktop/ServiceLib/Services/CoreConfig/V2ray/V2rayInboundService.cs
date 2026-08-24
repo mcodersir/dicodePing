@@ -155,6 +155,14 @@ public partial class CoreConfigV2rayService
         inbound.sniffing.destOverride = inItem.DestOverride;
         inbound.sniffing.routeOnly = inItem.RouteOnly;
 
+        if (_config.RoutingBasicItem.DomainFilterMode != "off"
+            && _config.RoutingBasicItem.DomainFilterList is { Count: > 0 })
+        {
+            inbound.sniffing.enabled = true;
+            inbound.sniffing.routeOnly = true;
+            inbound.sniffing.destOverride = ["http", "tls", "quic"];
+        }
+
         if (_config.SimpleDNSItem.FakeIP == true)
         {
             // Ensure destOverride contains "fakedns" if FakeIP is enabled

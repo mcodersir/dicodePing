@@ -13,7 +13,24 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-      - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.5
+      - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.6
+
+  desktop-windows-isolated:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build and test in an ephemeral Windows runner
+        shell: pwsh
+        run: |
+          dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+          dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=3.0.6 -o isolated-publish
+          if (-not (Test-Path isolated-publish/DicodePing.exe)) { throw 'Desktop executable was not published' }
+          $manifest = Get-Content apps/desktop/v2rayN.Desktop/app.manifest -Raw
+          if ($manifest -notmatch 'requireAdministrator') { throw 'TUN elevation manifest is missing' }
+          if ((Get-Item isolated-publish/DicodePing.exe).Length -lt 1MB) { throw 'Published executable is unexpectedly small' }
 
   android-source:
     runs-on: ubuntu-latest
@@ -21,5 +38,5 @@ jobs:
       - uses: actions/checkout@v7
       - name: Check release version and Android UI source
         run: |
-          grep -q 'versionName.*3.0.5' apps/android/app/build.gradle.kts
+          grep -q 'versionName.*3.0.6' apps/android/app/build.gradle.kts
           test -f apps/android/app/src/main/java/com/v2ray/ang/ui/main/MainScreen.kt

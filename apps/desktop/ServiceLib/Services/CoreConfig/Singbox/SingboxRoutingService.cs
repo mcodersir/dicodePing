@@ -285,12 +285,14 @@ public partial class CoreConfigSingboxService
                     .Select(x => x.StartsWith("domain:", StringComparison.OrdinalIgnoreCase) ? x[7..] : x)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                _coreConfig.route.rules.Insert(0, new Rule4Sbox
+                var filterRule = new Rule4Sbox
                 {
                     // A plain entry in the UI means the domain and its subdomains.
                     domain_suffix = normalizedDomains,
                     outbound = domainFilterMode == "only" ? Global.ProxyTag : Global.DirectTag,
-                });
+                };
+                var sniffIndex = _coreConfig.route.rules.FindIndex(rule => rule.action == "sniff");
+                _coreConfig.route.rules.Insert(sniffIndex >= 0 ? sniffIndex + 1 : 0, filterRule);
             }
             if (_config.RoutingBasicItem.DomainStrategy == Global.IPIfNonMatch)
             {

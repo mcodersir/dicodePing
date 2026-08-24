@@ -83,6 +83,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> RealPingServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> LocationTestCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SecurityTestCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SanctionsTestCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> UdpTestServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SpeedServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SortServerResultCmd { get; }
@@ -244,6 +245,10 @@ public partial class ProfilesViewModel : MyReactiveObject
             }
             NoticeManager.Instance.Enqueue("آزمایش امنیت پیکربندی همهٔ سرورها انجام شد");
         });
+        SanctionsTestCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await ServerSpeedtest(ESpeedActionType.Sanctions);
+        });
         UdpTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await ServerSpeedtest(ESpeedActionType.UdpTest);
@@ -370,6 +375,10 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
+        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != "در حال بررسی…")
+        {
+            item.SanctionsInfo = result.SanctionsInfo ?? string.Empty;
+        }
         // The test service owns the durable flush at the end of each batch.
     }
 
@@ -471,6 +480,10 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 next.IpInfo = previous.IpInfo;
             }
+            if (next.SanctionsInfo.IsNullOrEmpty() && previous.SanctionsInfo.IsNotEmpty())
+            {
+                next.SanctionsInfo = previous.SanctionsInfo;
+            }
         }
         ProfileItems.ReplaceAll(lstModel ?? []);
         if (lstModel?.Count > 0)
@@ -542,6 +555,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                         DelayVal = t33?.Delay != 0 ? $"{t33?.Delay}" : string.Empty,
                         SpeedVal = t33?.Speed > 0 ? $"{t33?.Speed}" : t33?.Message ?? string.Empty,
                         IpInfo = t33?.IpInfo ?? string.Empty,
+                        SanctionsInfo = t33?.SanctionsInfo ?? string.Empty,
                         TodayDown = t22 == null ? "" : Utils.HumanFy(t22.TodayDown),
                         TodayUp = t22 == null ? "" : Utils.HumanFy(t22.TodayUp),
                         TotalDown = t22 == null ? "" : Utils.HumanFy(t22.TotalDown),
@@ -947,7 +961,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         try
         {
         List<ProfileItem>? lstSelected;
-        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location)
+        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location or ESpeedActionType.Sanctions)
         {
             if (actionType == ESpeedActionType.FastRealping)
             {

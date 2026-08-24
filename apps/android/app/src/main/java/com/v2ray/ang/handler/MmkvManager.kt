@@ -496,6 +496,15 @@ object MmkvManager {
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
     }
 
+    fun encodeServerSanctions(guid: String, accessible: Boolean, passed: Int, total: Int) {
+        if (guid.isBlank()) return
+        val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
+        aff.sanctionsAccessible = accessible
+        aff.sanctionsPassed = passed
+        aff.sanctionsTotal = total
+        serverAffStorage.encode(guid, JsonUtil.toJson(aff))
+    }
+
     /**
      * Clears all test delay results.
      *

@@ -214,15 +214,15 @@ class CoreVpnService : VpnService(), ServiceControl {
             builder.addRoute("0.0.0.0", 0)
         }
 
-        // Configure IPv6 if enabled
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true) {
-            builder.addAddress(vpnConfig.ipv6Client, 126)
-            if (bypassLan) {
-                builder.addRoute("2000::", 3) // Currently only 1/8 of total IPv6 is in use
-                builder.addRoute("fc00::", 18) // Xray-core default FakeIPv6 Pool
-            } else {
-                builder.addRoute("::", 0)
-            }
+        // Always claim IPv6 while the VPN is active. Leaving the family outside
+        // the VPN lets Android resolve/connect over the physical interface and
+        // is a common DNS/IPv6 leak even when applications appear to use IPv4.
+        builder.addAddress(vpnConfig.ipv6Client, 126)
+        if (bypassLan) {
+            builder.addRoute("2000::", 3)
+            builder.addRoute("fc00::", 18)
+        } else {
+            builder.addRoute("::", 0)
         }
 
         // Configure DNS servers

@@ -249,6 +249,9 @@
     <string name="domain_filter_bypass">ترافیک از این دامنه‌ها رد نشود</string>
     <string name="save_and_apply">ذخیره و اعمال آنی</string>
     <string name="security_test_beta">آزمایش امنیت (بتا)</string>
+    <string name="sanctions_test_beta">آزمایش تحریم (بتا)</string>
+    <string name="sanctions_accessible">قابل دسترسی · %1$d/%2$d</string>
+    <string name="sanctions_blocked">محدود · %1$d/%2$d</string>
     <string name="title_pref_domain_filter_list">دامنه‌ها (با ویرگول یا خط جدید جدا کنید)</string>
     <string-array name="domain_filter_mode_entries">
         <item>خاموش</item>

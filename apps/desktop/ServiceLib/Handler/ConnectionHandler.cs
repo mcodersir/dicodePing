@@ -3,6 +3,49 @@ namespace ServiceLib.Handler;
 public static class ConnectionHandler
 {
     private static readonly string _tag = "ConnectionHandler";
+    private static readonly string[] SanctionsProbeUrls =
+    [
+        "https://gemini.google.com/",
+        "https://flow.google/",
+        "https://firebase.google.com/",
+        "https://dart.dev/",
+        "https://flutter.dev/"
+    ];
+
+    public static async Task<(bool Accessible, int Passed, int Total)> TestSanctionsAccess(IWebProxy webProxy)
+    {
+        using var handler = new HttpClientHandler
+        {
+            Proxy = webProxy,
+            UseProxy = true,
+            AllowAutoRedirect = true,
+            AutomaticDecompression = DecompressionMethods.All
+        };
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(9) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("DicodePing/3.0 sanctions-probe");
+
+        async Task<bool> Probe(string url)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                return (int)response.StatusCode is >= 200 and < 500
+                    && response.StatusCode != HttpStatusCode.Forbidden
+                    && response.StatusCode != HttpStatusCode.UnavailableForLegalReasons;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        var results = await Task.WhenAll(SanctionsProbeUrls.Select(Probe));
+        var passed = results.Count(value => value);
+        // At least one restricted Google AI surface and most developer surfaces
+        // must be reachable; a single generic Google response is not enough.
+        return ((results[0] || results[1]) && passed >= 3, passed, results.Length);
+    }
 
     /// <summary>
     /// Runs ping and IP checks and returns a formatted result string.

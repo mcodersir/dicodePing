@@ -9,6 +9,8 @@ public class ProcessService : IDisposable
     public int Id => _process.Id;
     public IntPtr Handle => _process.Handle;
     public bool HasExited => _process.HasExited;
+    public bool StopRequested { get; private set; }
+    public event Action<int>? Exited;
 
     public ProcessService(
         string fileName,
@@ -47,6 +49,13 @@ public class ProcessService : IDisposable
             }
         }
 
+        _process.Exited += (_, _) =>
+        {
+            var exitCode = -1;
+            try { exitCode = _process.ExitCode; } catch { }
+            Exited?.Invoke(exitCode);
+        };
+
         if (displayLog)
         {
             RegisterEventHandlers();
@@ -72,6 +81,7 @@ public class ProcessService : IDisposable
 
     public async Task StopAsync()
     {
+        StopRequested = true;
         if (_process.HasExited)
         {
             return;

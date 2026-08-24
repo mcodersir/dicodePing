@@ -7,4 +7,7 @@ data class ServersCache(
     val countryCode: String? = null,
     val ipAddress: String? = null,
     val securityInfo: String? = null,
+    val sanctionsAccessible: Boolean? = null,
+    val sanctionsPassed: Int = 0,
+    val sanctionsTotal: Int = 0,
 )

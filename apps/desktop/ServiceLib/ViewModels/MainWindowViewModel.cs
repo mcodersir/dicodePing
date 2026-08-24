@@ -359,6 +359,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         await ConfigHandler.InitBuiltinFullConfigTemplate(_config);
         await ProfileExManager.Instance.Init();
         await CoreManager.Instance.Init(_config, UpdateHandler);
+        CoreManager.Instance.UnexpectedExit += RecoverUnexpectedCoreExitAsync;
         await CertPemManager.Instance.Init(_config);
         TaskManager.Instance.RegUpdateTask(_config, UpdateTaskHandler);
 
@@ -396,8 +397,13 @@ public partial class MainWindowViewModel : MyReactiveObject
             var indexIdOld = _config.IndexId;
             await RefreshServersDispatcherAsync();
 
-            // If indexId changed or subIndexId is empty, directly reload.
-            if (indexIdOld != _config.IndexId || _config.SubIndexId.IsNullOrEmpty())
+            // Background subscription/updater work must not tear down a healthy TUN.
+            // Refreshed profiles are used on the next explicit connection.
+            if (CoreManager.Instance.IsRunning)
+            {
+                Logging.SaveLog("Background update completed while TUN is active; core reload deferred.");
+            }
+            else if (indexIdOld != _config.IndexId || _config.SubIndexId.IsNullOrEmpty())
             {
                 await Reload();
             }
@@ -684,12 +690,34 @@ public partial class MainWindowViewModel : MyReactiveObject
     private bool _connectionDesired;
     private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
+    private int _unexpectedExitRecovery;
 
     private async Task StartConnectionAsync()
     {
         _connectionDesired = true;
         Interlocked.Increment(ref _connectionIntentVersion);
         await Reload(forceStart: true);
+    }
+
+    private async Task RecoverUnexpectedCoreExitAsync(int exitCode)
+    {
+        if (!_connectionDesired || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)
+        {
+            return;
+        }
+        try
+        {
+            Logging.SaveLog($"TUN watchdog: unexpected core exit {exitCode}; recovering the requested connection.");
+            await Task.Delay(1200);
+            if (_connectionDesired && !CoreManager.Instance.IsRunning)
+            {
+                await Reload(forceStart: true);
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _unexpectedExitRecovery, 0);
+        }
     }
 
     private async Task StopConnectionAsync()

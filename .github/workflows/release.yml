@@ -65,9 +65,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.5
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.6
+      - name: Run desktop regression tests on isolated Windows
+        if: runner.os == 'Windows'
+        run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.5 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.6 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -139,11 +142,20 @@ jobs:
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
+      - name: Execute bundled cores in the ephemeral runner
+        shell: pwsh
+        run: |
+          & (Resolve-Path "publish/bin/xray/${{ matrix.xray_binary }}") version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled Xray runtime failed its smoke test' }
+          & (Resolve-Path "publish/bin/sing_box/${{ matrix.singbox_binary }}") version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled sing-box runtime failed its smoke test' }
+          & (Resolve-Path "publish/bin/mihomo/${{ matrix.mihomo_binary }}") -v
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled mihomo runtime failed its smoke test' }
       - name: Archive and checksum
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.5-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.0.6-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -152,7 +164,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.5-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.0.6-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -193,7 +205,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.5
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.6
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -226,25 +238,27 @@ jobs:
           prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.5 Stable
+            ## DicodePing 3.0.6 Stable
 
-            نسخهٔ پایدار DicodePing با تم‌های یکپارچه و ترافیک زندهٔ واقعی در رابط اندروید.
+            نسخهٔ پایدار DicodePing با اتصال TUN پایدار، فیلتر دامنهٔ واقعی و آزمایش تحریم.
 
-            - تعویض فوری و واقعی تم بدون نیاز به راه‌اندازی مجدد در همهٔ پنجره‌های دسکتاپ
-            - پالت مستقل و خوانای Light، Dark، Aquatic، Desert، Dusk و NightSky
-            - رفع متن و آیکون کم‌رنگ با رنگ‌های هماهنگ برای جدول، منو، کارت و نوار وضعیت
-            - بازطراحی مینیمال سطوح، کادرها، فاصله‌ها و نوار وضعیت دسکتاپ
-            - انتقال آمار ترافیک از پردازهٔ VPN به رابط اندروید از طریق IPC واقعی
-            - نمونه‌برداری یک‌ثانیه‌ای دانلود/آپلود در نوار پایین، اعلان و گزارش روزانه
-            - اصلاح حلقه‌ای که می‌توانست به‌دلیل زمان‌بندی زودهنگام دائماً روی صفر بماند
-            - تحمل خطاهای TLS و timeout شبکه بدون کرش یا توقف رابط
+            - جلوگیری از قطع/وصل TUN هنگام بروزرسانی اشتراک یا reload تکراری
+            - بازیابی کنترل‌شدهٔ هسته فقط پس از خروج غیرمنتظره و تا زمانی که کاربر اتصال را خواسته باشد
+            - آزمایش تحریم واقعی Gemini، Flow، Firebase، Dart و Flutter برای همهٔ کانفیگ‌ها
+            - نمایش و ذخیرهٔ نتیجهٔ سبز/قرمز آزمایش تحریم بدون پاک‌شدن پینگ و لوکیشن
+            - اصلاح ترتیب sniff و routing برای فیلتر دامنه در Xray، sing-box و کانفیگ سفارشی
+            - جلوگیری از نشت DNS و IPv6 در TUN دسکتاپ و VPN اندروید
+            - پرچم تصویری مینیمال کشورها و ستون‌های خودکار و واکنش‌گرا در دسکتاپ
+            - مرتب‌سازی خودکار کانفیگ‌های اندروید از بهترین تأخیر پس از پایان آزمایش اولیه
+            - پیش‌فرض منطقه‌ای ایران و تکمیل رشته‌های فارسی جدید
+            - رفع خطای 740 اجرای برنامه از پایان نصب‌کنندهٔ ویندوز
 
             | Platform | Portable / direct | Installer / package |
             | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.5-windows-x64-portable.zip` | `DicodePing-3.0.5-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.5-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.5-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.5-macos-arm64-portable.zip` | — |
+            | Windows x64 | `DicodePing-3.0.6-windows-x64-portable.zip` | `DicodePing-3.0.6-windows-x64-installer.exe` |
+            | Linux x64 | `DicodePing-3.0.6-linux-x64-portable.zip` | — |
+            | macOS Intel | `DicodePing-3.0.6-macos-x64-portable.zip` | — |
+            | macOS Apple Silicon | `DicodePing-3.0.6-macos-arm64-portable.zip` | — |
             | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
 
             فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.

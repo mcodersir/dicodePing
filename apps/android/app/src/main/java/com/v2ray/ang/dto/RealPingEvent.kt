@@ -11,6 +11,9 @@ sealed class RealPingEvent {
         val delayMillis: Long,
         val countryCode: String? = null,
         val ipAddress: String? = null,
+        val sanctionsAccessible: Boolean? = null,
+        val sanctionsPassed: Int = 0,
+        val sanctionsTotal: Int = 0,
     ) : RealPingEvent()
 
     /** The entire batch has finished or been cancelled. */

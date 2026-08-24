@@ -14,11 +14,14 @@ public class CoreManager
 
     private ProcessService? _processService;
     private ProcessService? _processPreService;
+    private string? _activeConfigHash;
+    private int _intentionalStopDepth;
     private bool _linuxSudo = false;
     private Func<bool, string, Task>? _updateFunc;
     private const string _tag = "CoreHandler";
 
     public bool IsRunning => _processService is { HasExited: false };
+    public event Func<int, Task>? UnexpectedExit;
 
     public async Task Init(Config config, Func<bool, string, Task> updateFunc)
     {
@@ -81,6 +84,14 @@ public class CoreManager
             return;
         }
 
+        var generatedConfigHash = Convert.ToHexString(
+            SHA256.HashData(await File.ReadAllBytesAsync(fileName)));
+        if (IsRunning && string.Equals(_activeConfigHash, generatedConfigHash, StringComparison.Ordinal))
+        {
+            Logging.SaveLog("CoreHandler: identical generated configuration; keeping the active TUN process.");
+            return;
+        }
+
         await UpdateFunc(false, $"{node.GetSummary()}");
         await UpdateFunc(false, $"{Utils.GetRuntimeInfo()}");
         await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
@@ -101,6 +112,7 @@ public class CoreManager
 
         if (_processService != null)
         {
+            _activeConfigHash = generatedConfigHash;
             await UpdateFunc(true, $"{node.GetSummary()}");
         }
     }
@@ -148,6 +160,7 @@ public class CoreManager
 
     public async Task CoreStop()
     {
+        Interlocked.Increment(ref _intentionalStopDepth);
         try
         {
             if (_linuxSudo)
@@ -169,10 +182,15 @@ public class CoreManager
                 _processPreService.Dispose();
                 _processPreService = null;
             }
+            _activeConfigHash = null;
         }
         catch (Exception ex)
         {
             Logging.SaveLog(_tag, ex);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _intentionalStopDepth);
         }
     }
 
@@ -191,6 +209,20 @@ public class CoreManager
             return;
         }
         _processService = proc;
+        proc.Exited += exitCode =>
+        {
+            if (ReferenceEquals(_processService, proc)
+                && !proc.StopRequested
+                && Volatile.Read(ref _intentionalStopDepth) == 0)
+            {
+                Logging.SaveLog($"CoreHandler: active core exited unexpectedly with code {exitCode}.");
+                var handler = UnexpectedExit;
+                if (handler != null)
+                {
+                    _ = handler(exitCode);
+                }
+            }
+        };
     }
 
     private async Task CoreStartPreService(CoreConfigContext? preContext)

@@ -8,6 +8,8 @@ data class TestServiceMessage(
     val serverGuids: List<String> = emptyList(),
     val onlyTcp: Boolean = false,
     /** Runs the independent server-location probe without replacing saved ping. */
-    val locationOnly: Boolean = false
+    val locationOnly: Boolean = false,
+    /** Checks restricted Google/developer services without replacing ping/location. */
+    val sanctionsOnly: Boolean = false
 ) : Serializable
 

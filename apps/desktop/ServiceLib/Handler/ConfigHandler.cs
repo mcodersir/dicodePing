@@ -103,6 +103,7 @@ public static class ConfigHandler
         // DicodePing is deliberately a TUN-only client. Existing installations are migrated
         // on first launch as well, so no non-TUN traffic mode can be selected afterwards.
         config.TunModeItem.EnableTun = true;
+        config.TunModeItem.StrictRoute = true;
         config.GuiItem ??= new();
         config.GuiItem.EnableStatistics = true;
         config.GuiItem.DisplayRealTimeSpeed = true;
@@ -139,6 +140,17 @@ public static class ConfigHandler
         }
 
         config.ConstItem ??= new ConstItem();
+        // DicodePing targets Iranian networks. Use the Iran geo/routing sources
+        // as the first-run regional preset without overwriting an explicit
+        // preset that the user has already selected.
+        if (config.ConstItem.GeoSourceUrl.IsNullOrEmpty()
+            && config.ConstItem.SrsSourceUrl.IsNullOrEmpty()
+            && config.ConstItem.RouteRulesTemplateSourceUrl.IsNullOrEmpty())
+        {
+            config.ConstItem.GeoSourceUrl = Global.GeoFilesSources[2];
+            config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[2];
+            config.ConstItem.RouteRulesTemplateSourceUrl = Global.RoutingRulesSources[2];
+        }
 
         config.SimpleDNSItem ??= InitBuiltinSimpleDNS();
         config.SimpleDNSItem.FakeIPRange ??= Global.FakeIPRanges.FirstOrDefault();
