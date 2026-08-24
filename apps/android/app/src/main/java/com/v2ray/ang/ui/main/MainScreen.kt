@@ -279,6 +279,7 @@ fun MainScreen(
                             MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
                             MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestAllLocations)
                             MainMoreMenuAction.TestSecurityBeta -> onAction(MainAction.TestAllSecurity)
+                            MainMoreMenuAction.TestSanctionsBeta -> onAction(MainAction.TestAllSanctions)
                             MainMoreMenuAction.UpdateSubscriptions -> onAction(MainAction.UpdateSubscriptions)
                         }
                     }

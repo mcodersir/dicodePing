@@ -8,5 +8,6 @@ public enum ESpeedActionType
     Speedtest,
     Mixedtest,
     FastRealping,
-    Location
+    Location,
+    Sanctions
 }

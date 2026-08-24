@@ -35,6 +35,9 @@ public partial class ProfileItemModel : ReactiveObject
     public partial string SecurityInfo { get; set; }
 
     [Reactive]
+    public partial string SanctionsInfo { get; set; }
+
+    [Reactive]
     public partial string TodayUp { get; set; }
 
     [Reactive]

@@ -265,6 +265,9 @@ private fun ServerItemRow(
         countryCode = serverCache.countryCode,
         ipAddress = serverCache.ipAddress,
         securityInfo = serverCache.securityInfo,
+        sanctionsAccessible = serverCache.sanctionsAccessible,
+        sanctionsPassed = serverCache.sanctionsPassed,
+        sanctionsTotal = serverCache.sanctionsTotal,
         isSelected = serverCache.guid == selectedGuid,
         subscriptionRemarks = subRemarks,
         subscriptionUsage = formatSubscriptionUsage(subscription?.uploadBytes ?: 0, subscription?.downloadBytes ?: 0, subscription?.totalBytes ?: 0),
@@ -305,6 +308,9 @@ private fun ServerItemColumn(
             countryCode = serverCache.countryCode,
             ipAddress = serverCache.ipAddress,
             securityInfo = serverCache.securityInfo,
+            sanctionsAccessible = serverCache.sanctionsAccessible,
+            sanctionsPassed = serverCache.sanctionsPassed,
+            sanctionsTotal = serverCache.sanctionsTotal,
             isSelected = serverCache.guid == selectedGuid,
             subscriptionRemarks = subRemarks,
             subscriptionUsage = formatSubscriptionUsage(subscription?.uploadBytes ?: 0, subscription?.downloadBytes ?: 0, subscription?.totalBytes ?: 0),
@@ -328,6 +334,9 @@ fun ServerListItem(
     countryCode: String?,
     ipAddress: String?,
     securityInfo: String?,
+    sanctionsAccessible: Boolean?,
+    sanctionsPassed: Int,
+    sanctionsTotal: Int,
     isSelected: Boolean,
     subscriptionRemarks: String,
     subscriptionUsage: String,
@@ -496,6 +505,25 @@ fun ServerListItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (sanctionsAccessible != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painterResource(if (sanctionsAccessible) R.drawable.ic_sanctions_ok_24dp else R.drawable.ic_sanctions_blocked_24dp),
+                                contentDescription = stringResource(R.string.sanctions_test_beta),
+                                modifier = Modifier.size(15.dp),
+                                tint = if (sanctionsAccessible) colorPing else colorPingRed
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                stringResource(
+                                    if (sanctionsAccessible) R.string.sanctions_accessible else R.string.sanctions_blocked,
+                                    sanctionsPassed, sanctionsTotal
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (sanctionsAccessible) colorPing else colorPingRed
+                            )
+                        }
+                    }
                 }
             }
         }

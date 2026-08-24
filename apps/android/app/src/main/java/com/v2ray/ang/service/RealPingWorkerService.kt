@@ -47,6 +47,7 @@ class RealPingWorkerService(
     private val guids: List<String>,
     private val onlyTcp: Boolean = false,
     private val locationOnly: Boolean = false,
+    private val sanctionsOnly: Boolean = false,
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
     private val job = SupervisorJob()
@@ -63,12 +64,16 @@ class RealPingWorkerService(
             scope.launch {
                 runningCount.incrementAndGet()
                 try {
-                    val result = if (onlyTcp) startTcping(guid) else startRealPing(guid)
+                    val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
+                    val result = if (sanctionsOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
                     val location = if (locationOnly) {
                         SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server)
                     } else null
                     if (scope.isActive) {
-                        onEvent(RealPingEvent.Result(guid, result, location?.country, location?.ipAddress))
+                        onEvent(RealPingEvent.Result(
+                            guid, result, location?.country, location?.ipAddress,
+                            sanctions?.first, sanctions?.second ?: 0, SANCTIONS_URLS.size
+                        ))
                     }
                 } catch (_: Throwable) {
                     // ignore
@@ -134,6 +139,34 @@ class RealPingWorkerService(
         return RealPingExecutionLimiter.run(config.configType) {
             CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl())
         }
+    }
+
+    private suspend fun startSanctionsCheck(guid: String): Pair<Boolean, Int> {
+        val config = MmkvManager.decodeServerConfig(guid) ?: return false to 0
+        val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
+        if (!configResult.status) return false to 0
+        var passed = 0
+        var googleAiPassed = false
+        RealPingExecutionLimiter.run(config.configType) {
+            SANCTIONS_URLS.forEachIndexed { index, url ->
+                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, url)
+                if (delay >= 0L) {
+                    passed++
+                    if (index < 2) googleAiPassed = true
+                }
+            }
+        }
+        return (googleAiPassed && passed >= 3) to passed
+    }
+
+    private companion object {
+        val SANCTIONS_URLS = listOf(
+            "https://gemini.google.com/",
+            "https://flow.google/",
+            "https://firebase.google.com/",
+            "https://dart.dev/",
+            "https://flutter.dev/"
+        )
     }
 
     private fun startTcping(guid: String): Long {

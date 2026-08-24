@@ -13,6 +13,28 @@ namespace ServiceLib.Tests.CoreConfig.Singbox;
 public class CoreConfigSingboxServiceTests
 {
     [Fact]
+    public void GenerateClientConfigContent_DomainFilter_IsEvaluatedAfterSniff()
+    {
+        var config = CoreConfigTestFactory.CreateConfigWithTun(ECoreType.sing_box, false);
+        config.RoutingBasicItem.DomainFilterMode = "only";
+        config.RoutingBasicItem.DomainFilterList = ["gemini.google.com"];
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var node = CoreConfigTestFactory.CreateVmessNode(ECoreType.sing_box);
+        var context = CoreConfigTestFactory.CreateContext(config, node, ECoreType.sing_box);
+
+        var result = new CoreConfigSingboxService(context).GenerateClientConfigContent();
+
+        result.Success.Should().BeTrue($"ret msg: {result.Msg}");
+        var cfg = JsonUtils.Deserialize<SingboxConfig>(result.Data!.ToString())!;
+        var sniffIndex = cfg.route.rules.FindIndex(rule => rule.action == "sniff");
+        var filterIndex = cfg.route.rules.FindIndex(rule =>
+            rule.domain_suffix?.Contains("gemini.google.com") == true && rule.outbound == Global.ProxyTag);
+        sniffIndex.Should().BeGreaterThanOrEqualTo(0);
+        filterIndex.Should().BeGreaterThan(sniffIndex);
+        cfg.route.final.Should().Be(Global.DirectTag);
+    }
+
+    [Fact]
     public void GenerateClientConfigContent_ShouldGenerateBasicProxyConfig()
     {
         var config = CoreConfigTestFactory.CreateConfig(ECoreType.sing_box);

@@ -160,6 +160,17 @@ object CoreConfigManager {
         val domains = readDomainFilterEntries()
         if (mode == "off" || domains.isEmpty()) return
 
+        json.get("inbounds")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { element ->
+            val inbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            val sniffing = inbound.get("sniffing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+            sniffing.addProperty("enabled", true)
+            sniffing.addProperty("routeOnly", true)
+            sniffing.add("destOverride", JsonArray().apply {
+                add("http"); add("tls"); add("quic")
+            })
+            inbound.add("sniffing", sniffing)
+        }
+
         val outbounds = json.get("outbounds")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray().also {
             json.add("outbounds", it)
         }
@@ -205,10 +216,13 @@ object CoreConfigManager {
             ?.split(',', '\n', '\r', ' ', '\t')
             ?.map { it.trim().trimEnd('.') }
             ?.filter { it.isNotEmpty() }
-            ?.map {
-                if (it.startsWith("domain:", true) || it.startsWith("full:", true)
-                    || it.startsWith("regexp:", true) || it.startsWith("geosite:", true)
-                ) it else "domain:$it"
+            ?.map { raw ->
+                val value = runCatching {
+                    java.net.URI(raw).takeIf { it.isAbsolute && !it.host.isNullOrBlank() }?.host ?: raw
+                }.getOrDefault(raw).trim().trim('.')
+                if (value.startsWith("domain:", true) || value.startsWith("full:", true)
+                    || value.startsWith("regexp:", true) || value.startsWith("geosite:", true)
+                ) value else "domain:$value"
             }
             ?.distinct()
             .orEmpty()
@@ -581,11 +595,20 @@ object CoreConfigManager {
         val fakedns = MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true
         val sniffAllTlsAndHttp =
             MmkvManager.decodeSettingsBool(AppConfig.PREF_SNIFFING_ENABLED, true) != false
-        inbound1.sniffing?.enabled = fakedns || sniffAllTlsAndHttp
+        val domainFilterEnabled = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off") != "off"
+                && readDomainFilterEntries().isNotEmpty()
+        inbound1.sniffing?.enabled = fakedns || sniffAllTlsAndHttp || domainFilterEnabled
         inbound1.sniffing?.routeOnly =
             MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false)
         if (!sniffAllTlsAndHttp) {
             inbound1.sniffing?.destOverride?.clear()
+        }
+        if (domainFilterEnabled) {
+            inbound1.sniffing?.routeOnly = true
+            inbound1.sniffing?.destOverride?.apply {
+                clear()
+                addAll(listOf("http", "tls", "quic"))
+            }
         }
         if (fakedns) {
             inbound1.sniffing?.destOverride?.add("fakedns")
@@ -666,10 +689,6 @@ object CoreConfigManager {
      * Configure local DNS inbounds, outbounds, and routing rules.
      */
     private fun configureLocalDns(configContext: CoreConfigContext, v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) != true) {
-            return
-        }
-
         if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true) {
             val geositeCn = arrayListOf(AppConfig.GEOSITE_CN)
             val routingDomains = configContext.routingDomainRules

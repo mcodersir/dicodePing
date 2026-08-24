@@ -57,6 +57,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 await RunRealPingBatchAsync(lstSelected, exitLoopKey, locationOnly: true);
                 break;
 
+            case ESpeedActionType.Sanctions:
+                await RunSanctionsBatchAsync(lstSelected, exitLoopKey);
+                break;
+
             case ESpeedActionType.UdpTest:
                 await RunUdpTestBatchAsync(lstSelected, exitLoopKey);
                 break;
@@ -128,6 +132,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 case ESpeedActionType.Location:
                     // Location tests must leave the last saved ping untouched.
                     await UpdateIpInfoFunc(it.IndexId, ResUI.Speedtesting);
+                    break;
+
+                case ESpeedActionType.Sanctions:
+                    await UpdateSanctionsFunc(it.IndexId, "در حال بررسی…");
                     break;
             }
         }
@@ -286,6 +294,43 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             }
         }
         return true;
+    }
+
+    private async Task RunSanctionsBatchAsync(List<ServerTestItem> selecteds, string exitLoopKey)
+    {
+        var pageSize = Math.Min(selecteds.Count, Math.Max(1, _speedTestPageSize));
+        foreach (var batch in GetTestBatchItem(selecteds, pageSize))
+        {
+            if (ShouldStopTest(exitLoopKey)) return;
+            ProcessService? processService = null;
+            try
+            {
+                processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
+                if (processService is null) continue;
+                await Task.Delay(900);
+                await Task.WhenAll(batch.Where(item => item.AllowTest).Select(DoSanctionsTest));
+            }
+            catch (Exception ex)
+            {
+                Logging.SaveLog(_tag, ex);
+            }
+            finally
+            {
+                if (processService != null) await processService.StopAsync();
+            }
+            await Task.Delay(_delayInterval);
+        }
+    }
+
+    private async Task DoSanctionsTest(ServerTestItem item)
+    {
+        var proxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
+        var result = await ConnectionHandler.TestSanctionsAccess(proxy);
+        var text = result.Accessible
+            ? $"قابل دسترسی · {result.Passed}/{result.Total}"
+            : $"محدود · {result.Passed}/{result.Total}";
+        ProfileExManager.Instance.SetSanctionsInfo(item.IndexId, text);
+        await UpdateSanctionsFunc(item.IndexId, text);
     }
 
     private async Task RunUdpTestBatchAsync(List<ServerTestItem> lstSelected, string exitLoopKey, int pageSize = 0)
@@ -571,5 +616,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task UpdateIpInfoFunc(string indexId, string ip)
     {
         await _updateFunc?.Invoke(new() { IndexId = indexId, IpInfo = ip });
+    }
+
+    private async Task UpdateSanctionsFunc(string indexId, string value)
+    {
+        await _updateFunc?.Invoke(new() { IndexId = indexId, SanctionsInfo = value });
     }
 }

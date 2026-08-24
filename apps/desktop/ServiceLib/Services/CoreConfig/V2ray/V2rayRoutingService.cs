@@ -117,7 +117,12 @@ public partial class CoreConfigV2rayService
 
     private static string NormalizeDomainFilterEntry(string value)
     {
-        var domain = value.Trim().TrimEnd('.');
+        var domain = value.Trim();
+        if (Uri.TryCreate(domain, UriKind.Absolute, out var uri) && uri.Host.IsNotEmpty())
+        {
+            domain = uri.Host;
+        }
+        domain = domain.Trim().Trim('.');
         if (domain.IsNullOrEmpty()) return string.Empty;
         return domain.StartsWith("domain:", StringComparison.OrdinalIgnoreCase)
             || domain.StartsWith("full:", StringComparison.OrdinalIgnoreCase)

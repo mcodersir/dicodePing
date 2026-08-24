@@ -10,6 +10,27 @@ namespace ServiceLib.Tests.CoreConfig.V2ray;
 public class CoreConfigV2rayServiceTests
 {
     [Fact]
+    public void GenerateClientConfigContent_DomainFilter_NormalizesUrlAndForcesTunSniffing()
+    {
+        var config = CoreConfigTestFactory.CreateConfigWithTun(ECoreType.Xray, false);
+        config.RoutingBasicItem.DomainFilterMode = "bypass";
+        config.RoutingBasicItem.DomainFilterList = ["https://Gemini.Google.com/app/"];
+        config.Inbound[0].SniffingEnabled = false;
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var node = CoreConfigTestFactory.CreateVmessNode(ECoreType.Xray);
+        var context = CoreConfigTestFactory.CreateContext(config, node, ECoreType.Xray);
+
+        var result = new CoreConfigV2rayService(context).GenerateClientConfigContent();
+
+        result.Success.Should().BeTrue();
+        var cfg = JsonUtils.Deserialize<V2rayConfig>(result.Data!.ToString())!;
+        cfg.routing.rules.First().domain.Should().Contain("domain:gemini.google.com");
+        var tun = cfg.inbounds.First(inbound => inbound.protocol == "tun");
+        tun.sniffing.enabled.Should().BeTrue();
+        tun.sniffing.routeOnly.Should().BeTrue();
+    }
+
+    [Fact]
     public void GenerateClientConfigContent_ShouldGenerateBasicProxyConfig()
     {
         var config = CoreConfigTestFactory.CreateConfig(ECoreType.Xray);

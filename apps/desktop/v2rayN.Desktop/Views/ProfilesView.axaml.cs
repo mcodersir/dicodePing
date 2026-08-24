@@ -23,6 +23,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         lstProfiles.DoubleTapped += LstProfiles_DoubleTapped;
         lstProfiles.LoadingRow += LstProfiles_LoadingRow;
         lstProfiles.Sorting += LstProfiles_Sorting;
+        lstProfiles.SizeChanged += (_, _) => ApplyResponsiveColumns();
         if (_config.UiItem.EnableDragDropSort)
         {
             lstProfiles.SetValue(DragDrop.AllowDropProperty, true);
@@ -71,6 +72,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
             this.BindCommand(ViewModel, vm => vm.RealPingServerCmd, v => v.menuRealPingServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.LocationTestCmd, v => v.btnLocationTest).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.SecurityTestCmd, v => v.btnSecurityTest).DisposeWith(disposables);
+            this.BindCommand(ViewModel, vm => vm.SanctionsTestCmd, v => v.btnSanctionsTest).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.UdpTestServerCmd, v => v.menuUdpTestServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.SpeedServerCmd, v => v.menuSpeedServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.SortServerResultCmd, v => v.menuSortServerResult).DisposeWith(disposables);
@@ -155,6 +157,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         });
 
         RestoreUI();
+        ApplyResponsiveColumns();
     }
 
     private async void LstProfiles_Sorting(object? sender, DataGridColumnEventArgs e)
@@ -349,6 +352,34 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         catch (Exception ex)
         {
             Logging.SaveLog(_tag, ex);
+        }
+    }
+
+    private void ApplyResponsiveColumns()
+    {
+        var width = lstProfiles.Bounds.Width;
+        if (width <= 0) return;
+        foreach (var column in lstProfiles.Columns)
+        {
+            var tag = column.Tag?.ToString();
+            if (tag.IsNullOrEmpty()) continue;
+            column.Width = tag switch
+            {
+                "Remarks" => new DataGridLength(2.3, DataGridLengthUnitType.Star),
+                "IpInfo" => new DataGridLength(2.1, DataGridLengthUnitType.Star),
+                "SubRemarks" => new DataGridLength(1.5, DataGridLengthUnitType.Star),
+                "SecurityInfo" or "SanctionsInfo" => new DataGridLength(1.35, DataGridLengthUnitType.Star),
+                _ => new DataGridLength(1, DataGridLengthUnitType.Star)
+            };
+            column.IsVisible = tag switch
+            {
+                "Address" or "Port" or "Network" or "StreamSecurity" or "TotalUp" or "TotalDown" => false,
+                "IpInfo" => !_config.UiItem.HideColumnIpInfo,
+                "SecurityInfo" or "SanctionsInfo" => width >= 1180,
+                "TodayUp" or "TodayDown" => width >= 1450 && _config.GuiItem.EnableStatistics,
+                "SpeedVal" or "SubRemarks" => width >= 980,
+                _ => true
+            };
         }
     }
 

@@ -1756,18 +1756,48 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>کپی پیوند داخلی DicodePing در کلیپ‌بورد</value>
   </data>
   <data name="MsgCheckUpdateHasNewVersion" xml:space="preserve">
-    <value>{0} has a new version available: {1}</value>
+    <value>نسخهٔ جدیدی برای {0} منتشر شده است: {1}</value>
   </data>
   <data name="menuCheckOnly" xml:space="preserve">
-    <value>Only Check</value>
+    <value>فقط بررسی</value>
   </data>
   <data name="MsgNotSupport" xml:space="preserve">
-    <value>Not Support</value>
+    <value>پشتیبانی نمی‌شود</value>
   </data>
   <data name="LvTestIpInfo" xml:space="preserve">
-    <value>IP Info</value>
+    <value>موقعیت و IP</value>
   </data>
   <data name="menuNewUpdate" xml:space="preserve">
-    <value>New Update</value>
+    <value>بروزرسانی جدید</value>
   </data>
+  <data name="TbHttpOutboundHeaders" xml:space="preserve"><value>هدرهای HTTP</value></data>
+  <data name="TipHttpOutboundHeaders" xml:space="preserve"><value>هدرهای درخواست HTTP خروجی را به شکل یک شیء JSON وارد کنید.</value></data>
+  <data name="TbVerifyPeerCertByName" xml:space="preserve"><value>بررسی نام گواهی سرور</value></data>
+  <data name="MsgAllowInsecureDeprecated" xml:space="preserve"><value>این سرور از اتصال ناامن استفاده می‌کند و در نسخه‌های جدید هسته قابل استفاده نیست. TLS یا پین‌کردن گواهی را فعال کنید.</value></data>
+  <data name="TbRouteExcludeAddress" xml:space="preserve"><value>آدرس‌های خارج از مسیر TUN</value></data>
+  <data name="TbRouteExcludeAddressTip" xml:space="preserve"><value>آدرس‌ها را با ویرگول جدا کنید.</value></data>
+  <data name="MsgTunRouteExcludeInvalidAddress" xml:space="preserve"><value>آدرس نامعتبر در فهرست استثنای مسیر TUN: {0}</value></data>
+  <data name="MsgOptionsConflict" xml:space="preserve"><value>گزینه‌های {0} و {1} با هم ناسازگارند</value></data>
+  <data name="TbEnableFinalFragment" xml:space="preserve"><value>فعال‌کردن قطعه‌بندی پایانی</value></data>
+  <data name="TbEnableFinalFragmentTip" xml:space="preserve"><value>انتهای بسته‌ها را به قطعه‌های کوچک‌تر تقسیم می‌کند و ممکن است روی سرعت اثر بگذارد.</value></data>
+  <data name="TbEnabletDnsViaProxy" xml:space="preserve"><value>DNS از مسیر پل</value></data>
+  <data name="MsgInsecureConfiguration" xml:space="preserve"><value>تنظیم ناامن شناسایی شد: بررسی گواهی غیرفعال است و گواهی مشخصی ثبت نشده؛ احتمال حملهٔ میانی وجود دارد.</value></data>
+  <data name="TbHy2RealmUrl" xml:space="preserve"><value>نشانی Realm</value></data>
+  <data name="InvalidHy2RealmUrl" xml:space="preserve"><value>نشانی Realm معتبر نیست.</value></data>
+  <data name="InvalidHttpOutboundHeaders" xml:space="preserve"><value>هدرهای HTTP را با JSON معتبر وارد کنید.</value></data>
+  <data name="TbHy2RealmUrlTip" xml:space="preserve"><value>قالب: realm://&lt;token&gt;@&lt;host&gt;[:port]/&lt;name&gt;</value></data>
+  <data name="TbGeckoPacketSize" xml:space="preserve"><value>اندازهٔ بستهٔ Gecko (کمینه/بیشینه)</value></data>
+  <data name="TbLegacyProtectTip" xml:space="preserve"><value>در حالت فعال از TUN سازگار استفاده می‌شود؛ در غیر این صورت TUN هستهٔ اصلی به کار می‌رود.</value></data>
+  <data name="TbRootCertificateProvider" xml:space="preserve"><value>منبع گواهی‌های ریشه</value></data>
+  <data name="TbRootCertificateProviderTip" xml:space="preserve"><value>فقط برای دانلودها و درخواست‌های خود برنامه است و بررسی گواهی هسته را تغییر نمی‌دهد.</value></data>
+  <data name="TbProxyDialResolveStrategy" xml:space="preserve"><value>روش تبدیل نام برای اتصال پروکسی</value></data>
+  <data name="TbProxyDialResolveStrategyTip" xml:space="preserve"><value>توصیه نمی‌شود؛ ممکن است حلقهٔ مسیریابی ایجاد کند.</value></data>
+  <data name="TbEnableHappyEyeballs" xml:space="preserve"><value>انتخاب سریع خودکار IPv4/IPv6</value></data>
+  <data name="TbEnableHappyEyeballsTip" xml:space="preserve"><value>IPv4 و IPv6 را هم‌زمان آزمایش می‌کند و مسیر سریع‌تر را برمی‌گزیند.</value></data>
+  <data name="TbIpv6Address" xml:space="preserve"><value>آدرس IPv6</value></data>
+  <data name="TbIpv4Address" xml:space="preserve"><value>آدرس IPv4</value></data>
+  <data name="menuAddCustomOutboundServer" xml:space="preserve"><value>افزودن خروجی سفارشی</value></data>
+  <data name="MsgCustomOutboundFileNotFound" xml:space="preserve"><value>فایل خروجی سفارشی {0} پیدا نشد: {1}</value></data>
+  <data name="TbCustomOutboundTip" xml:space="preserve"><value>فقط یک خروجی یا نقطهٔ پایانی پشتیبانی می‌شود.</value></data>
+  <data name="LvCustomCoreType" xml:space="preserve"><value>هستهٔ کانفیگ سفارشی</value></data>
 </root>

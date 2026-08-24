@@ -182,6 +182,14 @@ public class ProfileExManager
         IndexIdEnqueue(indexId);
     }
 
+    public void SetSanctionsInfo(string indexId, string sanctionsInfo)
+    {
+        if (sanctionsInfo.IsNullOrEmpty()) return;
+        var profileEx = GetProfileExItem(indexId);
+        profileEx.SanctionsInfo = sanctionsInfo;
+        IndexIdEnqueue(indexId);
+    }
+
     public void SetSort(string indexId, int sort)
     {
         var profileEx = GetProfileExItem(indexId);
@@ -210,6 +218,7 @@ public class ProfileExManager
             target.Sort = source.Sort;
             target.Message = source.Message;
             target.IpInfo = source.IpInfo;
+            target.SanctionsInfo = source.SanctionsInfo;
             IndexIdEnqueue(targetIndexId);
         }
     }

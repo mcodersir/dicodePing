@@ -124,6 +124,7 @@ class CoreTestService : Service() {
                 guids = guidsList,
                 onlyTcp = message.onlyTcp,
                 locationOnly = message.locationOnly,
+                sanctionsOnly = message.sanctionsOnly,
                 onEvent = { event -> handleWorkerEvent(event, message) { activeWorkers.remove(worker) } }
             )
             activeWorkers.add(worker)
@@ -147,7 +148,11 @@ class CoreTestService : Service() {
             }
 
             is RealPingEvent.Result -> {
-                if (message.locationOnly) {
+                if (message.sanctionsOnly && event.sanctionsAccessible != null) {
+                    MmkvManager.encodeServerSanctions(
+                        event.guid, event.sanctionsAccessible, event.sanctionsPassed, event.sanctionsTotal
+                    )
+                } else if (message.locationOnly) {
                     MmkvManager.encodeServerLocation(event.guid, event.countryCode, event.ipAddress)
                 } else {
                     MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
@@ -161,7 +166,7 @@ class CoreTestService : Service() {
                         AngConfigManager.removeInvalidServer(message.subscriptionId)
                     }
 
-                    if (MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_SORT_AFTER_TEST, false)) {
+                    if (!message.locationOnly && !message.sanctionsOnly) {
                         AngConfigManager.sortByTestResultsForSub(message.subscriptionId)
                     }
                 }
