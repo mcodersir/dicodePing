@@ -189,7 +189,7 @@ jobs:
         run: |
           git config --global http.version HTTP/1.1
           for attempt in 1 2 3 4; do
-            if git clone --branch 2.3.5-P30 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            if git clone --branch 2.3.5-P32 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
               break
             fi
             rm -rf native-upstream
@@ -205,7 +205,7 @@ jobs:
           done
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
-      - name: Fetch the libv2ray pinned by PattNG P30
+      - name: Fetch the libv2ray pinned by PattNG P32
         run: |
           mkdir -p apps/android/app/libs
           CORE_TAG="$(git -C native-upstream/AndroidLibXrayLite describe --tags --abbrev=0)"
