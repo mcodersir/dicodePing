@@ -187,7 +187,22 @@ jobs:
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
         run: |
-          git clone --branch 2.3.5-P30 --depth 1 --recurse-submodules --shallow-submodules https://github.com/patterniha/PattNG.git native-upstream
+          git config --global http.version HTTP/1.1
+          for attempt in 1 2 3 4; do
+            if git clone --branch 2.3.5-P30 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+              break
+            fi
+            rm -rf native-upstream
+            test "$attempt" -lt 4
+            sleep $((attempt * 5))
+          done
+          for attempt in 1 2 3 4; do
+            if git -C native-upstream submodule update --init --recursive --depth 1; then
+              break
+            fi
+            test "$attempt" -lt 4
+            sleep $((attempt * 5))
+          done
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
       - name: Fetch the libv2ray pinned by PattNG P30
