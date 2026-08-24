@@ -3,6 +3,7 @@ name: Release v3
 on:
   push:
     tags: ['v3.*']
+    branches: ['codex/release-*']
   workflow_dispatch:
 
 permissions:
