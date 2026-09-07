@@ -28,7 +28,7 @@ jobs:
               try: return inspect(channel)
               except Exception as e: print(channel, type(e).__name__, flush=True); return 0
           with urllib.request.urlopen('https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt') as r:
-              channels = [x.strip().removeprefix('https://t.me/').removeprefix('@') for x in r.read().decode().splitlines()]
+              channels = [x.strip().removeprefix('https://t.me/').removeprefix('http://t.me/').removeprefix('t.me/').removeprefix('@') for x in r.read().decode().splitlines()]
           with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
               print('channels with dated links=', sum(x > 0 for x in pool.map(safe, channels)), flush=True)
           PY
