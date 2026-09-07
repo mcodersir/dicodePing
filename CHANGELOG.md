@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.9.0 (pre-release)
+
+- Add the server pool page on desktop and Android: default-subscription bootstrap, current public channel collection, three real probes, and a dedicated validated subscription.
+- Reject Telegram proxies, failed probes and any sample above 900 ms; bound concurrent downloads and tests and preserve the previous pool on interruption.
+- Integrate PattNG P42 fixes and pin Android/Desktop Xray v26.9.7 with SHA-256 verification while retaining Dicode's custom UI, traffic, filtering and sanctions features.
+- Share Android's dynamic proxy port between UI and VPN processes.
+- Make CI propagate desktop test failures and run Android unit tests before packaging.
+
 ## 3.0.5
 
 - بازنویسی اعمال تم دسکتاپ با تعویض هم‌زمان ThemeVariant و پالت تمام پنجره‌های باز.

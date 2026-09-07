@@ -27,4 +27,16 @@ public class ServerPoolTests
             + "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-01-01T10:00:00Z\"></time>vless://00000000-0000-0000-0000-000000000001@example.com:443</div>";
         Assert.Empty(ServerPoolService.ExtractLinks(html, DateTimeOffset.Parse("2026-09-07T12:00:00Z")));
     }
+
+    [Fact]
+    public void FourRecentDistinctLinksAreDecoded()
+    {
+        var links = Enumerable.Range(1, 6).Select(i =>
+            $"vless://00000000-0000-0000-0000-000000000001@server{i}.example:443?security=tls&amp;type=ws");
+        var html = "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-09-07T10:00:00Z\"></time>"
+            + string.Join(" ", links) + "</div>";
+        var result = ServerPoolService.ExtractLinks(html, DateTimeOffset.Parse("2026-09-07T12:00:00Z"));
+        Assert.Equal(4, result.Count);
+        Assert.All(result, link => Assert.Contains("&type=ws", link));
+    }
 }
