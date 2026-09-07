@@ -18,6 +18,7 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             xray_asset: Xray-windows-64.zip
+            xray_sha256: 71e0449cff68cbee391b73c7698a9526522eef21f6c83d8f23f8cf37a27404e5
             xray_binary: xray.exe
             mihomo_asset: mihomo-windows-amd64-v1-v1.19.30.zip
             mihomo_binary: mihomo.exe
@@ -29,6 +30,7 @@ jobs:
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
+            xray_sha256: b3897fa4f52608aaf04dbb834f41c981d496fbc53a911d9e46ccb25443770fa7
             xray_binary: xray
             mihomo_asset: mihomo-linux-amd64-v1-v1.19.30.gz
             mihomo_binary: mihomo
@@ -40,6 +42,7 @@ jobs:
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
+            xray_sha256: c9a586308abb6ac45454106be7719fb6a5e6a8178af4e1a280e70850fd35b438
             xray_binary: xray
             mihomo_asset: mihomo-darwin-amd64-v1-v1.19.30.gz
             mihomo_binary: mihomo
@@ -51,6 +54,7 @@ jobs:
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
+            xray_sha256: 327c00484da144cd4df2914493b97ca8527f8748a67183fd2df87712bc3e5cd6
             xray_binary: xray
             mihomo_asset: mihomo-darwin-arm64-v1.19.30.gz
             mihomo_binary: mihomo
@@ -75,10 +79,9 @@ jobs:
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.xray_asset }}"
+          $url = "https://github.com/patterniha/xray-core/releases/download/v26.9.7/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
-          Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
-          $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
+          $expected = '${{ matrix.xray_sha256 }}'
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
           if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
           Expand-Archive xray.zip -DestinationPath xray-runtime -Force

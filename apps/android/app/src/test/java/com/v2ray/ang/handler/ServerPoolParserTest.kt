@@ -13,7 +13,7 @@ class ServerPoolParserTest {
         assertFalse(ServerPoolParser.accepts(listOf(0, 20, 30)))
     }
     @Test fun channelsRejectForeignHostsAndDeduplicate() {
-        assertEquals(listOf("valid_channel"), ServerPoolParser.channels("@valid_channel\nhttps://t.me/valid_channel\nhttps://evil.example/x\n../foo\n#comment"))
+        assertEquals(listOf("valid_channel"), ServerPoolParser.channels("@valid_channel\nhttps://t.me/valid_channel\nt.me/valid_channel\nhttps://evil.example/x\n../foo\n#comment"))
     }
     @Test fun onlyFourRecentV2rayLinksAreCollected() {
         val old = "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-01-01T10:00:00Z\"></time>vless://old</div>"

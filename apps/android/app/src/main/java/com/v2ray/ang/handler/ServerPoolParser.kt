@@ -6,7 +6,7 @@ import java.time.Instant
 object ServerPoolParser {
     private val links = Regex("(?i)\\b(?:vmess|vless|trojan|ss)://[^\\s<>\"'\\u200b-\\u200f]+")
     fun channels(text: String): List<String> = text.lineSequence().map {
-        it.trim().removePrefix("https://t.me/").removePrefix("http://t.me/").removePrefix("@").trimEnd('/')
+        it.trim().removePrefix("https://t.me/").removePrefix("http://t.me/").removePrefix("t.me/").removePrefix("@").trimEnd('/')
     }.filter { it.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{3,31}")) }
         .distinctBy { it.lowercase() }.take(500).toList()
 

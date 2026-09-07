@@ -26,7 +26,9 @@ jobs:
         shell: pwsh
         run: |
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop regression tests failed' }
           dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=3.9.0 -o isolated-publish
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop publish failed' }
           if (-not (Test-Path isolated-publish/DicodePing.exe)) { throw 'Desktop executable was not published' }
           $manifest = Get-Content apps/desktop/v2rayN.Desktop/app.manifest -Raw
           if ($manifest -notmatch 'requireAdministrator') { throw 'TUN elevation manifest is missing' }

@@ -12,7 +12,7 @@ public sealed class ServerPoolService
     private static readonly Regex Links = new(@"(?i)\b(?:vmess|vless|trojan|ss)://[^\s<>""'\u200b-\u200f]+", RegexOptions.None, RegexTimeout);
 
     public static List<string> ParseChannels(string content) => content.Split('\n')
-        .Select(x => x.Trim().Replace("https://t.me/", "").Replace("http://t.me/", "").TrimStart('@').TrimEnd('/'))
+        .Select(x => x.Trim().Replace("https://t.me/", "").Replace("http://t.me/", "").Replace("t.me/", "").TrimStart('@').TrimEnd('/'))
         .Where(x => Regex.IsMatch(x, @"^[a-zA-Z][a-zA-Z0-9_]{3,31}$", RegexOptions.None, RegexTimeout))
         .Distinct(StringComparer.OrdinalIgnoreCase).Take(500).ToList();
 

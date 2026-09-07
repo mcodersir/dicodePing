@@ -1,4 +1,5 @@
 using ServiceLib.Services;
+using Xunit;
 
 namespace ServiceLib.Tests;
 
@@ -17,7 +18,7 @@ public class ServerPoolTests
 
     [Fact]
     public void ChannelsCannotInjectUrls() => Assert.Equal(["valid_channel"],
-        ServerPoolService.ParseChannels("@valid_channel\nhttps://t.me/valid_channel\nhttps://evil.example/x\n../foo\n# comment"));
+        ServerPoolService.ParseChannels("@valid_channel\nhttps://t.me/valid_channel\nt.me/valid_channel\nhttps://evil.example/x\n../foo\n# comment"));
 
     [Fact]
     public void TelegramProxiesAndOldPostsAreRejected()
