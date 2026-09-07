@@ -30,7 +30,8 @@ object ServerPoolParser {
         var newest: Instant? = null
         for ((date, post) in dated) {
             // Keep href links and join inline formatting inside code blocks; br still separates links.
-            val text = post.replace(Regex("(?i)<br\\s*/?>"), "\n").replace(Regex("<[^>]+>"), "")
+            val text = post.replace(Regex("(?i)</?(?:div|p|pre|li|code|time)\\b[^>]*>|<br\\s*/?>"), "\n")
+                .replace(Regex("<[^>]+>"), "")
             val hrefs = Regex("""\bhref\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
                 .findAll(post).joinToString("\n") { it.groupValues[1] }
             val decoded = decodeEntities(hrefs + "\n" + text)

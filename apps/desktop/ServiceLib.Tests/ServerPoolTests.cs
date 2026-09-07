@@ -44,7 +44,7 @@ public class ServerPoolTests
     public void LatestAvailableLinksSurviveSevenDaysAndDeviceClockDifferences()
     {
         var link = "vless://00000000-0000-0000-0000-000000000001@example.com:443";
-        var result = ServerPoolService.Inspect($"<div class=\"tgme_widget_message_wrap js-widget_message_wrap\"><code>{link}</code><time datetime=\"2026-08-30T04:42:53+00:00\"></time></div>");
+        var result = ServerPoolService.Inspect($"<div class=\"tgme_widget_message_wrap js-widget_message_wrap\"><code>{link}</code><time datetime=\"2026-08-30T04:42:53+00:00\">04:42</time></div>");
         Assert.Equal([link], result.Links);
         Assert.Contains("2026-08-30", result.Summary);
     }

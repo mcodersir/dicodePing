@@ -25,7 +25,7 @@ class ServerPoolParserTest {
     }
 
     @Test fun latestAvailableLinksAreNotDiscardedAfterSevenDaysOrByDeviceClock() {
-        val html = "<div class=\"tgme_widget_message_wrap js-widget_message_wrap\"><code>vless://id@example.com:443</code><time datetime=\"2026-08-30T04:42:53+00:00\"></time></div>"
+        val html = "<div class=\"tgme_widget_message_wrap js-widget_message_wrap\"><code>vless://id@example.com:443</code><time datetime=\"2026-08-30T04:42:53+00:00\">04:42</time></div>"
         val result = ServerPoolParser.inspect(html)
         assertEquals(listOf("vless://id@example.com:443"), result.links)
         assertTrue(result.summary.contains("2026-08-30"))

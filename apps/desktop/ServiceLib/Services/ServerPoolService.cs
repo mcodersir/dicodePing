@@ -39,7 +39,7 @@ public sealed class ServerPoolService
         DateTimeOffset? newest = null;
         foreach (var (date, post) in dated.OrderByDescending(x => x.Date))
         {
-            var text = Regex.Replace(Regex.Replace(post, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase, RegexTimeout), "<[^>]+>", "", RegexOptions.None, RegexTimeout);
+            var text = Regex.Replace(Regex.Replace(post, @"</?(?:div|p|pre|li|code|time)\b[^>]*>|<br\s*/?>", "\n", RegexOptions.IgnoreCase, RegexTimeout), "<[^>]+>", "", RegexOptions.None, RegexTimeout);
             var hrefs = Regex.Matches(post, """\bhref\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout).Select(x => x.Groups[1].Value);
             var decoded = WebUtility.HtmlDecode(string.Join("\n", hrefs) + "\n" + text);
             foreach (Match match in Links.Matches(decoded))
