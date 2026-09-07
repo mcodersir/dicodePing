@@ -66,6 +66,8 @@ public sealed class ServerPoolService
             await connect(best.Profile);
             token.ThrowIfCancellationRequested();
             var proxy = new WebProxy($"socks5://{Global.Loopback}:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}");
+            var inbound = config.Inbound.FirstOrDefault();
+            if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
             using var client = Client(proxy);
             var channels = ParseChannels(await client.GetStringAsync(ChannelsUrl, token));
             if (channels.Count == 0) throw new InvalidOperationException("فهرست کانال‌ها خالی است.");

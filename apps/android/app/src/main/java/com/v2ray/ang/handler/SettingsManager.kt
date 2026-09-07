@@ -259,7 +259,8 @@ object SettingsManager {
     fun getSocksPort(): Int {
         val port =
             if (IsDynamicSocksPort()) {
-                runtimeSocksPort ?: refreshRuntimeSocksPort()
+                MmkvManager.decodeSettingsString("dicode_runtime_socks_port")?.toIntOrNull()
+                    ?: runtimeSocksPort ?: refreshRuntimeSocksPort()
             } else {
                 Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PORT), AppConfig.PORT_SOCKS.toInt())
             }
@@ -270,6 +271,8 @@ object SettingsManager {
     fun refreshRuntimeSocksPort(): Int? {
         if (IsDynamicSocksPort()) {
             runtimeSocksPort = generateRandomSocksPort()
+            // VPN and UI run in different processes; both must use the same port.
+            MmkvManager.encodeSettings("dicode_runtime_socks_port", runtimeSocksPort.toString())
             return runtimeSocksPort
         }
         return null

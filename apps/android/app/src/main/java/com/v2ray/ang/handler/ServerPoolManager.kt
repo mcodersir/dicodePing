@@ -70,7 +70,7 @@ object ServerPoolManager {
                 .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", SettingsManager.getHttpPort())))
                 .proxyAuthenticator { _, response ->
                     if (response.request.header("Proxy-Authorization") != null) null else response.request.newBuilder()
-                        .header("Proxy-Authorization", Credentials.basic(SettingsManager.getSocksUsername(), SettingsManager.getSocksPassword())).build()
+                        .header("Proxy-Authorization", Credentials.basic(SettingsManager.getSocksUsername().orEmpty(), SettingsManager.getSocksPassword().orEmpty())).build()
                 }.build()
             val links = try {
                 val channels = ServerPoolParser.channels(fetch(client, CHANNELS_URL))
