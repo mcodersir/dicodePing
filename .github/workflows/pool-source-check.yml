@@ -1,0 +1,26 @@
+name: Inspect public pool sources
+on:
+  push:
+    branches: ['codex/release-*']
+    paths: ['.github/workflows/pool-source-check.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect Telegram response structure and dates
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures, re, urllib.request
+          def inspect(channel):
+              req = urllib.request.Request('https://t.me/s/' + channel, headers={'User-Agent': 'DicodePing/3.9.0'})
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  html = response.read(2 * 1024 * 1024).decode()
+                  print(channel, response.status, response.url, 'bytes=', len(html),
+                        'wrappers=', re.findall(r'<div[^>]*class=[^>]*tgme_widget_message_wrap[^>]*>', html)[:1],
+                        'dates=', re.findall(r'datetime="([^"]+)"', html)[-4:],
+                        'links=', len(re.findall(r'(?:vless|vmess|trojan|ss)://', html)), flush=True)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              list(pool.map(inspect, ['V2rayNGX', 'ViraV2ray', 'fnet00', 'configmahsa']))
+          PY
