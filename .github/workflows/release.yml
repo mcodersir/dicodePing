@@ -73,7 +73,12 @@ jobs:
         run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.9.0
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
-        run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+        env:
+          POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
+        run: |
+          python scripts/check-pool-sources.py "$env:POOL_LIVE_FIXTURES"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
+          dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
         run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.9.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
@@ -219,11 +224,13 @@ jobs:
           echo "569839c532b0d02a9e06f849ebe446faa30b7aeb6ed980a59a2991310b6e53eb  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
       - name: Build signed installable APKs
         env:
+          POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
           DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         working-directory: apps/android
         run: |
+          python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
@@ -257,23 +264,28 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 3.9.0 — Pre-release (revision 2)
+          name: DicodePing 3.9.0 — Pre-release (revision 3)
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 3.9.0 — Pre-release (revision 2)
+            ## DicodePing 3.9.0 — Pre-release (revision 3)
 
             بازنشر اصلاح‌شدهٔ 3.9.0؛ فایل‌های قبلی با ساخت جدید جایگزین شده‌اند.
+
+            - رفع حذف کانفیگ‌ها به‌خاطر محدودیت هفت‌روزه و ساعت دستگاه؛ استخراج از آخرین پیام‌های لینک‌دار با نمایش تاریخ واقعی منبع.
+            - اصلاح خواندن HTML و کاراکترهای کدشده؛ لاگ جدا برای صفحهٔ نامعتبر، تاریخ ناخوانا و نبود لینک مستقیم V2Ray.
+            - ساخت اشتراک مستقل «سرور های استخر» از ابتدای ورود به صفحه؛ حفظ ساب پیش‌فرض و انتقال نام استخر قبلی بدون حذف سرورها.
+            - آزمون استخراج‌کنندهٔ واقعی هر دو پلتفرم روی پاسخ زندهٔ تلگرام در فرایند انتشار.
 
             - رفع تشخیص اشتباه قطع VPN: آماده‌شدن هسته از دانلود فهرست کانال‌ها جدا شد؛ مهلت دوثانیه‌ای حذف شد.
             - انتظار برای راه‌اندازی واقعی، تلاش مجدد دریافت فهرست و مسیرهای جایگزین گیت‌هاب با خطای دقیق هر مرحله.
             - رابط تعاملی با مراحل، پیشرفت، لاگ زندهٔ زمان‌دار، نتیجهٔ هر نوبت پینگ، کپی لاگ، توقف اسکرول و اجرای دوباره.
-            - Android versionCode پایهٔ 309001 برای نصب روی پیش‌انتشار قبلی؛ نسخهٔ نمایشی همچنان 3.9.0 است.
+            - Android versionCode پایهٔ 309002 برای نصب روی پیش‌انتشار قبلی؛ نسخهٔ نمایشی همچنان 3.9.0 است.
 
-            - استخر سرورها در دسکتاپ و اندروید: اتصال خودکار از ساب پیش‌فرض، دریافت حداکثر چهار کانفیگ از پیام‌های هفت روز اخیر هر کانال.
+            - استخر سرورها در دسکتاپ و اندروید: اتصال خودکار از ساب پیش‌فرض، دریافت حداکثر چهار کانفیگ از آخرین پیام‌های لینک‌دار هر کانال.
             - فقط VLESS، VMess، Trojan و Shadowsocks؛ پروکسی تلگرام پذیرفته نمی‌شود.
             - سه آزمون واقعی برای هر کانفیگ؛ تنها سه پاسخ معتبر بین ۱ تا ۹۰۰ میلی‌ثانیه پذیرفته می‌شود.
-            - ذخیره در اشتراک مستقل «استخر کانفیگ» با حفظ استخر قبلی در خطا یا نبود نتیجهٔ سالم.
+            - ذخیره در اشتراک مستقل «سرور های استخر» با حفظ استخر قبلی در خطا یا نبود نتیجهٔ سالم.
             - ادغام اصلاحات PattNG 2.3.7-P42 و libv2ray v26.9.7 با بررسی SHA-256؛ حفظ امکانات اختصاصی دیکد پینگ.
             - حفظ تم‌ها، آمار ترافیک، فیلتر دامنه، آزمایش تحریم و اشتراک‌های کاربر.
 

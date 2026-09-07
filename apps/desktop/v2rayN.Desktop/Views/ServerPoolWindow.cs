@@ -57,7 +57,10 @@ public sealed class ServerPoolWindow : Window
             rows.ItemsSource = (await AppManager.Instance.ProfileItems(ServerPoolService.PoolId) ?? [])
                 .Select(p => $"{p.Remarks} · {delays.GetValueOrDefault(p.IndexId)} ms").ToList();
         }
-        Opened += async (_, _) => await Refresh();
+        Opened += async (_, _) => {
+            try { await ServerPoolService.EnsureSubscriptionAsync(); await main.ProfilesViewModel.RefreshSubscriptions(); await Refresh(); }
+            catch (Exception ex) { Update(new("خطا", ex.Message)); }
+        };
         copy.Click += async (_, _) => { if (Clipboard != null) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, history)); };
         clear.Click += (_, _) => history.Clear();
         cancel.Click += (_, _) => { _run?.Cancel(); cancel.IsEnabled = false; status.Text = "در حال توقف و آزادسازی هسته‌های آزمون…"; Log(status.Text); };
@@ -66,7 +69,7 @@ public sealed class ServerPoolWindow : Window
         {
             start.IsEnabled = false; cancel.IsEnabled = true; tabs.SelectedIndex = 0;
             using var cts = new CancellationTokenSource(); _run = cts;
-            Log("شروع اجرای جدید · 3.9.0 revision 2");
+            Log("شروع اجرای جدید · 3.9.0 revision 3");
             try
             {
                 await new ServerPoolService().RunAsync(profile => main.ConnectPoolProfileAsync(profile.IndexId, cts.Token),

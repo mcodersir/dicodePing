@@ -22,8 +22,14 @@ import kotlin.coroutines.resumeWithException
 
 object ServerPoolManager {
     const val POOL_ID = "dicode-server-pool"
+    const val POOL_NAME = "سرور های استخر"
     const val CHANNELS_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt"
     private val running = AtomicBoolean(false)
+
+    fun ensureSubscription() {
+        val previous = MmkvManager.decodeSubscription(POOL_ID) ?: SubscriptionItem()
+        MmkvManager.encodeSubscription(POOL_ID, previous.copy(remarks = POOL_NAME, url = "", enabled = true, autoUpdate = false))
+    }
 
     private suspend fun fetch(client: OkHttpClient, url: String): String = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(Request.Builder().url(url).header("User-Agent", "DicodePing/3.9.0")
@@ -57,6 +63,8 @@ object ServerPoolManager {
         check(running.compareAndSet(false, true)) { "جمع‌آوری دیگری در حال اجراست." }
         val stage = "pool-stage-${UUID.randomUUID()}"
         try {
+            ensureSubscription()
+            report(PoolProgress("استخر", "اشتراک مستقل «$POOL_NAME» آماده است."))
             CoreNativeManager.initCoreEnv(context)
             report(PoolProgress("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"))
             val primary = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
@@ -82,10 +90,13 @@ object ServerPoolManager {
                 coroutineScope {
                     channels.map { channel -> async {
                         semaphore.withPermit {
-                            try { ServerPoolParser.extract(fetch(client, "https://t.me/s/$channel")).also {
-                                found.addAndGet(it.size)
-                                report(PoolProgress("جمع‌آوری", "@$channel · ${it.size} کانفیگ تازه"))
-                            } }
+                            try {
+                                val extraction = ServerPoolParser.inspect(fetch(client, "https://t.me/s/$channel"))
+                                if (extraction.posts == 0 || extraction.datedPosts == 0) failed.incrementAndGet()
+                                found.addAndGet(extraction.links.size)
+                                report(PoolProgress("جمع‌آوری", "@$channel · ${extraction.summary}"))
+                                extraction.links
+                            }
                             catch (cancelled: CancellationException) { throw cancelled }
                             catch (error: Exception) { failed.incrementAndGet(); report(PoolProgress("جمع‌آوری", "@$channel · ${PoolNetwork.describe(error)}")); emptyList() }
                             finally { report(PoolProgress("جمع‌آوری", "بررسی کانال‌ها", done.incrementAndGet(), channels.size, passed = found.get(), failed = failed.get())) }
@@ -94,17 +105,21 @@ object ServerPoolManager {
                 }
             } finally { client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
             currentCoroutineContext().ensureActive()
+            check(links.isNotEmpty()) { "از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد." }
             // Candidates are isolated from every user subscription until validation completes.
             AngConfigManager.importBatchConfig(links.joinToString("\n"), stage, false)
-            report(PoolProgress("آزمون", "${links.size} لینک یکتا؛ آغاز آزمون سه‌مرحله‌ای"))
-            val accepted = probe(context, MmkvManager.decodeServerList(stage), true, report).sortedBy { it.second }
+            val candidates = MmkvManager.decodeServerList(stage)
+            check(candidates.isNotEmpty()) { "${links.size} لینک استخراج شد ولی هیچ‌کدام قابل ورود به هسته نبود؛ استخر قبلی حفظ شد." }
+            report(PoolProgress("آزمون", "${links.size} لینک یکتا؛ ${candidates.size} کانفیگ قابل آزمون؛ آغاز آزمون سه‌مرحله‌ای"))
+            val accepted = probe(context, candidates, true, report).sortedBy { it.second }
             currentCoroutineContext().ensureActive()
             check(accepted.isNotEmpty()) { "کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد." }
             report(PoolProgress("ذخیره", "ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…"))
             val profiles = accepted.associate { (guid, _) ->
                 UUID.randomUUID().toString() to requireNotNull(MmkvManager.decodeServerConfig(guid)).copy(subscriptionId = POOL_ID)
             }
-            MmkvManager.encodeSubscription(POOL_ID, SubscriptionItem(remarks = "استخر کانفیگ", lastUpdated = System.currentTimeMillis()))
+            MmkvManager.encodeSubscription(POOL_ID, (MmkvManager.decodeSubscription(POOL_ID) ?: SubscriptionItem()).copy(
+                remarks = POOL_NAME, url = "", autoUpdate = false, lastUpdated = System.currentTimeMillis()))
             MmkvManager.saveServerProfiles(profiles, emptyMap(), POOL_ID, false)
             profiles.keys.zip(accepted).forEach { (guid, sample) -> MmkvManager.encodeServerTestDelayMillis(guid, sample.second) }
             AngConfigManager.sortByTestResultsForSub(POOL_ID)
@@ -127,9 +142,12 @@ object ServerPoolManager {
                     val samples = mutableListOf<Long>()
                     repeat(if (strict) 3 else 1) {
                         ensureActive()
-                        samples.add(RealPingExecutionLimiter.run(profile.configType) {
-                            CoreNativeManager.measureOutboundDelay(config.content, SettingsManager.getDelayTestUrl())
-                        })
+                        samples.add(try {
+                            RealPingExecutionLimiter.run(profile.configType) {
+                                CoreNativeManager.measureOutboundDelay(config.content, SettingsManager.getDelayTestUrl())
+                            }
+                        } catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { -1L })
                         report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
                             "سرور ${index + 1} · نوبت ${it + 1}/${if (strict) 3 else 1}: ${if (samples.last() > 0) "${samples.last()} ms" else "ناموفق"}"))
                     }

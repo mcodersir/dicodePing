@@ -41,7 +41,7 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     val state = MutableStateFlow(PoolScreenState())
     private val sequence = AtomicLong()
     private var job: Job? = null
-    init { refresh() }
+    init { ServerPoolManager.ensureSubscription(); refresh() }
     private fun refresh() {
         val rows = MmkvManager.decodeServerList(ServerPoolManager.POOL_ID).mapNotNull { guid ->
             MmkvManager.decodeServerConfig(guid)?.let {
@@ -65,7 +65,7 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     fun start() {
         if (state.value.busy) return
         state.update { it.copy(busy = true) }
-        report(PoolProgress("شروع", "اجرای جدید · 3.9.0 revision 2"))
+        report(PoolProgress("شروع", "اجرای جدید · 3.9.0 revision 3"))
         job = viewModelScope.launch {
             try {
                 val context = getApplication<Application>()

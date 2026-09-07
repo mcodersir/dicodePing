@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.9.0 (pre-release, revision 3)
+
+- Select the newest available link-bearing Telegram messages without the unrequested seven-day/device-clock rejection; show source dates instead of labelling every candidate fresh.
+- Handle varied HTML attributes, encoded characters and inline formatting; distinguish unavailable previews from messages without V2Ray links.
+- Create and migrate the separate «سرور های استخر» subscription when the pool page opens, before collection succeeds, preserving default subscriptions and saved pool profiles.
+- Run both production parsers against real Telegram HTML in release CI, alongside deterministic regression tests. Report empty collection and import failure before the ping stage.
+- Preserve the three successful samples at or below 900 ms requirement. Android versionCode 309002, desktop FileVersion 3.9.0.3.
+
 ## 3.9.0 (pre-release, revision 2)
 
 - Separate local connection readiness from GitHub source availability; remove the two-second Android source-download health check.

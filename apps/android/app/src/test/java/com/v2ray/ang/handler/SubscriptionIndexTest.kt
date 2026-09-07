@@ -34,6 +34,25 @@ class SubscriptionIndexTest {
     }
 
     @Test
+    fun poolIsCreatedBeforeResultsAndRenamedWithoutTouchingDefaultSubscription() {
+        val primaryId = com.v2ray.ang.AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID
+        val primary = JsonUtil.toJson(SubscriptionItem(remarks = "Default", url = "https://example.com/sub"))
+        mainValues["SUB_IDS"] = JsonUtil.toJson(listOf(primaryId))
+        subValues[primaryId] = primary
+        ServerPoolManager.ensureSubscription()
+        ServerPoolManager.ensureSubscription()
+        assertEquals(listOf(primaryId, ServerPoolManager.POOL_ID), MmkvManager.decodeSubsList())
+        assertEquals(primary, subValues[primaryId])
+        assertEquals("سرور های استخر", MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.remarks)
+        assertEquals("", MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.url)
+        val pool = requireNotNull(MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID))
+        MmkvManager.encodeSubscription(ServerPoolManager.POOL_ID, pool.copy(remarks = "استخر کانفیگ", lastUpdated = 1234))
+        ServerPoolManager.ensureSubscription()
+        assertEquals(1234L, MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.lastUpdated)
+        assertEquals(primary, subValues[primaryId])
+    }
+
+    @Test
     fun duplicateIdsKeepTheirFirstPositionWithoutWritingStorage() {
         val stored = """["second","first","second","third","first"]"""
         mainValues["SUB_IDS"] = stored

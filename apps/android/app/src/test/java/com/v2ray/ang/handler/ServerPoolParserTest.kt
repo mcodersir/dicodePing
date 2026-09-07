@@ -1,6 +1,6 @@
 package com.v2ray.ang.handler
 
-import java.time.Instant
+import java.io.File
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -19,8 +19,39 @@ class ServerPoolParserTest {
         val old = "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-01-01T10:00:00Z\"></time>vless://old</div>"
         val recent = "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-09-07T10:00:00Z\"></time>tg://proxy?server=x https://t.me/proxy?server=x " +
             (1..6).joinToString(" ") { "vless://id$it@example.com:443?security=tls&amp;type=ws" } + "</div>"
-        val links = ServerPoolParser.extract(old + recent, Instant.parse("2026-09-07T12:00:00Z"))
+        val links = ServerPoolParser.extract(old + recent)
         assertEquals(4, links.size)
         assertTrue(links.all { it.startsWith("vless://id") && it.contains("&type=ws") })
+    }
+
+    @Test fun latestAvailableLinksAreNotDiscardedAfterSevenDaysOrByDeviceClock() {
+        val html = "<div class=\"tgme_widget_message_wrap js-widget_message_wrap\"><code>vless://id@example.com:443</code><time datetime=\"2026-08-30T04:42:53+00:00\"></time></div>"
+        val result = ServerPoolParser.inspect(html)
+        assertEquals(listOf("vless://id@example.com:443"), result.links)
+        assertTrue(result.summary.contains("2026-08-30"))
+    }
+
+    @Test fun attributesEntitiesAndInlineFormattingAreHandled() {
+        val html = "<div data-extra='x' class = 'other tgme_widget_message_wrap js-widget_message_wrap'><time datetime = '2026-08-30T04:42:53+00:00'></time>" +
+            "<code>vless://id@<span>example.com</span>:443?security=tls&#38;type=ws</code><br>tg://proxy?server=x</div>"
+        assertEquals(listOf("vless://id@example.com:443?security=tls&type=ws"), ServerPoolParser.extract(html))
+    }
+
+    @Test fun unavailablePagesAndUndatedPostsHaveDifferentDiagnostics() {
+        assertEquals(0, ServerPoolParser.inspect("<html>Join Telegram</html>").posts)
+        val missingDate = ServerPoolParser.inspect("<div class='tgme_widget_message_wrap'>vless://id@example.com:443</div>")
+        assertEquals(1, missingDate.posts)
+        assertEquals(0, missingDate.datedPosts)
+        assertTrue(missingDate.links.isEmpty())
+    }
+
+    @Test fun releaseSmokeExtractsActualTelegramResponses() {
+        val path = System.getenv("POOL_LIVE_FIXTURES")
+        org.junit.Assume.assumeTrue("Live source check runs in release CI", path != null)
+        val files = File(requireNotNull(path)).listFiles { file -> file.extension == "html" }!!.toList()
+        assertTrue(files.isNotEmpty())
+        val results = files.map { ServerPoolParser.inspect(it.readText()) }
+        assertTrue("Actual Telegram responses must produce candidates", results.any { it.links.isNotEmpty() })
+        results.forEach { assertTrue(it.links.size <= 4) }
     }
 }

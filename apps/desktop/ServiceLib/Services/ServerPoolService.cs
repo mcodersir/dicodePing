@@ -6,6 +6,7 @@ namespace ServiceLib.Services;
 public sealed class ServerPoolService
 {
     public const string PoolId = "dicode-server-pool";
+    public const string PoolName = "سرور های استخر";
     public const string ChannelsUrl = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt";
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
@@ -16,27 +17,51 @@ public sealed class ServerPoolService
         .Where(x => Regex.IsMatch(x, @"^[a-zA-Z][a-zA-Z0-9_]{3,31}$", RegexOptions.None, RegexTimeout))
         .Distinct(StringComparer.OrdinalIgnoreCase).Take(500).ToList();
 
-    public static List<string> ExtractLinks(string html, DateTimeOffset now)
+    public sealed record Extraction(List<string> Links, int Posts, int DatedPosts, DateTimeOffset? Newest)
+    {
+        public string Summary => Posts == 0 ? "صفحهٔ پیام‌های عمومی دریافت نشد"
+            : DatedPosts == 0 ? "تاریخ پیام‌ها قابل خواندن نیست"
+            : Links.Count == 0 ? $"{Posts} پیام؛ بدون لینک مستقیم V2Ray"
+            : $"{Links.Count} کاندید از آخرین پیام‌های لینک‌دار · تاریخ {Newest:yyyy-MM-dd}";
+    }
+
+    public static Extraction Inspect(string html)
     {
         var links = new List<string>();
-        // Public Telegram messages are chronological. Inspect newest messages first;
-        // reject undated/old posts instead of silently recycling stale configurations.
-        var posts = Regex.Split(html, @"<div class=""tgme_widget_message_wrap", RegexOptions.None, RegexTimeout);
-        foreach (var post in posts.Skip(1).Reverse())
+        var posts = Regex.Split(html, """<div\b[^>]*\bclass\s*=\s*["'][^"']*\btgme_widget_message_wrap\b[^"']*["'][^>]*>""", RegexOptions.IgnoreCase, RegexTimeout).Skip(1).ToList();
+        var dated = new List<(DateTimeOffset Date, string Post)>();
+        foreach (var post in posts)
         {
-            var date = Regex.Match(post, "datetime=\"([^\"]+)\"", RegexOptions.None, RegexTimeout);
-            if (!DateTimeOffset.TryParse(date.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp)
-                || timestamp < now.AddDays(-7) || timestamp > now.AddMinutes(5)) continue;
-            var decoded = WebUtility.HtmlDecode(post);
+            var date = Regex.Match(post, """\bdatetime\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
+            if (DateTimeOffset.TryParse(date.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp))
+                dated.Add((timestamp, post));
+        }
+        DateTimeOffset? newest = null;
+        foreach (var (date, post) in dated.OrderByDescending(x => x.Date))
+        {
+            var text = Regex.Replace(Regex.Replace(post, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase, RegexTimeout), "<[^>]+>", "", RegexOptions.None, RegexTimeout);
+            var hrefs = Regex.Matches(post, """\bhref\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout).Select(x => x.Groups[1].Value);
+            var decoded = WebUtility.HtmlDecode(string.Join("\n", hrefs) + "\n" + text);
             foreach (Match match in Links.Matches(decoded))
             {
                 var link = match.Value;
                 if (FmtHandler.ResolveConfig(link, out _) is null || links.Contains(link)) continue;
                 links.Add(link);
-                if (links.Count == 4) return links;
+                newest ??= date;
+                if (links.Count == 4) return new(links, posts.Count, dated.Count, newest);
             }
         }
-        return links;
+        return new(links, posts.Count, dated.Count, newest);
+    }
+
+    public static List<string> ExtractLinks(string html) => Inspect(html).Links;
+
+    public static async Task EnsureSubscriptionAsync()
+    {
+        var item = await AppManager.Instance.GetSubItem(PoolId) ?? new SubItem { Id = PoolId };
+        item.Remarks = PoolName; item.Url = ""; item.Enabled = true; item.AutoUpdateInterval = 0;
+        if (await ConfigHandler.AddSubItem(AppManager.Instance.Config, item) != 0)
+            throw new IOException("ساخت اشتراک سرور های استخر ناموفق بود.");
     }
 
     public static bool AcceptSamples(IReadOnlyList<int> samples) =>
@@ -54,6 +79,8 @@ public sealed class ServerPoolService
         var config = AppManager.Instance.Config;
         try
         {
+            await EnsureSubscriptionAsync();
+            progress.Report(new("استخر", $"اشتراک مستقل «{PoolName}» آماده است."));
             progress.Report(new("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"));
             await DicodePingBootstrap.EnsureDefaultsAsync(config);
             var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
@@ -80,15 +107,17 @@ public sealed class ServerPoolService
                 try
                 {
                     var html = await client.GetStringAsync($"https://t.me/s/{channel}", ct);
-                    var links = ExtractLinks(html, DateTimeOffset.UtcNow);
-                    foreach (var link in links) collected.TryAdd(link, 0);
-                    progress.Report(new("جمع‌آوری", $"@{channel} · {links.Count} کانفیگ تازه"));
+                    var extraction = Inspect(html);
+                    if (extraction.Posts == 0 || extraction.DatedPosts == 0) Interlocked.Increment(ref failed);
+                    foreach (var link in extraction.Links) collected.TryAdd(link, 0);
+                    progress.Report(new("جمع‌آوری", $"@{channel} · {extraction.Summary}"));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception error) { Interlocked.Increment(ref failed); progress.Report(new("جمع‌آوری", $"@{channel} · {PoolNetwork.Describe(error)}")); }
                 progress.Report(new("جمع‌آوری", $"کانفیگ یکتا: {collected.Count}", Interlocked.Increment(ref completed), channels.Count, collected.Count, failed));
             });
             var profiles = collected.Keys.Select(x => FmtHandler.ResolveConfig(x, out _)).OfType<ProfileItem>().ToList();
+            if (profiles.Count == 0) throw new InvalidOperationException("از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد.");
             foreach (var profile in profiles) { profile.IndexId = Utils.GetGuid(false); profile.Subid = PoolId; }
             progress.Report(new("آزمون", $"آغاز سه آزمون مستقل برای {profiles.Count} کانفیگ"));
             var accepted = await ProbeAsync(profiles, true, progress, token);
@@ -98,7 +127,7 @@ public sealed class ServerPoolService
             await ProfileOperationCoordinator.Gate.WaitAsync(token);
             try
             {
-                await ConfigHandler.AddSubItem(config, new SubItem { Id = PoolId, Remarks = "استخر کانفیگ", Url = "", Enabled = true, AutoUpdateInterval = 0 });
+                await EnsureSubscriptionAsync();
                 await SQLiteHelper.Instance.ReplaceServerPoolAsync(PoolId, accepted.OrderBy(x => x.Delay).Select(x => x.Profile).ToList(), config.IndexId);
                 foreach (var item in accepted) ProfileExManager.Instance.SetTestDelay(item.Profile.IndexId, item.Delay);
                 await ProfileExManager.Instance.SaveTo();
