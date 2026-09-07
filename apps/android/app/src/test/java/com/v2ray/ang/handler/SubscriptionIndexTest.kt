@@ -41,6 +41,7 @@ class SubscriptionIndexTest {
         subValues[primaryId] = primary
         ServerPoolManager.ensureSubscription()
         ServerPoolManager.ensureSubscription()
+        org.junit.Assert.assertTrue(SettingsChangeManager.consumeSetupGroupTab())
         assertEquals(listOf(primaryId, ServerPoolManager.POOL_ID), MmkvManager.decodeSubsList())
         assertEquals(primary, subValues[primaryId])
         assertEquals("سرور های استخر", MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.remarks)

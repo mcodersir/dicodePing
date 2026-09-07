@@ -29,6 +29,7 @@ object ServerPoolManager {
     fun ensureSubscription() {
         val previous = MmkvManager.decodeSubscription(POOL_ID) ?: SubscriptionItem()
         MmkvManager.encodeSubscription(POOL_ID, previous.copy(remarks = POOL_NAME, url = "", enabled = true, autoUpdate = false))
+        SettingsChangeManager.makeSetupGroupTab()
     }
 
     private suspend fun fetch(client: OkHttpClient, url: String): String = suspendCancellableCoroutine { continuation ->
@@ -123,6 +124,7 @@ object ServerPoolManager {
             MmkvManager.saveServerProfiles(profiles, emptyMap(), POOL_ID, false)
             profiles.keys.zip(accepted).forEach { (guid, sample) -> MmkvManager.encodeServerTestDelayMillis(guid, sample.second) }
             AngConfigManager.sortByTestResultsForSub(POOL_ID)
+            SettingsChangeManager.makeSetupGroupTab()
             report(PoolProgress("پایان", "${accepted.size} کانفیگ سالم در استخر ذخیره شد.", accepted.size, accepted.size, accepted.size))
             accepted.size
         } finally {
