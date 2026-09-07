@@ -71,5 +71,7 @@ object ServerPoolParser {
         }
     }
 
-    fun accepts(samples: List<Long>): Boolean = samples.size == 3 && samples.all { it in 1..900 }
+    fun accepts(samples: List<Long>, requiredRounds: Int = 3): Boolean =
+        requiredRounds in ServerPoolOptions.MIN_TEST_ROUNDS..ServerPoolOptions.MAX_TEST_ROUNDS &&
+            samples.size == requiredRounds && samples.all { it in 1..900 }
 }

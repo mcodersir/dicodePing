@@ -12,6 +12,19 @@ class ServerPoolParserTest {
         assertFalse(ServerPoolParser.accepts(listOf(10, 20)))
         assertFalse(ServerPoolParser.accepts(listOf(0, 20, 30)))
     }
+    @Test fun userCanRequireOneOrSeveralSuccessfulRounds() {
+        assertTrue(ServerPoolParser.accepts(listOf(42), 1))
+        assertFalse(ServerPoolParser.accepts(listOf(-1), 1))
+        assertTrue(ServerPoolParser.accepts(listOf(42, 51, 63, 70), 4))
+        assertFalse(ServerPoolParser.accepts(listOf(42, 51, 901, 70), 4))
+        assertFalse(ServerPoolParser.accepts(listOf(42), 0))
+        assertFalse(ServerPoolParser.accepts(List(11) { 42 }, 11))
+    }
+    @Test fun poolOptionsAreBounded() {
+        assertEquals(ServerPoolOptions(1, 1), ServerPoolOptions(-10, -2).normalized())
+        assertEquals(ServerPoolOptions(200, 10), ServerPoolOptions(999, 99).normalized())
+        assertEquals(ServerPoolOptions(25, 4), ServerPoolOptions(25, 4).normalized())
+    }
     @Test fun channelsRejectForeignHostsAndDeduplicate() {
         assertEquals(listOf("valid_channel"), ServerPoolParser.channels("@valid_channel\nhttps://t.me/valid_channel\nt.me/valid_channel\nhttps://evil.example/x\n../foo\n#comment"))
     }

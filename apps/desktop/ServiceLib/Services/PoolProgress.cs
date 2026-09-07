@@ -1,6 +1,19 @@
 namespace ServiceLib.Services;
 
-public record PoolProgress(string Stage, string Message, int Completed = 0, int Total = 0, int Passed = 0, int Failed = 0);
+public record PoolProgress(string Stage, string Message, int Completed = 0, int Total = 0,
+    int Passed = 0, int Failed = 0, int Target = 0);
+
+public sealed record ServerPoolOptions(int TargetCount = 20, int TestRounds = 3)
+{
+    public const int MinTargetCount = 1;
+    public const int MaxTargetCount = 200;
+    public const int MinTestRounds = 1;
+    public const int MaxTestRounds = 10;
+
+    public ServerPoolOptions Normalize() => new(
+        Math.Clamp(TargetCount, MinTargetCount, MaxTargetCount),
+        Math.Clamp(TestRounds, MinTestRounds, MaxTestRounds));
+}
 
 public static class PoolNetwork
 {

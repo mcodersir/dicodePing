@@ -89,8 +89,10 @@ public sealed class ServerPoolService
             throw new IOException("ساخت اشتراک سرور های استخر ناموفق بود.");
     }
 
-    public static bool AcceptSamples(IReadOnlyList<int> samples) =>
-        samples.Count == 3 && samples.All(x => x > 0 && x <= 900);
+    public static bool AcceptSamples(IReadOnlyList<int> samples, int requiredRounds = 3) =>
+        requiredRounds is >= ServerPoolOptions.MinTestRounds and <= ServerPoolOptions.MaxTestRounds
+        && samples.Count == requiredRounds
+        && samples.All(x => x > 0 && x <= 900);
 
     private static HttpClient Client(IWebProxy? proxy) => new(new SocketsHttpHandler
     {
@@ -109,9 +111,14 @@ public sealed class ServerPoolService
         return await response.Content.ReadAsStringAsync(token);
     }
 
-    public async Task<int> RunAsync(Func<ProfileItem, Task> connect, IProgress<PoolProgress> progress, CancellationToken token)
+    public async Task<int> RunAsync(Func<ProfileItem, CancellationToken, Task> connect,
+        IProgress<PoolProgress> progress, ServerPoolOptions requestedOptions,
+        CancellationToken stopToken, CancellationToken abortToken)
     {
-        if (!await Gate.WaitAsync(0, token)) throw new InvalidOperationException("جمع‌آوری دیگری در حال اجراست.");
+        if (!await Gate.WaitAsync(0, abortToken)) throw new InvalidOperationException("جمع‌آوری دیگری در حال اجراست.");
+        var options = requestedOptions.Normalize();
+        using var preparation = CancellationTokenSource.CreateLinkedTokenSource(stopToken, abortToken);
+        var preparationToken = preparation.Token;
         var config = AppManager.Instance.Config;
         try
         {
@@ -121,24 +128,26 @@ public sealed class ServerPoolService
             await DicodePingBootstrap.EnsureDefaultsAsync(config);
             var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
             await SubscriptionHandler.UpdateProcess(config, primary.Id, false, (_, _) => Task.CompletedTask);
-            token.ThrowIfCancellationRequested();
-            var initial = await ProbeAsync(await AppManager.Instance.ProfileItems(primary.Id) ?? [], false, progress, token);
+            preparationToken.ThrowIfCancellationRequested();
+            var initialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
+            var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
+                preparationToken, CancellationToken.None);
             var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
             if (best.Profile == null) throw new InvalidOperationException("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.");
             progress.Report(new("اتصال", $"شروع اتصال به بهترین مسیر ساب · {best.Delay} ms"));
-            await connect(best.Profile);
-            token.ThrowIfCancellationRequested();
+            await connect(best.Profile, preparationToken);
+            preparationToken.ThrowIfCancellationRequested();
             progress.Report(new("اتصال", "درگاه محلی آماده است؛ اکنون دریافت کانال‌ها بررسی می‌شود."));
             var proxy = new WebProxy($"socks5://{Global.Loopback}:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}");
             var inbound = config.Inbound.FirstOrDefault();
             if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
             using var client = Client(proxy);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/3.9.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.0");
             client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
-            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => FetchAsync(client, url, ct), progress, token);
+            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => FetchAsync(client, url, ct), progress, preparationToken);
             var collected = new ConcurrentDictionary<string, byte>();
             int completed = 0, failed = 0;
-            await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = token }, async (channel, ct) =>
+            await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = preparationToken }, async (channel, ct) =>
             {
                 try
                 {
@@ -158,12 +167,22 @@ public sealed class ServerPoolService
             var profiles = collected.Keys.Select(x => FmtHandler.ResolveConfig(x, out _)).OfType<ProfileItem>().ToList();
             if (profiles.Count == 0) throw new InvalidOperationException("از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد.");
             foreach (var profile in profiles) { profile.IndexId = Utils.GetGuid(false); profile.Subid = PoolId; }
-            progress.Report(new("آزمون", $"آغاز سه آزمون مستقل برای {profiles.Count} کانفیگ"));
-            var accepted = await ProbeAsync(profiles, true, progress, token);
-            token.ThrowIfCancellationRequested();
-            if (accepted.Count == 0) throw new InvalidOperationException("کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد.");
-            progress.Report(new("ذخیره", $"ذخیرهٔ {accepted.Count} کانفیگ تأییدشده…"));
-            await ProfileOperationCoordinator.Gate.WaitAsync(token);
+            progress.Report(new("آزمون",
+                $"{profiles.Count} کانفیگ قابل آزمون · هدف {options.TargetCount} سرور موفق · {options.TestRounds} نوبت تست واقعی همزمان",
+                0, profiles.Count, 0, 0, options.TargetCount));
+            var accepted = await ProbeAsync(profiles, options.TestRounds, options.TargetCount, true,
+                progress, abortToken, stopToken);
+            abortToken.ThrowIfCancellationRequested();
+            var stopped = stopToken.IsCancellationRequested;
+            if (accepted.Count == 0)
+            {
+                if (stopped) throw new OperationCanceledException(stopToken);
+                throw new InvalidOperationException("کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد.");
+            }
+            progress.Report(new("ذخیره", stopped
+                ? $"توقف انجام شد؛ ذخیرهٔ {accepted.Count} سرور موفق تکمیل‌شده…"
+                : $"ذخیرهٔ {accepted.Count} کانفیگ تأییدشده…", Passed: accepted.Count, Target: options.TargetCount));
+            await ProfileOperationCoordinator.Gate.WaitAsync(abortToken);
             try
             {
                 await EnsureSubscriptionAsync();
@@ -172,72 +191,120 @@ public sealed class ServerPoolService
                 await ProfileExManager.Instance.SaveTo();
             }
             finally { ProfileOperationCoordinator.Gate.Release(); }
-            progress.Report(new("پایان", $"{accepted.Count} کانفیگ سالم در استخر ذخیره شد.", accepted.Count, accepted.Count, accepted.Count));
+            progress.Report(new(stopped ? "متوقف" : "پایان",
+                stopped
+                    ? $"آزمایش با درخواست شما متوقف شد و {accepted.Count} سرور موفق در استخر ذخیره شد."
+                    : $"{accepted.Count} کانفیگ سالم در استخر ذخیره شد.",
+                accepted.Count, accepted.Count, accepted.Count, 0, options.TargetCount));
             return accepted.Count;
         }
         finally { Gate.Release(); }
     }
 
-    private static async Task<List<(ProfileItem Profile, int Delay)>> ProbeAsync(List<ProfileItem> profiles, bool strict,
-        IProgress<PoolProgress> progress, CancellationToken token)
+    private static async Task<List<(ProfileItem Profile, int Delay)>> ProbeAsync(List<ProfileItem> profiles,
+        int rounds, int targetCount, bool strict, IProgress<PoolProgress> progress,
+        CancellationToken abortToken, CancellationToken gracefulStopToken)
     {
-        var result = new ConcurrentBag<(ProfileItem, int)>();
+        var result = new ConcurrentDictionary<string, (ProfileItem Profile, int Delay)>();
+        var acceptedCount = 0;
         var done = 0;
-        await PoolBatchRunner.RunAsync(profiles, 12, async chunk =>
+        var pending = new Queue<ProfileItem[]>(profiles.Chunk(12));
+        while (pending.TryDequeue(out var chunk))
         {
-            token.ThrowIfCancellationRequested();
+            abortToken.ThrowIfCancellationRequested();
+            if ((strict && gracefulStopToken.IsCancellationRequested) || result.Count >= targetCount) break;
             var baseIndex = done;
             var batch = chunk.Select((p, i) => new ServerTestItem { IndexId = p.IndexId, Address = p.Address,
                 Port = p.Port, ConfigType = p.ConfigType, Profile = p, QueueNum = i,
                 CoreType = AppManager.Instance.GetCoreType(p, p.ConfigType) }).ToList();
             var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
-            if (core == null) {
+            if (core == null)
+            {
                 progress.Report(new("آزمون", "هستهٔ این دسته آماده نشد؛ جداسازی کانفیگ ناسازگار…"));
-                return false;
+                if (chunk.Length == 1)
+                {
+                    var rejected = Interlocked.Increment(ref done);
+                    progress.Report(new("آزمون", "کانفیگ ناسازگار با هسته رد شد؛ سایر سرورها بررسی می‌شوند.",
+                        rejected, profiles.Count, result.Count, Math.Max(0, rejected - result.Count), strict ? targetCount : 0));
+                }
+                else
+                {
+                    var midpoint = chunk.Length / 2;
+                    pending.Enqueue(chunk[..midpoint]);
+                    pending.Enqueue(chunk[midpoint..]);
+                }
+                continue;
             }
             try
             {
-                await Task.Delay(800, token);
-                if (core.HasExited) return false;
-                await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 6, CancellationToken = token }, async (item, ct) =>
+                using var testRun = CancellationTokenSource.CreateLinkedTokenSource(abortToken, gracefulStopToken);
+                var testToken = strict ? testRun.Token : abortToken;
+                await Task.Delay(800, testToken);
+                if (core.HasExited)
+                {
+                    if (chunk.Length == 1)
+                    {
+                        var rejected = Interlocked.Increment(ref done);
+                        progress.Report(new("آزمون", "هستهٔ کانفیگ پیش از آزمون بسته شد و سرور رد شد.",
+                            rejected, profiles.Count, result.Count, Math.Max(0, rejected - result.Count), strict ? targetCount : 0));
+                    }
+                    else
+                    {
+                        var midpoint = chunk.Length / 2;
+                        pending.Enqueue(chunk[..midpoint]);
+                        pending.Enqueue(chunk[midpoint..]);
+                    }
+                    continue;
+                }
+                await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 6, CancellationToken = testToken }, async (item, ct) =>
                 {
                     var samples = new List<int>();
-                    if (item.AllowTest)
+                    try
                     {
+                        if (!item.AllowTest || (strict && result.Count >= targetCount)) return;
                         var ready = true;
                         try { await PoolNetwork.WaitForListenerAsync(() => item.Port, ct, 10); }
                         catch (IOException) { ready = false; progress.Report(new("آزمون", $"سرور {baseIndex + item.QueueNum + 1} · درگاه هستهٔ آزمون آماده نشد")); }
-                        using var client = Client(new WebProxy($"socks5://{Global.Loopback}:{item.Port}"));
-                        for (var round = 0; round < (strict ? 3 : 1); round++)
+                        var webProxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
+                        for (var round = 0; round < rounds; round++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                            deadline.CancelAfter(TimeSpan.FromSeconds(strict ? 4 : 8));
                             if (!ready) { samples.Add(-1); continue; }
-                            try
-                            {
-                                var watch = Stopwatch.StartNew();
-                                using var response = await client.GetAsync(AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl, deadline.Token);
-                                samples.Add(response.IsSuccessStatusCode ? Math.Max(1, (int)watch.ElapsedMilliseconds) : -1);
-                            }
-                            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                            catch (Exception) { samples.Add(-1); }
-                            progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", $"سرور {baseIndex + item.QueueNum + 1} · نوبت {round + 1}/{(strict ? 3 : 1)}: {(samples[^1] > 0 ? $"{samples[^1]} ms" : "ناموفق")}"));
+                            // Use the exact same SOCKS/HTTP real-latency engine as the main
+                            // Real Ping action (including its two-request stabilization).
+                            var delay = await ConnectionHandler.GetRealPingTime(webProxy, strict ? 4 : 8);
+                            ct.ThrowIfCancellationRequested();
+                            samples.Add(delay);
+                            progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض",
+                                $"سرور {baseIndex + item.QueueNum + 1} · نوبت {round + 1}/{rounds}: {(delay > 0 ? $"{delay} ms" : "ناموفق")}",
+                                Passed: result.Count, Target: strict ? targetCount : 0));
                         }
-                        progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", $"سرور {item.QueueNum + baseIndex + 1} · پاسخ‌ها: {string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : "ناموفق"))} · {(strict ? (AcceptSamples(samples) ? "پذیرفته" : "رد شد") : "آزمون اولیه")}"));
-                        if (strict ? AcceptSamples(samples) : samples[0] > 0)
-                            result.Add((item.Profile, samples.Order().ElementAt(samples.Count / 2)));
+                        var accepted = strict ? AcceptSamples(samples, rounds) : samples.Count == rounds && samples.All(x => x > 0);
+                        if (accepted)
+                        {
+                            var reservation = Interlocked.Increment(ref acceptedCount);
+                            if (reservation <= targetCount)
+                                result.TryAdd(item.Profile.IndexId, (item.Profile, samples.Order().ElementAt(samples.Count / 2)));
+                        }
+                        progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض",
+                            $"سرور {item.QueueNum + baseIndex + 1} · پاسخ‌ها: {string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : "ناموفق"))} · {(accepted ? "پذیرفته" : "رد شد")}",
+                            Passed: result.Count, Target: strict ? targetCount : 0));
                     }
-                    var completed = Interlocked.Increment(ref done);
-                    progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", "آزمون واقعی مسیر", completed, profiles.Count, result.Count, Math.Max(0, completed - result.Count)));
+                    finally
+                    {
+                        var tested = Interlocked.Increment(ref done);
+                        progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض",
+                            strict ? $"آزمون واقعی مسیر · موفق {result.Count}/{targetCount}" : "آزمون واقعی مسیر",
+                            tested, profiles.Count, result.Count, Math.Max(0, tested - result.Count), strict ? targetCount : 0));
+                    }
                 });
             }
+            catch (OperationCanceledException) when (strict && gracefulStopToken.IsCancellationRequested && !abortToken.IsCancellationRequested)
+            {
+                break;
+            }
             finally { await core.StopAsync(); core.Dispose(); }
-            return true;
-        }, _ => {
-            var completed = Interlocked.Increment(ref done);
-            progress.Report(new("آزمون", "کانفیگ ناسازگار با هسته رد شد؛ سایر سرورها بررسی می‌شوند.", completed, profiles.Count, result.Count, Math.Max(0, completed - result.Count)));
-        }, token);
-        return result.ToList();
+        }
+        return result.Values.OrderBy(x => x.Delay).Take(targetCount).ToList();
     }
 }

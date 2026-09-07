@@ -2,10 +2,9 @@ package com.v2ray.ang.handler
 
 import android.content.Context
 import com.v2ray.ang.AppConfig
-import com.v2ray.ang.core.CoreConfigManager
 import com.v2ray.ang.core.CoreNativeManager
 import com.v2ray.ang.dto.entities.SubscriptionItem
-import com.v2ray.ang.service.RealPingExecutionLimiter
+import com.v2ray.ang.service.RealPingProbe
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -34,7 +33,7 @@ object ServerPoolManager {
 
     private suspend fun fetch(client: OkHttpClient, url: String): String = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(Request.Builder().url(url)
-            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36 DicodePing/3.9.0")
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36 DicodePing/4.0.0")
             .header("Accept", if (url.startsWith("https://api.github.com/")) "application/vnd.github.raw+json" else "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8")
             .header("Accept-Language", "en-US,en;q=0.8,fa;q=0.7").build())
         continuation.invokeOnCancellation { call.cancel() }
@@ -62,8 +61,10 @@ object ServerPoolManager {
         })
     }
 
-    suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (PoolProgress) -> Unit): Int = withContext(Dispatchers.IO) {
+    suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (PoolProgress) -> Unit,
+                    requestedOptions: ServerPoolOptions, shouldStop: () -> Boolean): Int = withContext(Dispatchers.IO) {
         check(running.compareAndSet(false, true)) { "جمع‌آوری دیگری در حال اجراست." }
+        val options = requestedOptions.normalized()
         val stage = "pool-stage-${UUID.randomUUID()}"
         try {
             ensureSubscription()
@@ -74,7 +75,9 @@ object ServerPoolManager {
                 ?: error("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.")
             AngConfigManager.updateConfigViaSub(primary)
             currentCoroutineContext().ensureActive()
-            val best = probe(context, MmkvManager.decodeServerList(primary.guid), false, report).minByOrNull { it.second }
+            val primaryServers = MmkvManager.decodeServerList(primary.guid)
+            val best = probe(context, primaryServers, 1, primaryServers.size.coerceAtLeast(1), false, report) { false }
+                .minByOrNull { it.second }
                 ?: error("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.")
             report(PoolProgress("اتصال", "شروع اتصال به بهترین مسیر ساب · ${best.second} ms"))
             connect(best.first)
@@ -116,11 +119,18 @@ object ServerPoolManager {
             AngConfigManager.importBatchConfig(links.joinToString("\n"), stage, false)
             val candidates = MmkvManager.decodeServerList(stage)
             check(candidates.isNotEmpty()) { "${links.size} لینک استخراج شد ولی هیچ‌کدام قابل ورود به هسته نبود؛ استخر قبلی حفظ شد." }
-            report(PoolProgress("آزمون", "${links.size} لینک یکتا؛ ${candidates.size} کانفیگ قابل آزمون؛ آغاز آزمون سه‌مرحله‌ای"))
-            val accepted = probe(context, candidates, true, report).sortedBy { it.second }
+            report(PoolProgress("آزمون",
+                "${links.size} لینک یکتا؛ ${candidates.size} کانفیگ قابل آزمون؛ هدف ${options.targetCount} سرور موفق؛ ${options.testRounds} نوبت تست واقعی همزمان",
+                total = candidates.size, target = options.targetCount))
+            val accepted = probe(context, candidates, options.testRounds, options.targetCount, true, report, shouldStop)
+                .sortedBy { it.second }.take(options.targetCount)
             currentCoroutineContext().ensureActive()
+            if (accepted.isEmpty() && shouldStop()) throw CancellationException("No completed successful result")
             check(accepted.isNotEmpty()) { "کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد." }
-            report(PoolProgress("ذخیره", "ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…"))
+            val stopped = shouldStop()
+            report(PoolProgress("ذخیره", if (stopped)
+                "توقف انجام شد؛ ذخیرهٔ ${accepted.size} سرور موفق تکمیل‌شده…"
+                else "ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…", passed = accepted.size, target = options.targetCount))
             val profiles = accepted.associate { (guid, _) ->
                 UUID.randomUUID().toString() to requireNotNull(MmkvManager.decodeServerConfig(guid)).copy(subscriptionId = POOL_ID)
             }
@@ -130,43 +140,55 @@ object ServerPoolManager {
             profiles.keys.zip(accepted).forEach { (guid, sample) -> MmkvManager.encodeServerTestDelayMillis(guid, sample.second) }
             AngConfigManager.sortByTestResultsForSub(POOL_ID)
             SettingsChangeManager.makeSetupGroupTab()
-            report(PoolProgress("پایان", "${accepted.size} کانفیگ سالم در استخر ذخیره شد.", accepted.size, accepted.size, accepted.size))
+            report(PoolProgress(if (stopped) "متوقف" else "پایان",
+                if (stopped) "آزمایش با درخواست شما متوقف شد و ${accepted.size} سرور موفق در استخر ذخیره شد."
+                else "${accepted.size} کانفیگ سالم در استخر ذخیره شد.",
+                accepted.size, accepted.size, accepted.size, target = options.targetCount))
             accepted.size
         } finally {
             try { MmkvManager.removeServerViaSubid(stage) } finally { running.set(false) }
         }
     }
 
-    private suspend fun probe(context: Context, guids: List<String>, strict: Boolean, report: (PoolProgress) -> Unit): List<Pair<String, Long>> = coroutineScope {
+    private suspend fun probe(context: Context, guids: List<String>, rounds: Int, targetCount: Int,
+                              strict: Boolean, report: (PoolProgress) -> Unit,
+                              shouldStop: () -> Boolean): List<Pair<String, Long>> = coroutineScope {
         val limit = Semaphore(4); val done = AtomicInteger(); val passed = AtomicInteger()
         guids.mapIndexed { index, guid -> async {
             limit.withPermit {
                 ensureActive()
                 try {
-                    val profile = MmkvManager.decodeServerConfig(guid) ?: return@withPermit null
-                    val config = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
-                    if (!config.status) return@withPermit null
+                    if ((strict && shouldStop()) || passed.get() >= targetCount) return@withPermit null
+                    if (MmkvManager.decodeServerConfig(guid) == null) return@withPermit null
                     val samples = mutableListOf<Long>()
-                    repeat(if (strict) 3 else 1) {
+                    repeat(rounds) {
                         ensureActive()
+                        if (strict && shouldStop()) return@withPermit null
                         samples.add(try {
-                            RealPingExecutionLimiter.run(profile.configType) {
-                                CoreNativeManager.measureOutboundDelay(config.content, SettingsManager.getDelayTestUrl())
-                            }
+                            // This is exactly the same TCP-gated native probe used by
+                            // the main screen's Real Ping action.
+                            RealPingProbe.measure(context, guid)
                         } catch (cancelled: CancellationException) { throw cancelled }
                         catch (_: Exception) { -1L })
                         report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
-                            "سرور ${index + 1} · نوبت ${it + 1}/${if (strict) 3 else 1}: ${if (samples.last() > 0) "${samples.last()} ms" else "ناموفق"}"))
+                            "سرور ${index + 1} · نوبت ${it + 1}/$rounds: ${if (samples.last() > 0) "${samples.last()} ms" else "ناموفق"}",
+                            passed = passed.get().coerceAtMost(targetCount), target = if (strict) targetCount else 0))
                     }
-                    val accepted = if (strict) ServerPoolParser.accepts(samples) else samples[0] > 0
+                    if (strict && shouldStop()) return@withPermit null
+                    val accepted = if (strict) ServerPoolParser.accepts(samples, rounds) else samples.size == rounds && samples.all { it > 0 }
                     report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
-                        "سرور ${index + 1} · ${samples.joinToString(" / ") { if (it > 0) "$it ms" else "ناموفق" }} · ${if (accepted) "پذیرفته" else "رد شد"}"))
+                        "سرور ${index + 1} · ${samples.joinToString(" / ") { if (it > 0) "$it ms" else "ناموفق" }} · ${if (accepted) "پذیرفته" else "رد شد"}",
+                        passed = passed.get().coerceAtMost(targetCount), target = if (strict) targetCount else 0))
                     if (accepted) {
-                        passed.incrementAndGet(); guid to samples.sorted()[samples.size / 2]
+                        val reservation = passed.incrementAndGet()
+                        if (reservation <= targetCount) guid to samples.sorted()[samples.size / 2] else null
                     } else null
                 } finally {
                     val completed = done.incrementAndGet()
-                    report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض", "آزمون واقعی مسیر", completed, guids.size, passed.get(), (completed - passed.get()).coerceAtLeast(0)))
+                    val successful = passed.get().coerceAtMost(targetCount)
+                    report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
+                        if (strict) "آزمون واقعی مسیر · موفق $successful/$targetCount" else "آزمون واقعی مسیر",
+                        completed, guids.size, successful, (completed - successful).coerceAtLeast(0), if (strict) targetCount else 0))
                 }
             }
         } }.awaitAll().filterNotNull()

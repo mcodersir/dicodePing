@@ -17,6 +17,28 @@ public class ServerPoolTests
     public void MissingSamplesFail() => Assert.False(ServerPoolService.AcceptSamples([10, 20]));
 
     [Fact]
+    public void UserCanRequireOneOrSeveralSuccessfulRounds()
+    {
+        Assert.True(ServerPoolService.AcceptSamples([42], 1));
+        Assert.False(ServerPoolService.AcceptSamples([-1], 1));
+        Assert.True(ServerPoolService.AcceptSamples([42, 51, 63, 70], 4));
+        Assert.False(ServerPoolService.AcceptSamples([42, 51, 901, 70], 4));
+        Assert.False(ServerPoolService.AcceptSamples([42], 0));
+        Assert.False(ServerPoolService.AcceptSamples(Enumerable.Repeat(42, 11).ToList(), 11));
+    }
+
+    [Theory]
+    [InlineData(-10, -2, 1, 1)]
+    [InlineData(999, 99, 200, 10)]
+    [InlineData(25, 4, 25, 4)]
+    public void PoolOptionsAreBounded(int target, int rounds, int expectedTarget, int expectedRounds)
+    {
+        var normalized = new ServerPoolOptions(target, rounds).Normalize();
+        Assert.Equal(expectedTarget, normalized.TargetCount);
+        Assert.Equal(expectedRounds, normalized.TestRounds);
+    }
+
+    [Fact]
     public void ChannelsCannotInjectUrls() => Assert.Equal(["valid_channel"],
         ServerPoolService.ParseChannels("@valid_channel\nhttps://t.me/valid_channel\nt.me/valid_channel\nhttps://evil.example/x\n../foo\n# comment"));
 

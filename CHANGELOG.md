@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.0
+
+- Add pre-run controls for the desired number of successful pool servers (1–200) and real-ping rounds per server (1–10) on desktop and Android.
+- Reuse the product's main Real Ping engine in the pool: stabilized SOCKS/HTTP measurements on desktop and the shared TCP-gated native outbound-delay probe on Android.
+- Run tests concurrently with bounded workers, show live successful/target counts, and stop scheduling work automatically when the requested target is reached.
+- Turn the pool Stop action into a graceful checkpoint during testing: completed successful servers are saved immediately, while hard lifecycle cancellation and zero-result runs preserve the previous pool.
+- Ship the accumulated Telegram parser, official-subscription startup, PattNG 2.3.7-P42 and pinned-core fixes as the stable 4.0.0 release without removing user subscriptions or Dicode-specific features.
+
 ## 3.9.0 (pre-release, revision 4)
 
 - Accept valid V2Ray links from public Telegram previews even when optional message timestamps or legacy wrapper classes are absent; source order still selects the four newest visible links.

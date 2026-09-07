@@ -1,8 +1,8 @@
-name: Release v3
+name: Release v4
 
 on:
   push:
-    tags: ['v3.*']
+    tags: ['v4.*']
     branches: ['codex/release-*']
   workflow_dispatch:
 
@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.9.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.0
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.9.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.9.0-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.0.0-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.9.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.0.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=3.9.0
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,36 +264,23 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 3.9.0 — Pre-release (revision 4)
-          prerelease: true
+          name: DicodePing 4.0.0
+          prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 3.9.0 — Pre-release (revision 4)
+            ## DicodePing 4.0.0 — Stable
 
-            بازنشر اصلاح‌شدهٔ 3.9.0؛ فایل‌های قبلی با ساخت جدید جایگزین شده‌اند.
+            نسخهٔ پایدار 4 با استخر سرور قابل‌کنترل و موتور واحد آزمایش تأخیر واقعی.
 
-            - رفع قطعی جمع‌آوری وقتی HTML عمومی تلگرام تاریخ پیام یا wrapper قدیمی را ندارد؛ ترتیب واقعی preview همچنان چهار لینک جدیدتر را انتخاب می‌کند.
-            - جداسازی هدرهای GitHub و Telegram، استفاده از هدر مرورگر و مسیر جایگزین `telegram.me` برای preview نامعتبر.
-            - محدودشدن refresh، real ping، مرتب‌سازی و Location خودکار شروع برنامه به ساب رسمی پیش‌فرض؛ حذف batch سنگین «همه» و تداخل عامل کرش.
-            - حفظ کانفیگ‌های cacheشدهٔ ساب رسمی هنگام اختلال دریافت؛ Android versionCode برابر 309003 و FileVersion دسکتاپ برابر 3.9.0.4.
+            - انتخاب تعداد سرور موفق هدف از ۱ تا ۲۰۰ و تعداد نوبت آزمون هر سرور از ۱ تا ۱۰، پیش از شروع در دسکتاپ و اندروید.
+            - استفادهٔ استخر از همان موتور Real Ping فهرست اصلی: مسیر SOCKS/HTTP پایدارشده در دسکتاپ و TCP pre-check به‌همراه native outbound delay در اندروید.
+            - اجرای همزمان با سقف کنترل‌شده، توقف خودکار پس از رسیدن به هدف و نمایش زندهٔ تعداد موفق‌ها.
+            - توقف نرم هنگام آزمون: تست‌های فعال پایان می‌یابند و تمام سرورهای موفق تکمیل‌شده تا همان لحظه در «سرور های استخر» ذخیره می‌شوند.
+            - حفظ استخر قبلی اگر عملیات پیش از رسیدن به حتی یک نتیجهٔ سالم متوقف یا ناموفق شود.
+            - دریافت حداکثر چهار لینک جدید هر کانال از preview عمومی Telegram با پشتیبانی از HTML بدون تاریخ یا wrapper قدیمی.
+            - پذیرش فقط VLESS، VMess، Trojan و Shadowsocks و رد کامل Telegram/MTProto/SOCKS proxy؛ هر پاسخ باید بین ۱ تا ۹۰۰ ms باشد.
+            - بروزرسانی و انتخاب مسیر ساب رسمی پیش‌فرض بدون درگیرکردن اشتراک‌ها و کانفیگ‌های کاربر.
+            - PattNG 2.3.7-P42 و libv2ray v26.9.7 با hash ثابت؛ امکانات اختصاصی، تم‌ها، ترافیک، فیلتر دامنه و آزمایش تحریم حفظ شده‌اند.
 
-            - رفع حذف کانفیگ‌ها به‌خاطر محدودیت هفت‌روزه و ساعت دستگاه؛ استخراج از آخرین پیام‌های لینک‌دار با نمایش تاریخ واقعی منبع.
-            - اصلاح خواندن HTML و کاراکترهای کدشده؛ لاگ جدا برای صفحهٔ نامعتبر، تاریخ ناخوانا و نبود لینک مستقیم V2Ray.
-            - ساخت اشتراک مستقل «سرور های استخر» از ابتدای ورود به صفحه؛ حفظ ساب پیش‌فرض و انتقال نام استخر قبلی بدون حذف سرورها.
-            - آزمون استخراج‌کنندهٔ واقعی هر دو پلتفرم روی پاسخ زندهٔ تلگرام در فرایند انتشار.
-
-            - رفع تشخیص اشتباه قطع VPN: آماده‌شدن هسته از دانلود فهرست کانال‌ها جدا شد؛ مهلت دوثانیه‌ای حذف شد.
-            - انتظار برای راه‌اندازی واقعی، تلاش مجدد دریافت فهرست و مسیرهای جایگزین گیت‌هاب با خطای دقیق هر مرحله.
-            - رابط تعاملی با مراحل، پیشرفت، لاگ زندهٔ زمان‌دار، نتیجهٔ هر نوبت پینگ، کپی لاگ، توقف اسکرول و اجرای دوباره.
-            - نسخهٔ نمایشی همچنان 3.9.0 است و به‌صورت in-place روی پیش‌انتشار قبلی نصب می‌شود.
-
-            - استخر سرورها در دسکتاپ و اندروید: اتصال خودکار از ساب پیش‌فرض، دریافت حداکثر چهار کانفیگ از آخرین پیام‌های لینک‌دار هر کانال.
-            - فقط VLESS، VMess، Trojan و Shadowsocks؛ پروکسی تلگرام پذیرفته نمی‌شود.
-            - سه آزمون واقعی برای هر کانفیگ؛ تنها سه پاسخ معتبر بین ۱ تا ۹۰۰ میلی‌ثانیه پذیرفته می‌شود.
-            - ذخیره در اشتراک مستقل «سرور های استخر» با حفظ استخر قبلی در خطا یا نبود نتیجهٔ سالم.
-            - ادغام اصلاحات PattNG 2.3.7-P42 و libv2ray v26.9.7 با بررسی SHA-256؛ حفظ امکانات اختصاصی دیکد پینگ.
-            - حفظ تم‌ها، آمار ترافیک، فیلتر دامنه، آزمایش تحریم و اشتراک‌های کاربر.
-
-            فایل‌های Windows، Linux، macOS و APKهای اندروید همراه با SHA256SUMS ارائه می‌شوند.
-            این نسخه پیش‌انتشار است و جایگزین نسخهٔ پایدار نمی‌شود.
+            فایل‌های امضاشدهٔ Android و بسته‌های Windows، Linux و macOS همراه SHA256SUMS ارائه می‌شوند.
           files: artifacts/*

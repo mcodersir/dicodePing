@@ -38,6 +38,32 @@ internal object RealPingExecutionLimiter {
     }
 }
 
+/** The single real-latency path shared by the main list and the server pool. */
+internal object RealPingProbe {
+    suspend fun measure(context: Context, guid: String): Long {
+        val failure = -1L
+        val config = MmkvManager.decodeServerConfig(guid) ?: return failure
+
+        // Keep the same fast reachability gate used by the main Real Ping action.
+        if (!config.configType.isComplexType()
+            && config.configType != EConfigType.HYSTERIA2
+            && config.configType != EConfigType.WIREGUARD
+            && config.alpn?.startsWith("h3") != true
+            && config.server.isNotNullEmpty()
+            && config.serverPort?.toIntOrNull() != null
+        ) {
+            val tcpTime = SpeedtestManager.socketConnectTime(config.server.orEmpty(), config.serverPort.orEmpty().toInt(), 1000)
+            if (tcpTime <= -1L) return failure
+        }
+
+        val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
+        if (!configResult.status) return failure
+        return RealPingExecutionLimiter.run(config.configType) {
+            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl())
+        }
+    }
+}
+
 /**
  * Worker that runs a batch of real-ping tests independently.
  * Each batch owns its own CoroutineScope/dispatcher and can be cancelled separately.
@@ -113,33 +139,7 @@ class RealPingWorkerService(
         }
     }
 
-    private suspend fun startRealPing(guid: String): Long {
-        val retFailure = -1L
-
-        val config = MmkvManager.decodeServerConfig(guid) ?: return retFailure
-        if (!config.configType.isComplexType()
-            && config.configType != EConfigType.HYSTERIA2
-            && config.configType != EConfigType.WIREGUARD
-            && config.alpn?.startsWith("h3") != true
-            && config.server.isNotNullEmpty()
-            && config.serverPort?.toIntOrNull() != null
-        ) {
-            val url = config.server.orEmpty()
-            val port = config.serverPort.orEmpty().toInt()
-            val tcpTime = SpeedtestManager.socketConnectTime(url, port, 1000)
-            if (tcpTime <= -1L) {
-                return retFailure
-            }
-        }
-
-        val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
-        if (!configResult.status) {
-            return retFailure
-        }
-        return RealPingExecutionLimiter.run(config.configType) {
-            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl())
-        }
-    }
+    private suspend fun startRealPing(guid: String): Long = RealPingProbe.measure(context, guid)
 
     private suspend fun startSanctionsCheck(guid: String): Pair<Boolean, Int> {
         val config = MmkvManager.decodeServerConfig(guid) ?: return false to 0

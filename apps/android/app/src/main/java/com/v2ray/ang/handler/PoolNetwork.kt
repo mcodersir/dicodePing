@@ -6,7 +6,21 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 data class PoolProgress(val stage: String, val message: String, val completed: Int = 0,
-    val total: Int = 0, val passed: Int = 0, val failed: Int = 0)
+    val total: Int = 0, val passed: Int = 0, val failed: Int = 0, val target: Int = 0)
+
+data class ServerPoolOptions(val targetCount: Int = 20, val testRounds: Int = 3) {
+    fun normalized() = ServerPoolOptions(
+        targetCount.coerceIn(MIN_TARGET_COUNT, MAX_TARGET_COUNT),
+        testRounds.coerceIn(MIN_TEST_ROUNDS, MAX_TEST_ROUNDS)
+    )
+
+    companion object {
+        const val MIN_TARGET_COUNT = 1
+        const val MAX_TARGET_COUNT = 200
+        const val MIN_TEST_ROUNDS = 1
+        const val MAX_TEST_ROUNDS = 10
+    }
+}
 
 object PoolNetwork {
     suspend fun waitForListener(port: () -> Int) = withContext(Dispatchers.IO) {

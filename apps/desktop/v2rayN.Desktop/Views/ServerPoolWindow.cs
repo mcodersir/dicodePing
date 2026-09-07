@@ -6,7 +6,9 @@ namespace v2rayN.Desktop.Views;
 
 public sealed class ServerPoolWindow : Window
 {
-    private CancellationTokenSource? _run;
+    private CancellationTokenSource? _stop;
+    private CancellationTokenSource? _abort;
+    private bool _testing;
     public ServerPoolWindow(MainWindowViewModel main)
     {
         Title = "استخر سرورها";
@@ -14,7 +16,7 @@ public sealed class ServerPoolWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = new TextBlock { Text = "آمادهٔ جمع‌آوری", TextWrapping = TextWrapping.Wrap };
         var stage = new TextBlock { Text = "ساب پیش‌فرض ← اتصال ← کانال‌ها ← آزمون ← ذخیره", FontSize = 16, TextWrapping = TextWrapping.Wrap };
-        var counts = new TextBlock { Text = "سه پاسخ معتبر · حداکثر ۹۰۰ میلی‌ثانیه", TextWrapping = TextWrapping.Wrap };
+        var counts = new TextBlock { Text = "هر پاسخ باید معتبر و حداکثر ۹۰۰ میلی‌ثانیه باشد.", TextWrapping = TextWrapping.Wrap };
         var bar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 6 };
         var rows = new ListBox();
         var history = new ObservableCollection<string>();
@@ -24,11 +26,19 @@ public sealed class ServerPoolWindow : Window
         var cancel = new Button { Content = "توقف", IsEnabled = false };
         var copy = new Button { Content = "کپی لاگ" };
         var clear = new Button { Content = "پاک‌کردن لاگ" };
+        var target = new NumericUpDown { Minimum = ServerPoolOptions.MinTargetCount,
+            Maximum = ServerPoolOptions.MaxTargetCount, Increment = 1, Value = 20, Width = 100 };
+        var rounds = new NumericUpDown { Minimum = ServerPoolOptions.MinTestRounds,
+            Maximum = ServerPoolOptions.MaxTestRounds, Increment = 1, Value = 3, Width = 100 };
+        var settings = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 10,
+            Children = { new TextBlock { Text = "تعداد سرور موفق هدف", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center }, target,
+                new TextBlock { Text = "نوبت تست هر سرور", VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center }, rounds } };
         var tabs = new TabControl { ItemsSource = new[] {
             new TabItem { Header = "لاگ زنده", Content = logs }, new TabItem { Header = "سرورهای ذخیره‌شده", Content = rows }
         }};
-        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,*"), Margin = new Thickness(24), RowSpacing = 12 };
+        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,*"), Margin = new Thickness(24), RowSpacing = 12 };
         Control[] sections = [new TextBlock { Text = Title, FontSize = 26 }, stage,
+            settings,
             new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { start, cancel, copy, clear } },
             new StackPanel { Spacing = 8, Children = { status, counts, bar } }, follow, tabs];
         for (var i = 0; i < sections.Length; i++) { Grid.SetRow(sections[i], i); layout.Children.Add(sections[i]); }
@@ -41,13 +51,16 @@ public sealed class ServerPoolWindow : Window
         }
         void Update(PoolProgress update)
         {
+            _testing = update.Stage == "آزمون";
             var changed = stage.Text != update.Stage;
             stage.Text = update.Stage; status.Text = update.Message;
-            if (changed) { bar.IsIndeterminate = update.Total == 0 && _run != null; counts.Text = "در حال اجرا…"; }
+            if (changed) { bar.IsIndeterminate = update.Total == 0 && _stop != null; counts.Text = "در حال اجرا…"; }
             if (update.Total > 0) {
                 bar.IsIndeterminate = false;
                 bar.Value = 100d * update.Completed / update.Total;
-                counts.Text = $"{update.Completed}/{update.Total} · {(update.Stage == "جمع‌آوری" ? "کاندید" : "پذیرفته")}: {update.Passed} · خطا: {update.Failed}";
+                counts.Text = update.Stage == "جمع‌آوری"
+                    ? $"{update.Completed}/{update.Total} · کاندید: {update.Passed} · خطا: {update.Failed}"
+                    : $"{update.Completed}/{update.Total} · موفق: {update.Passed}{(update.Target > 0 ? $"/{update.Target}" : "")} · ناموفق: {update.Failed}";
             }
             Log($"[{update.Stage}] {update.Message}" + (update.Total > 0 ? $" · {update.Completed}/{update.Total}" : ""));
         }
@@ -63,24 +76,36 @@ public sealed class ServerPoolWindow : Window
         };
         copy.Click += async (_, _) => { if (Clipboard != null) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, history)); };
         clear.Click += (_, _) => history.Clear();
-        cancel.Click += (_, _) => { _run?.Cancel(); cancel.IsEnabled = false; status.Text = "در حال توقف و آزادسازی هسته‌های آزمون…"; Log(status.Text); };
-        Closing += (_, _) => _run?.Cancel();
+        cancel.Click += (_, _) => {
+            _stop?.Cancel(); cancel.IsEnabled = false;
+            status.Text = _testing
+                ? "در حال توقف نرم؛ سرورهای موفق تکمیل‌شده ذخیره خواهند شد…"
+                : "در حال توقف جمع‌آوری…";
+            Log(status.Text);
+        };
+        Closing += (_, _) => { _abort?.Cancel(); _stop?.Cancel(); };
         start.Click += async (_, _) =>
         {
-            start.IsEnabled = false; cancel.IsEnabled = true; tabs.SelectedIndex = 0;
-            using var cts = new CancellationTokenSource(); _run = cts;
-            Log("شروع اجرای جدید · 3.9.0 revision 3");
+            start.IsEnabled = false; cancel.IsEnabled = true; target.IsEnabled = false; rounds.IsEnabled = false; tabs.SelectedIndex = 0;
+            using var stop = new CancellationTokenSource(); using var abort = new CancellationTokenSource();
+            _stop = stop; _abort = abort;
+            var options = new ServerPoolOptions(Convert.ToInt32(target.Value ?? 20), Convert.ToInt32(rounds.Value ?? 3)).Normalize();
+            Log($"شروع اجرای جدید · 4.0.0 · هدف {options.TargetCount} سرور · {options.TestRounds} نوبت");
             try
             {
-                await new ServerPoolService().RunAsync(profile => main.ConnectPoolProfileAsync(profile.IndexId, cts.Token),
-                    new Progress<PoolProgress>(Update), cts.Token);
+                await new ServerPoolService().RunAsync((profile, token) => main.ConnectPoolProfileAsync(profile.IndexId, token),
+                    new Progress<PoolProgress>(Update), options, stop.Token, abort.Token);
                 await main.ProfilesViewModel.RefreshSubscriptions();
                 await main.ProfilesViewModel.RefreshServers();
                 await Refresh();
             }
-            catch (OperationCanceledException) { Update(new("متوقف", "جمع‌آوری متوقف شد؛ استخر قبلی حفظ شد.")); }
+            catch (OperationCanceledException) { Update(new("متوقف", "عملیات پیش از تکمیل یک نتیجهٔ موفق متوقف شد؛ استخر قبلی حفظ شد.")); }
             catch (Exception ex) { Update(new("خطا", ex.Message)); }
-            finally { _run = null; start.Content = "اجرای دوباره"; start.IsEnabled = true; cancel.IsEnabled = false; bar.IsIndeterminate = false; }
+            finally {
+                _stop = null; _abort = null; _testing = false; start.Content = "اجرای دوباره";
+                start.IsEnabled = true; target.IsEnabled = true; rounds.IsEnabled = true;
+                cancel.IsEnabled = false; bar.IsIndeterminate = false;
+            }
         };
     }
 }
