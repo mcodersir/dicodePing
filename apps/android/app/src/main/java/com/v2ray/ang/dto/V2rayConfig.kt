@@ -77,6 +77,8 @@ data class V2rayConfig(
             var port: Int? = null,
             var level: Int? = null,
             var email: String? = null,
+            /*DNS*/
+            var userLevel: Int? = null,
             /*HTTP/SOCKS*/
             var user: String? = null,
             var pass: String? = null,
@@ -200,6 +202,7 @@ data class V2rayConfig(
                 var dialerProxy: String? = null,
                 var domainStrategy: String? = null,
                 var happyEyeballs: HappyEyeballsBean? = null,
+                var dialMode: String? = null,
             )
 
             data class HappyEyeballsBean(
@@ -352,6 +355,7 @@ data class V2rayConfig(
             var expectIPs: List<String>? = null,
             val clientIp: String? = null,
             val skipFallback: Boolean? = null,
+            val finalQuery: Boolean? = null,
             val tag: String? = null,
         )
     }

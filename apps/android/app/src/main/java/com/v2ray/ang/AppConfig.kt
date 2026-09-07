@@ -151,9 +151,9 @@ object AppConfig {
     const val IP_API_URL = "https://api.ip.sb/geoip"
 
     /** DNS server addresses. */
-    const val DNS_PROXY = "https://cloudflare-dns.com/dns-query"
-    const val DNS_DIRECT = "223.5.5.5"
-    const val DNS_VPN = "1.1.1.1"
+    const val DNS_PROXY = "https://dns.google/dns-query"
+    const val DNS_DIRECT = "localhost"
+    const val DNS_VPN = "8.8.8.8"
     const val GEOSITE_PRIVATE = "geosite:private"
     const val GEOSITE_CN = "geosite:cn"
     const val GEOIP_PRIVATE = "geoip:private"
@@ -172,6 +172,13 @@ object AppConfig {
     const val WIREGUARD_LOCAL_ADDRESS_V6 = "2606:4700:110:8f81:d551:a0:532e:a2b3/128"
     const val WIREGUARD_LOCAL_MTU = "1420"
     const val LOOPBACK = "127.0.0.1"
+
+    /** Shared defaults for settings shown in the UI and consumed by config generation. */
+    const val DEFAULT_SOCKS_ENABLE_UDP = true
+    const val DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD = "0"
+    const val DEFAULT_VPN_BYPASS_LAN = "1"
+    const val DEFAULT_HEV_TUNNEL_LOGLEVEL = "warn"
+    const val DEFAULT_MUX_XUDP_CONCURRENCY = "8"
 
     /** Message constants for communication. */
     const val MSG_REGISTER_CLIENT = 1
@@ -269,7 +276,6 @@ object AppConfig {
 
     const val DEFAULT_PORT = 443
     const val DEFAULT_SECURITY = "auto"
-    const val DEFAULT_LEVEL = 8
     const val DEFAULT_NETWORK = "tcp"
     const val TLS = "tls"
     const val REALITY = "reality"
@@ -338,9 +344,9 @@ object AppConfig {
     )
 
     val GEO_FILES_SOURCES = arrayListOf(
+        "Chocolate4U/Iran-v2ray-rules",
         "Loyalsoldier/v2ray-rules-dat",
-        "runetfreedom/russia-v2ray-rules-dat",
-        "Chocolate4U/Iran-v2ray-rules"
+        "runetfreedom/russia-v2ray-rules-dat"
     )
 
     val BUILTIN_OUTBOUND_TAGS = setOf(

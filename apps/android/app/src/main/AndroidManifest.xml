@@ -128,6 +128,7 @@
         <activity
             android:name=".ui.perappproxy.PerAppProxyActivity"
             android:exported="false" />
+        <activity android:name=".ui.serverpool.ServerPoolActivity" android:exported="false" />
         <activity android:name=".ui.domainfilter.DomainFilterActivity" android:exported="false" />
         <activity android:name=".ui.traffic.TrafficReportActivity" android:exported="false" />
         <activity
@@ -167,19 +168,19 @@
             android:name=".ui.shortcut.ScSwitchActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:process=":RunSoLibV2RayDaemon"
+            android:process=":daemon"
             android:theme="@style/AppThemeDayNight.NoActionBar.Translucent" />
         <activity
             android:name=".ui.shortcut.ScStartActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:process=":RunSoLibV2RayDaemon"
+            android:process=":daemon"
             android:theme="@style/AppThemeDayNight.NoActionBar.Translucent" />
         <activity
             android:name=".ui.shortcut.ScStopActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:process=":RunSoLibV2RayDaemon"
+            android:process=":daemon"
             android:theme="@style/AppThemeDayNight.NoActionBar.Translucent" />
 
         <activity
@@ -210,6 +211,9 @@
         <activity
             android:name=".ui.AboutActivity"
             android:exported="false" />
+        <activity
+            android:name=".ui.TranslatorsActivity"
+            android:exported="false" />
 
         <service
             android:name=".service.CoreVpnService"
@@ -218,7 +222,7 @@
             android:foregroundServiceType="specialUse"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_VPN_SERVICE"
-            android:process=":RunSoLibV2RayDaemon"
+            android:process=":daemon"
             tools:ignore="VpnServicePolicy">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
@@ -236,7 +240,7 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:label="@string/app_name"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":daemon">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="proxy" />
@@ -247,7 +251,7 @@
             android:exported="false"
             android:foregroundServiceType="specialUse"
             android:label="@string/app_name"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":daemon">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="proxy" />
@@ -257,7 +261,7 @@
             android:name=".service.CoreTestService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":tasks">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="test" />
@@ -267,7 +271,7 @@
             android:name=".service.SubscriptionUpdateService"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":tasks">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="test" />
@@ -276,7 +280,7 @@
         <receiver
             android:name=".receiver.WidgetProvider"
             android:exported="true"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":daemon">
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/app_widget_provider" />
@@ -304,7 +308,7 @@
             android:icon="@drawable/ic_dicode_notification"
             android:label="@string/app_tile_name"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:process=":RunSoLibV2RayDaemon">
+            android:process=":daemon">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
@@ -325,7 +329,7 @@
         <receiver
             android:name=".receiver.TaskerReceiver"
             android:exported="true"
-            android:process=":RunSoLibV2RayDaemon"
+            android:process=":daemon"
             tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />

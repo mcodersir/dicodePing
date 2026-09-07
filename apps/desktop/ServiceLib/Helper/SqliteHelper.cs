@@ -4,6 +4,14 @@ namespace ServiceLib.Helper;
 
 public sealed class SQLiteHelper
 {
+    public Task ReplaceServerPoolAsync(string poolId, List<ProfileItem> profiles, string? selectedId) =>
+        _dbAsync.RunInTransactionAsync(db =>
+        {
+            // Preserve an actively selected profile until the user switches away.
+            db.Execute("DELETE FROM ProfileItem WHERE Subid = ? AND IndexId != ?", poolId, selectedId ?? "");
+            db.InsertAll(profiles);
+        });
+
     private static readonly Lazy<SQLiteHelper> _instance = new(() => new());
     public static SQLiteHelper Instance => _instance.Value;
     private readonly string _connstr;

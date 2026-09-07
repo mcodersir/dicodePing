@@ -170,6 +170,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun navigateTo(destination: MainDestination) {
         val intent = when (destination) {
+            MainDestination.ServerPool -> Intent(this, com.v2ray.ang.ui.serverpool.ServerPoolActivity::class.java)
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.DomainFilter -> Intent(this, DomainFilterActivity::class.java)

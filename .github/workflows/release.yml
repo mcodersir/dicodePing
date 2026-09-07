@@ -66,12 +66,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.6
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.9.0
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.6 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.9.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -156,7 +156,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.6-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-3.9.0-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -165,7 +165,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.6-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-3.9.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -189,13 +189,14 @@ jobs:
         run: |
           git config --global http.version HTTP/1.1
           for attempt in 1 2 3 4; do
-            if git clone --branch 2.3.5-P32 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            if git clone --branch 2.3.7-P42 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
               break
             fi
             rm -rf native-upstream
             test "$attempt" -lt 4
             sleep $((attempt * 5))
           done
+          test "$(git -C native-upstream rev-parse HEAD)" = "2f315db080c48136104352b26c6370eef0fd6ef4"
           for attempt in 1 2 3 4; do
             if git -C native-upstream submodule update --init --recursive --depth 1; then
               break
@@ -205,12 +206,14 @@ jobs:
           done
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
-      - name: Fetch the libv2ray pinned by PattNG P32
+      - name: Fetch the libv2ray pinned by PattNG P42
         run: |
           mkdir -p apps/android/app/libs
-          CORE_TAG="$(git -C native-upstream/AndroidLibXrayLite describe --tags --abbrev=0)"
+          CORE_TAG="v26.9.7"
+          test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "716713ee8cbf0108232aeddbdba66a444aca782a"
           test -n "$CORE_TAG"
           curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
+          echo "569839c532b0d02a9e06f849ebe446faa30b7aeb6ed980a59a2991310b6e53eb  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
       - name: Build signed installable APKs
         env:
           DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -221,7 +224,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.6
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=3.9.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -251,31 +254,20 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          prerelease: false
+          prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 3.0.6 Stable
+            ## DicodePing 3.9.0 — Pre-release
 
-            نسخهٔ پایدار DicodePing با اتصال TUN پایدار، فیلتر دامنهٔ واقعی و آزمایش تحریم.
+            نسخهٔ آزمایشی برای بررسی روی دستگاه‌های واقعی.
 
-            - جلوگیری از قطع/وصل TUN هنگام بروزرسانی اشتراک یا reload تکراری
-            - بازیابی کنترل‌شدهٔ هسته فقط پس از خروج غیرمنتظره و تا زمانی که کاربر اتصال را خواسته باشد
-            - آزمایش تحریم واقعی Gemini، Flow، Firebase، Dart و Flutter برای همهٔ کانفیگ‌ها
-            - نمایش و ذخیرهٔ نتیجهٔ سبز/قرمز آزمایش تحریم بدون پاک‌شدن پینگ و لوکیشن
-            - اصلاح ترتیب sniff و routing برای فیلتر دامنه در Xray، sing-box و کانفیگ سفارشی
-            - جلوگیری از نشت DNS و IPv6 در TUN دسکتاپ و VPN اندروید
-            - پرچم تصویری مینیمال کشورها و ستون‌های خودکار و واکنش‌گرا در دسکتاپ
-            - مرتب‌سازی خودکار کانفیگ‌های اندروید از بهترین تأخیر پس از پایان آزمایش اولیه
-            - پیش‌فرض منطقه‌ای ایران و تکمیل رشته‌های فارسی جدید
-            - رفع خطای 740 اجرای برنامه از پایان نصب‌کنندهٔ ویندوز
+            - استخر سرورها در دسکتاپ و اندروید: اتصال خودکار از ساب پیش‌فرض، دریافت حداکثر چهار کانفیگ از پیام‌های هفت روز اخیر هر کانال.
+            - فقط VLESS، VMess، Trojan و Shadowsocks؛ پروکسی تلگرام پذیرفته نمی‌شود.
+            - سه آزمون واقعی برای هر کانفیگ؛ تنها سه پاسخ معتبر بین ۱ تا ۹۰۰ میلی‌ثانیه پذیرفته می‌شود.
+            - ذخیره در اشتراک مستقل «استخر کانفیگ» با حفظ استخر قبلی در خطا یا نبود نتیجهٔ سالم.
+            - ادغام اصلاحات PattNG 2.3.7-P42 و libv2ray v26.9.7 با بررسی SHA-256؛ حفظ امکانات اختصاصی دیکد پینگ.
+            - حفظ تم‌ها، آمار ترافیک، فیلتر دامنه، آزمایش تحریم و اشتراک‌های کاربر.
 
-            | Platform | Portable / direct | Installer / package |
-            | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.6-windows-x64-portable.zip` | `DicodePing-3.0.6-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.6-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.6-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.6-macos-arm64-portable.zip` | — |
-            | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
-
-            فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.
+            فایل‌های Windows، Linux، macOS و APKهای اندروید همراه با SHA256SUMS ارائه می‌شوند.
+            این نسخه پیش‌انتشار است و جایگزین نسخهٔ پایدار نمی‌شود.
           files: artifacts/*

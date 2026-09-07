@@ -579,7 +579,7 @@ object CoreConfigManager {
             inbound1.listen = AppConfig.LOOPBACK
         }
         inbound1.port = socksPort
-        inbound1.settings?.udp = MmkvManager.decodeSettingsBool(AppConfig.PREF_SOCKS_ENABLE_UDP, true)
+        inbound1.settings?.udp = MmkvManager.decodeSettingsBool(AppConfig.PREF_SOCKS_ENABLE_UDP, AppConfig.DEFAULT_SOCKS_ENABLE_UDP)
         if (socksUsername != null && socksPassword != null) {
             inbound1.settings?.auth = "password"
             inbound1.settings?.accounts = listOf(
@@ -592,7 +592,7 @@ object CoreConfigManager {
             inbound1.settings?.auth = "noauth"
             inbound1.settings?.accounts = null
         }
-        val fakedns = MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true
+        val fakedns = MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED, true)
         val sniffAllTlsAndHttp =
             MmkvManager.decodeSettingsBool(AppConfig.PREF_SNIFFING_ENABLED, true) != false
         val domainFilterEnabled = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMAIN_FILTER_MODE, "off") != "off"
@@ -640,8 +640,8 @@ object CoreConfigManager {
      * Enable fake DNS when local DNS and fake DNS are both enabled.
      */
     private fun configureFakeDns(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) == true
-            && MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, true)
+            && MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED, true)
         ) {
             v2rayConfig.fakedns = listOf(V2rayConfig.FakednsBean())
         }
@@ -689,7 +689,11 @@ object CoreConfigManager {
      * Configure local DNS inbounds, outbounds, and routing rules.
      */
     private fun configureLocalDns(configContext: CoreConfigContext, v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED) == true) {
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, true)) {
+            return
+        }
+
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FAKE_DNS_ENABLED, true)) {
             val geositeCn = arrayListOf(AppConfig.GEOSITE_CN)
             val routingDomains = configContext.routingDomainRules
                 .asSequence()
@@ -735,7 +739,7 @@ object CoreConfigManager {
                 V2rayConfig.OutboundBean(
                     protocol = "dns",
                     tag = "dns-out",
-                    settings = null,
+                    settings = V2rayConfig.OutboundBean.OutSettingsBean(userLevel = 12),
                     streamSettings = null,
                     mux = null
                 )
@@ -768,7 +772,7 @@ object CoreConfigManager {
                 V2rayConfig.OutboundBean(
                     protocol = "dns",
                     tag = "dns-out",
-                    settings = null,
+                    settings = V2rayConfig.OutboundBean.OutSettingsBean(userLevel = 12),
                     streamSettings = null,
                     mux = null
                 )
@@ -957,8 +961,10 @@ object CoreConfigManager {
             enableParallelQuery = if ((domesticDns.size + remoteDns.size) > 2) true else null
         )
 
+        // DNS routing, inserted at the top so user rules cannot hijack DNS module queries
+        val dnsRouteRules = mutableListOf<V2rayConfig.RoutingBean.RulesBean>()
         if (domesticDnsTags.isNotEmpty()) {
-            v2rayConfig.routing.rules.add(
+            dnsRouteRules.add(
                 V2rayConfig.RoutingBean.RulesBean(
                     outboundTag = AppConfig.TAG_DIRECT,
                     inboundTag = ArrayList(domesticDnsTags),
@@ -969,7 +975,7 @@ object CoreConfigManager {
 
         val dnsProxyBalancerTag = policyGroupBalancerTags[AppConfig.TAG_PROXY]
         if (dnsProxyBalancerTag != null) {
-            v2rayConfig.routing.rules.add(
+            dnsRouteRules.add(
                 V2rayConfig.RoutingBean.RulesBean(
                     balancerTag = dnsProxyBalancerTag,
                     inboundTag = arrayListOf(AppConfig.TAG_DNS),
@@ -977,7 +983,7 @@ object CoreConfigManager {
                 )
             )
         } else {
-            v2rayConfig.routing.rules.add(
+            dnsRouteRules.add(
                 V2rayConfig.RoutingBean.RulesBean(
                     outboundTag = AppConfig.TAG_PROXY,
                     inboundTag = arrayListOf(AppConfig.TAG_DNS),
@@ -985,6 +991,7 @@ object CoreConfigManager {
                 )
             )
         }
+        v2rayConfig.routing.rules.addAll(0, dnsRouteRules)
     }
 
     private fun buildDnsHostsFromRoutingRules(configContext: CoreConfigContext): MutableMap<String, Any> {
@@ -1067,6 +1074,7 @@ object CoreConfigManager {
                     domains = cnDomains,
                     expectIPs = geoipCn,
                     skipFallback = true,
+                    finalQuery = true,
                     tag = cnDomesticDnsTag
                 )
             )
@@ -1092,6 +1100,7 @@ object CoreConfigManager {
                                 address = address,
                                 domains = rule.domain,
                                 skipFallback = true,
+                                finalQuery = true,
                                 tag = tag
                             )
                         )
@@ -1123,7 +1132,7 @@ object CoreConfigManager {
      * Resolve outbound domains to IPs and write resolved hosts to DNS map.
      */
     private fun resolveOutboundDomainsToHosts(v2rayConfig: V2rayConfig) {
-        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") != "1") {
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD) != "1") {
             return
         }
 

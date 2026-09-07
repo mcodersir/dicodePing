@@ -33,6 +33,7 @@ class ServerHysteria2Activity : BaseServerActivity() {
         ) {
             CommonBasicFields(uiState)
             Hysteria2ProtocolFields(uiState)
+            CommonDialModeField(uiState)
 
         }
     }
@@ -90,6 +91,11 @@ class ServerHysteria2Activity : BaseServerActivity() {
             stringResource(R.string.server_lab_sni),
             state.sni,
             { state.sni = it }
+        )
+        FormTextField(
+            stringResource(R.string.server_lab_ech_config_list),
+            state.echConfigList,
+            { state.echConfigList = it }
         )
         FormTextField(
             stringResource(R.string.server_lab_pinned_ca256),

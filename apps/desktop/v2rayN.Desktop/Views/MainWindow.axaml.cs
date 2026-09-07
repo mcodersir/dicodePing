@@ -8,6 +8,11 @@ namespace v2rayN.Desktop.Views;
 
 public partial class MainWindow : WindowBase<MainWindowViewModel>
 {
+    private async void OpenServerPool(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) await new ServerPoolWindow(ViewModel).ShowDialog(this);
+    }
+
     private static Config _config;
     private readonly SingleReplaceableDisposable _layoutBindingsDisposable = new();
     private readonly WindowNotificationManager? _manager;

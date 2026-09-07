@@ -26,6 +26,7 @@
               <DockPanel>
                 <ContentControl x:Name="conTheme" DockPanel.Dock="Right" />
                 <Menu Margin="{StaticResource Margin4}">
+                    <MenuItem Header="استخر سرورها" Click="OpenServerPool" />
                     <MenuItem Header="{x:Static resx:ResUI.menuServers}">
                         <MenuItem
                             x:Name="menuAddServerViaClipboard"

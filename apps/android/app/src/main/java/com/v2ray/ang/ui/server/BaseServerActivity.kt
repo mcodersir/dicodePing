@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -234,6 +233,7 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                 state.finalMask,
                 { state.finalMask = it }
             )
+            CommonDialModeField(state)
             if (state.network == NetworkType.WS.type || state.network == NetworkType.XHTTP.type) {
                 FormDropdownField(
                     stringResource(R.string.server_lab_browser_dialer),
@@ -243,6 +243,16 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                 )
             }
         }
+    }
+
+    /** dialMode goes to streamSettings.sockopt, so every protocol offers it. */
+    @Composable
+    protected fun CommonDialModeField(state: ServerUiState) {
+        FormTextField(
+            stringResource(R.string.server_lab_dial_mode),
+            state.dialMode,
+            { state.dialMode = it }
+        )
     }
 
     @Composable
