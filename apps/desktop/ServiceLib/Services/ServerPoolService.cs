@@ -115,7 +115,7 @@ public sealed class ServerPoolService
     {
         var result = new ConcurrentBag<(ProfileItem, int)>();
         var done = 0;
-        foreach (var chunk in profiles.Chunk(12))
+        await PoolBatchRunner.RunAsync(profiles, 12, async chunk =>
         {
             token.ThrowIfCancellationRequested();
             var baseIndex = done;
@@ -123,10 +123,14 @@ public sealed class ServerPoolService
                 Port = p.Port, ConfigType = p.ConfigType, Profile = p, QueueNum = i,
                 CoreType = AppManager.Instance.GetCoreType(p, p.ConfigType) }).ToList();
             var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
-            if (core == null) { progress.Report(new("آزمون", "هستهٔ آزمون این دسته راه‌اندازی نشد.")); done += chunk.Length; continue; }
+            if (core == null) {
+                progress.Report(new("آزمون", "هستهٔ این دسته آماده نشد؛ جداسازی کانفیگ ناسازگار…"));
+                return false;
+            }
             try
             {
                 await Task.Delay(800, token);
+                if (core.HasExited) return false;
                 await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 6, CancellationToken = token }, async (item, ct) =>
                 {
                     var samples = new List<int>();
@@ -160,8 +164,12 @@ public sealed class ServerPoolService
                     progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", "آزمون واقعی مسیر", completed, profiles.Count, result.Count, Math.Max(0, completed - result.Count)));
                 });
             }
-            finally { await core.StopAsync(); }
-        }
+            finally { await core.StopAsync(); core.Dispose(); }
+            return true;
+        }, _ => {
+            var completed = Interlocked.Increment(ref done);
+            progress.Report(new("آزمون", "کانفیگ ناسازگار با هسته رد شد؛ سایر سرورها بررسی می‌شوند.", completed, profiles.Count, result.Count, Math.Max(0, completed - result.Count)));
+        }, token);
         return result.ToList();
     }
 }
