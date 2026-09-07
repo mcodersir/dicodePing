@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.9.0 (pre-release, revision 4)
+
+- Accept valid V2Ray links from public Telegram previews even when optional message timestamps or legacy wrapper classes are absent; source order still selects the four newest visible links.
+- Send destination-specific HTTP headers, use browser-compatible Telegram requests and retry unusable previews through `telegram.me`; Telegram/MTProto/SOCKS proxies remain excluded.
+- Scope automatic startup refresh, real-path ping, ordering and location discovery to the official default subscription on desktop and Android, avoiding aggregate/user-pool native test batches and startup races.
+- Preserve cached official profiles when refresh is unavailable. Android versionCode 309003 and desktop FileVersion 3.9.0.4 keep the public version at 3.9.0 while allowing an in-place pre-release upgrade.
+
 ## 3.9.0 (pre-release, revision 3)
 
 - Select the newest available link-bearing Telegram messages without the unrequested seven-day/device-clock rejection; show source dates instead of labelling every candidate fresh.

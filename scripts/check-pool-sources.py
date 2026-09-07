@@ -11,7 +11,13 @@ import urllib.request
 
 def capture(channel):
     request = urllib.request.Request(
-        "https://t.me/s/" + channel, headers={"User-Agent": "DicodePing/3.9.0"}
+        "https://t.me/s/" + channel,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/3.9.0",
+            "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.8,fa;q=0.7",
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
@@ -29,6 +35,6 @@ def capture(channel):
 destination = pathlib.Path(sys.argv[1]).resolve()
 destination.mkdir(parents=True, exist_ok=True)
 with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-    captured = list(pool.map(capture, ["V2rayNGX", "fnet00", "configmahsa"]))
+    captured = list(pool.map(capture, ["CucumberNet", "V2RayRootFree", "V2rayNGX", "fnet00", "configmahsa"]))
 if not any(captured):
     raise SystemExit("No public Telegram response available for release smoke tests")

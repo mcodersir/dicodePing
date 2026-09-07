@@ -42,7 +42,15 @@ class ServerPoolParserTest {
         val missingDate = ServerPoolParser.inspect("<div class='tgme_widget_message_wrap'>vless://id@example.com:443</div>")
         assertEquals(1, missingDate.posts)
         assertEquals(0, missingDate.datedPosts)
-        assertTrue(missingDate.links.isEmpty())
+        assertEquals(listOf("vless://id@example.com:443"), missingDate.links)
+        assertTrue(missingDate.summary.contains("تاریخ در HTML نبود"))
+    }
+
+    @Test fun wrapperlessPreviewUsesDocumentOrderAndRejectsTelegramProxy() {
+        val html = "<main>vless://old@example.com:443</main><article>tg://proxy?server=x vless://new@example.com:443</article>"
+        val result = ServerPoolParser.inspect(html)
+        assertEquals(listOf("vless://new@example.com:443", "vless://old@example.com:443"), result.links)
+        assertEquals(1, result.posts)
     }
 
     @Test fun releaseSmokeExtractsActualTelegramResponses() {

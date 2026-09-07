@@ -947,7 +947,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
     }
 
-    public async Task ServerSpeedtest(ESpeedActionType actionType)
+    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
     {
         if (!await _speedtestLock.WaitAsync(0))
         {
@@ -961,13 +961,18 @@ public partial class ProfilesViewModel : MyReactiveObject
         try
         {
         List<ProfileItem>? lstSelected;
-        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location or ESpeedActionType.Sanctions)
+        if (actionType == ESpeedActionType.FastRealping)
         {
-            if (actionType == ESpeedActionType.FastRealping)
-            {
-                actionType = ESpeedActionType.Realping;
-            }
-
+            actionType = ESpeedActionType.Realping;
+        }
+        if (targetProfiles is not null)
+        {
+            // Startup checks must be scoped to the official subscription regardless of the
+            // tab the user last viewed. Cloning prevents test preparation from mutating DB rows.
+            lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(targetProfiles));
+        }
+        else if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location or ESpeedActionType.Sanctions)
+        {
             lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems?.OrderBy(t => t.Sort)));
         }
         else

@@ -21,11 +21,11 @@ public class ServerPoolTests
         ServerPoolService.ParseChannels("@valid_channel\nhttps://t.me/valid_channel\nt.me/valid_channel\nhttps://evil.example/x\n../foo\n# comment"));
 
     [Fact]
-    public void TelegramProxiesAndUndatedPostsAreRejected()
+    public void TelegramProxiesAreRejectedButUndatedV2rayPostsAreAccepted()
     {
         var html = "<div class=\"tgme_widget_message_wrap\"><time datetime=\"2026-09-07T10:00:00Z\"></time>tg://proxy?server=x https://t.me/proxy?server=x</div>"
             + "<div class=\"tgme_widget_message_wrap\">vless://00000000-0000-0000-0000-000000000001@example.com:443</div>";
-        Assert.Empty(ServerPoolService.ExtractLinks(html));
+        Assert.Equal(["vless://00000000-0000-0000-0000-000000000001@example.com:443"], ServerPoolService.ExtractLinks(html));
     }
 
     [Fact]
@@ -63,6 +63,18 @@ public class ServerPoolTests
         var result = ServerPoolService.Inspect("<html>Join Telegram</html>");
         Assert.Equal(0, result.Posts);
         Assert.Contains("دریافت نشد", result.Summary);
+    }
+
+    [Fact]
+    public void WrapperlessPreviewUsesDocumentOrderAndDoesNotRequireDates()
+    {
+        var html = "<main><code>vless://00000000-0000-0000-0000-000000000001@old.example:443</code>"
+            + "<article>vless://00000000-0000-0000-0000-000000000001@new.example:443</article></main>";
+        var result = ServerPoolService.Inspect(html);
+        Assert.Equal("vless://00000000-0000-0000-0000-000000000001@new.example:443", result.Links[0]);
+        Assert.Equal(1, result.Posts);
+        Assert.Equal(0, result.DatedPosts);
+        Assert.Contains("تاریخ در HTML نبود", result.Summary);
     }
 
     [Fact]

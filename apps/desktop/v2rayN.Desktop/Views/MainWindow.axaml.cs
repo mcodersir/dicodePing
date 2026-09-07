@@ -404,10 +404,43 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
             await ViewModel.StatusBarViewModel.RefreshServersBiz();
-            await ViewModel.UpdateSubscriptionProcess("", false);
+            await DicodePingBootstrap.EnsureDefaultsAsync(_config);
+            var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(item =>
+                string.Equals(item.Url, DicodePingBootstrap.DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
+            if (primary is null)
+            {
+                Logging.SaveLog("DicodePingStartup: official subscription was not provisioned.");
+                return;
+            }
+
+            // Refresh only the authoritative source. Updating every user subscription here made
+            // startup unbounded and could race manual tests or a newly opened pool window.
+            try
+            {
+                await Task.Run(async () => await SubscriptionHandler.UpdateProcess(
+                    _config, primary.Id, false, (_, _) => Task.CompletedTask));
+            }
+            catch (Exception ex)
+            {
+                // Cached official profiles are still useful when GitHub is temporarily blocked.
+                Logging.SaveLog("DicodePingStartup.Subscription", ex);
+            }
+
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping);
+            var officialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
+            if (officialProfiles.Count == 0) return;
+
+            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, officialProfiles);
+            var reachableIds = (await ProfileExManager.Instance.GetProfileExs())
+                .Where(item => item.Delay > 0)
+                .Select(item => item.IndexId)
+                .ToHashSet(StringComparer.Ordinal);
+            var reachableProfiles = officialProfiles.Where(item => reachableIds.Contains(item.IndexId)).ToList();
+            if (reachableProfiles.Count > 0)
+            {
+                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.Location, reachableProfiles);
+            }
         }
         catch (Exception ex)
         {

@@ -33,8 +33,10 @@ object ServerPoolManager {
     }
 
     private suspend fun fetch(client: OkHttpClient, url: String): String = suspendCancellableCoroutine { continuation ->
-        val call = client.newCall(Request.Builder().url(url).header("User-Agent", "DicodePing/3.9.0")
-            .header("Accept", if (url.startsWith("https://api.github.com/")) "application/vnd.github.raw+json" else "*/*").build())
+        val call = client.newCall(Request.Builder().url(url)
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128 Mobile Safari/537.36 DicodePing/3.9.0")
+            .header("Accept", if (url.startsWith("https://api.github.com/")) "application/vnd.github.raw+json" else "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.8,fa;q=0.7").build())
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(e) }
@@ -92,8 +94,11 @@ object ServerPoolManager {
                     channels.map { channel -> async {
                         semaphore.withPermit {
                             try {
-                                val extraction = ServerPoolParser.inspect(fetch(client, "https://t.me/s/$channel"))
-                                if (extraction.posts == 0 || extraction.datedPosts == 0) failed.incrementAndGet()
+                                var extraction = ServerPoolParser.inspect(fetch(client, "https://t.me/s/$channel"))
+                                if (extraction.posts == 0) {
+                                    extraction = ServerPoolParser.inspect(fetch(client, "https://telegram.me/s/$channel"))
+                                }
+                                if (extraction.posts == 0) failed.incrementAndGet()
                                 found.addAndGet(extraction.links.size)
                                 report(PoolProgress("جمع‌آوری", "@$channel · ${extraction.summary}"))
                                 extraction.links

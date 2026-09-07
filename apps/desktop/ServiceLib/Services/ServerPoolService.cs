@@ -10,7 +10,10 @@ public sealed class ServerPoolService
     public const string ChannelsUrl = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt";
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
-    private static readonly Regex Links = new(@"(?i)\b(?:vmess|vless|trojan|ss)://[^\s<>""'\u200b-\u200f]+", RegexOptions.None, RegexTimeout);
+    private static readonly Regex Links = new(@"(?i)\b(?:vmess|vless|trojan|ss)://[^\s<>""'`\u200b-\u200f]+", RegexOptions.None, RegexTimeout);
+    private static readonly Regex MessageWrappers = new("""<div\b[^>]*\bclass\s*=\s*["'][^"']*\btgme_widget_message_wrap\b[^"']*["'][^>]*>""", RegexOptions.IgnoreCase, RegexTimeout);
+    private static readonly Regex Dates = new("""\bdatetime\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
+    private static readonly Regex Hrefs = new("""\bhref\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
 
     public static List<string> ParseChannels(string content) => content.Split('\n')
         .Select(x => x.Trim().Replace("https://t.me/", "").Replace("http://t.me/", "").Replace("t.me/", "").TrimStart('@').TrimEnd('/'))
@@ -19,39 +22,61 @@ public sealed class ServerPoolService
 
     public sealed record Extraction(List<string> Links, int Posts, int DatedPosts, DateTimeOffset? Newest)
     {
-        public string Summary => Posts == 0 ? "صفحهٔ پیام‌های عمومی دریافت نشد"
-            : DatedPosts == 0 ? "تاریخ پیام‌ها قابل خواندن نیست"
-            : Links.Count == 0 ? $"{Posts} پیام؛ بدون لینک مستقیم V2Ray"
-            : $"{Links.Count} کاندید از آخرین پیام‌های لینک‌دار · تاریخ {Newest:yyyy-MM-dd}";
+        public string Summary => Links.Count > 0
+            ? Newest.HasValue
+                ? $"{Links.Count} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ {Newest:yyyy-MM-dd}"
+                : $"{Links.Count} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ در HTML نبود"
+            : Posts == 0 ? "صفحهٔ پیام‌های عمومی دریافت نشد"
+            : DatedPosts == 0 ? $"{Posts} پیام؛ بدون لینک مستقیم V2Ray · تاریخ در HTML نبود"
+            : $"{Posts} پیام؛ بدون لینک مستقیم V2Ray";
     }
 
     public static Extraction Inspect(string html)
     {
-        var links = new List<string>();
-        var posts = Regex.Split(html, """<div\b[^>]*\bclass\s*=\s*["'][^"']*\btgme_widget_message_wrap\b[^"']*["'][^>]*>""", RegexOptions.IgnoreCase, RegexTimeout).Skip(1).ToList();
-        var dated = new List<(DateTimeOffset Date, string Post)>();
-        foreach (var post in posts)
-        {
-            var date = Regex.Match(post, """\bdatetime\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
-            if (DateTimeOffset.TryParse(date.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp))
-                dated.Add((timestamp, post));
-        }
+        if (string.IsNullOrWhiteSpace(html)) return new([], 0, 0, null);
+
+        var posts = MessageWrappers.Split(html).Skip(1).ToList();
+        var datedPosts = 0;
         DateTimeOffset? newest = null;
-        foreach (var (date, post) in dated.OrderByDescending(x => x.Date))
+        var links = new List<string>(4);
+
+        bool AddLinks(string fragment)
         {
-            var text = Regex.Replace(Regex.Replace(post, @"</?(?:div|p|pre|li|code|time)\b[^>]*>|<br\s*/?>", "\n", RegexOptions.IgnoreCase, RegexTimeout), "<[^>]+>", "", RegexOptions.None, RegexTimeout);
-            var hrefs = Regex.Matches(post, """\bhref\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout).Select(x => x.Groups[1].Value);
-            var decoded = WebUtility.HtmlDecode(string.Join("\n", hrefs) + "\n" + text);
-            foreach (Match match in Links.Matches(decoded))
+            var hrefs = Hrefs.Matches(fragment).Select(match => match.Groups[1].Value);
+            var text = Regex.Replace(fragment,
+                @"</?(?:div|p|pre|li|code|time|blockquote|section|article)\b[^>]*>|<br\s*/?>",
+                "\n", RegexOptions.IgnoreCase, RegexTimeout);
+            text = Regex.Replace(text, "<[^>]+>", "", RegexOptions.None, RegexTimeout);
+            var normalized = WebUtility.HtmlDecode(string.Join("\n", hrefs) + "\n" + text)
+                .Replace("\\u0026", "&", StringComparison.OrdinalIgnoreCase);
+            foreach (var match in Links.Matches(normalized).Cast<Match>().Reverse())
             {
-                var link = match.Value;
-                if (FmtHandler.ResolveConfig(link, out _) is null || links.Contains(link)) continue;
+                var link = match.Value.TrimEnd(')', ']', '}', ',', ';', '.', '،');
+                if (FmtHandler.ResolveConfig(link, out _) is null || links.Contains(link, StringComparer.Ordinal)) continue;
                 links.Add(link);
-                newest ??= date;
-                if (links.Count == 4) return new(links, posts.Count, dated.Count, newest);
+                if (links.Count == 4) return true;
             }
+            return false;
         }
-        return new(links, posts.Count, dated.Count, newest);
+
+        // Public previews may omit datetime. Source order is still oldest-to-newest, so walk
+        // message bodies in reverse and treat the timestamp as optional reporting metadata.
+        foreach (var post in posts.AsEnumerable().Reverse())
+        {
+            var dateMatch = Dates.Match(post);
+            DateTimeOffset? timestamp = DateTimeOffset.TryParse(dateMatch.Groups[1].Value,
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) ? parsed : null;
+            if (timestamp.HasValue) datedPosts++;
+            var countBefore = links.Count;
+            var full = AddLinks(post);
+            if (links.Count > countBefore && !newest.HasValue) newest = timestamp;
+            if (full) break;
+        }
+
+        // Some embedded/fallback pages expose configs but not the legacy message wrapper.
+        if (posts.Count == 0 && AddLinks(html)) newest = null;
+        var postCount = posts.Count == 0 && links.Count > 0 ? 1 : posts.Count;
+        return new(links, postCount, datedPosts, newest);
     }
 
     public static List<string> ExtractLinks(string html) => Inspect(html).Links;
@@ -72,6 +97,17 @@ public sealed class ServerPoolService
         Proxy = proxy, UseProxy = proxy != null, ConnectTimeout = TimeSpan.FromSeconds(5),
         AutomaticDecompression = DecompressionMethods.All
     }) { Timeout = TimeSpan.FromSeconds(15), MaxResponseContentBufferSize = 2 * 1024 * 1024 };
+
+    private static async Task<string> FetchAsync(HttpClient client, string url, CancellationToken token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Accept.ParseAdd(url.StartsWith("https://api.github.com/", StringComparison.OrdinalIgnoreCase)
+            ? "application/vnd.github.raw+json"
+            : "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8");
+        using var response = await client.SendAsync(request, token);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(token);
+    }
 
     public async Task<int> RunAsync(Func<ProfileItem, Task> connect, IProgress<PoolProgress> progress, CancellationToken token)
     {
@@ -97,18 +133,21 @@ public sealed class ServerPoolService
             var inbound = config.Inbound.FirstOrDefault();
             if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
             using var client = Client(proxy);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("DicodePing/3.9.0");
-            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.raw+json");
-            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => client.GetStringAsync(url, ct), progress, token);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/3.9.0");
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
+            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => FetchAsync(client, url, ct), progress, token);
             var collected = new ConcurrentDictionary<string, byte>();
             int completed = 0, failed = 0;
             await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = token }, async (channel, ct) =>
             {
                 try
                 {
-                    var html = await client.GetStringAsync($"https://t.me/s/{channel}", ct);
-                    var extraction = Inspect(html);
-                    if (extraction.Posts == 0 || extraction.DatedPosts == 0) Interlocked.Increment(ref failed);
+                    var extraction = Inspect(await FetchAsync(client, $"https://t.me/s/{channel}", ct));
+                    if (extraction.Posts == 0)
+                    {
+                        extraction = Inspect(await FetchAsync(client, $"https://telegram.me/s/{channel}", ct));
+                    }
+                    if (extraction.Posts == 0) Interlocked.Increment(ref failed);
                     foreach (var link in extraction.Links) collected.TryAdd(link, 0);
                     progress.Report(new("جمع‌آوری", $"@{channel} · {extraction.Summary}"));
                 }
