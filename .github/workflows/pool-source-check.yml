@@ -12,15 +12,23 @@ jobs:
       - name: Inspect Telegram response structure and dates
         run: |
           python3 - <<'PY'
-          import concurrent.futures, re, urllib.request
+          import concurrent.futures, re, urllib.request, datetime
           def inspect(channel):
               req = urllib.request.Request('https://t.me/s/' + channel, headers={'User-Agent': 'DicodePing/3.9.0'})
               with urllib.request.urlopen(req, timeout=20) as response:
                   html = response.read(2 * 1024 * 1024).decode()
-                  print(channel, response.status, response.url, 'bytes=', len(html),
-                        'wrappers=', re.findall(r'<div[^>]*class=[^>]*tgme_widget_message_wrap[^>]*>', html)[:1],
-                        'dates=', re.findall(r'datetime="([^"]+)"', html)[-4:],
-                        'links=', len(re.findall(r'(?:vless|vmess|trojan|ss)://', html)), flush=True)
-          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-              list(pool.map(inspect, ['V2rayNGX', 'ViraV2ray', 'fnet00', 'configmahsa']))
+                  dated = []
+                  for post in html.split('<div class="tgme_widget_message_wrap')[1:]:
+                      stamp = re.search(r'datetime="([^"]+)"', post)
+                      count = len(re.findall(r'(?:vless|vmess|trojan|ss)://', post))
+                      if stamp and count: dated.append((stamp[1], count))
+                  if dated: print(channel, 'last link posts=', dated[-2:], flush=True)
+                  return len(dated)
+          def safe(channel):
+              try: return inspect(channel)
+              except Exception as e: print(channel, type(e).__name__, flush=True); return 0
+          with urllib.request.urlopen('https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt') as r:
+              channels = [x.strip().removeprefix('https://t.me/').removeprefix('@') for x in r.read().decode().splitlines()]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+              print('channels with dated links=', sum(x > 0 for x in pool.map(safe, channels)), flush=True)
           PY
