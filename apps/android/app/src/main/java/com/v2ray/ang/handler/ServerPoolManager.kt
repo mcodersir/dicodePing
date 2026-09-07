@@ -78,16 +78,17 @@ object ServerPoolManager {
             val links = try {
                 val channels = PoolNetwork.loadChannels({ url -> fetch(client, url) }, report)
                 val semaphore = Semaphore(8)
-                val done = AtomicInteger(); val failed = AtomicInteger()
+                val done = AtomicInteger(); val failed = AtomicInteger(); val found = AtomicInteger()
                 coroutineScope {
                     channels.map { channel -> async {
                         semaphore.withPermit {
                             try { ServerPoolParser.extract(fetch(client, "https://t.me/s/$channel")).also {
+                                found.addAndGet(it.size)
                                 report(PoolProgress("جمع‌آوری", "@$channel · ${it.size} کانفیگ تازه"))
                             } }
                             catch (cancelled: CancellationException) { throw cancelled }
                             catch (error: Exception) { failed.incrementAndGet(); report(PoolProgress("جمع‌آوری", "@$channel · ${PoolNetwork.describe(error)}")); emptyList() }
-                            finally { report(PoolProgress("جمع‌آوری", "بررسی کانال‌ها", done.incrementAndGet(), channels.size, failed = failed.get())) }
+                            finally { report(PoolProgress("جمع‌آوری", "بررسی کانال‌ها", done.incrementAndGet(), channels.size, passed = found.get(), failed = failed.get())) }
                         }
                     } }.awaitAll().flatten().distinct()
                 }
@@ -129,6 +130,8 @@ object ServerPoolManager {
                         samples.add(RealPingExecutionLimiter.run(profile.configType) {
                             CoreNativeManager.measureOutboundDelay(config.content, SettingsManager.getDelayTestUrl())
                         })
+                        report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
+                            "سرور ${index + 1} · نوبت ${it + 1}/${if (strict) 3 else 1}: ${if (samples.last() > 0) "${samples.last()} ms" else "ناموفق"}"))
                     }
                     val accepted = if (strict) ServerPoolParser.accepts(samples) else samples[0] > 0
                     report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
@@ -136,7 +139,10 @@ object ServerPoolManager {
                     if (accepted) {
                         passed.incrementAndGet(); guid to samples.sorted()[samples.size / 2]
                     } else null
-                } finally { report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض", "آزمون واقعی مسیر", done.incrementAndGet(), guids.size, passed.get())) }
+                } finally {
+                    val completed = done.incrementAndGet()
+                    report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض", "آزمون واقعی مسیر", completed, guids.size, passed.get(), (completed - passed.get()).coerceAtLeast(0)))
+                }
             }
         } }.awaitAll().filterNotNull()
     }

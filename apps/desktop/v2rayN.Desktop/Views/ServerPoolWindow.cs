@@ -1,4 +1,5 @@
 using ServiceLib.Services;
+using Avalonia.Input.Platform;
 using System.Collections.ObjectModel;
 
 namespace v2rayN.Desktop.Views;
@@ -40,11 +41,13 @@ public sealed class ServerPoolWindow : Window
         }
         void Update(PoolProgress update)
         {
+            var changed = stage.Text != update.Stage;
             stage.Text = update.Stage; status.Text = update.Message;
-            bar.IsIndeterminate = update.Total == 0 && _run != null;
+            if (changed) { bar.IsIndeterminate = update.Total == 0 && _run != null; counts.Text = "در حال اجرا…"; }
             if (update.Total > 0) {
+                bar.IsIndeterminate = false;
                 bar.Value = 100d * update.Completed / update.Total;
-                counts.Text = $"{update.Completed}/{update.Total} · پذیرفته: {update.Passed} · خطا: {update.Failed}";
+                counts.Text = $"{update.Completed}/{update.Total} · {(update.Stage == "جمع‌آوری" ? "کاندید" : "پذیرفته")}: {update.Passed} · خطا: {update.Failed}";
             }
             Log($"[{update.Stage}] {update.Message}" + (update.Total > 0 ? $" · {update.Completed}/{update.Total}" : ""));
         }

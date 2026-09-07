@@ -23,3 +23,9 @@ Desktop publication uses a SQLite transaction; Android uses the existing locked,
 P42 changes were merged against the previously imported PattNG source, preserving Dicode's branding, subscription usage fields, always-on traffic counters, domain filters, sanctions tests and main-screen layout. The upstream main-screen row-model rewrite was intentionally excluded to retain those custom fields; its dependent LocateTarget model remains compatible with Dicode's UI.
 
 Network reachability depends on the device, ISP and the public channels at collection time. CI checks parsing, validation, application builds and core startup; it does not certify connectivity on every user's network.
+
+## Revision 2
+
+Connection startup now awaits daemon acknowledgement (Android) or the desktop reload operation and local listener readiness. Fetching a GitHub file is no longer a two-second VPN health check. Source downloads have independent retries across GitHub raw, repository raw and raw-content API endpoints; failures retain the source stage. Three strict samples remain required, and desktop test listeners must be ready before measurement begins.
+
+Both pages display timestamped live diagnostics (bounded to 300 entries), per-round latency, progress, saved results, cancellation, rerun, copy and auto-scroll controls. Android base versionCode is 309001 and desktop FileVersion is 3.9.0.2; the displayed release remains 3.9.0.

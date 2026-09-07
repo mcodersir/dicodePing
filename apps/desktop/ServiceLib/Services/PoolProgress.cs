@@ -4,9 +4,9 @@ public record PoolProgress(string Stage, string Message, int Completed = 0, int 
 
 public static class PoolNetwork
 {
-    public static async Task WaitForListenerAsync(Func<int> getPort, CancellationToken token)
+    public static async Task WaitForListenerAsync(Func<int> getPort, CancellationToken token, int attempts = 60)
     {
-        for (var attempt = 0; attempt < 60; attempt++)
+        for (var attempt = 0; attempt < attempts; attempt++)
         {
             token.ThrowIfCancellationRequested();
             try

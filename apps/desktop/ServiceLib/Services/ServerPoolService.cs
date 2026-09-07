@@ -132,12 +132,16 @@ public sealed class ServerPoolService
                     var samples = new List<int>();
                     if (item.AllowTest)
                     {
+                        var ready = true;
+                        try { await PoolNetwork.WaitForListenerAsync(() => item.Port, ct, 10); }
+                        catch (IOException) { ready = false; progress.Report(new("آزمون", $"سرور {baseIndex + item.QueueNum + 1} · درگاه هستهٔ آزمون آماده نشد")); }
                         using var client = Client(new WebProxy($"socks5://{Global.Loopback}:{item.Port}"));
                         for (var round = 0; round < (strict ? 3 : 1); round++)
                         {
                             ct.ThrowIfCancellationRequested();
                             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
                             deadline.CancelAfter(TimeSpan.FromSeconds(strict ? 4 : 8));
+                            if (!ready) { samples.Add(-1); continue; }
                             try
                             {
                                 var watch = Stopwatch.StartNew();
@@ -146,12 +150,14 @@ public sealed class ServerPoolService
                             }
                             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                             catch (Exception) { samples.Add(-1); }
+                            progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", $"سرور {baseIndex + item.QueueNum + 1} · نوبت {round + 1}/{(strict ? 3 : 1)}: {(samples[^1] > 0 ? $"{samples[^1]} ms" : "ناموفق")}"));
                         }
                         progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", $"سرور {item.QueueNum + baseIndex + 1} · پاسخ‌ها: {string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : "ناموفق"))} · {(strict ? (AcceptSamples(samples) ? "پذیرفته" : "رد شد") : "آزمون اولیه")}"));
                         if (strict ? AcceptSamples(samples) : samples[0] > 0)
                             result.Add((item.Profile, samples.Order().ElementAt(samples.Count / 2)));
                     }
-                    progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", "آزمون واقعی مسیر", Interlocked.Increment(ref done), profiles.Count, result.Count));
+                    var completed = Interlocked.Increment(ref done);
+                    progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", "آزمون واقعی مسیر", completed, profiles.Count, result.Count, Math.Max(0, completed - result.Count)));
                 });
             }
             finally { await core.StopAsync(); }

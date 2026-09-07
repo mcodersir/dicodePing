@@ -73,14 +73,18 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
                     withContext(Dispatchers.Main) {
                         MmkvManager.setSelectServer(guid)
                         // Wait for the daemon's ordered restart acknowledgement before inspecting its port.
-                        suspendCancellableCoroutine<Unit> { continuation ->
-                            MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, "") { handled ->
-                                if (continuation.isActive) {
-                                    if (!handled) LauncherManager.startService(context, guid)
-                                    continuation.resume(Unit)
+                        val acknowledged = withTimeoutOrNull(30_000) {
+                            suspendCancellableCoroutine<Unit> { continuation ->
+                                MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, "") { handled ->
+                                    if (continuation.isActive) {
+                                        if (!handled) LauncherManager.startService(context, guid)
+                                        continuation.resume(Unit)
+                                    }
                                 }
                             }
-                        }
+                            true
+                        } ?: false
+                        check(acknowledged) { "هسته به فرمان راه‌اندازی پاسخ نداد؛ لاگ اتصال را بررسی کنید." }
                     }
                 }, ::report)
                 refresh()
@@ -114,7 +118,7 @@ class ServerPoolActivity : HelperBaseComponentActivity() {
                         Text(state.progress.message, style = MaterialTheme.typography.bodyMedium)
                         if (state.progress.total > 0) {
                             LinearProgressIndicator(progress = { (state.progress.completed.toFloat() / state.progress.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-                            Text("${state.progress.completed}/${state.progress.total} · پذیرفته: ${state.progress.passed} · خطا: ${state.progress.failed}")
+                            Text("${state.progress.completed}/${state.progress.total} · ${if (state.progress.stage == "جمع‌آوری") "کاندید" else "پذیرفته"}: ${state.progress.passed} · خطا: ${state.progress.failed}")
                         } else if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
                 }

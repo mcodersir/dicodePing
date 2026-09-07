@@ -711,6 +711,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         _reloadSemaphore.Release();
         token.ThrowIfCancellationRequested();
         await PoolNetwork.WaitForListenerAsync(() => AppManager.Instance.GetLocalPort(EInboundProtocol.socks), token);
+        await ProfilesViewModel.RefreshServers();
     }
 
     private async Task RecoverUnexpectedCoreExitAsync(int exitCode)

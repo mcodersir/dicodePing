@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.9.0 (pre-release, revision 2)
+
+- Separate local connection readiness from GitHub source availability; remove the two-second Android source-download health check.
+- Await startup, retry source endpoints, and show the actual failing stage without claiming a working VPN is disconnected.
+- Add bounded live logs, per-round ping results, progress, copy, follow-scroll and rerun controls on both platforms.
+- Keep version 3.9.0 while increasing Android upgrade code and desktop file revision.
+
 ## 3.9.0 (pre-release)
 
 - Add the server pool page on desktop and Android: default-subscription bootstrap, current public channel collection, three real probes, and a dedicated validated subscription.
