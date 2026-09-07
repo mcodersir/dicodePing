@@ -26,14 +26,15 @@ object ServerPoolManager {
     private val running = AtomicBoolean(false)
 
     private suspend fun fetch(client: OkHttpClient, url: String): String = suspendCancellableCoroutine { continuation ->
-        val call = client.newCall(Request.Builder().url(url).build())
+        val call = client.newCall(Request.Builder().url(url).header("User-Agent", "DicodePing/3.9.0")
+            .header("Accept", if (url.startsWith("https://api.github.com/")) "application/vnd.github.raw+json" else "*/*").build())
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(e) }
             override fun onResponse(call: Call, response: Response) {
                 try {
                     val content = response.use {
-                        check(it.isSuccessful) { "HTTP ${it.code}" }
+                        if (!it.isSuccessful) throw PoolNetwork.SourceHttpException(it.code)
                         val source = it.body.source()
                         val buffer = java.io.ByteArrayOutputStream()
                         val input = source.inputStream()
@@ -52,20 +53,22 @@ object ServerPoolManager {
         })
     }
 
-    suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (String) -> Unit): Int = withContext(Dispatchers.IO) {
+    suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (PoolProgress) -> Unit): Int = withContext(Dispatchers.IO) {
         check(running.compareAndSet(false, true)) { "جمع‌آوری دیگری در حال اجراست." }
         val stage = "pool-stage-${UUID.randomUUID()}"
         try {
             CoreNativeManager.initCoreEnv(context)
-            report("بروزرسانی و آزمون ساب پیش‌فرض…")
+            report(PoolProgress("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"))
             val primary = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
                 ?: error("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.")
             AngConfigManager.updateConfigViaSub(primary)
             currentCoroutineContext().ensureActive()
             val best = probe(context, MmkvManager.decodeServerList(primary.guid), false, report).minByOrNull { it.second }
                 ?: error("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.")
-            report("اتصال به بهترین سرور ساب پیش‌فرض…")
+            report(PoolProgress("اتصال", "شروع اتصال به بهترین مسیر ساب · ${best.second} ms"))
             connect(best.first)
+            PoolNetwork.waitForListener { SettingsManager.getHttpPort() }
+            report(PoolProgress("اتصال", "درگاه محلی آماده است؛ اکنون دریافت کانال‌ها بررسی می‌شود."))
             val client = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).callTimeout(15, TimeUnit.SECONDS)
                 .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", SettingsManager.getHttpPort())))
                 .proxyAuthenticator { _, response ->
@@ -73,17 +76,18 @@ object ServerPoolManager {
                         .header("Proxy-Authorization", Credentials.basic(SettingsManager.getSocksUsername().orEmpty(), SettingsManager.getSocksPassword().orEmpty())).build()
                 }.build()
             val links = try {
-                val channels = ServerPoolParser.channels(fetch(client, CHANNELS_URL))
-                check(channels.isNotEmpty()) { "فهرست کانال‌ها خالی است." }
+                val channels = PoolNetwork.loadChannels({ url -> fetch(client, url) }, report)
                 val semaphore = Semaphore(8)
                 val done = AtomicInteger(); val failed = AtomicInteger()
                 coroutineScope {
                     channels.map { channel -> async {
                         semaphore.withPermit {
-                            try { ServerPoolParser.extract(fetch(client, "https://t.me/s/$channel")) }
+                            try { ServerPoolParser.extract(fetch(client, "https://t.me/s/$channel")).also {
+                                report(PoolProgress("جمع‌آوری", "@$channel · ${it.size} کانفیگ تازه"))
+                            } }
                             catch (cancelled: CancellationException) { throw cancelled }
-                            catch (_: Exception) { failed.incrementAndGet(); emptyList() }
-                            finally { report("کانال‌ها: ${done.incrementAndGet()}/${channels.size} · خطا: ${failed.get()}") }
+                            catch (error: Exception) { failed.incrementAndGet(); report(PoolProgress("جمع‌آوری", "@$channel · ${PoolNetwork.describe(error)}")); emptyList() }
+                            finally { report(PoolProgress("جمع‌آوری", "بررسی کانال‌ها", done.incrementAndGet(), channels.size, failed = failed.get())) }
                         }
                     } }.awaitAll().flatten().distinct()
                 }
@@ -91,9 +95,11 @@ object ServerPoolManager {
             currentCoroutineContext().ensureActive()
             // Candidates are isolated from every user subscription until validation completes.
             AngConfigManager.importBatchConfig(links.joinToString("\n"), stage, false)
+            report(PoolProgress("آزمون", "${links.size} لینک یکتا؛ آغاز آزمون سه‌مرحله‌ای"))
             val accepted = probe(context, MmkvManager.decodeServerList(stage), true, report).sortedBy { it.second }
             currentCoroutineContext().ensureActive()
             check(accepted.isNotEmpty()) { "کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد." }
+            report(PoolProgress("ذخیره", "ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…"))
             val profiles = accepted.associate { (guid, _) ->
                 UUID.randomUUID().toString() to requireNotNull(MmkvManager.decodeServerConfig(guid)).copy(subscriptionId = POOL_ID)
             }
@@ -101,16 +107,16 @@ object ServerPoolManager {
             MmkvManager.saveServerProfiles(profiles, emptyMap(), POOL_ID, false)
             profiles.keys.zip(accepted).forEach { (guid, sample) -> MmkvManager.encodeServerTestDelayMillis(guid, sample.second) }
             AngConfigManager.sortByTestResultsForSub(POOL_ID)
-            report("پایان · ${accepted.size} کانفیگ سالم در استخر ذخیره شد.")
+            report(PoolProgress("پایان", "${accepted.size} کانفیگ سالم در استخر ذخیره شد.", accepted.size, accepted.size, accepted.size))
             accepted.size
         } finally {
             try { MmkvManager.removeServerViaSubid(stage) } finally { running.set(false) }
         }
     }
 
-    private suspend fun probe(context: Context, guids: List<String>, strict: Boolean, report: (String) -> Unit): List<Pair<String, Long>> = coroutineScope {
+    private suspend fun probe(context: Context, guids: List<String>, strict: Boolean, report: (PoolProgress) -> Unit): List<Pair<String, Long>> = coroutineScope {
         val limit = Semaphore(4); val done = AtomicInteger(); val passed = AtomicInteger()
-        guids.map { guid -> async {
+        guids.mapIndexed { index, guid -> async {
             limit.withPermit {
                 ensureActive()
                 try {
@@ -124,10 +130,13 @@ object ServerPoolManager {
                             CoreNativeManager.measureOutboundDelay(config.content, SettingsManager.getDelayTestUrl())
                         })
                     }
-                    if (if (strict) ServerPoolParser.accepts(samples) else samples[0] > 0) {
+                    val accepted = if (strict) ServerPoolParser.accepts(samples) else samples[0] > 0
+                    report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
+                        "سرور ${index + 1} · ${samples.joinToString(" / ") { if (it > 0) "$it ms" else "ناموفق" }} · ${if (accepted) "پذیرفته" else "رد شد"}"))
+                    if (accepted) {
                         passed.incrementAndGet(); guid to samples.sorted()[samples.size / 2]
                     } else null
-                } finally { report("آزمون واقعی ${if (strict) "سه‌مرحله‌ای" else "ساب پیش‌فرض"}: ${done.incrementAndGet()}/${guids.size} · سالم: ${passed.get()}") }
+                } finally { report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض", "آزمون واقعی مسیر", done.incrementAndGet(), guids.size, passed.get())) }
             }
         } }.awaitAll().filterNotNull()
     }

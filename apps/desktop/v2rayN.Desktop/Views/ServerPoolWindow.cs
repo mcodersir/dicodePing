@@ -1,4 +1,5 @@
 using ServiceLib.Services;
+using System.Collections.ObjectModel;
 
 namespace v2rayN.Desktop.Views;
 
@@ -8,48 +9,72 @@ public sealed class ServerPoolWindow : Window
     public ServerPoolWindow(MainWindowViewModel main)
     {
         Title = "استخر سرورها";
-        Width = 660; Height = 520; MinWidth = 420; MinHeight = 380;
+        Width = 820; Height = 680; MinWidth = 500; MinHeight = 440;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = new TextBlock { Text = "آمادهٔ جمع‌آوری", TextWrapping = TextWrapping.Wrap };
-        var list = new ListBox { Height = 220 };
-        var start = new Button { Content = "جمع‌آوری و بروزرسانی استخر" };
+        var stage = new TextBlock { Text = "ساب پیش‌فرض ← اتصال ← کانال‌ها ← آزمون ← ذخیره", FontSize = 16, TextWrapping = TextWrapping.Wrap };
+        var counts = new TextBlock { Text = "سه پاسخ معتبر · حداکثر ۹۰۰ میلی‌ثانیه", TextWrapping = TextWrapping.Wrap };
+        var bar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 6 };
+        var rows = new ListBox();
+        var history = new ObservableCollection<string>();
+        var logs = new ListBox { ItemsSource = history, FontFamily = FontFamily.Parse("monospace"), FontSize = 12 };
+        var follow = new CheckBox { Content = "دنبال‌کردن لاگ", IsChecked = true };
+        var start = new Button { Content = "شروع جمع‌آوری" };
         var cancel = new Button { Content = "توقف", IsEnabled = false };
-        Content = new StackPanel
+        var copy = new Button { Content = "کپی لاگ" };
+        var clear = new Button { Content = "پاک‌کردن لاگ" };
+        var tabs = new TabControl { ItemsSource = new[] {
+            new TabItem { Header = "لاگ زنده", Content = logs }, new TabItem { Header = "سرورهای ذخیره‌شده", Content = rows }
+        }};
+        var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto,*"), Margin = new Thickness(24), RowSpacing = 12 };
+        Control[] sections = [new TextBlock { Text = Title, FontSize = 26 }, stage,
+            new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { start, cancel, copy, clear } },
+            new StackPanel { Spacing = 8, Children = { status, counts, bar } }, follow, tabs];
+        for (var i = 0; i < sections.Length; i++) { Grid.SetRow(sections[i], i); layout.Children.Add(sections[i]); }
+        Content = layout;
+        void Log(string text)
         {
-            Margin = new Thickness(24), Spacing = 16,
-            Children =
-            {
-                new TextBlock { Text = Title, FontSize = 24 },
-                new TextBlock { Text = "اتصال خودکار از ساب پیش‌فرض؛ حداکثر ۴ کانفیگ از پیام‌های ۷ روز اخیر هر کانال. فقط کانفیگ‌هایی با سه پاسخ معتبر تا ۹۰۰ میلی‌ثانیه ذخیره می‌شوند.", TextWrapping = TextWrapping.Wrap },
-                new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12, Children = { start, cancel } },
-                status, list
+            history.Add($"{DateTime.Now:HH:mm:ss}  {text}");
+            while (history.Count > 300) history.RemoveAt(0);
+            if (follow.IsChecked == true) logs.ScrollIntoView(history.Last());
+        }
+        void Update(PoolProgress update)
+        {
+            stage.Text = update.Stage; status.Text = update.Message;
+            bar.IsIndeterminate = update.Total == 0 && _run != null;
+            if (update.Total > 0) {
+                bar.Value = 100d * update.Completed / update.Total;
+                counts.Text = $"{update.Completed}/{update.Total} · پذیرفته: {update.Passed} · خطا: {update.Failed}";
             }
-        };
-        async Task Refresh() => list.ItemsSource = (await AppManager.Instance.ProfileItems(ServerPoolService.PoolId) ?? [])
-            .Select(p => p.Remarks).ToList();
+            Log($"[{update.Stage}] {update.Message}" + (update.Total > 0 ? $" · {update.Completed}/{update.Total}" : ""));
+        }
+        async Task Refresh()
+        {
+            var delays = (await ProfileExManager.Instance.GetProfileExs()).ToDictionary(x => x.IndexId, x => x.Delay);
+            rows.ItemsSource = (await AppManager.Instance.ProfileItems(ServerPoolService.PoolId) ?? [])
+                .Select(p => $"{p.Remarks} · {delays.GetValueOrDefault(p.IndexId)} ms").ToList();
+        }
         Opened += async (_, _) => await Refresh();
-        cancel.Click += (_, _) => { _run?.Cancel(); status.Text = "در حال توقف…"; };
+        copy.Click += async (_, _) => { if (Clipboard != null) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, history)); };
+        clear.Click += (_, _) => history.Clear();
+        cancel.Click += (_, _) => { _run?.Cancel(); cancel.IsEnabled = false; status.Text = "در حال توقف و آزادسازی هسته‌های آزمون…"; Log(status.Text); };
         Closing += (_, _) => _run?.Cancel();
         start.Click += async (_, _) =>
         {
-            start.IsEnabled = false; cancel.IsEnabled = true;
+            start.IsEnabled = false; cancel.IsEnabled = true; tabs.SelectedIndex = 0;
             using var cts = new CancellationTokenSource(); _run = cts;
+            Log("شروع اجرای جدید · 3.9.0 revision 2");
             try
             {
-                await new ServerPoolService().RunAsync(async profile =>
-                {
-                    await main.ProfilesViewModel.SetDefaultServer(profile.IndexId);
-                    main.ProfilesViewModel.ConnectionStartRequested.Publish();
-                    for (var i = 0; i < 100 && !CoreManager.Instance.IsRunning; i++) await Task.Delay(100, cts.Token);
-                    if (!CoreManager.Instance.IsRunning) throw new InvalidOperationException("اتصال برقرار نشد؛ گزارش اتصال را بررسی کنید.");
-                }, new Progress<string>(text => status.Text = text), cts.Token);
+                await new ServerPoolService().RunAsync(profile => main.ConnectPoolProfileAsync(profile.IndexId, cts.Token),
+                    new Progress<PoolProgress>(Update), cts.Token);
                 await main.ProfilesViewModel.RefreshSubscriptions();
                 await main.ProfilesViewModel.RefreshServers();
                 await Refresh();
             }
-            catch (OperationCanceledException) { status.Text = "متوقف شد؛ استخر قبلی حفظ شد."; }
-            catch (Exception ex) { status.Text = ex.Message; }
-            finally { _run = null; start.IsEnabled = true; cancel.IsEnabled = false; }
+            catch (OperationCanceledException) { Update(new("متوقف", "جمع‌آوری متوقف شد؛ استخر قبلی حفظ شد.")); }
+            catch (Exception ex) { Update(new("خطا", ex.Message)); }
+            finally { _run = null; start.Content = "اجرای دوباره"; start.IsEnabled = true; cancel.IsEnabled = false; bar.IsIndeterminate = false; }
         };
     }
 }

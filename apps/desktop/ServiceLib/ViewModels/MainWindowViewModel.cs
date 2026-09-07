@@ -699,6 +699,20 @@ public partial class MainWindowViewModel : MyReactiveObject
         await Reload(forceStart: true);
     }
 
+    public async Task ConnectPoolProfileAsync(string indexId, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        // Do not publish two competing start/reload events from the pool window.
+        await _reloadSemaphore.WaitAsync(token);
+        _reloadSemaphore.Release();
+        await ConfigHandler.SetDefaultServerIndex(_config, indexId);
+        await StartConnectionAsync();
+        await _reloadSemaphore.WaitAsync(token);
+        _reloadSemaphore.Release();
+        token.ThrowIfCancellationRequested();
+        await PoolNetwork.WaitForListenerAsync(() => AppManager.Instance.GetLocalPort(EInboundProtocol.socks), token);
+    }
+
     private async Task RecoverUnexpectedCoreExitAsync(int exitCode)
     {
         if (!_connectionDesired || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)

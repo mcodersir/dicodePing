@@ -48,13 +48,13 @@ public sealed class ServerPoolService
         AutomaticDecompression = DecompressionMethods.All
     }) { Timeout = TimeSpan.FromSeconds(15), MaxResponseContentBufferSize = 2 * 1024 * 1024 };
 
-    public async Task<int> RunAsync(Func<ProfileItem, Task> connect, IProgress<string> progress, CancellationToken token)
+    public async Task<int> RunAsync(Func<ProfileItem, Task> connect, IProgress<PoolProgress> progress, CancellationToken token)
     {
         if (!await Gate.WaitAsync(0, token)) throw new InvalidOperationException("جمع‌آوری دیگری در حال اجراست.");
         var config = AppManager.Instance.Config;
         try
         {
-            progress.Report("بروزرسانی و آزمون ساب پیش‌فرض…");
+            progress.Report(new("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"));
             await DicodePingBootstrap.EnsureDefaultsAsync(config);
             var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
             await SubscriptionHandler.UpdateProcess(config, primary.Id, false, (_, _) => Task.CompletedTask);
@@ -62,15 +62,17 @@ public sealed class ServerPoolService
             var initial = await ProbeAsync(await AppManager.Instance.ProfileItems(primary.Id) ?? [], false, progress, token);
             var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
             if (best.Profile == null) throw new InvalidOperationException("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.");
-            progress.Report("اتصال به بهترین سرور ساب پیش‌فرض…");
+            progress.Report(new("اتصال", $"شروع اتصال به بهترین مسیر ساب · {best.Delay} ms"));
             await connect(best.Profile);
             token.ThrowIfCancellationRequested();
+            progress.Report(new("اتصال", "درگاه محلی آماده است؛ اکنون دریافت کانال‌ها بررسی می‌شود."));
             var proxy = new WebProxy($"socks5://{Global.Loopback}:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}");
             var inbound = config.Inbound.FirstOrDefault();
             if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
             using var client = Client(proxy);
-            var channels = ParseChannels(await client.GetStringAsync(ChannelsUrl, token));
-            if (channels.Count == 0) throw new InvalidOperationException("فهرست کانال‌ها خالی است.");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DicodePing/3.9.0");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.raw+json");
+            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => client.GetStringAsync(url, ct), progress, token);
             var collected = new ConcurrentDictionary<string, byte>();
             int completed = 0, failed = 0;
             await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = token }, async (channel, ct) =>
@@ -78,17 +80,21 @@ public sealed class ServerPoolService
                 try
                 {
                     var html = await client.GetStringAsync($"https://t.me/s/{channel}", ct);
-                    foreach (var link in ExtractLinks(html, DateTimeOffset.UtcNow)) collected.TryAdd(link, 0);
+                    var links = ExtractLinks(html, DateTimeOffset.UtcNow);
+                    foreach (var link in links) collected.TryAdd(link, 0);
+                    progress.Report(new("جمع‌آوری", $"@{channel} · {links.Count} کانفیگ تازه"));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception) { Interlocked.Increment(ref failed); }
-                progress.Report($"کانال‌ها: {Interlocked.Increment(ref completed)}/{channels.Count} · کانفیگ: {collected.Count} · خطا: {failed}");
+                catch (Exception error) { Interlocked.Increment(ref failed); progress.Report(new("جمع‌آوری", $"@{channel} · {PoolNetwork.Describe(error)}")); }
+                progress.Report(new("جمع‌آوری", $"کانفیگ یکتا: {collected.Count}", Interlocked.Increment(ref completed), channels.Count, collected.Count, failed));
             });
             var profiles = collected.Keys.Select(x => FmtHandler.ResolveConfig(x, out _)).OfType<ProfileItem>().ToList();
             foreach (var profile in profiles) { profile.IndexId = Utils.GetGuid(false); profile.Subid = PoolId; }
+            progress.Report(new("آزمون", $"آغاز سه آزمون مستقل برای {profiles.Count} کانفیگ"));
             var accepted = await ProbeAsync(profiles, true, progress, token);
             token.ThrowIfCancellationRequested();
             if (accepted.Count == 0) throw new InvalidOperationException("کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد.");
+            progress.Report(new("ذخیره", $"ذخیرهٔ {accepted.Count} کانفیگ تأییدشده…"));
             await ProfileOperationCoordinator.Gate.WaitAsync(token);
             try
             {
@@ -98,25 +104,26 @@ public sealed class ServerPoolService
                 await ProfileExManager.Instance.SaveTo();
             }
             finally { ProfileOperationCoordinator.Gate.Release(); }
-            progress.Report($"پایان · {accepted.Count} کانفیگ سالم در استخر ذخیره شد.");
+            progress.Report(new("پایان", $"{accepted.Count} کانفیگ سالم در استخر ذخیره شد.", accepted.Count, accepted.Count, accepted.Count));
             return accepted.Count;
         }
         finally { Gate.Release(); }
     }
 
     private static async Task<List<(ProfileItem Profile, int Delay)>> ProbeAsync(List<ProfileItem> profiles, bool strict,
-        IProgress<string> progress, CancellationToken token)
+        IProgress<PoolProgress> progress, CancellationToken token)
     {
         var result = new ConcurrentBag<(ProfileItem, int)>();
         var done = 0;
         foreach (var chunk in profiles.Chunk(12))
         {
             token.ThrowIfCancellationRequested();
+            var baseIndex = done;
             var batch = chunk.Select((p, i) => new ServerTestItem { IndexId = p.IndexId, Address = p.Address,
                 Port = p.Port, ConfigType = p.ConfigType, Profile = p, QueueNum = i,
                 CoreType = AppManager.Instance.GetCoreType(p, p.ConfigType) }).ToList();
             var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
-            if (core == null) continue;
+            if (core == null) { progress.Report(new("آزمون", "هستهٔ آزمون این دسته راه‌اندازی نشد.")); done += chunk.Length; continue; }
             try
             {
                 await Task.Delay(800, token);
@@ -130,7 +137,7 @@ public sealed class ServerPoolService
                         {
                             ct.ThrowIfCancellationRequested();
                             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                            deadline.CancelAfter(TimeSpan.FromSeconds(3));
+                            deadline.CancelAfter(TimeSpan.FromSeconds(strict ? 4 : 8));
                             try
                             {
                                 var watch = Stopwatch.StartNew();
@@ -140,10 +147,11 @@ public sealed class ServerPoolService
                             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                             catch (Exception) { samples.Add(-1); }
                         }
+                        progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", $"سرور {item.QueueNum + baseIndex + 1} · پاسخ‌ها: {string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : "ناموفق"))} · {(strict ? (AcceptSamples(samples) ? "پذیرفته" : "رد شد") : "آزمون اولیه")}"));
                         if (strict ? AcceptSamples(samples) : samples[0] > 0)
                             result.Add((item.Profile, samples.Order().ElementAt(samples.Count / 2)));
                     }
-                    progress.Report($"آزمون واقعی {(strict ? "سه‌مرحله‌ای" : "ساب پیش‌فرض")}: {Interlocked.Increment(ref done)}/{profiles.Count} · سالم: {result.Count}");
+                    progress.Report(new(strict ? "آزمون" : "ساب پیش‌فرض", "آزمون واقعی مسیر", Interlocked.Increment(ref done), profiles.Count, result.Count));
                 });
             }
             finally { await core.StopAsync(); }
