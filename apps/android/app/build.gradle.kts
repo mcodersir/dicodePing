@@ -13,7 +13,7 @@ android {
         applicationId = "ir.dicode.ping"
         minSdk = 24
         targetSdk = 37
-        versionCode = 400000
+        versionCode = 400001
         versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.0.0"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')

@@ -81,7 +81,7 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
             job?.cancel()
         }
     }
-    fun start(options: ServerPoolOptions) {
+    fun start(options: ServerPoolOptions, ensureVpnPermission: suspend () -> Boolean) {
         if (state.value.busy) return
         stopRequested.set(false)
         state.update { it.copy(busy = true) }
@@ -92,6 +92,8 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
                 val context = getApplication<Application>()
                 ServerPoolManager.run(context, { guid ->
                     withContext(Dispatchers.Main) {
+                        if (SettingsManager.isVpnMode())
+                            check(ensureVpnPermission()) { "برای اتصال fallback ساب پیش‌فرض، مجوز VPN لازم است." }
                         MmkvManager.setSelectServer(guid)
                         // Wait for the daemon's ordered restart acknowledgement before inspecting its port.
                         val acknowledged = withTimeoutOrNull(30_000) {
@@ -119,8 +121,25 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
 class ServerPoolActivity : HelperBaseComponentActivity() {
     private val model: ServerPoolViewModel by viewModels()
     private var pendingOptions = ServerPoolOptions()
+    private var permissionResult: CompletableDeferred<Boolean>? = null
     private val permission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == RESULT_OK) model.start(pendingOptions) else model.report(PoolProgress("مجوز", "برای اتصال، مجوز VPN لازم است."))
+        permissionResult?.complete(it.resultCode == RESULT_OK)
+        permissionResult = null
+    }
+
+    private suspend fun ensureVpnPermission(): Boolean = withContext(Dispatchers.Main.immediate) {
+        val intent = VpnService.prepare(this@ServerPoolActivity) ?: return@withContext true
+        val deferred = CompletableDeferred<Boolean>()
+        permissionResult = deferred
+        permission.launch(intent)
+        try { deferred.await() }
+        finally { if (permissionResult === deferred) permissionResult = null }
+    }
+
+    override fun onDestroy() {
+        permissionResult?.cancel()
+        permissionResult = null
+        super.onDestroy()
     }
     @Composable
     override fun ScreenContent() {
@@ -135,7 +154,7 @@ class ServerPoolActivity : HelperBaseComponentActivity() {
         }
         Scaffold(topBar = { AppTopBar(stringResource(R.string.title_server_pool), { finish() }) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("ساب پیش‌فرض ← اتصال ← کانال‌ها ← آزمون ← ذخیره", style = MaterialTheme.typography.labelLarge)
+                Text("اتصال فعال ← fallback ساب پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = targetText,
                         onValueChange = { value -> targetText = value.filter(Char::isDigit).take(3) },
@@ -166,8 +185,7 @@ class ServerPoolActivity : HelperBaseComponentActivity() {
                             (roundsText.toIntOrNull() ?: 3).coerceIn(ServerPoolOptions.MIN_TEST_ROUNDS, ServerPoolOptions.MAX_TEST_ROUNDS))
                         targetText = pendingOptions.targetCount.toString()
                         roundsText = pendingOptions.testRounds.toString()
-                        val intent = if (SettingsManager.isVpnMode()) VpnService.prepare(this@ServerPoolActivity) else null
-                        if (intent == null) model.start(pendingOptions) else permission.launch(intent)
+                        model.start(pendingOptions, ::ensureVpnPermission)
                     }, modifier = Modifier.weight(1f)) { Text(if (state.logs.isEmpty()) "شروع جمع‌آوری" else "اجرای دوباره") }
                     OutlinedButton(enabled = state.busy && state.progress.stage !in setOf("توقف", "ذخیره", "پایان", "متوقف"),
                         onClick = model::cancel) { Text("توقف") }

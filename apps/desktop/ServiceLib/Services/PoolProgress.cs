@@ -17,6 +17,13 @@ public sealed record ServerPoolOptions(int TargetCount = 20, int TestRounds = 3)
 
 public static class PoolNetwork
 {
+    public static readonly string[] ChannelSources =
+    [
+        ServerPoolService.ChannelsUrl,
+        "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/channels.txt",
+        "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/channels.txt"
+    ];
+
     public static async Task WaitForListenerAsync(Func<int> getPort, CancellationToken token, int attempts = 60)
     {
         for (var attempt = 0; attempt < attempts; attempt++)
@@ -49,10 +56,7 @@ public static class PoolNetwork
     public static async Task<List<string>> LoadChannelsAsync(Func<string, CancellationToken, Task<string>> fetch,
         IProgress<PoolProgress> progress, CancellationToken token)
     {
-        string[] sources = [ServerPoolService.ChannelsUrl,
-            "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/channels.txt",
-            "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/channels.txt"];
-        foreach (var source in sources)
+        foreach (var source in ChannelSources)
         {
             for (var attempt = 1; attempt <= 2; attempt++)
             {

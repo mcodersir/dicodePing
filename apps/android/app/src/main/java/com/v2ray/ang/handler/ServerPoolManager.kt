@@ -25,6 +25,8 @@ object ServerPoolManager {
     const val CHANNELS_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt"
     private val running = AtomicBoolean(false)
 
+    private data class PreparedRoute(val client: OkHttpClient, val channels: List<String>, val name: String)
+
     fun ensureSubscription() {
         val previous = MmkvManager.decodeSubscription(POOL_ID) ?: SubscriptionItem()
         MmkvManager.encodeSubscription(POOL_ID, previous.copy(remarks = POOL_NAME, url = "", enabled = true, autoUpdate = false))
@@ -61,6 +63,64 @@ object ServerPoolManager {
         })
     }
 
+    private fun networkClient(proxy: Proxy?): OkHttpClient {
+        val builder = OkHttpClient.Builder().connectTimeout(4, TimeUnit.SECONDS).callTimeout(8, TimeUnit.SECONDS)
+        if (proxy != null) {
+            builder.proxy(proxy).proxyAuthenticator { _, response ->
+                if (response.request.header("Proxy-Authorization") != null) null else response.request.newBuilder()
+                    .header("Proxy-Authorization", Credentials.basic(
+                        SettingsManager.getSocksUsername().orEmpty(), SettingsManager.getSocksPassword().orEmpty())).build()
+            }
+        }
+        return builder.build()
+    }
+
+    private fun localProxy() = Proxy(Proxy.Type.HTTP,
+        InetSocketAddress("127.0.0.1", SettingsManager.getHttpPort()))
+
+    private fun close(client: OkHttpClient) {
+        client.connectionPool.evictAll()
+        client.dispatcher.executorService.shutdown()
+    }
+
+    private suspend fun tryPrepareRoute(name: String, proxy: Proxy?, report: (PoolProgress) -> Unit): PreparedRoute? {
+        val client = networkClient(proxy)
+        try {
+            report(PoolProgress("مسیر فعال", "بررسی $name بدون تغییر اتصال فعلی…"))
+            var channels: List<String>? = null
+            for (source in PoolNetwork.channelSources) {
+                currentCoroutineContext().ensureActive()
+                try {
+                    val parsed = ServerPoolParser.channels(fetch(client, source))
+                    if (parsed.isNotEmpty()) { channels = parsed; break }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { }
+            }
+            val availableChannels = channels ?: error("Channel list unavailable")
+            val telegramWorks = coroutineScope {
+                availableChannels.take(5).map { channel -> async {
+                    try {
+                        var extraction = ServerPoolParser.inspect(fetch(client, "https://t.me/s/$channel"))
+                        if (extraction.posts == 0)
+                            extraction = ServerPoolParser.inspect(fetch(client, "https://telegram.me/s/$channel"))
+                        extraction.posts > 0
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { false }
+                } }.awaitAll().any { it }
+            }
+            check(telegramWorks) { "Telegram preview unavailable" }
+            report(PoolProgress("مسیر فعال", "$name قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند."))
+            return PreparedRoute(client, availableChannels, name)
+        } catch (cancelled: CancellationException) {
+            close(client)
+            throw cancelled
+        } catch (_: Exception) {
+            close(client)
+            report(PoolProgress("مسیر فعال", "$name برای هر دو منبع GitHub و Telegram قابل استفاده نبود."))
+            return null
+        }
+    }
+
     suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (PoolProgress) -> Unit,
                     requestedOptions: ServerPoolOptions, shouldStop: () -> Boolean): Int = withContext(Dispatchers.IO) {
         check(running.compareAndSet(false, true)) { "جمع‌آوری دیگری در حال اجراست." }
@@ -70,27 +130,34 @@ object ServerPoolManager {
             ensureSubscription()
             report(PoolProgress("استخر", "اشتراک مستقل «$POOL_NAME» آماده است."))
             CoreNativeManager.initCoreEnv(context)
-            report(PoolProgress("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"))
-            val primary = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
-                ?: error("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.")
-            AngConfigManager.updateConfigViaSub(primary)
-            currentCoroutineContext().ensureActive()
-            val primaryServers = MmkvManager.decodeServerList(primary.guid)
-            val best = probe(context, primaryServers, 1, primaryServers.size.coerceAtLeast(1), false, report) { false }
-                .minByOrNull { it.second }
-                ?: error("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.")
-            report(PoolProgress("اتصال", "شروع اتصال به بهترین مسیر ساب · ${best.second} ms"))
-            connect(best.first)
-            PoolNetwork.waitForListener { SettingsManager.getHttpPort() }
-            report(PoolProgress("اتصال", "درگاه محلی آماده است؛ اکنون دریافت کانال‌ها بررسی می‌شود."))
-            val client = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).callTimeout(15, TimeUnit.SECONDS)
-                .proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", SettingsManager.getHttpPort())))
-                .proxyAuthenticator { _, response ->
-                    if (response.request.header("Proxy-Authorization") != null) null else response.request.newBuilder()
-                        .header("Proxy-Authorization", Credentials.basic(SettingsManager.getSocksUsername().orEmpty(), SettingsManager.getSocksPassword().orEmpty())).build()
-                }.build()
+            var route = tryPrepareRoute("اتصال فعال DicodePing", localProxy(), report)
+                ?: tryPrepareRoute("مسیر مستقیم سیستم یا VPN دیگر", null, report)
+            if (route == null) {
+                report(PoolProgress("ساب پیش‌فرض", "مسیر فعالی برای Telegram پیدا نشد؛ آزمون ساب پیش‌فرض…"))
+                val primary = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
+                    ?: error("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.")
+                try {
+                    val update = AngConfigManager.updateConfigViaSub(primary)
+                    if (update.successCount == 0)
+                        report(PoolProgress("ساب پیش‌فرض", "بروزرسانی ساب نتیجه‌ای نداشت؛ cache موجود آزموده می‌شود."))
+                } catch (error: Exception) {
+                    report(PoolProgress("ساب پیش‌فرض", "بروزرسانی ساب در دسترس نبود (${PoolNetwork.describe(error)})؛ cache موجود آزموده می‌شود."))
+                }
+                currentCoroutineContext().ensureActive()
+                val primaryServers = MmkvManager.decodeServerList(primary.guid)
+                val best = probe(context, primaryServers, 1, primaryServers.size.coerceAtLeast(1), false, report) { false }
+                    .minByOrNull { it.second }
+                    ?: error("هیچ مسیر فعال یا کانفیگ سالمی در cache ساب پیش‌فرض پیدا نشد؛ دوباره تلاش کنید.")
+                report(PoolProgress("اتصال", "شروع اتصال fallback به بهترین مسیر ساب پیش‌فرض · ${best.second} ms"))
+                connect(best.first)
+                PoolNetwork.waitForListener { SettingsManager.getHttpPort() }
+                route = tryPrepareRoute("مسیر fallback ساب پیش‌فرض", localProxy(), report)
+                    ?: error("اتصال fallback برقرار شد اما GitHub و Telegram از آن قابل دسترسی نیستند.")
+            }
+            val client = route.client
             val links = try {
-                val channels = PoolNetwork.loadChannels({ url -> fetch(client, url) }, report)
+                val channels = route.channels
+                report(PoolProgress("کانال‌ها", "فهرست ${channels.size} کانال از ${route.name} آماده است."))
                 val semaphore = Semaphore(8)
                 val done = AtomicInteger(); val failed = AtomicInteger(); val found = AtomicInteger()
                 coroutineScope {
@@ -112,7 +179,7 @@ object ServerPoolManager {
                         }
                     } }.awaitAll().flatten().distinct()
                 }
-            } finally { client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
+            } finally { close(client) }
             currentCoroutineContext().ensureActive()
             check(links.isNotEmpty()) { "از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد." }
             // Candidates are isolated from every user subscription until validation completes.

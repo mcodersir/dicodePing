@@ -1,6 +1,13 @@
 # Changelog
 
-## 4.0.0
+## 4.0.0 (stable, revision 2)
+
+- Prefer an already working DicodePing proxy regardless of its subscription, then the system route provided by another VPN, before touching the official subscription.
+- Validate both the channel list and real Telegram previews on the candidate route; only update/test/connect the official subscription when neither existing path works.
+- Keep cached official profiles usable when refresh fails, and request Android VPN permission lazily only if the official-subscription fallback must actually start.
+- Keep public version 4.0.0 while using Android versionCode 400001 and desktop FileVersion 4.0.0.1 for an in-place stable update.
+
+## 4.0.0 (stable, revision 1)
 
 - Add pre-run controls for the desired number of successful pool servers (1–200) and real-ping rounds per server (1–10) on desktop and Android.
 - Reuse the product's main Real Ping engine in the pool: stabilized SOCKS/HTTP measurements on desktop and the shared TCP-gated native outbound-delay probe on Android.

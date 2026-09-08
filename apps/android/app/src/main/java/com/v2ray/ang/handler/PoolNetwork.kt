@@ -23,6 +23,12 @@ data class ServerPoolOptions(val targetCount: Int = 20, val testRounds: Int = 3)
 }
 
 object PoolNetwork {
+    val channelSources = listOf(
+        ServerPoolManager.CHANNELS_URL,
+        "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/channels.txt",
+        "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/channels.txt"
+    )
+
     suspend fun waitForListener(port: () -> Int) = withContext(Dispatchers.IO) {
         repeat(60) {
             ensureActive()
@@ -44,10 +50,7 @@ object PoolNetwork {
     class SourceHttpException(val code: Int) : IOException("HTTP $code")
 
     suspend fun loadChannels(fetch: suspend (String) -> String, report: (PoolProgress) -> Unit): List<String> {
-        val sources = listOf(ServerPoolManager.CHANNELS_URL,
-            "https://github.com/mcodersir/DicodeConfigChecker/raw/refs/heads/main/channels.txt",
-            "https://api.github.com/repos/mcodersir/DicodeConfigChecker/contents/channels.txt")
-        for (source in sources) {
+        for (source in channelSources) {
             repeat(2) { attempt ->
                 currentCoroutineContext().ensureActive()
                 try {

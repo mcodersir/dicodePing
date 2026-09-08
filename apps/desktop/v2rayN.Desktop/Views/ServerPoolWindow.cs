@@ -15,7 +15,7 @@ public sealed class ServerPoolWindow : Window
         Width = 820; Height = 680; MinWidth = 500; MinHeight = 440;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var status = new TextBlock { Text = "آمادهٔ جمع‌آوری", TextWrapping = TextWrapping.Wrap };
-        var stage = new TextBlock { Text = "ساب پیش‌فرض ← اتصال ← کانال‌ها ← آزمون ← ذخیره", FontSize = 16, TextWrapping = TextWrapping.Wrap };
+        var stage = new TextBlock { Text = "اتصال فعال ← fallback ساب پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره", FontSize = 16, TextWrapping = TextWrapping.Wrap };
         var counts = new TextBlock { Text = "هر پاسخ باید معتبر و حداکثر ۹۰۰ میلی‌ثانیه باشد.", TextWrapping = TextWrapping.Wrap };
         var bar = new ProgressBar { Minimum = 0, Maximum = 100, Height = 6 };
         var rows = new ListBox();

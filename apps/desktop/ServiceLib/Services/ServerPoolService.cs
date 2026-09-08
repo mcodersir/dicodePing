@@ -15,6 +15,14 @@ public sealed class ServerPoolService
     private static readonly Regex Dates = new("""\bdatetime\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
     private static readonly Regex Hrefs = new("""\bhref\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase, RegexTimeout);
 
+    private sealed class PreparedRoute(HttpClient client, List<string> channels, string name) : IDisposable
+    {
+        public HttpClient Client { get; } = client;
+        public List<string> Channels { get; } = channels;
+        public string Name { get; } = name;
+        public void Dispose() => Client.Dispose();
+    }
+
     public static List<string> ParseChannels(string content) => content.Split('\n')
         .Select(x => x.Trim().Replace("https://t.me/", "").Replace("http://t.me/", "").Replace("t.me/", "").TrimStart('@').TrimEnd('/'))
         .Where(x => Regex.IsMatch(x, @"^[a-zA-Z][a-zA-Z0-9_]{3,31}$", RegexOptions.None, RegexTimeout))
@@ -94,11 +102,25 @@ public sealed class ServerPoolService
         && samples.Count == requiredRounds
         && samples.All(x => x > 0 && x <= 900);
 
-    private static HttpClient Client(IWebProxy? proxy) => new(new SocketsHttpHandler
+    private static HttpClient Client(IWebProxy? proxy, int timeoutSeconds = 15) => new(new SocketsHttpHandler
     {
-        Proxy = proxy, UseProxy = proxy != null, ConnectTimeout = TimeSpan.FromSeconds(5),
+        Proxy = proxy, UseProxy = proxy != null, ConnectTimeout = TimeSpan.FromSeconds(Math.Min(5, timeoutSeconds)),
         AutomaticDecompression = DecompressionMethods.All
-    }) { Timeout = TimeSpan.FromSeconds(15), MaxResponseContentBufferSize = 2 * 1024 * 1024 };
+    }) { Timeout = TimeSpan.FromSeconds(timeoutSeconds), MaxResponseContentBufferSize = 2 * 1024 * 1024 };
+
+    private static void ConfigureBrowserHeaders(HttpClient client)
+    {
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.0");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
+    }
+
+    private static WebProxy LocalProxy(Config config)
+    {
+        var proxy = new WebProxy($"socks5://{Global.Loopback}:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}");
+        var inbound = config.Inbound.FirstOrDefault();
+        if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
+        return proxy;
+    }
 
     private static async Task<string> FetchAsync(HttpClient client, string url, CancellationToken token)
     {
@@ -109,6 +131,59 @@ public sealed class ServerPoolService
         using var response = await client.SendAsync(request, token);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(token);
+    }
+
+    private static async Task<PreparedRoute?> TryPrepareRouteAsync(string name, IWebProxy? proxy,
+        IProgress<PoolProgress> progress, CancellationToken token)
+    {
+        var client = Client(proxy, 8);
+        ConfigureBrowserHeaders(client);
+        try
+        {
+            progress.Report(new("مسیر فعال", $"بررسی {name} بدون تغییر اتصال فعلی…"));
+            List<string>? channels = null;
+            foreach (var source in PoolNetwork.ChannelSources)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    channels = ParseChannels(await FetchAsync(client, source, token));
+                    if (channels.Count > 0) break;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch { }
+            }
+            if (channels is null || channels.Count == 0) throw new IOException("فهرست کانال‌ها در دسترس نیست");
+
+            async Task<bool> CanReadChannel(string channel)
+            {
+                try
+                {
+                    var extraction = Inspect(await FetchAsync(client, $"https://t.me/s/{channel}", token));
+                    if (extraction.Posts == 0)
+                        extraction = Inspect(await FetchAsync(client, $"https://telegram.me/s/{channel}", token));
+                    return extraction.Posts > 0;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch { return false; }
+            }
+
+            var telegramChecks = await Task.WhenAll(channels.Take(5).Select(CanReadChannel));
+            if (!telegramChecks.Any(x => x)) throw new IOException("Telegram preview در دسترس نیست");
+            progress.Report(new("مسیر فعال", $"{name} قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند."));
+            return new PreparedRoute(client, channels, name);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            client.Dispose();
+            throw;
+        }
+        catch
+        {
+            client.Dispose();
+            progress.Report(new("مسیر فعال", $"{name} برای هر دو منبع GitHub و Telegram قابل استفاده نبود."));
+            return null;
+        }
     }
 
     public async Task<int> RunAsync(Func<ProfileItem, CancellationToken, Task> connect,
@@ -124,27 +199,45 @@ public sealed class ServerPoolService
         {
             await EnsureSubscriptionAsync();
             progress.Report(new("استخر", $"اشتراک مستقل «{PoolName}» آماده است."));
-            progress.Report(new("ساب پیش‌فرض", "بروزرسانی و آزمون ساب پیش‌فرض…"));
-            await DicodePingBootstrap.EnsureDefaultsAsync(config);
-            var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
-            await SubscriptionHandler.UpdateProcess(config, primary.Id, false, (_, _) => Task.CompletedTask);
-            preparationToken.ThrowIfCancellationRequested();
-            var initialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
-            var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
-                preparationToken, CancellationToken.None);
-            var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
-            if (best.Profile == null) throw new InvalidOperationException("ساب پیش‌فرض مسیر سالمی ندارد؛ دوباره تلاش کنید.");
-            progress.Report(new("اتصال", $"شروع اتصال به بهترین مسیر ساب · {best.Delay} ms"));
-            await connect(best.Profile, preparationToken);
-            preparationToken.ThrowIfCancellationRequested();
-            progress.Report(new("اتصال", "درگاه محلی آماده است؛ اکنون دریافت کانال‌ها بررسی می‌شود."));
-            var proxy = new WebProxy($"socks5://{Global.Loopback}:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}");
-            var inbound = config.Inbound.FirstOrDefault();
-            if (!string.IsNullOrEmpty(inbound?.User)) proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
-            using var client = Client(proxy);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.0");
-            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
-            var channels = await PoolNetwork.LoadChannelsAsync((url, ct) => FetchAsync(client, url, ct), progress, preparationToken);
+            var route = await TryPrepareRouteAsync("اتصال فعال DicodePing", LocalProxy(config), progress, preparationToken)
+                ?? await TryPrepareRouteAsync("مسیر مستقیم سیستم یا VPN دیگر", null, progress, preparationToken);
+            if (route is null)
+            {
+                progress.Report(new("ساب پیش‌فرض", "مسیر فعالی برای Telegram پیدا نشد؛ آزمون ساب پیش‌فرض…"));
+                await DicodePingBootstrap.EnsureDefaultsAsync(config);
+                var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
+                var subscriptionUpdated = false;
+                try
+                {
+                    await SubscriptionHandler.UpdateProcess(config, primary.Id, false, (success, _) =>
+                    {
+                        if (success) subscriptionUpdated = true;
+                        return Task.CompletedTask;
+                    });
+                    if (!subscriptionUpdated)
+                        progress.Report(new("ساب پیش‌فرض", "بروزرسانی ساب نتیجه‌ای نداشت؛ cache موجود آزموده می‌شود."));
+                }
+                catch (Exception error)
+                {
+                    progress.Report(new("ساب پیش‌فرض", $"بروزرسانی ساب در دسترس نبود ({PoolNetwork.Describe(error)})؛ cache موجود آزموده می‌شود."));
+                }
+                preparationToken.ThrowIfCancellationRequested();
+                var initialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
+                var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
+                    preparationToken, CancellationToken.None);
+                var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
+                if (best.Profile == null) throw new InvalidOperationException("هیچ مسیر فعال یا کانفیگ سالمی در cache ساب پیش‌فرض پیدا نشد؛ دوباره تلاش کنید.");
+                progress.Report(new("اتصال", $"شروع اتصال fallback به بهترین مسیر ساب پیش‌فرض · {best.Delay} ms"));
+                await connect(best.Profile, preparationToken);
+                preparationToken.ThrowIfCancellationRequested();
+                route = await TryPrepareRouteAsync("مسیر fallback ساب پیش‌فرض", LocalProxy(config), progress, preparationToken)
+                    ?? throw new InvalidOperationException("اتصال fallback برقرار شد اما GitHub و Telegram از آن قابل دسترسی نیستند.");
+            }
+            using (route)
+            {
+            var client = route.Client;
+            var channels = route.Channels;
+            progress.Report(new("کانال‌ها", $"فهرست {channels.Count} کانال از {route.Name} آماده است."));
             var collected = new ConcurrentDictionary<string, byte>();
             int completed = 0, failed = 0;
             await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = preparationToken }, async (channel, ct) =>
@@ -197,6 +290,7 @@ public sealed class ServerPoolService
                     : $"{accepted.Count} کانفیگ سالم در استخر ذخیره شد.",
                 accepted.Count, accepted.Count, accepted.Count, 0, options.TargetCount));
             return accepted.Count;
+            }
         }
         finally { Gate.Release(); }
     }
