@@ -25,19 +25,19 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     {
         InitializeComponent();
 
-        // Sidebar navigation: Checked switches pages, Click also re-shows the
+        // Sidebar navigation: IsCheckedChanged switches pages, Click also re-shows the
         // active page so a misclick can never leave the window unresponsive.
-        navHome.Checked += Nav_Checked;
+        navHome.IsCheckedChanged += Nav_Checked;
         navHome.Click += Nav_Click;
-        navProfiles.Checked += Nav_Checked;
+        navProfiles.IsCheckedChanged += Nav_Checked;
         navProfiles.Click += Nav_Click;
-        navProxies.Checked += Nav_Checked;
+        navProxies.IsCheckedChanged += Nav_Checked;
         navProxies.Click += Nav_Click;
-        navSettings.Checked += Nav_Checked;
+        navSettings.IsCheckedChanged += Nav_Checked;
         navSettings.Click += Nav_Click;
-        navReports.Checked += Nav_Checked;
+        navReports.IsCheckedChanged += Nav_Checked;
         navReports.Click += Nav_Click;
-        navAbout.Checked += Nav_Checked;
+        navAbout.IsCheckedChanged += Nav_Checked;
         navAbout.Click += Nav_Click;
 
         _config = AppManager.Instance.Config;
@@ -214,11 +214,11 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
         // Subtle slide-fade so navigation feels alive without being loud.
         target.Opacity = 0;
-        target.RenderTransform = TransformOperations.Parse("translateY(10px)");
+        target.RenderTransform = Avalonia.Media.Transformation.TransformOperations.Parse("translateY(10px)");
         Dispatcher.UIThread.Post(() =>
         {
             target.Opacity = 1;
-            target.RenderTransform = TransformOperations.Parse("translateY(0px)");
+            target.RenderTransform = Avalonia.Media.Transformation.TransformOperations.Parse("translateY(0px)");
         }, DispatcherPriority.Loaded);
     }
 
