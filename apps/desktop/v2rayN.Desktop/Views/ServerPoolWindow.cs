@@ -90,7 +90,7 @@ public sealed class ServerPoolWindow : Window
             using var stop = new CancellationTokenSource(); using var abort = new CancellationTokenSource();
             _stop = stop; _abort = abort;
             var options = new ServerPoolOptions(Convert.ToInt32(target.Value ?? 20), Convert.ToInt32(rounds.Value ?? 3)).Normalize();
-            Log($"New run · 4.0.1 · target {options.TargetCount} servers · {options.TestRounds} rounds");
+            Log($"New run · 4.0.2 · target {options.TargetCount} servers · {options.TestRounds} rounds");
             try
             {
                 await new ServerPoolService().RunAsync((profile, token) => main.ConnectPoolProfileAsync(profile.IndexId, token),

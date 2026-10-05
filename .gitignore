@@ -11,3 +11,7 @@ coverage/
 *.keystore
 .env
 .DS_Store
+
+# Local build caches and workspace tooling
+.gradle/
+.workbuddy-ai/

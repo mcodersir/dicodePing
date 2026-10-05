@@ -312,6 +312,7 @@
                                     Margin="{StaticResource MarginLr8}"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
+                                    Classes.isLoading="{Binding IsTesting, Mode=OneWay}"
                                     Foreground="{Binding Delay, Converter={StaticResource DelayColorConverter}}"
                                     Text="{Binding Path=DelayVal, Mode=OneWay}" />
                             </DataTemplate>

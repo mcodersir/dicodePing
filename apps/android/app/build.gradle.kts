@@ -12,9 +12,11 @@ android {
     defaultConfig {
         applicationId = "ir.dicode.ping"
         minSdk = 29
-        targetSdk = 37
-        versionCode = 400101
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.0.1"
+        // Target the latest STABLE Android (16, API 36). Targeting a preview
+        // SDK made installers on stable devices report compatibility problems.
+        targetSdk = 36
+        versionCode = 400201
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.0.2"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {

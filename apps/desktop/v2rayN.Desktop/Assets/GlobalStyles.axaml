@@ -40,7 +40,6 @@
         <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
         <Setter Property="Background" Value="{DynamicResource DicodePageBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
-        <Setter Property="FlowDirection" Value="RightToLeft" />
     </Style>
 
     <Style Selector="TextBlock">
@@ -126,6 +125,62 @@
         <Setter Property="Height" Value="{StaticResource IconButtonHeight}" />
         <Setter Property="MinWidth" Value="{StaticResource IconButtonWidth}" />
         <Setter Property="Theme" Value="{DynamicResource BorderlessButton}" />
+    </Style>
+
+    <!--  Navigation rail: borderless pill items with a soft accent when active.  -->
+    <Style Selector="RadioButton.DicodeNav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border
+                    Padding="{TemplateBinding Padding}"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="10">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Stretch" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked Path">
+        <Setter Property="Stroke" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <!--  Shimmer: rows waiting for a measurement pulse gently instead of flashing.  -->
+    <Style Selector="TextBlock.isLoading">
+        <Setter Property="Opacity" Value="0.5" />
+        <Style.Animations>
+            <Animation Duration="0:0:1.1" IterationCount="INFINITE">
+                <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="0.3" />
+                </KeyFrame>
+                <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="0.85" />
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="0.3" />
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
     </Style>
 
 

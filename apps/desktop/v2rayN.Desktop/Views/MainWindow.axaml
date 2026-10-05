@@ -20,6 +20,15 @@
     ShowInTaskbar="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
+    <Window.Resources>
+        <!--  Minimal 24x24 line icons: single-stroke geometry, round caps, no fills.  -->
+        <StreamGeometry x:Key="DicodeIconHome">M3.5,11.5 L12,4 L20.5,11.5 M5.5,9.75 V19.5 A1,1 0 0,0 6.5,20.5 H17.5 A1,1 0 0,0 18.5,19.5 V9.75 M9.5,20.5 V14.5 A1,1 0 0,1 10.5,13.5 H13.5 A1,1 0 0,1 14.5,14.5 V20.5</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconProfiles">M4,6.5 H20 M4,12 H20 M4,17.5 H13.5</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconProxies">M12,3 A9,9 0 1,0 12,21 A9,9 0 1,0 12,3 Z M3,12 H21 M12,3 C8.4,6.8 8.4,17.2 12,21 C15.6,17.2 15.6,6.8 12,3 Z</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconSettings">M4,7.5 H20 M4,12 H20 M4,16.5 H20 M9,5.8 A1.7,1.7 0 1,0 9,9.2 A1.7,1.7 0 1,0 9,5.8 Z M15,10.3 A1.7,1.7 0 1,0 15,13.7 A1.7,1.7 0 1,0 15,10.3 Z M7.5,14.8 A1.7,1.7 0 1,0 7.5,18.2 A1.7,1.7 0 1,0 7.5,14.8 Z</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconReports">M4,20 H20 M7,16.5 V11.5 M12,16.5 V7 M17,16.5 V13</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconAbout">M12,3 A9,9 0 1,0 12,21 A9,9 0 1,0 12,3 Z M12,7.6 V7.61 M12,11 V16.5</StreamGeometry>
+    </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
             <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
@@ -48,76 +57,189 @@
                 </Grid>
             </Border>
 
-            <TabControl Grid.Row="1" Margin="16,0,16,16" TabStripPlacement="Right">
-                <TabItem Header="{x:Static resx:ResUI.DicodeHome}">
-                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                        <Border Padding="18" Classes="DicodeCard">
-                            <StackPanel Spacing="6">
-                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
-                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
+            <!--  A plain two-column grid keeps the nav rail on the visual right in  -->
+            <!--  Persian (RTL) and on the visual left in English (LTR), because      -->
+            <!--  Avalonia grids mirror their columns with the flow direction.       -->
+            <Grid Grid.Row="1" Margin="16,0,16,16" ColumnDefinitions="Auto,*">
+                <Border Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="196" Padding="8" VerticalAlignment="Stretch">
+                    <StackPanel Spacing="4">
+                        <RadioButton
+                            x:Name="navHome"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            IsChecked="True"
+                            Tag="home">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconHome}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeHome}" />
                             </StackPanel>
-                        </Border>
-                        <ContentControl x:Name="contentStatusBarView" Grid.Row="1" />
-                    </Grid>
-                </TabItem>
+                        </RadioButton>
+                        <RadioButton
+                            x:Name="navProfiles"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            Tag="profiles">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconProfiles}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProfiles}" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton
+                            x:Name="navProxies"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            Tag="proxies">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconProxies}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProxies}" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton
+                            x:Name="navSettings"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            Tag="settings">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconSettings}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeSettings}" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton
+                            x:Name="navReports"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            Tag="reports">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconReports}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeReports}" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton
+                            x:Name="navAbout"
+                            Classes="DicodeNav"
+                            GroupName="DicodeNav"
+                            Tag="about">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Path
+                                    Width="20"
+                                    Height="20"
+                                    Data="{StaticResource DicodeIconAbout}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeAbout}" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
 
-                <TabItem Header="{x:Static resx:ResUI.DicodeProfiles}">
-                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                        <Border Padding="18" Classes="DicodeCard">
-                            <StackPanel Spacing="6">
-                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProfilesTitle}" />
-                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProfilesSubtitle}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        <ContentControl x:Name="tabProfiles" Grid.Row="1" />
-                    </Grid>
-                </TabItem>
-
-                <TabItem Header="{x:Static resx:ResUI.DicodeProxies}">
-                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                        <Border Padding="18" Classes="DicodeCard">
-                            <StackPanel Spacing="6">
-                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProxiesTitle}" />
-                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProxiesSubtitle}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        <ContentControl x:Name="tabProxies" Grid.Row="1" />
-                    </Grid>
-                </TabItem>
-
-                <TabItem Header="{x:Static resx:ResUI.DicodeSettings}">
-                    <Border Padding="22" Classes="DicodeCard">
-                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
-                            <StackPanel Spacing="6">
-                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSettingsTitle}" />
-                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
-                            </StackPanel>
-                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
-                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
-                            </WrapPanel>
+                <Panel Grid.Column="1" Margin="14,0,0,0">
+                    <Panel x:Name="pageHome">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <Border Padding="18" Classes="DicodeCard">
+                                <StackPanel Spacing="6">
+                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
+                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <ContentControl x:Name="contentStatusBarView" Grid.Row="1" />
                         </Grid>
-                    </Border>
-                </TabItem>
+                    </Panel>
 
-                <TabItem Header="{x:Static resx:ResUI.DicodeReports}">
-                    <ContentControl x:Name="tabReports" />
-                </TabItem>
+                    <Panel x:Name="pageProfiles" IsVisible="False">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <Border Padding="18" Classes="DicodeCard">
+                                <StackPanel Spacing="6">
+                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProfilesTitle}" />
+                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProfilesSubtitle}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <ContentControl x:Name="tabProfiles" Grid.Row="1" />
+                        </Grid>
+                    </Panel>
 
-                <TabItem Header="{x:Static resx:ResUI.DicodeAbout}">
-                    <Border Padding="22" Classes="DicodeCard">
-                        <StackPanel Spacing="12">
-                            <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
-                            <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                            <TextBlock Opacity="0.72" Text="Version 4.0.1 pre-release" />
-                        </StackPanel>
-                    </Border>
-                </TabItem>
-            </TabControl>
+                    <Panel x:Name="pageProxies" IsVisible="False">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <Border Padding="18" Classes="DicodeCard">
+                                <StackPanel Spacing="6">
+                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProxiesTitle}" />
+                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProxiesSubtitle}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <ContentControl x:Name="tabProxies" Grid.Row="1" />
+                        </Grid>
+                    </Panel>
+
+                    <Panel x:Name="pageSettings" IsVisible="False">
+                        <Border Padding="22" Classes="DicodeCard">
+                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+                                <StackPanel Spacing="6">
+                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSettingsTitle}" />
+                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
+                                </WrapPanel>
+                            </Grid>
+                        </Border>
+                    </Panel>
+
+                    <Panel x:Name="pageReports" IsVisible="False">
+                        <ContentControl x:Name="tabReports" />
+                    </Panel>
+
+                    <Panel x:Name="pageAbout" IsVisible="False">
+                        <Border Padding="22" Classes="DicodeCard" VerticalAlignment="Top">
+                            <StackPanel Spacing="12">
+                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
+                                <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.2 pre-release" />
+                            </StackPanel>
+                        </Border>
+                    </Panel>
+                </Panel>
+            </Grid>
 
             <Menu IsVisible="False">
                 <MenuItem Header="{x:Static resx:ResUI.DicodeServerPool}" Click="OpenServerPool" />

@@ -1,110 +1,52 @@
-<?xml version="1.0" encoding="utf-8"?>
-<root>
-  <!--
-    Microsoft ResX Schema
-
-    Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
-    associated with the data types.
-
-    Example:
-
-    ... ado.net/XML headers & schema ...
-    <resheader name="resmimetype">text/microsoft-resx</resheader>
-    <resheader name="version">2.0</resheader>
-    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
-    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
-    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-        <value>[base64 mime encoded serialized .NET Framework object]</value>
-    </data>
-    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-        <comment>This is a comment</comment>
-    </data>
-
-    There are any number of "resheader" rows that contain simple
-    name/value pairs.
-
-    Each data row contains a name, and value. The row also contains a
-    type or mimetype. Type corresponds to a .NET class that support
-    text/value conversion through the TypeConverter architecture.
-    Classes that don't support this are serialized and stored with the
-    mimetype set.
-
-    The mimetype is used for serialized objects, and tells the
-    ResXResourceReader how to depersist the object. This is currently not
-    extensible. For a given mimetype the value must be set accordingly:
-
-    Note - application/x-microsoft.net.object.binary.base64 is the format
-    that the ResXResourceWriter will generate, however the reader can
-    read any of the formats listed below.
-
-    mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with
-            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with
-            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array
-            : using a System.ComponentModel.TypeConverter
-            : and then encoded with base64 encoding.
-    -->
-  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
-    <xsd:element name="root" msdata:IsDataSet="true">
-      <xsd:complexType>
-        <xsd:choice maxOccurs="unbounded">
-          <xsd:element name="metadata">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" />
-              </xsd:sequence>
-              <xsd:attribute name="name" use="required" type="xsd:string" />
-              <xsd:attribute name="type" type="xsd:string" />
-              <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="assembly">
-            <xsd:complexType>
-              <xsd:attribute name="alias" type="xsd:string" />
-              <xsd:attribute name="name" type="xsd:string" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="data">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
-              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
-              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="resheader">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" />
-            </xsd:complexType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:complexType>
-    </xsd:element>
-  </xsd:schema>
+<?xml version='1.0' encoding='utf-8'?>
+<root xmlns:ns1="urn:schemas-microsoft-com:xml-msdata" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  
+  <xs:schema id="root">
+    <xs:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xs:element name="root" ns1:IsDataSet="true">
+      <xs:complexType>
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="metadata">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" />
+              </xs:sequence>
+              <xs:attribute name="name" use="required" type="xsd:string" />
+              <xs:attribute name="type" type="xsd:string" />
+              <xs:attribute name="mimetype" type="xsd:string" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="assembly">
+            <xs:complexType>
+              <xs:attribute name="alias" type="xsd:string" />
+              <xs:attribute name="name" type="xsd:string" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="data">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+                <xs:element name="comment" type="xsd:string" minOccurs="0" ns1:Ordinal="2" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" ns1:Ordinal="1" />
+              <xs:attribute name="type" type="xsd:string" ns1:Ordinal="3" />
+              <xs:attribute name="mimetype" type="xsd:string" ns1:Ordinal="4" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="resheader">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" />
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+    </xs:element>
+  </xs:schema>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -358,13 +300,13 @@
     <value>*QUIC securty</value>
   </data>
   <data name="TransportHeaderType1" xml:space="preserve">
-    <value>raw camouflage type</value>
+    <value>نوع استتار Raw</value>
   </data>
   <data name="TransportHeaderType2" xml:space="preserve">
-    <value>kcp camouflage type</value>
+    <value>نوع استتار kcp</value>
   </data>
   <data name="TransportHeaderType3" xml:space="preserve">
-    <value>QUIC camouflage type</value>
+    <value>نوع استتار QUIC</value>
   </data>
   <data name="TransportHeaderType4" xml:space="preserve">
     <value>حالت grpc</value>
@@ -592,7 +534,7 @@
     <value>نوع Camouflage</value>
   </data>
   <data name="TbId" xml:space="preserve">
-    <value>UUID(id)</value>
+    <value>UUID (شناسه)</value>
   </data>
   <data name="TbNetwork" xml:space="preserve">
     <value>پروتکل جابجایی (شبکه)</value>
@@ -634,7 +576,7 @@
     <value>رمز عبور (اختیاری)</value>
   </data>
   <data name="TbId5" xml:space="preserve">
-    <value>UUID(id)</value>
+    <value>UUID (شناسه)</value>
   </data>
   <data name="TbSecurity3" xml:space="preserve">
     <value>رمزگذاری</value>
@@ -673,7 +615,7 @@
     <value>هسته: تنظیمات اولیه</value>
   </data>
   <data name="TbCustomDnsRay" xml:space="preserve">
-    <value>V2ray Custom DNS</value>
+    <value>DNS سفارشی V2ray</value>
   </data>
   <data name="TbSettingsCoreKcp" xml:space="preserve">
     <value>هسته: تنظیمات KCP</value>
@@ -889,7 +831,7 @@
     <value>Core اجرا نشد، لطفاً گزارش را ببینید</value>
   </data>
   <data name="LvFilter" xml:space="preserve">
-    <value>Remarks regular filter</value>
+    <value>فیلتر عبارت نام</value>
   </data>
   <data name="TbDisplayLog" xml:space="preserve">
     <value>نمایش گزارش</value>
@@ -931,7 +873,7 @@
     <value>User-Agent</value>
   </data>
   <data name="TbSettingsDefUserAgentTips" xml:space="preserve">
-    <value>This parameter is valid only for raw/http, ws, gRPC and xhttp</value>
+    <value>این پارامتر فقط برای raw/http، ws، gRPC و xhttp معتبر است</value>
   </data>
   <data name="TbSettingsCurrentFontFamily" xml:space="preserve">
     <value>FontFamily (نیاز به راه اندازی مجدد)</value>
@@ -1006,7 +948,7 @@
     <value>تنظیمات DNS</value>
   </data>
   <data name="TbCustomDnsSingbox" xml:space="preserve">
-    <value>sing-box Custom DNS</value>
+    <value>DNS سفارشی sing-box</value>
   </data>
   <data name="TbDnsSingboxObjectDoc" xml:space="preserve">
     <value>لطفا ساختار DNS را پر کنید، برای مشاهده سند کلیک کنید</value>
@@ -1021,10 +963,10 @@
     <value>پروتکل sing-box Mux</value>
   </data>
   <data name="TbRoutingRuleProcess" xml:space="preserve">
-    <value>Process (Linux/Windows)</value>
+    <value>فرآیند (لینوکس/ویندوز)</value>
   </data>
   <data name="TbRoutingRuleIP" xml:space="preserve">
-    <value>IP or IP CIDR</value>
+    <value>IP یا CIDR</value>
   </data>
   <data name="TbRoutingRuleDomain" xml:space="preserve">
     <value>دامنه</value>
@@ -1075,7 +1017,7 @@
     <value>کلید خصوصی</value>
   </data>
   <data name="TbReserved" xml:space="preserve">
-    <value>Reserved</value>
+    <value>رزرو شده</value>
   </data>
   <data name="TbLocalAddress" xml:space="preserve">
     <value>آدرس (IPv4, IPv6)</value>
@@ -1153,7 +1095,7 @@
     <value>مرتب سازی</value>
   </data>
   <data name="TbSortingChain" xml:space="preserve">
-    <value>Chain</value>
+    <value>زنجیره</value>
   </data>
   <data name="TbSortingDefault" xml:space="preserve">
     <value>پیش فرض</value>
@@ -1345,13 +1287,13 @@
     <value>رمز عبور sudo سیستم</value>
   </data>
   <data name="TbSettingsLinuxSudoPasswordTip" xml:space="preserve">
-    <value>The password will be validated via the command line. If a validation error causes the application to malfunction, please restart the application. The password will not be stored and must be entered again after each restart.</value>
+    <value>رمز عبور از طریق خط فرمان اعتبارسنجی می‌شود. اگر خطای اعتبارسنجی باعث خرابی برنامه شد، برنامه را دوباره راه‌اندازی کنید. رمز عبور ذخیره نمی‌شود و پس از هر بار راه‌اندازی باید دوباره وارد شود.</value>
   </data>
   <data name="TransportHeaderType5" xml:space="preserve">
     <value>حالت xhttp</value>
   </data>
   <data name="TransportExtraTip" xml:space="preserve">
-    <value>Raw JSON, format: { XHTTP Object }</value>
+    <value>JSON خام، قالب: { XHTTP Object }</value>
   </data>
   <data name="TbSettingsHide2TrayWhenClose" xml:space="preserve">
     <value>هنگام بستن پنجره در سینی پنهان شوید</value>
@@ -1402,10 +1344,10 @@
     <value>URL آزمایش اطلاعات اتصال فعلی</value>
   </data>
   <data name="TbRuleOutboundTagTip" xml:space="preserve">
-    <value>Can fill in the configuration remarks, please make sure it exist and are unique</value>
+    <value>می‌توانید نام پیکربندی را وارد کنید؛ مطمئن شوید وجود دارد و یکتاست</value>
   </data>
   <data name="SudoIncorrectPasswordTip" xml:space="preserve">
-    <value>Incorrect password, please try again.</value>
+    <value>رمز عبور نادرست است، دوباره تلاش کنید.</value>
   </data>
   <data name="TbMldsa65Verify" xml:space="preserve">
     <value>Mldsa65Verify</value>
@@ -1414,112 +1356,112 @@
     <value>Add [Anytls] Configuration</value>
   </data>
   <data name="TbRemoteDNS" xml:space="preserve">
-    <value>Remote DNS</value>
+    <value>DNS راه دور</value>
   </data>
   <data name="TbDomesticDNS" xml:space="preserve">
-    <value>Domestic DNS</value>
+    <value>DNS داخلی</value>
   </data>
   <data name="TbDirectResolveStrategy" xml:space="preserve">
-    <value>Direct Target Resolution Strategy</value>
+    <value>استراتژی حل مقصد مستقیم</value>
   </data>
   <data name="TbRemoteResolveStrategy" xml:space="preserve">
-    <value>Proxy Target Resolution Strategy</value>
+    <value>استراتژی حل مقصد پراکسی</value>
   </data>
   <data name="TbAddCommonDNSHosts" xml:space="preserve">
-    <value>Add Common DNS Hosts</value>
+    <value>افزودن هاست‌های DNS رایج</value>
   </data>
   <data name="TbFakeIP" xml:space="preserve">
     <value>FakeIP</value>
   </data>
   <data name="TbBlockSVCBHTTPSQueries" xml:space="preserve">
-    <value>Block SVCB and HTTPS Queries</value>
+    <value>مسدودسازی درخواست‌های SVCB و HTTPS</value>
   </data>
   <data name="TbDNSHostsConfig" xml:space="preserve">
-    <value>DNS Hosts: ("domain1 ip1 ip2" per line)</value>
+    <value>هاست‌های DNS: (در هر خط "دامنه ip1 ip2")</value>
   </data>
   <data name="ThBasicDNSSettings" xml:space="preserve">
-    <value>Basic DNS Settings</value>
+    <value>تنظیمات پایه DNS</value>
   </data>
   <data name="ThAdvancedDNSSettings" xml:space="preserve">
-    <value>Advanced DNS Settings</value>
+    <value>تنظیمات پیشرفته DNS</value>
   </data>
   <data name="TbValidateDirectExpectedIPs" xml:space="preserve">
-    <value>Validate Regional Domain IPs</value>
+    <value>اعتبارسنجی IP دامنه‌های منطقه‌ای</value>
   </data>
   <data name="TbValidateDirectExpectedIPsDesc" xml:space="preserve">
-    <value>When configured, validates IPs returned for regional domains (e.g., geosite:cn - geoip:cn), returning only expected IPs</value>
+    <value>در صورت تنظیم، IPهای برگشتی برای دامنه‌های منطقه‌ای (مانند geosite:cn و geoip:cn) اعتبارسنجی می‌شود و فقط IPهای مورد انتظار پذیرفته می‌شوند</value>
   </data>
   <data name="TbCustomDNSEnable" xml:space="preserve">
-    <value>Enable Custom DNS</value>
+    <value>فعال‌سازی DNS سفارشی</value>
   </data>
   <data name="TbCustomDNSEnabledPageInvalid" xml:space="preserve">
-    <value>Custom DNS Enabled, This Page's Settings Invalid</value>
+    <value>DNS سفارشی فعال است؛ تنظیمات این صفحه بی‌اثرند</value>
   </data>
   <data name="TbBlockSVCBHTTPSQueriesTips" xml:space="preserve">
-    <value>Block ECH and HTTP/3 availability checks when enabled</value>
+    <value>در صورت فعال‌سازی، بررسی‌های در دسترس بودن ECH و HTTP/3 مسدود می‌شود</value>
   </data>
   <data name="FillCorrectConfigTemplateText" xml:space="preserve">
-    <value>Please fill in the correct config template</value>
+    <value>لطفاً قالب پیکربندی صحیح را وارد کنید</value>
   </data>
   <data name="menuFullConfigTemplate" xml:space="preserve">
-    <value>Full Config Template Setting</value>
+    <value>تنظیم قالب پیکربندی کامل</value>
   </data>
   <data name="TbFullConfigTemplateEnable" xml:space="preserve">
-    <value>Enable Full Config Template</value>
+    <value>فعال‌سازی قالب پیکربندی کامل</value>
   </data>
   <data name="TbRayFullConfigTemplate" xml:space="preserve">
-    <value>v2ray Full Config Template</value>
+    <value>قالب پیکربندی کامل v2ray</value>
   </data>
   <data name="TbRayFullConfigTemplateDesc" xml:space="preserve">
-    <value>Add Outbound Config Only, routing.balancers and routing.rules.outboundTag, Click to view the document</value>
+    <value>فقط افزودن Outbound، routing.balancers و routing.rules.outboundTag؛ برای مشاهده مستندات کلیک کنید</value>
   </data>
   <data name="TbAddProxyProtocolOutboundOnly" xml:space="preserve">
-    <value>Do Not Add Non-Proxy Protocol Outbound</value>
+    <value>افزودن نکردن Outbound غیرپروکسی</value>
   </data>
   <data name="TbSetUpstreamProxyDetour" xml:space="preserve">
-    <value>Set Upstream Proxy Tag</value>
+    <value>تنظیم تگ پراکسی بالادست</value>
   </data>
   <data name="TbSBFullConfigTemplate" xml:space="preserve">
-    <value>sing-box Full Config Template</value>
+    <value>قالب پیکربندی کامل sing-box</value>
   </data>
   <data name="TbSBFullConfigTemplateDesc" xml:space="preserve">
-    <value>Add Outbound and Endpoint Config Only, Click to view the document</value>
+    <value>فقط افزودن پیکربندی Outbound و Endpoint؛ برای مشاهده مستندات کلیک کنید</value>
   </data>
   <data name="TbFullConfigTemplateDesc" xml:space="preserve">
-    <value>This feature is intended for advanced users and those with special requirements. Once enabled, it will ignore the Core's basic settings, DNS settings, and routing settings. You must ensure that the system proxy port, traffic statistics, and other related configurations are set correctly — everything will be configured by you.</value>
+    <value>این قابلیت برای کاربران پیشرفته و نیازهای خاص است. پس از فعال‌سازی، تنظیمات پایه هسته، DNS و مسیریابی نادیده گرفته می‌شود. باید مطمئن شوید پورت پروکسی سیستم، آمار ترافیک و سایر پیکربندی‌های مرتبط را درست تنظیم کرده‌اید — همه‌چیز بر عهده خودتان خواهد بود.</value>
   </data>
   <data name="MsgStartParsingSubscription" xml:space="preserve">
-    <value>Start parsing and processing subscription content</value>
+    <value>شروع پردازش محتوای اشتراک</value>
   </data>
   <data name="TbSelectProfile" xml:space="preserve">
-    <value>Select Profile</value>
+    <value>انتخاب پروفایل</value>
   </data>
   <data name="TbFakeIPTips" xml:space="preserve">
-    <value>Applies globally by default, and built-in FakeIP filtering is only built into sing-box.</value>
+    <value>به‌صورت پیش‌فرض سراسری اعمال می‌شود و فیلتر FakeIP داخلی فقط در sing-box وجود دارد.</value>
   </data>
   <data name="PleaseAddAtLeastOneServer" xml:space="preserve">
-    <value>Please Add At Least One Configuration</value>
+    <value>لطفاً حداقل یک پیکربندی اضافه کنید</value>
   </data>
   <data name="TbConfigTypePolicyGroup" xml:space="preserve">
-    <value>Policy Group</value>
+    <value>گروه سیاست</value>
   </data>
   <data name="TbConfigTypeProxyChain" xml:space="preserve">
-    <value>Proxy Chain</value>
+    <value>زنجیره پراکسی</value>
   </data>
   <data name="TbLeastPing" xml:space="preserve">
-    <value>Lowest Latency</value>
+    <value>کم‌ترین تأخیر</value>
   </data>
   <data name="TbRandom" xml:space="preserve">
-    <value>Random</value>
+    <value>تصادفی</value>
   </data>
   <data name="TbRoundRobin" xml:space="preserve">
-    <value>Round Robin</value>
+    <value>نوبتی</value>
   </data>
   <data name="TbLeastLoad" xml:space="preserve">
-    <value>Most Stable</value>
+    <value>پایدارترین</value>
   </data>
   <data name="TbPolicyGroupType" xml:space="preserve">
-    <value>Policy Group Type</value>
+    <value>نوع گروه سیاست</value>
   </data>
   <data name="menuAddPolicyGroupServer" xml:space="preserve">
     <value>Add Policy Group Configuration</value>
@@ -1534,49 +1476,49 @@
     <value>Remove Child Configuration</value>
   </data>
   <data name="menuServerList" xml:space="preserve">
-    <value>Configuration item 1, Auto add from subscription group</value>
+    <value>پیکربندی ۱؛ افزودن خودکار از گروه اشتراک</value>
   </data>
   <data name="TbFallback" xml:space="preserve">
-    <value>Fallback</value>
+    <value>پشتیبان (Fallback)</value>
   </data>
   <data name="MsgCoreNotSupportNetwork" xml:space="preserve">
-    <value>Core '{0}' does not support network type '{1}'</value>
+    <value>هسته '{0}' از نوع شبکه '{1}' پشتیبانی نمی‌کند</value>
   </data>
   <data name="MsgCoreNotSupportProtocolTransport" xml:space="preserve">
-    <value>Core '{0}' does not support protocol '{1}' when using transport '{2}'</value>
+    <value>هسته '{0}' از پروتکل '{1}' با ترنسپورت '{2}' پشتیبانی نمی‌کند</value>
   </data>
   <data name="MsgCoreNotSupportProtocol" xml:space="preserve">
-    <value>Core '{0}' does not support protocol '{1}'</value>
+    <value>هسته '{0}' از پروتکل '{1}' پشتیبانی نمی‌کند</value>
   </data>
   <data name="MsgInvalidProperty" xml:space="preserve">
-    <value>The {0} property is invalid, please check</value>
+    <value>ویژگی {0} نامعتبر است، لطفاً بررسی کنید</value>
   </data>
   <data name="MsgNotSupportProtocol" xml:space="preserve">
-    <value>Not support protocol '{0}'</value>
+    <value>پروتکل '{0}' پشتیبانی نمی‌شود</value>
   </data>
   <data name="TbSettingsHide2TrayWhenCloseTip" xml:space="preserve">
-    <value>If the system does not have a tray function, please do not enable it</value>
+    <value>اگر سیستم شما سینی سیستم (Tray) ندارد، این گزینه را فعال نکنید</value>
   </data>
   <data name="TbRuleType" xml:space="preserve">
-    <value>Rule Type</value>
+    <value>نوع قانون</value>
   </data>
   <data name="TbRuleTypeTips" xml:space="preserve">
-    <value>You can set separate rules for Routing and DNS, or select "ALL" to apply to both</value>
+    <value>می‌توانید قوانین جداگانه برای مسیریابی و DNS تعیین کنید یا "ALL" را برای اعمال روی هر دو انتخاب کنید</value>
   </data>
   <data name="TbBootstrapDNS" xml:space="preserve">
-    <value>Bootstrap DNS</value>
+    <value>DNS اولیه</value>
   </data>
   <data name="TbBootstrapDNSTips" xml:space="preserve">
-    <value>Resolve DNS server domains, requires IP</value>
+    <value>حل دامنه سرورهای DNS؛ به IP نیاز دارد</value>
   </data>
   <data name="menuFastRealPing" xml:space="preserve">
-    <value>Test real delay</value>
+    <value>آزمون تأخیر واقعی</value>
   </data>
   <data name="TbPolicyGroupSubChildTip" xml:space="preserve">
-    <value>Auto add filtered configuration from subscription groups</value>
+    <value>افزودن خودکار پیکربندی‌های فیلترشده از گروه‌های اشتراک</value>
   </data>
   <data name="TbCertPinning" xml:space="preserve">
-    <value>Certificate Pinning</value>
+    <value>سنجاق گواهی (Pinning)</value>
   </data>
   <data name="TbCertPinningTips" xml:space="preserve">
     <value>Server Certificate (PEM format, optional)
@@ -1585,112 +1527,112 @@ When specified, the certificate will be pinned, and "Allow Insecure" will be dis
 The "Get Certificate" action may fail if a self-signed certificate is used or if the system contains an untrusted or malicious CA.</value>
   </data>
   <data name="TbFetchCert" xml:space="preserve">
-    <value>Fetch Certificate</value>
+    <value>دریافت گواهی</value>
   </data>
   <data name="TbFetchCertChain" xml:space="preserve">
-    <value>Fetch Certificate Chain</value>
+    <value>دریافت زنجیره گواهی</value>
   </data>
   <data name="ServerNameMustBeValidDomain" xml:space="preserve">
-    <value>Please set a valid domain</value>
+    <value>لطفاً یک دامنه معتبر تنظیم کنید</value>
   </data>
   <data name="CertNotSet" xml:space="preserve">
-    <value>Certificate not set</value>
+    <value>گواهی تنظیم نشده است</value>
   </data>
   <data name="CertSet" xml:space="preserve">
-    <value>Certificate set</value>
+    <value>گواهی تنظیم شده است</value>
   </data>
   <data name="TbSettingsCustomSystemProxyPacPath" xml:space="preserve">
-    <value>Custom PAC file path</value>
+    <value>مسیر فایل PAC سفارشی</value>
   </data>
   <data name="TbSettingsCustomSystemProxyScriptPath" xml:space="preserve">
-    <value>Custom system proxy script file path</value>
+    <value>مسیر فایل اسکریپت پروکسی سیستم سفارشی</value>
   </data>
   <data name="TbSettingsMacOSShowInDock" xml:space="preserve">
-    <value>macOS displays this in the Dock (requires restart)</value>
+    <value>نمایش در Dock مک (نیازمند راه‌اندازی مجدد)</value>
   </data>
   <data name="menuServerList2" xml:space="preserve">
-    <value>Configuration Item 2, Select and add from self-built</value>
+    <value>پیکربندی ۲؛ انتخاب و افزودن از موارد دستی</value>
   </data>
   <data name="TbEchConfigList" xml:space="preserve">
     <value>EchConfigList</value>
   </data>
   <data name="TbFullCertTips" xml:space="preserve">
-    <value>Full certificate (chain), PEM format</value>
+    <value>گواهی کامل (زنجیره)، قالب PEM</value>
   </data>
   <data name="TbCertSha256Tips" xml:space="preserve">
-    <value>Certificate fingerprint (SHA-256)</value>
+    <value>اثر انگشت گواهی (SHA-256)</value>
   </data>
   <data name="TbServeStale" xml:space="preserve">
-    <value>Serve Stale</value>
+    <value>پاسخ از داده قدیمی (Serve Stale)</value>
   </data>
   <data name="TbParallelQuery" xml:space="preserve">
-    <value>Parallel Query</value>
+    <value>پرس‌وجوی موازی</value>
   </data>
   <data name="TbDomesticDNSTips" xml:space="preserve">
-    <value>By default, invoked only during routing for resolution</value>
+    <value>به‌صورت پیش‌فرض فقط هنگام مسیریابی برای حل نام فراخوانی می‌شود</value>
   </data>
   <data name="TbRemoteDNSTips" xml:space="preserve">
-    <value>By default, invoked only during routing for resolution; ensure the remote server can reach this DNS</value>
+    <value>به‌صورت پیش‌فرض فقط هنگام مسیریابی برای حل نام فراخوانی می‌شود؛ مطمئن شوید سرور راه دور به این DNS دسترسی دارد</value>
   </data>
   <data name="TbDirectResolveStrategyTips" xml:space="preserve">
-    <value>If unset or "AsIs", DNS resolution uses the system DNS; otherwise, the internal DNS module is used.</value>
+    <value>در صورت خالی بودن یا "AsIs"، حل DNS با DNS سیستم انجام می‌شود؛ در غیر این صورت از ماژول DNS داخلی استفاده می‌شود.</value>
   </data>
   <data name="TbRemoteResolveStrategyTips" xml:space="preserve">
-    <value>If unset or "AsIs", DNS resolution is performed by the remote server's DNS; otherwise, the internal DNS module is used.</value>
+    <value>در صورت خالی بودن یا "AsIs"، حل DNS توسط DNS سرور راه دور انجام می‌شود؛ در غیر این صورت از ماژول DNS داخلی استفاده می‌شود.</value>
   </data>
   <data name="TbHopInt7" xml:space="preserve">
-    <value>Port hopping interval</value>
+    <value>فاصله پرش پورت</value>
   </data>
   <data name="menuServerListPreview" xml:space="preserve">
-    <value>Configuration item preview</value>
+    <value>پیش‌نمایش پیکربندی</value>
   </data>
   <data name="TbFinalmask" xml:space="preserve">
     <value>Finalmask</value>
   </data>
   <data name="MsgRoutingRuleOutboundNodeWarning" xml:space="preserve">
-    <value>Routing rule {0} outbound node {1} warning: {2}</value>
+    <value>قانون مسیریابی {0}؛ گره خروجی {1} هشدار: {2}</value>
   </data>
   <data name="MsgRoutingRuleOutboundNodeError" xml:space="preserve">
-    <value>Routing rule {0} outbound node {1} error: {2}. Fallback to proxy node only.</value>
+    <value>قانون مسیریابی {0}؛ گره خروجی {1} خطا: {2}. فقط به گره پراکسی برمی‌گردد.</value>
   </data>
   <data name="MsgGroupCycleDependency" xml:space="preserve">
-    <value>Group {0} has a cycle dependency on child node {1}. Skipping this node.</value>
+    <value>گروه {0} وابستگی حلقوی با گره فرزند {1} دارد. این گره نادیده گرفته می‌شود.</value>
   </data>
   <data name="MsgGroupChildNodeWarning" xml:space="preserve">
-    <value>Group {0} child node {1} warning: {2}</value>
+    <value>گروه {0}؛ گره فرزند {1} هشدار: {2}</value>
   </data>
   <data name="MsgGroupChildNodeError" xml:space="preserve">
-    <value>Group {0} child node {1} error: {2}. Skipping this node.</value>
+    <value>گروه {0}؛ گره فرزند {1} خطا: {2}. این گره نادیده گرفته می‌شود.</value>
   </data>
   <data name="MsgGroupChildGroupNodeWarning" xml:space="preserve">
-    <value>Group {0} child group node {1} warning: {2}</value>
+    <value>گروه {0}؛ گره گروه فرزند {1} هشدار: {2}</value>
   </data>
   <data name="MsgGroupChildGroupNodeError" xml:space="preserve">
-    <value>Group {0} child group node {1} error: {2}. Skipping this node.</value>
+    <value>گروه {0}؛ گره گروه فرزند {1} خطا: {2}. این گره نادیده گرفته می‌شود.</value>
   </data>
   <data name="MsgGroupNoValidChildNode" xml:space="preserve">
-    <value>Group {0} has no valid child node.</value>
+    <value>گروه {0} هیچ گره فرزند معتبری ندارد.</value>
   </data>
   <data name="MsgRoutingRuleEmptyOutboundTag" xml:space="preserve">
-    <value>Routing rule {0} has an empty outbound tag. Fallback to proxy node only.</value>
+    <value>قانون مسیریابی {0} تگ خروجی خالی دارد. فقط به گره پراکسی برمی‌گردد.</value>
   </data>
   <data name="MsgRoutingRuleOutboundNodeNotFound" xml:space="preserve">
-    <value>Routing rule {0} outbound node {1} not found. Fallback to proxy node only.</value>
+    <value>گره خروجی {1} در قانون مسیریابی {0} یافت نشد. فقط به گره پراکسی برمی‌گردد.</value>
   </data>
   <data name="MsgSubscriptionPrevProfileNotFound" xml:space="preserve">
-    <value>Subscription previous proxy {0} not found. Skipping.</value>
+    <value>پراکسی قبلی اشتراک {0} یافت نشد. نادیده گرفته می‌شود.</value>
   </data>
   <data name="MsgSubscriptionNextProfileNotFound" xml:space="preserve">
-    <value>Subscription next proxy {0} not found. Skipping.</value>
+    <value>پراکسی بعدی اشتراک {0} یافت نشد. نادیده گرفته می‌شود.</value>
   </data>
   <data name="menuGenGroupServer" xml:space="preserve">
-    <value>Generate Policy Group</value>
+    <value>ساخت گروه سیاست</value>
   </data>
   <data name="menuAllServers" xml:space="preserve">
-    <value>All configurations</value>
+    <value>همه پیکربندی‌ها</value>
   </data>
   <data name="menuGenRegionGroup" xml:space="preserve">
-    <value>Group by Region</value>
+    <value>گروه‌بندی بر اساس منطقه</value>
   </data>
   <data name="menuEditCopy" xml:space="preserve">
     <value>کپی</value>
@@ -1699,10 +1641,10 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>انتخاب همه</value>
   </data>
   <data name="menuEditPaste" xml:space="preserve">
-    <value>Paste</value>
+    <value>چسباندن</value>
   </data>
   <data name="menuEditFormat" xml:space="preserve">
-    <value>Format</value>
+    <value>قالب‌بندی</value>
   </data>
   <data name="TbUot" xml:space="preserve">
     <value>UDP over TCP</value>
@@ -1711,46 +1653,46 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>Add NaïveProxy</value>
   </data>
   <data name="TbInsecureConcurrency" xml:space="preserve">
-    <value>Insecure Concurrency</value>
+    <value>همزمانی ناامن</value>
   </data>
   <data name="TbUsername" xml:space="preserve">
-    <value>Username</value>
+    <value>نام کاربری</value>
   </data>
   <data name="TbIcmpRoutingPolicy" xml:space="preserve">
-    <value>ICMP routing policy</value>
+    <value>سیاست مسیریابی ICMP</value>
   </data>
   <data name="TbLegacyProtect" xml:space="preserve">
-    <value>Legacy TUN Protect</value>
+    <value>محافظت TUN قدیمی</value>
   </data>
   <data name="TbCamouflageDomain" xml:space="preserve">
-    <value>Camouflage domain</value>
+    <value>دامنه استتار</value>
   </data>
   <data name="TbHost" xml:space="preserve">
-    <value>Host</value>
+    <value>هاست</value>
   </data>
   <data name="TransportExtra" xml:space="preserve">
-    <value>XHTTP Extra</value>
+    <value>XHTTP اضافی</value>
   </data>
   <data name="menuUdpTestServer" xml:space="preserve">
-    <value>Test Configurations UDP Delay</value>
+    <value>آزمون تأخیر UDP پیکربندی‌ها</value>
   </data>
   <data name="TbSettingsUdpTestUrl" xml:space="preserve">
-    <value>UDP Test Url</value>
+    <value>آدرس آزمون UDP</value>
   </data>
   <data name="TbSettingsSendThrough" xml:space="preserve">
-    <value>Local outbound address (SendThrough)</value>
+    <value>آدرس خروجی محلی (SendThrough)</value>
   </data>
   <data name="TbSettingsSendThroughTip" xml:space="preserve">
-    <value>For multi-interface environments, enter the local machine's IPv4 address</value>
+    <value>در محیط‌های چند کارت شبکه، آدرس IPv4 دستگاه محلی را وارد کنید</value>
   </data>
   <data name="TbSettingsBindInterface" xml:space="preserve">
-    <value>Bind Interface</value>
+    <value>اتصال به رابط شبکه</value>
   </data>
   <data name="TbSettingsBindInterfaceTip" xml:space="preserve">
     <value>For multi-interface environments, enter the name of the interface to bind. Only effective on Windows systems or TUN mode</value>
   </data>
   <data name="TbPreSharedKey" xml:space="preserve">
-    <value>PreSharedKey</value>
+    <value>کلید مشترک (PreSharedKey)</value>
   </data>
   <data name="menuExport2InnerUri" xml:space="preserve">
     <value>کپی پیوند داخلی DicodePing در کلیپ‌بورد</value>

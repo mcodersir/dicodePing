@@ -345,6 +345,17 @@ public partial class ProfilesViewModel : MyReactiveObject
                 // Every successful row is already updated and persisted live.
                 // Rebuilding the collection here caused the whole grid to flash.
                 await ProfileExManager.Instance.SaveTo();
+
+                // End the shimmer on every row; rows that never produced a
+                // numeric result fall back to the neutral placeholder.
+                foreach (var item in ProfileItems.Where(t => t.IsTesting))
+                {
+                    item.IsTesting = false;
+                    if (item.DelayVal == ResUI.DicodeChecking)
+                    {
+                        item.DelayVal = "--";
+                    }
+                }
             }
             return;
         }
@@ -361,6 +372,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.Delay = parsedDelay;
             item.DelayVal = result.Delay ?? string.Empty;
+            item.IsTesting = false;
         }
         if (result.Speed.IsNotEmpty()
             && decimal.TryParse(result.Speed, out var parsedSpeed)
@@ -951,8 +963,14 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         if (!await _speedtestLock.WaitAsync(0))
         {
-            NoticeManager.Instance.Enqueue(ResUI.DicodeTestAlreadyRunning);
-            return;
+            // A previous test is still running: supersede it instead of refusing
+            // the user's action. The stale loop exits and this new test takes over.
+            ServerSpeedtestStop();
+            if (!await _speedtestLock.WaitAsync(TimeSpan.FromSeconds(30)))
+            {
+                NoticeManager.Instance.Enqueue(ResUI.DicodeTestAlreadyRunning);
+                return;
+            }
         }
 
         try
@@ -985,6 +1003,10 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
+        // Wipe stale measurements and switch affected rows to the shimmer
+        // placeholder, so the grid always reflects the freshly started test.
+        await ResetTestVisualStateAsync(lstSelected);
+
         _speedtestService ??= new SpeedtestService(_config, async (SpeedTestResult result) =>
         {
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1013,6 +1035,27 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             _speedtestLock.Release();
         }
+    }
+
+    private async Task ResetTestVisualStateAsync(List<ProfileItem> selected)
+    {
+        var selectedIds = selected
+            .Where(t => t.IndexId.IsNotEmpty())
+            .Select(t => t.IndexId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        RxSchedulers.MainThreadScheduler.Schedule(() =>
+        {
+            foreach (var item in ProfileItems.Where(t => selectedIds.Contains(t.IndexId)))
+            {
+                item.IsTesting = true;
+                item.DelayVal = ResUI.DicodeChecking;
+                item.SpeedVal = string.Empty;
+                item.IpInfo = string.Empty;
+                item.SanctionsInfo = string.Empty;
+            }
+        });
+        await Task.CompletedTask;
     }
 
     public void ServerSpeedtestStop()

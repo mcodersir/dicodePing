@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.2 (pre-release)
+
+- Redesign the desktop navigation rail with minimal single-stroke line icons; it renders on the visual right in Persian (RTL) and the visual left in English (LTR), because window flow direction now follows the selected language instead of forcing RTL everywhere.
+- Translate the remaining 116 English-only UI strings (DNS pages, routing rules, policy groups, transport/security fields, proxy-chain messages) to Persian in `ResUI.fa.resx`.
+- Latency testing no longer refuses work while a previous test is running: the stale loop is superseded automatically, stale delay/location/sanctions values are cleared up front, and rows pulse with a shimmer placeholder until a numeric result arrives.
+- Remove false "update available" prompts: unparseable remote tags (alpha releases such as `v1.15.0-alpha.10`) are no longer reported as updates, and the periodic check stays completely silent when everything is already current.
+- Android now targets the stable Android 16 (`targetSdk 36`), fixing installer complaints that the app "was designed for an older Android" on stable devices; Android versionCode 400201, desktop FileVersion 4.0.2.1.
+
 ## 4.0.1 (pre-release)
 
 - Bump desktop and Android display versions to 4.0.1, with desktop FileVersion 4.0.1.1 and Android versionCode 400101.

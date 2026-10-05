@@ -162,6 +162,24 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
     #region Event
 
+    private void Nav_Checked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string page })
+        {
+            ShowPage(page);
+        }
+    }
+
+    private void ShowPage(string page)
+    {
+        pageHome.IsVisible = page == "home";
+        pageProfiles.IsVisible = page == "profiles";
+        pageProxies.IsVisible = page == "proxies";
+        pageSettings.IsVisible = page == "settings";
+        pageReports.IsVisible = page == "reports";
+        pageAbout.IsVisible = page == "about";
+    }
+
     private void OnProgramStarted(object state, bool timeout)
     {
         Dispatcher.UIThread.Post(() =>

@@ -137,15 +137,18 @@ public class TaskManager
         var updateService = new UpdateService(_config, async (success, msg) => await Task.CompletedTask);
 
         var msgs = await updateService.CheckHasUpdateOnlyAll(_config.CheckUpdateItem.CheckPreReleaseUpdate);
+        if (msgs.Count == 0)
+        {
+            // Everything is already on the latest usable release: stay silent
+            // and never light up the update affordance inside the app.
+            return;
+        }
+
         foreach (var msg in msgs)
         {
             await _updateFunc?.Invoke(false, msg);
         }
         NoticeManager.Instance.Enqueue(string.Join("\n", msgs));
-
-        if (msgs.Count > 0)
-        {
-            AppEvents.HasUpdateNotified.Publish(true);
-        }
+        AppEvents.HasUpdateNotified.Publish(true);
     }
 }
