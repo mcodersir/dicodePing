@@ -84,7 +84,7 @@ public class ServerPoolTests
     {
         var result = ServerPoolService.Inspect("<html>Join Telegram</html>");
         Assert.Equal(0, result.Posts);
-        Assert.Contains("دریافت نشد", result.Summary);
+        Assert.Contains("was not received", result.Summary);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class ServerPoolTests
         Assert.Equal("vless://00000000-0000-0000-0000-000000000001@new.example:443", result.Links[0]);
         Assert.Equal(1, result.Posts);
         Assert.Equal(0, result.DatedPosts);
-        Assert.Contains("تاریخ در HTML نبود", result.Summary);
+        Assert.Contains("no date in HTML", result.Summary);
     }
 
     [Fact]

@@ -1860,4 +1860,211 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>Custom config core</value>
   </data>
+
+  <data name="DicodeHome" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="DicodeProfiles" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="DicodeProxies" xml:space="preserve">
+    <value>Proxies</value>
+  </data>
+  <data name="DicodeSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="DicodeReports" xml:space="preserve">
+    <value>Reports</value>
+  </data>
+  <data name="DicodeAbout" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="DicodeServerPool" xml:space="preserve">
+    <value>Server pool</value>
+  </data>
+  <data name="DicodeDomainFilter" xml:space="preserve">
+    <value>Domain filter</value>
+  </data>
+  <data name="DicodeCheckUpdates" xml:space="preserve">
+    <value>Update DicodePing and cores</value>
+  </data>
+  <data name="DicodeAppSubtitle" xml:space="preserve">
+    <value>TUN-only secure routing for desktop and Android</value>
+  </data>
+  <data name="DicodeHomeTitle" xml:space="preserve">
+    <value>Connection center</value>
+  </data>
+  <data name="DicodeHomeSubtitle" xml:space="preserve">
+    <value>Choose a route, test it, then connect with one calm control.</value>
+  </data>
+  <data name="DicodeProfilesTitle" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="DicodeProfilesSubtitle" xml:space="preserve">
+    <value>Subscriptions and routes are kept separate so user profiles stay safe.</value>
+  </data>
+  <data name="DicodeProxiesTitle" xml:space="preserve">
+    <value>Proxies</value>
+  </data>
+  <data name="DicodeProxiesSubtitle" xml:space="preserve">
+    <value>Groups and selectable outbound routes live in their own page.</value>
+  </data>
+  <data name="DicodeSettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="DicodeSettingsSubtitle" xml:space="preserve">
+    <value>Adjust routing, DNS, domain filters, updates and backups from one place.</value>
+  </data>
+  <data name="DicodeAboutTitle" xml:space="preserve">
+    <value>About DicodePing</value>
+  </data>
+  <data name="DicodeAboutText" xml:space="preserve">
+    <value>DicodePing is an independent TUN-only client based on v2rayN and PattNG, focused on safe routing and a clean Persian/English interface.</value>
+  </data>
+  <data name="DicodeQuickActions" xml:space="preserve">
+    <value>Quick actions</value>
+  </data>
+  <data name="DicodeAddProfile" xml:space="preserve">
+    <value>Add profile</value>
+  </data>
+  <data name="DicodeRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="DicodeSmartConnect" xml:space="preserve">
+    <value>Smart connect</value>
+  </data>
+  <data name="DicodeBest" xml:space="preserve">
+    <value>Best</value>
+  </data>
+  <data name="DicodeLocationTestAll" xml:space="preserve">
+    <value>Test all server locations (beta)</value>
+  </data>
+  <data name="DicodeSecurityTestAll" xml:space="preserve">
+    <value>Test all server security (beta)</value>
+  </data>
+  <data name="DicodeSanctionsTestAll" xml:space="preserve">
+    <value>Test all sanctions access (beta)</value>
+  </data>
+  <data name="DicodeSecurityBeta" xml:space="preserve">
+    <value>Security (beta)</value>
+  </data>
+  <data name="DicodeSanctionsBeta" xml:space="preserve">
+    <value>Sanctions (beta)</value>
+  </data>
+  <data name="DicodeJoinTelegramPrompt" xml:space="preserve">
+    <value>Join the official DicodePing channel?
+https://t.me/dicodeping</value>
+  </data>
+  <data name="DicodeDomainFilterDesc" xml:space="preserve">
+    <value>Choose whether TUN should include only the listed domains or bypass them directly.</value>
+  </data>
+  <data name="DicodeDomainFilterOnly" xml:space="preserve">
+    <value>Route only these domains through TUN</value>
+  </data>
+  <data name="DicodeDomainFilterBypass" xml:space="preserve">
+    <value>Bypass TUN for these domains</value>
+  </data>
+  <data name="DicodeDomainFilterWatermark" xml:space="preserve">
+    <value>example.com — one domain per line</value>
+  </data>
+  <data name="DicodeCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DicodeSaveApply" xml:space="preserve">
+    <value>Save and apply</value>
+  </data>
+  <data name="DicodeLocationPanelTitle" xml:space="preserve">
+    <value>Server locations (beta) — run the location test from the globe button.</value>
+  </data>
+  <data name="DicodeEventLog" xml:space="preserve">
+    <value>DicodePing events</value>
+  </data>
+  <data name="DicodeTunConnect" xml:space="preserve">
+    <value>Connect TUN</value>
+  </data>
+  <data name="DicodeTunConnected" xml:space="preserve">
+    <value>Connected; click to disconnect</value>
+  </data>
+  <data name="DicodeTunDisconnected" xml:space="preserve">
+    <value>TUN disconnected</value>
+  </data>
+  <data name="DicodeTunConnectedNotice" xml:space="preserve">
+    <value>TUN connection established</value>
+  </data>
+  <data name="DicodeTunFailedNotice" xml:space="preserve">
+    <value>TUN connection failed; check the log for details</value>
+  </data>
+  <data name="DicodeConnectingSelected" xml:space="preserve">
+    <value>Connecting to the selected route...</value>
+  </data>
+  <data name="DicodeSmartTesting" xml:space="preserve">
+    <value>Testing real routes for smart connect...</value>
+  </data>
+  <data name="DicodeBestRouteConnecting" xml:space="preserve">
+    <value>Best route selected; connecting...</value>
+  </data>
+  <data name="DicodeTestAlreadyRunning" xml:space="preserve">
+    <value>A test is already running; try again after it finishes</value>
+  </data>
+  <data name="DicodeSecurityHighRiskInsecure" xml:space="preserve">
+    <value>High risk · certificate verification disabled</value>
+  </data>
+  <data name="DicodeSecuritySecure" xml:space="preserve">
+    <value>Secure · {0}</value>
+  </data>
+  <data name="DicodeSecurityHighRiskPlain" xml:space="preserve">
+    <value>High risk · no encryption</value>
+  </data>
+  <data name="DicodeSecurityMediumNoTls" xml:space="preserve">
+    <value>Medium · no TLS</value>
+  </data>
+  <data name="DicodeSecurityDone" xml:space="preserve">
+    <value>Security test completed for all server configurations</value>
+  </data>
+  <data name="DicodeChecking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+
+  <data name="DicodeRoute" xml:space="preserve">
+    <value>Route</value>
+  </data>
+  <data name="DicodeTraffic" xml:space="preserve">
+    <value>Traffic</value>
+  </data>
+  <data name="DicodeTrafficTotal" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="DicodePingLabel" xml:space="preserve">
+    <value>Ping</value>
+  </data>
+  <data name="DicodePingFailed" xml:space="preserve">
+    <value>Ping: failed</value>
+  </data>
+  <data name="DicodeNoLocation" xml:space="preserve">
+    <value>No location</value>
+  </data>
+
+  <data name="DicodeSanctionsAccessible" xml:space="preserve">
+    <value>Accessible · {0}/{1}</value>
+  </data>
+  <data name="DicodeSanctionsRestricted" xml:space="preserve">
+    <value>Restricted · {0}/{1}</value>
+  </data>
+
+  <data name="DicodeDomainList" xml:space="preserve">
+    <value>Domain list</value>
+  </data>
+  <data name="DicodeDomainFilterOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="DicodeDomainFilterBypassMode" xml:space="preserve">
+    <value>Bypass listed domains directly</value>
+  </data>
+  <data name="DicodeDomainFilterOnlyMode" xml:space="preserve">
+    <value>Use VPN only for listed domains</value>
+  </data>
+
+  <data name="DicodeGeoFileReady" xml:space="preserve">
+    <value>GeoFile is ready to download the latest official data</value>
+  </data>
 </root>

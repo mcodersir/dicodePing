@@ -118,10 +118,10 @@ public partial class StatusBarViewModel : MyReactiveObject
         SelectedRouting = new();
         SelectedServer = new();
         RunningServerToolTipText = GetRunningServerToolTipText("-");
-        ConnectionStatusText = "اتصال TUN";
-        TotalTrafficDisplay = "کل ↑ 0 KB  ↓ 0 KB";
-        PingDisplay = "پینگ: —";
-        LocationDisplay = "🏳️ —";
+        ConnectionStatusText = ResUI.DicodeTunConnect;
+        TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ 0 KB  ↓ 0 KB";
+        PingDisplay = $"{ResUI.DicodePingLabel}: —";
+        LocationDisplay = ResUI.DicodeNoLocation;
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
 
@@ -359,8 +359,8 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         var result = await Task.Run(ConnectionHandler.RunAvailabilityCheckDetailed);
         var country = result.Location?.Country;
-        PingDisplay = result.Delay > 0 ? $"پینگ: {result.Delay} ms" : "پینگ: ناموفق";
-        LocationDisplay = country.IsNotEmpty() ? $"{CountryFlag(country!)} {country}" : "🏳️ —";
+        PingDisplay = result.Delay > 0 ? $"{ResUI.DicodePingLabel}: {result.Delay} ms" : ResUI.DicodePingFailed;
+        LocationDisplay = country.IsNotEmpty() ? $"{CountryFlag(country!)} {country}" : ResUI.DicodeNoLocation;
         var msg = $"{PingDisplay} · {LocationDisplay}";
         NoticeManager.Instance.SendMessageEx(msg);
         await TestServerAvailabilitySub(string.Empty);
@@ -556,7 +556,7 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         try
         {
-            TotalTrafficDisplay = $"کل ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
+            TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
             if (AppManager.Instance.IsRunningCore(ECoreType.sing_box))
             {
                 SpeedProxyDisplay = string.Format(ResUI.SpeedDisplayText, EInboundProtocol.mixed, Utils.HumanFy(update.ProxyUp), Utils.HumanFy(update.ProxyDown));

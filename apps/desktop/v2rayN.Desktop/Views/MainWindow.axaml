@@ -8,11 +8,11 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
-    xmlns:views="clr-namespace:v2rayN.Desktop.Views"
     Title="DicodePing"
     Width="1200"
     Height="800"
-    MinWidth="600"
+    MinWidth="720"
+    MinHeight="560"
     x:DataType="vms:MainWindowViewModel"
     Design.DataContext="{x:Static dd:DesignData.MainWindow}"
     Icon="/Assets/DicodePing.ico"
@@ -21,95 +21,157 @@
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
-        <DockPanel Background="{DynamicResource DicodePageBackground}">
-            <Border Margin="12,12,12,8" Padding="6" Classes="DicodeCard" DockPanel.Dock="Top">
-              <DockPanel>
-                <ContentControl x:Name="conTheme" DockPanel.Dock="Right" />
-                <Menu Margin="{StaticResource Margin4}">
-                    <MenuItem Header="استخر سرورها" Click="OpenServerPool" />
-                    <MenuItem Header="{x:Static resx:ResUI.menuServers}">
-                        <MenuItem
-                            x:Name="menuAddServerViaClipboard"
-                            Header="{x:Static resx:ResUI.menuAddServerViaClipboard}"
-                            InputGesture="Ctrl+V" />
-                        <MenuItem
-                            x:Name="menuAddServerViaScan"
-                            Header="{x:Static resx:ResUI.menuAddServerViaScan}"
-                            InputGesture="Ctrl+S" />
-                        <MenuItem x:Name="menuAddServerViaImage" Header="{x:Static resx:ResUI.menuAddServerViaImage}" />
-                        <Separator />
-                        <MenuItem x:Name="menuAddCustomServer" Header="{x:Static resx:ResUI.menuAddCustomServer}" />
-                        <MenuItem x:Name="menuAddPolicyGroupServer" Header="{x:Static resx:ResUI.menuAddPolicyGroupServer}" />
-                        <MenuItem x:Name="menuAddProxyChainServer" Header="{x:Static resx:ResUI.menuAddProxyChainServer}" />
-                        <MenuItem x:Name="menuAddCustomOutboundServer" Header="{x:Static resx:ResUI.menuAddCustomOutboundServer}" />
-                        <Separator />
-                        <MenuItem x:Name="menuAddVmessServer" Header="{x:Static resx:ResUI.menuAddVmessServer}" />
-                        <MenuItem x:Name="menuAddVlessServer" Header="{x:Static resx:ResUI.menuAddVlessServer}" />
-                        <MenuItem x:Name="menuAddShadowsocksServer" Header="{x:Static resx:ResUI.menuAddShadowsocksServer}" />
-                        <MenuItem x:Name="menuAddTrojanServer" Header="{x:Static resx:ResUI.menuAddTrojanServer}" />
-                        <MenuItem x:Name="menuAddHysteria2Server" Header="{x:Static resx:ResUI.menuAddHysteria2Server}" />
-                        <MenuItem x:Name="menuAddWireguardServer" Header="{x:Static resx:ResUI.menuAddWireguardServer}" />
-                        <MenuItem x:Name="menuAddSocksServer" Header="{x:Static resx:ResUI.menuAddSocksServer}" />
-                        <MenuItem x:Name="menuAddHttpServer" Header="{x:Static resx:ResUI.menuAddHttpServer}" />
-                        <Separator />
-                        <MenuItem x:Name="menuAddTuicServer" Header="{x:Static resx:ResUI.menuAddTuicServer}" />
-                        <MenuItem x:Name="menuAddAnytlsServer" Header="{x:Static resx:ResUI.menuAddAnytlsServer}" />
-                        <MenuItem x:Name="menuAddNaiveServer" Header="{x:Static resx:ResUI.menuAddNaiveServer}" />
-                    </MenuItem>
+        <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
+                        <StackPanel Spacing="0">
+                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="DicodePing" />
+                            <TextBlock FontSize="12" Opacity="0.72" Text="{x:Static resx:ResUI.DicodeAppSubtitle}" />
+                        </StackPanel>
+                    </StackPanel>
 
-                    <MenuItem Header="{x:Static resx:ResUI.menuSubscription}">
-                        <MenuItem x:Name="menuSubUpdate" Header="{x:Static resx:ResUI.menuSubUpdate}" />
-                    </MenuItem>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="8">
+                        <Button Content="{x:Static resx:ResUI.DicodeServerPool}" Click="OpenServerPool" />
+                        <Button Content="{x:Static resx:ResUI.DicodeSmartConnect}" Command="{Binding ProfilesViewModel.ConnectBestCmd}" />
+                        <Button Content="{x:Static resx:ResUI.DicodeRefresh}" Command="{Binding ReloadCmd}" />
+                    </StackPanel>
 
-                    <MenuItem Header="{x:Static resx:ResUI.menuSetting}">
-                        <MenuItem x:Name="menuOptionSetting" Header="{x:Static resx:ResUI.menuOptionSetting}" />
-                        <MenuItem x:Name="menuRoutingSetting" Header="{x:Static resx:ResUI.menuRoutingSetting}" />
-                        <MenuItem x:Name="menuDomainFilterSetting" Header="فیلتر دامنه" />
-                        <MenuItem x:Name="menuDNSSetting" Header="{x:Static resx:ResUI.menuDNSSetting}" />
-                        <MenuItem x:Name="menuFullConfigTemplate" Header="{x:Static resx:ResUI.menuFullConfigTemplate}" IsVisible="False" />
-                        <MenuItem
-                            x:Name="menuGlobalHotkeySetting"
-                            Header="{x:Static resx:ResUI.menuGlobalHotkeySetting}"
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="btnNewUpdate"
+                            Content="{x:Static resx:ResUI.menuNewUpdate}"
                             IsVisible="False" />
-                        <Separator />
-                        <MenuItem
-                            x:Name="menuRebootAsAdmin"
-                            Header="{x:Static resx:ResUI.menuRebootAsAdmin}"
-                            IsVisible="{Binding BlIsWindows}" />
-                        <MenuItem
-                            x:Name="menuSettingsSetUWP"
-                            Header="{x:Static resx:ResUI.TbSettingsSetUWP}"
-                            IsVisible="False" />
-                        <MenuItem x:Name="menuClearServerStatistics" Header="{x:Static resx:ResUI.menuClearServerStatistics}" />
-                        <MenuItem x:Name="menuViewLog" Header="مشاهده گزارش‌ها" />
-                        <MenuItem x:Name="menuCheckUpdate" Header="بروزرسانی DicodePing و هسته‌ها" />
-                        <Separator />
-                        <MenuItem Header="{x:Static resx:ResUI.menuRegionalPresets}">
-                            <MenuItem x:Name="menuRegionalPresetsDefault" Header="{x:Static resx:ResUI.menuRegionalPresetsDefault}" />
-                            <MenuItem x:Name="menuRegionalPresetsRussia" Header="{x:Static resx:ResUI.menuRegionalPresetsRussia}" IsVisible="False" />
-                            <MenuItem x:Name="menuRegionalPresetsIran" Header="{x:Static resx:ResUI.menuRegionalPresetsIran}" />
-                        </MenuItem>
-                        <MenuItem x:Name="menuBackupAndRestore" Header="{x:Static resx:ResUI.menuBackupAndRestore}" />
-                        <MenuItem x:Name="menuOpenTheFileLocation" Header="{x:Static resx:ResUI.menuOpenTheFileLocation}" />
-                    </MenuItem>
-
-                    <MenuItem x:Name="menuReload" Header="{x:Static resx:ResUI.menuReload}" />
-
-                    <MenuItem x:Name="menuClose" Header="{x:Static resx:ResUI.menuExit}" />
-                </Menu>
-
-                <Button
-                    x:Name="btnNewUpdate"
-                    Margin="{StaticResource MarginLr8}"
-                    HorizontalAlignment="Left"
-                    Content="{x:Static resx:ResUI.menuNewUpdate}"
-                    IsVisible="False" />
-              </DockPanel>
+                        <ContentControl x:Name="conTheme" />
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <ContentControl x:Name="contentStatusBarView" DockPanel.Dock="Bottom" />
+            <TabControl Grid.Row="1" Margin="16,0,16,16" TabStripPlacement="Right">
+                <TabItem Header="{x:Static resx:ResUI.DicodeHome}">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                        <Border Padding="18" Classes="DicodeCard">
+                            <StackPanel Spacing="6">
+                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
+                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <ContentControl x:Name="contentStatusBarView" Grid.Row="1" />
+                    </Grid>
+                </TabItem>
 
-            <ContentControl x:Name="tabProfiles" />
-        </DockPanel>
+                <TabItem Header="{x:Static resx:ResUI.DicodeProfiles}">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                        <Border Padding="18" Classes="DicodeCard">
+                            <StackPanel Spacing="6">
+                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProfilesTitle}" />
+                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProfilesSubtitle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <ContentControl x:Name="tabProfiles" Grid.Row="1" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="{x:Static resx:ResUI.DicodeProxies}">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                        <Border Padding="18" Classes="DicodeCard">
+                            <StackPanel Spacing="6">
+                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProxiesTitle}" />
+                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProxiesSubtitle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <ContentControl x:Name="tabProxies" Grid.Row="1" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="{x:Static resx:ResUI.DicodeSettings}">
+                    <Border Padding="22" Classes="DicodeCard">
+                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+                            <StackPanel Spacing="6">
+                                <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSettingsTitle}" />
+                                <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
+                                <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+                </TabItem>
+
+                <TabItem Header="{x:Static resx:ResUI.DicodeReports}">
+                    <ContentControl x:Name="tabReports" />
+                </TabItem>
+
+                <TabItem Header="{x:Static resx:ResUI.DicodeAbout}">
+                    <Border Padding="22" Classes="DicodeCard">
+                        <StackPanel Spacing="12">
+                            <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
+                            <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
+                            <TextBlock Opacity="0.72" Text="Version 4.0.1 pre-release" />
+                        </StackPanel>
+                    </Border>
+                </TabItem>
+            </TabControl>
+
+            <Menu IsVisible="False">
+                <MenuItem Header="{x:Static resx:ResUI.DicodeServerPool}" Click="OpenServerPool" />
+                <MenuItem Header="{x:Static resx:ResUI.menuServers}">
+                    <MenuItem x:Name="menuAddServerViaClipboard" Header="{x:Static resx:ResUI.menuAddServerViaClipboard}" InputGesture="Ctrl+V" />
+                    <MenuItem x:Name="menuAddServerViaScan" Header="{x:Static resx:ResUI.menuAddServerViaScan}" InputGesture="Ctrl+S" />
+                    <MenuItem x:Name="menuAddServerViaImage" Header="{x:Static resx:ResUI.menuAddServerViaImage}" />
+                    <Separator />
+                    <MenuItem x:Name="menuAddCustomServer" Header="{x:Static resx:ResUI.menuAddCustomServer}" />
+                    <MenuItem x:Name="menuAddPolicyGroupServer" Header="{x:Static resx:ResUI.menuAddPolicyGroupServer}" />
+                    <MenuItem x:Name="menuAddProxyChainServer" Header="{x:Static resx:ResUI.menuAddProxyChainServer}" />
+                    <MenuItem x:Name="menuAddCustomOutboundServer" Header="{x:Static resx:ResUI.menuAddCustomOutboundServer}" />
+                    <Separator />
+                    <MenuItem x:Name="menuAddVmessServer" Header="{x:Static resx:ResUI.menuAddVmessServer}" />
+                    <MenuItem x:Name="menuAddVlessServer" Header="{x:Static resx:ResUI.menuAddVlessServer}" />
+                    <MenuItem x:Name="menuAddShadowsocksServer" Header="{x:Static resx:ResUI.menuAddShadowsocksServer}" />
+                    <MenuItem x:Name="menuAddTrojanServer" Header="{x:Static resx:ResUI.menuAddTrojanServer}" />
+                    <MenuItem x:Name="menuAddHysteria2Server" Header="{x:Static resx:ResUI.menuAddHysteria2Server}" />
+                    <MenuItem x:Name="menuAddWireguardServer" Header="{x:Static resx:ResUI.menuAddWireguardServer}" />
+                    <MenuItem x:Name="menuAddSocksServer" Header="{x:Static resx:ResUI.menuAddSocksServer}" />
+                    <MenuItem x:Name="menuAddHttpServer" Header="{x:Static resx:ResUI.menuAddHttpServer}" />
+                    <Separator />
+                    <MenuItem x:Name="menuAddTuicServer" Header="{x:Static resx:ResUI.menuAddTuicServer}" />
+                    <MenuItem x:Name="menuAddAnytlsServer" Header="{x:Static resx:ResUI.menuAddAnytlsServer}" />
+                    <MenuItem x:Name="menuAddNaiveServer" Header="{x:Static resx:ResUI.menuAddNaiveServer}" />
+                </MenuItem>
+                <MenuItem Header="{x:Static resx:ResUI.menuSubscription}">
+                    <MenuItem x:Name="menuSubUpdate" Header="{x:Static resx:ResUI.menuSubUpdate}" />
+                </MenuItem>
+                <MenuItem Header="{x:Static resx:ResUI.menuSetting}">
+                    <MenuItem x:Name="menuOptionSetting" Header="{x:Static resx:ResUI.menuOptionSetting}" />
+                    <MenuItem x:Name="menuRoutingSetting" Header="{x:Static resx:ResUI.menuRoutingSetting}" />
+                    <MenuItem x:Name="menuDomainFilterSetting" Header="{x:Static resx:ResUI.DicodeDomainFilter}" />
+                    <MenuItem x:Name="menuDNSSetting" Header="{x:Static resx:ResUI.menuDNSSetting}" />
+                    <MenuItem x:Name="menuFullConfigTemplate" Header="{x:Static resx:ResUI.menuFullConfigTemplate}" IsVisible="False" />
+                    <MenuItem x:Name="menuGlobalHotkeySetting" Header="{x:Static resx:ResUI.menuGlobalHotkeySetting}" IsVisible="False" />
+                    <Separator />
+                    <MenuItem x:Name="menuRebootAsAdmin" Header="{x:Static resx:ResUI.menuRebootAsAdmin}" IsVisible="{Binding BlIsWindows}" />
+                    <MenuItem x:Name="menuSettingsSetUWP" Header="{x:Static resx:ResUI.TbSettingsSetUWP}" IsVisible="False" />
+                    <MenuItem x:Name="menuClearServerStatistics" Header="{x:Static resx:ResUI.menuClearServerStatistics}" />
+                    <MenuItem x:Name="menuViewLog" Header="{x:Static resx:ResUI.DicodeReports}" />
+                    <MenuItem x:Name="menuCheckUpdate" Header="{x:Static resx:ResUI.DicodeCheckUpdates}" />
+                    <Separator />
+                    <MenuItem Header="{x:Static resx:ResUI.menuRegionalPresets}">
+                        <MenuItem x:Name="menuRegionalPresetsDefault" Header="{x:Static resx:ResUI.menuRegionalPresetsDefault}" />
+                        <MenuItem x:Name="menuRegionalPresetsRussia" Header="{x:Static resx:ResUI.menuRegionalPresetsRussia}" IsVisible="False" />
+                        <MenuItem x:Name="menuRegionalPresetsIran" Header="{x:Static resx:ResUI.menuRegionalPresetsIran}" />
+                    </MenuItem>
+                    <MenuItem x:Name="menuBackupAndRestore" Header="{x:Static resx:ResUI.menuBackupAndRestore}" />
+                    <MenuItem x:Name="menuOpenTheFileLocation" Header="{x:Static resx:ResUI.menuOpenTheFileLocation}" />
+                </MenuItem>
+                <MenuItem x:Name="menuReload" Header="{x:Static resx:ResUI.menuReload}" />
+                <MenuItem x:Name="menuClose" Header="{x:Static resx:ResUI.menuExit}" />
+            </Menu>
+        </Grid>
     </dialogHost:DialogHost>
 </Window>

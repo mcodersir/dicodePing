@@ -41,14 +41,14 @@ public static class PoolNetwork
             catch (Exception) { }
             await Task.Delay(500, token);
         }
-        throw new IOException("درگاه محلی هسته آماده نشد؛ لاگ اتصال را بررسی کنید.");
+        throw new IOException("The local core port was not ready; check the connection log.");
     }
 
     public static string Describe(Exception error) => error switch
     {
         HttpRequestException http when http.StatusCode.HasValue => $"HTTP {(int)http.StatusCode.Value}",
-        OperationCanceledException => "پایان مهلت پاسخ",
-        HttpRequestException => "خطای شبکه، DNS یا TLS",
+        OperationCanceledException => "Response timeout",
+        HttpRequestException => "Network, DNS or TLS error",
         _ => error.GetType().Name
     };
 
@@ -64,18 +64,18 @@ public static class PoolNetwork
                 try
                 {
                     var channels = ServerPoolService.ParseChannels(await fetch(source, token));
-                    if (channels.Count == 0) throw new InvalidDataException("فهرست نامعتبر");
-                    progress.Report(new("کانال‌ها", $"فهرست {channels.Count} کانال دریافت شد."));
+                    if (channels.Count == 0) throw new InvalidDataException("Invalid list");
+                    progress.Report(new("Channels", $"Received {channels.Count} channels."));
                     return channels;
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                 catch (Exception error)
                 {
-                    progress.Report(new("کانال‌ها", $"دریافت از {new Uri(source).Host} · تلاش {attempt}/۲: {Describe(error)}"));
+                    progress.Report(new("Channels", $"Fetch from {new Uri(source).Host} · attempt {attempt}/2: {Describe(error)}"));
                     if (attempt == 1) await Task.Delay(750, token);
                 }
             }
         }
-        throw new IOException("درگاه اتصال آماده است، اما دریافت فهرست کانال‌ها از گیت‌هاب ناموفق بود. دوباره تلاش کنید؛ این خطا به‌معنی قطع VPN نیست.");
+        throw new IOException("The connection port is ready, but fetching the channel list from GitHub failed. Try again; this does not mean the VPN is disconnected.");
     }
 }

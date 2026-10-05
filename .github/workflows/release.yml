@@ -18,50 +18,50 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             xray_asset: Xray-windows-64.zip
-            xray_sha256: 71e0449cff68cbee391b73c7698a9526522eef21f6c83d8f23f8cf37a27404e5
+            xray_sha256: b17a619343c11b89d8faf36278298856749b15c52277d875d32051b33dcda617
             xray_binary: xray.exe
-            mihomo_asset: mihomo-windows-amd64-v1-v1.19.30.zip
+            mihomo_asset: mihomo-windows-amd64-v1-v1.19.32.zip
             mihomo_binary: mihomo.exe
-            mihomo_sha256: 8b81fe2c5cd04ca6deb61eec6075150b44cc5ad13ab867750642e2422f7c1278
-            singbox_asset: sing-box-1.13.19-windows-amd64.zip
+            mihomo_sha256: 00549b347d8e124600e46cac67d59293358454f465e9d86d2511567da56b7029
+            singbox_asset: sing-box-1.14.2-windows-amd64.zip
             singbox_binary: sing-box.exe
-            singbox_sha256: e011a4def2f5e2b143ed54adb2b1a20a6be407806ab4442f3667f1dd817a2c8d
+            singbox_sha256: c2d8bfff918755808781dfdeeb8581b6c91eb3a243d9a7b55483cfc0c0684d32
             artifact: windows-x64
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
-            xray_sha256: b3897fa4f52608aaf04dbb834f41c981d496fbc53a911d9e46ccb25443770fa7
+            xray_sha256: f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e
             xray_binary: xray
-            mihomo_asset: mihomo-linux-amd64-v1-v1.19.30.gz
+            mihomo_asset: mihomo-linux-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
-            mihomo_sha256: cbe553d0319a414bd3a372c5976a252155b2c4882b66bce88a4d6bba9571a553
-            singbox_asset: sing-box-1.13.19-linux-amd64.tar.gz
+            mihomo_sha256: 306f81e723e60ce6b828899a6fe83e1d00e9ecefb2dc8d4d849312a5bc00efdc
+            singbox_asset: sing-box-1.14.2-linux-amd64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: ef88a9e577d474210867bd708933d042e9b70106529df2656182c9db90106aa1
+            singbox_sha256: a684484d7477d1437282ee411f4d131d0340aaad60a7868841ebd5d87dd8a0c6
             artifact: linux-x64
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
-            xray_sha256: c9a586308abb6ac45454106be7719fb6a5e6a8178af4e1a280e70850fd35b438
+            xray_sha256: 1f366aaf21d3c3003d1556d066c4e08f9dd62d1f96555ecedde85b397df0f684
             xray_binary: xray
-            mihomo_asset: mihomo-darwin-amd64-v1-v1.19.30.gz
+            mihomo_asset: mihomo-darwin-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
-            mihomo_sha256: b5355135a1446ca1af83c794f46435290a59ddd968dd73f7883b9c7977e14f8b
-            singbox_asset: sing-box-1.13.19-darwin-amd64.tar.gz
+            mihomo_sha256: f6eef841308b682e48f9c3e4740af42f5644a53d2f18c4d4bf1ee6f8a7af7c8b
+            singbox_asset: sing-box-1.14.2-darwin-amd64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: 31ee722237d95774e101fbffeae6be6776249c5f7db229ad8ff00b45b22e6a00
+            singbox_sha256: b0bfb0dc70a5fc708710b9f5ea98b9ee76d40fa4169928d25d73edc4331df2fe
             artifact: macos-x64
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
-            xray_sha256: 327c00484da144cd4df2914493b97ca8527f8748a67183fd2df87712bc3e5cd6
+            xray_sha256: 4b363bd924df5bf09f87bd445755ff8e5742b9a8a0480cda261061416c3c7dce
             xray_binary: xray
-            mihomo_asset: mihomo-darwin-arm64-v1.19.30.gz
+            mihomo_asset: mihomo-darwin-arm64-v1.19.32.gz
             mihomo_binary: mihomo
-            mihomo_sha256: 2c7f3a7904fa1cee291e124123e630e7b1ebd13765dd9bf26c0a28432004d9f4
-            singbox_asset: sing-box-1.13.19-darwin-arm64.tar.gz
+            mihomo_sha256: 3312a6780652c622890fd4357c6a853bbf865464fd047ac7b7f52dab8de18652
+            singbox_asset: sing-box-1.14.2-darwin-arm64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: 23bf191906f2dfc9f00e9f0092f274f3426ba9377327e903ff94e636b64d0997
+            singbox_sha256: 925c5382eca8492b0150f868a6db20b18290a38700e621724b3703fd453e032d
             artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.1
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,11 +80,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.1 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/patterniha/xray-core/releases/download/v26.9.7/${{ matrix.xray_asset }}"
+          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.9.30/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           $expected = '${{ matrix.xray_sha256 }}'
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
@@ -106,15 +106,15 @@ jobs:
           }
           # Replace the archive defaults with the newest verified routing
           # database release so both the bundled runtime and Geo updater agree.
-          $geoRelease = '202608222215'
-          $geoHashes = @{ 'geoip.dat' = '8ebcb11333f7deed4bf2740f2ce3249aa8997ef03d437150c7ae373c011cd72a'; 'geosite.dat' = '919c19a0918ff774a9f0307bb8de56f17636d12b5bffbc5167bbfd30f7970bbd' }
+          $geoRelease = '202610042206'
+          $geoHashes = @{ 'geoip.dat' = '391b522361c52804e486a98b53d97f3d9c1d3e4e4217bb34954774a0b456b9fd'; 'geosite.dat' = 'd4e197147c1017129a906a7f155050ccde0b291cf376f787071af3e805cc7d2c' }
           foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
             $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
             Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
             $geoActual = (Get-FileHash "publish/bin/$dataName" -Algorithm SHA256).Hash.ToLower()
             if ($geoActual -ne $geoHashes[$dataName]) { throw "$dataName SHA-256 verification failed" }
           }
-          $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/${{ matrix.mihomo_asset }}"
+          $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.32/${{ matrix.mihomo_asset }}"
           Invoke-WebRequest -Uri $mihomoUrl -OutFile mihomo.archive
           $mihomoActual = (Get-FileHash mihomo.archive -Algorithm SHA256).Hash.ToLower()
           if ($mihomoActual -ne '${{ matrix.mihomo_sha256 }}') { throw "Mihomo SHA-256 verification failed" }
@@ -134,7 +134,7 @@ jobs:
               } finally { $gzip.Dispose() }
             } finally { $input.Dispose() }
           }
-          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/${{ matrix.singbox_asset }}"
+          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.14.2/${{ matrix.singbox_asset }}"
           Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
           $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
           if ($singboxActual -ne '${{ matrix.singbox_sha256 }}') { throw "sing-box SHA-256 verification failed" }
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.0.0-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.0.1-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.0.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.0.1-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -197,14 +197,14 @@ jobs:
         run: |
           git config --global http.version HTTP/1.1
           for attempt in 1 2 3 4; do
-            if git clone --branch 2.3.7-P42 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            if git clone --branch 2.3.10-P60 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
               break
             fi
             rm -rf native-upstream
             test "$attempt" -lt 4
             sleep $((attempt * 5))
           done
-          test "$(git -C native-upstream rev-parse HEAD)" = "2f315db080c48136104352b26c6370eef0fd6ef4"
+          test "$(git -C native-upstream rev-parse HEAD)" = "7dbdf0cfc2971709b4d47f202a66e05e974ca1c9"
           for attempt in 1 2 3 4; do
             if git -C native-upstream submodule update --init --recursive --depth 1; then
               break
@@ -214,14 +214,14 @@ jobs:
           done
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
-      - name: Fetch the libv2ray pinned by PattNG P42
+      - name: Fetch the libv2ray pinned by PattNG P60
         run: |
           mkdir -p apps/android/app/libs
-          CORE_TAG="v26.9.7"
-          test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "716713ee8cbf0108232aeddbdba66a444aca782a"
+          CORE_TAG="v26.10.4"
+          test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "dc2d0b1388808fa10916fd212907befd6723e553"
           test -n "$CORE_TAG"
           curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
-          echo "569839c532b0d02a9e06f849ebe446faa30b7aeb6ed980a59a2991310b6e53eb  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
+          echo "086e7c3e74c0d0e5365215b0e17597b4b8449741fb0655b141879dd4420b074f  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
       - name: Build signed installable APKs
         env:
           POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.0
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.1
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,30 +264,23 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.0.0 — Stable (revision 2)
-          prerelease: false
+          name: DicodePing 4.0.1 — Pre-release
+          prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.0.0 — Stable (revision 2)
+            ## DicodePing 4.0.1 — Pre-release
 
-            بازنشر اصلاح‌شدهٔ همان نسخهٔ پایدار 4.0.0 با انتخاب مسیر مقاوم و بدون تغییر بی‌دلیل اتصال کاربر.
+            پیش‌نمایش 4.0.1 برای آزمایش عمومی دسکتاپ و اندروید، با تمرکز روی بروزرسانی هسته‌ها، بازطراحی رابط دسکتاپ و کامل‌تر شدن زبان انگلیسی.
 
-            - ابتدا اتصال فعال DicodePing از هر ساب بررسی می‌شود؛ اگر GitHub و Telegram از آن قابل دسترسی باشند، همان اتصال و انتخاب کاربر حفظ می‌شود.
-            - سپس مسیر مستقیم سیستم بررسی می‌شود تا VPN فعال نرم‌افزارهای دیگر نیز بدون راه‌اندازی DicodePing قابل استفاده باشد.
-            - فقط وقتی هر دو مسیر واقعاً نامعتبر باشند، cache/ساب رسمی آزموده و بهترین کانفیگ آن به‌عنوان fallback متصل می‌شود.
-            - بروزرسانی ناموفق ساب رسمی cache موجود را حذف یا بی‌استفاده نمی‌کند؛ در Android مجوز VPN فقط هنگام نیاز واقعی به fallback درخواست می‌شود.
+            - Desktop Xray به XTLS/Xray-core v26.9.30 بروزرسانی شد و برای Windows، Linux و macOS با SHA-256 ثابت بسته‌بندی می‌شود.
+            - sing-box به v1.14.2 و mihomo به v1.19.32 بروزرسانی شدند.
+            - داده‌های geoip/geosite به انتشار Loyalsoldier 202610042206 بروزرسانی شدند.
+            - Android native TUN از PattNG 2.3.10-P60 ساخته می‌شود و libv2ray از AndroidLibXrayLite v26.10.4 با hash ثابت دریافت می‌شود.
+            - نسخهٔ دسکتاپ با FileVersion 4.0.1.1 و نسخهٔ اندروید با versionCode 400101 منتشر می‌شود.
+            - بسته‌ها به‌صورت pre-release منتشر می‌شوند تا قبل از stable feedback واقعی کاربران دریافت شود.
 
-            - انتخاب تعداد سرور موفق هدف از ۱ تا ۲۰۰ و تعداد نوبت آزمون هر سرور از ۱ تا ۱۰، پیش از شروع در دسکتاپ و اندروید.
-            - استفادهٔ استخر از همان موتور Real Ping فهرست اصلی: مسیر SOCKS/HTTP پایدارشده در دسکتاپ و TCP pre-check به‌همراه native outbound delay در اندروید.
-            - اجرای همزمان با سقف کنترل‌شده، توقف خودکار پس از رسیدن به هدف و نمایش زندهٔ تعداد موفق‌ها.
-            - توقف نرم هنگام آزمون: تست‌های فعال پایان می‌یابند و تمام سرورهای موفق تکمیل‌شده تا همان لحظه در «سرور های استخر» ذخیره می‌شوند.
-            - حفظ استخر قبلی اگر عملیات پیش از رسیدن به حتی یک نتیجهٔ سالم متوقف یا ناموفق شود.
-            - دریافت حداکثر چهار لینک جدید هر کانال از preview عمومی Telegram با پشتیبانی از HTML بدون تاریخ یا wrapper قدیمی.
-            - پذیرش فقط VLESS، VMess، Trojan و Shadowsocks و رد کامل Telegram/MTProto/SOCKS proxy؛ هر پاسخ باید بین ۱ تا ۹۰۰ ms باشد.
-            - بروزرسانی و انتخاب مسیر ساب رسمی پیش‌فرض بدون درگیرکردن اشتراک‌ها و کانفیگ‌های کاربر.
-            - PattNG 2.3.7-P42 و libv2ray v26.9.7 با hash ثابت؛ امکانات اختصاصی، تم‌ها، ترافیک، فیلتر دامنه و آزمایش تحریم حفظ شده‌اند.
-
-            نسخهٔ نمایشی همچنان 4.0.0 است؛ Android versionCode برابر 400001 و FileVersion دسکتاپ برابر 4.0.0.1 است تا ارتقای درجا ممکن باشد.
-
-            فایل‌های امضاشدهٔ Android و بسته‌های Windows، Linux و macOS همراه SHA256SUMS ارائه می‌شوند.
+            English summary:
+            - Core runtimes updated: Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32, PattNG 2.3.10-P60, AndroidLibXrayLite/libv2ray v26.10.4.
+            - Desktop UI refresh and English language coverage are included in this 4.0.1 preview.
+            - Signed Android APKs and Windows, Linux, and macOS desktop packages are published with SHA256SUMS.
           files: artifacts/*

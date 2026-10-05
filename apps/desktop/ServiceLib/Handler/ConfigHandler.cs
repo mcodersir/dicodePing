@@ -118,10 +118,9 @@ public static class ConfigHandler
         config.UiItem.MainColumnItem ??= [];
         config.UiItem.WindowSizeItem ??= [];
 
-        if (config.UiItem.CurrentLanguage.IsNullOrEmpty()
-            || config.UiItem.CurrentLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+        if (config.UiItem.CurrentLanguage.IsNullOrEmpty())
         {
-            config.UiItem.CurrentLanguage = "fa";
+            config.UiItem.CurrentLanguage = "en";
         }
         if (!hasSavedColumns)
         {

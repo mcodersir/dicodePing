@@ -79,7 +79,7 @@
                 Margin="0,0,0,8"
                 Padding="10,6"
                 Background="{DynamicResource SemiColorFill0}">
-                <TextBlock FontWeight="SemiBold" Text="رویدادهای DicodePing" />
+                <TextBlock FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeEventLog}" />
             </Border>
             <avaloniaEdit:TextEditor
                 Grid.Row="1"

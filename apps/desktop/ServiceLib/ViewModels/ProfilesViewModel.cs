@@ -111,7 +111,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ProfilesViewModel()
     {
         _config = AppManager.Instance.Config;
-        ConnectionStatusText = "اتصال TUN";
+        ConnectionStatusText = ResUI.DicodeTunConnect;
 
         #region WhenAnyValue && ReactiveCommand
 
@@ -138,7 +138,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
                 IsConnected = CoreManager.Instance.IsRunning;
-                ConnectionStatusText = IsConnected ? "متصل؛ برای قطع کلیک کنید" : "اتصال TUN";
+                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected : ResUI.DicodeTunConnect;
             });
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
@@ -236,14 +236,14 @@ public partial class ProfilesViewModel : MyReactiveObject
                 var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
                 if (profile is null) continue;
                 model.SecurityInfo = profile.GetAllowInsecure()
-                    ? "پرخطر · تأیید گواهی غیرفعال"
+                    ? ResUI.DicodeSecurityHighRiskInsecure
                     : profile.StreamSecurity.IsNotEmpty()
-                        ? $"ایمن · {profile.StreamSecurity.ToUpperInvariant()}"
+                        ? string.Format(ResUI.DicodeSecuritySecure, profile.StreamSecurity.ToUpperInvariant())
                         : profile.ConfigType is EConfigType.SOCKS or EConfigType.HTTP
-                            ? "پرخطر · بدون رمزنگاری"
-                            : "متوسط · بدون TLS";
+                            ? ResUI.DicodeSecurityHighRiskPlain
+                            : ResUI.DicodeSecurityMediumNoTls;
             }
-            NoticeManager.Instance.Enqueue("آزمایش امنیت پیکربندی همهٔ سرورها انجام شد");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
         });
         SanctionsTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -375,7 +375,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
-        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != "در حال بررسی…")
+        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != ResUI.DicodeChecking)
         {
             item.SanctionsInfo = result.SanctionsInfo ?? string.Empty;
         }
@@ -761,11 +761,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (SelectedProfile.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
             await SetDefaultServer(SelectedProfile.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -784,7 +784,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         // real-path measurements before selecting when no usable result has been recorded.
         if (!ProfileItems.Any(item => item.Delay > 0))
         {
-            NoticeManager.Instance.Enqueue("در حال آزمایش مسیر واقعی برای اتصال هوشمند…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
             await ServerSpeedtest(ESpeedActionType.FastRealping);
             await RefreshServersBiz();
         }
@@ -804,11 +804,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (best.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
             await SetDefaultServer(best.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -823,8 +823,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         IsConnected = CoreManager.Instance.IsRunning;
         NoticeManager.Instance.Enqueue(IsConnected
-            ? "اتصال TUN برقرار شد"
-            : "اتصال TUN برقرار نشد؛ جزئیات را در لاگ بررسی کنید");
+            ? ResUI.DicodeTunConnectedNotice
+            : ResUI.DicodeTunFailedNotice);
     }
 
     public async Task ShareServerAsync()
@@ -951,7 +951,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         if (!await _speedtestLock.WaitAsync(0))
         {
-            NoticeManager.Instance.Enqueue("یک آزمایش در حال اجراست؛ پس از پایان دوباره تلاش کنید");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeTestAlreadyRunning);
             return;
         }
 

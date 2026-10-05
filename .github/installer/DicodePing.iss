@@ -1,5 +1,5 @@
 #define MyAppName "DicodePing"
-#define MyAppVersion "4.0.0"
+#define MyAppVersion "4.0.1"
 #define MyAppPublisher "DicodePing"
 #define MyAppExeName "DicodePing.exe"
 
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\DicodePing
 DefaultGroupName=DicodePing
 OutputDir=..\..\dist
-OutputBaseFilename=DicodePing-4.0.0-windows-x64-installer
+OutputBaseFilename=DicodePing-4.0.1-windows-x64-installer
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -28,4 +28,4 @@ Name: "{autodesktop}\DicodePing"; Filename: "{app}\{#MyAppExeName}"; Tasks: desk
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "اجرای DicodePing"; Flags: nowait postinstall skipifsilent shellexec; Verb: "runas"
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch DicodePing"; Flags: nowait postinstall skipifsilent shellexec; Verb: "runas"

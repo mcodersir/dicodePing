@@ -135,7 +135,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                     break;
 
                 case ESpeedActionType.Sanctions:
-                    await UpdateSanctionsFunc(it.IndexId, "در حال بررسی…");
+                    await UpdateSanctionsFunc(it.IndexId, ResUI.DicodeChecking);
                     break;
             }
         }
@@ -327,8 +327,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         var proxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
         var result = await ConnectionHandler.TestSanctionsAccess(proxy);
         var text = result.Accessible
-            ? $"قابل دسترسی · {result.Passed}/{result.Total}"
-            : $"محدود · {result.Passed}/{result.Total}";
+            ? string.Format(ResUI.DicodeSanctionsAccessible, result.Passed, result.Total)
+            : string.Format(ResUI.DicodeSanctionsRestricted, result.Passed, result.Total);
         ProfileExManager.Instance.SetSanctionsInfo(item.IndexId, text);
         await UpdateSanctionsFunc(item.IndexId, text);
     }

@@ -34,7 +34,7 @@ public class PoolNetworkTests
         }, progress, CancellationToken.None);
         Assert.Equal(3, calls.Count);
         Assert.Equal(["example_channel"], channels);
-        Assert.All(progress.Items, item => Assert.Equal("کانال‌ها", item.Stage));
+        Assert.All(progress.Items, item => Assert.Equal("Channels", item.Stage));
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public class PoolNetworkTests
     {
         var error = await Assert.ThrowsAsync<IOException>(() => PoolNetwork.LoadChannelsAsync(
             (_, _) => Task.FromException<string>(new HttpRequestException("network failure")), new Capture(), CancellationToken.None));
-        Assert.Contains("فهرست کانال‌ها", error.Message);
-        Assert.DoesNotContain("اتصال ساب پیش‌فرض برقرار نشد", error.Message);
+        Assert.Contains("channel list", error.Message);
+        Assert.DoesNotContain("default subscription connection failed", error.Message);
     }
 
     [Fact]

@@ -1800,4 +1800,211 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="MsgCustomOutboundFileNotFound" xml:space="preserve"><value>فایل خروجی سفارشی {0} پیدا نشد: {1}</value></data>
   <data name="TbCustomOutboundTip" xml:space="preserve"><value>فقط یک خروجی یا نقطهٔ پایانی پشتیبانی می‌شود.</value></data>
   <data name="LvCustomCoreType" xml:space="preserve"><value>هستهٔ کانفیگ سفارشی</value></data>
+
+  <data name="DicodeHome" xml:space="preserve">
+    <value>خانه</value>
+  </data>
+  <data name="DicodeProfiles" xml:space="preserve">
+    <value>پروفایل‌ها</value>
+  </data>
+  <data name="DicodeProxies" xml:space="preserve">
+    <value>پروکسی‌ها</value>
+  </data>
+  <data name="DicodeSettings" xml:space="preserve">
+    <value>تنظیمات</value>
+  </data>
+  <data name="DicodeReports" xml:space="preserve">
+    <value>گزارش‌ها</value>
+  </data>
+  <data name="DicodeAbout" xml:space="preserve">
+    <value>درباره</value>
+  </data>
+  <data name="DicodeServerPool" xml:space="preserve">
+    <value>استخر سرورها</value>
+  </data>
+  <data name="DicodeDomainFilter" xml:space="preserve">
+    <value>فیلتر دامنه</value>
+  </data>
+  <data name="DicodeCheckUpdates" xml:space="preserve">
+    <value>بروزرسانی DicodePing و هسته‌ها</value>
+  </data>
+  <data name="DicodeAppSubtitle" xml:space="preserve">
+    <value>مسیریابی امن فقط TUN برای دسکتاپ و اندروید</value>
+  </data>
+  <data name="DicodeHomeTitle" xml:space="preserve">
+    <value>مرکز اتصال</value>
+  </data>
+  <data name="DicodeHomeSubtitle" xml:space="preserve">
+    <value>مسیر را انتخاب کنید، آزمایش کنید و با یک کنترل آرام وصل شوید.</value>
+  </data>
+  <data name="DicodeProfilesTitle" xml:space="preserve">
+    <value>پروفایل‌ها</value>
+  </data>
+  <data name="DicodeProfilesSubtitle" xml:space="preserve">
+    <value>ساب‌ها و مسیرها جدا می‌مانند تا پروفایل‌های کاربر امن بمانند.</value>
+  </data>
+  <data name="DicodeProxiesTitle" xml:space="preserve">
+    <value>پروکسی‌ها</value>
+  </data>
+  <data name="DicodeProxiesSubtitle" xml:space="preserve">
+    <value>گروه‌ها و مسیرهای خروجی قابل انتخاب در صفحه‌ای جدا هستند.</value>
+  </data>
+  <data name="DicodeSettingsTitle" xml:space="preserve">
+    <value>تنظیمات</value>
+  </data>
+  <data name="DicodeSettingsSubtitle" xml:space="preserve">
+    <value>مسیریابی، DNS، فیلتر دامنه، بروزرسانی و پشتیبان‌گیری را یکجا مدیریت کنید.</value>
+  </data>
+  <data name="DicodeAboutTitle" xml:space="preserve">
+    <value>درباره DicodePing</value>
+  </data>
+  <data name="DicodeAboutText" xml:space="preserve">
+    <value>DicodePing یک کلاینت مستقل فقط TUN بر پایه v2rayN و PattNG است که روی مسیریابی امن و رابط تمیز فارسی/انگلیسی تمرکز دارد.</value>
+  </data>
+  <data name="DicodeQuickActions" xml:space="preserve">
+    <value>دسترسی سریع</value>
+  </data>
+  <data name="DicodeAddProfile" xml:space="preserve">
+    <value>افزودن پروفایل</value>
+  </data>
+  <data name="DicodeRefresh" xml:space="preserve">
+    <value>تازه‌سازی</value>
+  </data>
+  <data name="DicodeSmartConnect" xml:space="preserve">
+    <value>اتصال هوشمند</value>
+  </data>
+  <data name="DicodeBest" xml:space="preserve">
+    <value>بهترین</value>
+  </data>
+  <data name="DicodeLocationTestAll" xml:space="preserve">
+    <value>آزمایش لوکیشن همهٔ سرورها (بتا)</value>
+  </data>
+  <data name="DicodeSecurityTestAll" xml:space="preserve">
+    <value>آزمایش امنیت همهٔ سرورها (بتا)</value>
+  </data>
+  <data name="DicodeSanctionsTestAll" xml:space="preserve">
+    <value>آزمایش تحریم همهٔ سرورها (بتا)</value>
+  </data>
+  <data name="DicodeSecurityBeta" xml:space="preserve">
+    <value>امنیت (بتا)</value>
+  </data>
+  <data name="DicodeSanctionsBeta" xml:space="preserve">
+    <value>تحریم (بتا)</value>
+  </data>
+  <data name="DicodeJoinTelegramPrompt" xml:space="preserve">
+    <value>به کانال رسمی دیکد پینگ بپیوندید؟
+https://t.me/dicodeping</value>
+  </data>
+  <data name="DicodeDomainFilterDesc" xml:space="preserve">
+    <value>مشخص کنید تونل روی دامنه‌های فهرست‌شده اعمال شود یا این دامنه‌ها مستقیماً باز شوند.</value>
+  </data>
+  <data name="DicodeDomainFilterOnly" xml:space="preserve">
+    <value>ترافیک فقط از این دامنه‌ها رد شود</value>
+  </data>
+  <data name="DicodeDomainFilterBypass" xml:space="preserve">
+    <value>ترافیک از این دامنه‌ها رد نشود</value>
+  </data>
+  <data name="DicodeDomainFilterWatermark" xml:space="preserve">
+    <value>example.com — هر دامنه در یک خط</value>
+  </data>
+  <data name="DicodeCancel" xml:space="preserve">
+    <value>انصراف</value>
+  </data>
+  <data name="DicodeSaveApply" xml:space="preserve">
+    <value>ذخیره و اعمال</value>
+  </data>
+  <data name="DicodeLocationPanelTitle" xml:space="preserve">
+    <value>لوکیشن سرورها (بتا) — آزمایش لوکیشن از آیکون کره‌زمین اجرا می‌شود.</value>
+  </data>
+  <data name="DicodeEventLog" xml:space="preserve">
+    <value>رویدادهای DicodePing</value>
+  </data>
+  <data name="DicodeTunConnect" xml:space="preserve">
+    <value>اتصال TUN</value>
+  </data>
+  <data name="DicodeTunConnected" xml:space="preserve">
+    <value>متصل؛ برای قطع کلیک کنید</value>
+  </data>
+  <data name="DicodeTunDisconnected" xml:space="preserve">
+    <value>اتصال TUN قطع شد</value>
+  </data>
+  <data name="DicodeTunConnectedNotice" xml:space="preserve">
+    <value>اتصال TUN برقرار شد</value>
+  </data>
+  <data name="DicodeTunFailedNotice" xml:space="preserve">
+    <value>اتصال TUN برقرار نشد؛ جزئیات را در لاگ بررسی کنید</value>
+  </data>
+  <data name="DicodeConnectingSelected" xml:space="preserve">
+    <value>در حال اتصال به مسیر انتخاب‌شده...</value>
+  </data>
+  <data name="DicodeSmartTesting" xml:space="preserve">
+    <value>در حال آزمایش مسیر واقعی برای اتصال هوشمند...</value>
+  </data>
+  <data name="DicodeBestRouteConnecting" xml:space="preserve">
+    <value>بهترین مسیر انتخاب شد؛ در حال اتصال...</value>
+  </data>
+  <data name="DicodeTestAlreadyRunning" xml:space="preserve">
+    <value>یک آزمایش در حال اجراست؛ پس از پایان دوباره تلاش کنید</value>
+  </data>
+  <data name="DicodeSecurityHighRiskInsecure" xml:space="preserve">
+    <value>پرخطر · تأیید گواهی غیرفعال</value>
+  </data>
+  <data name="DicodeSecuritySecure" xml:space="preserve">
+    <value>ایمن · {0}</value>
+  </data>
+  <data name="DicodeSecurityHighRiskPlain" xml:space="preserve">
+    <value>پرخطر · بدون رمزنگاری</value>
+  </data>
+  <data name="DicodeSecurityMediumNoTls" xml:space="preserve">
+    <value>متوسط · بدون TLS</value>
+  </data>
+  <data name="DicodeSecurityDone" xml:space="preserve">
+    <value>آزمایش امنیت پیکربندی همهٔ سرورها انجام شد</value>
+  </data>
+  <data name="DicodeChecking" xml:space="preserve">
+    <value>در حال بررسی...</value>
+  </data>
+
+  <data name="DicodeRoute" xml:space="preserve">
+    <value>مسیر</value>
+  </data>
+  <data name="DicodeTraffic" xml:space="preserve">
+    <value>ترافیک</value>
+  </data>
+  <data name="DicodeTrafficTotal" xml:space="preserve">
+    <value>کل</value>
+  </data>
+  <data name="DicodePingLabel" xml:space="preserve">
+    <value>پینگ</value>
+  </data>
+  <data name="DicodePingFailed" xml:space="preserve">
+    <value>پینگ: ناموفق</value>
+  </data>
+  <data name="DicodeNoLocation" xml:space="preserve">
+    <value>بدون لوکیشن</value>
+  </data>
+
+  <data name="DicodeSanctionsAccessible" xml:space="preserve">
+    <value>قابل دسترسی · {0}/{1}</value>
+  </data>
+  <data name="DicodeSanctionsRestricted" xml:space="preserve">
+    <value>محدود · {0}/{1}</value>
+  </data>
+
+  <data name="DicodeDomainList" xml:space="preserve">
+    <value>فهرست دامنه‌ها</value>
+  </data>
+  <data name="DicodeDomainFilterOff" xml:space="preserve">
+    <value>خاموش</value>
+  </data>
+  <data name="DicodeDomainFilterBypassMode" xml:space="preserve">
+    <value>عبور مستقیم دامنه‌های مشخص‌شده</value>
+  </data>
+  <data name="DicodeDomainFilterOnlyMode" xml:space="preserve">
+    <value>استفاده از VPN فقط برای دامنه‌های مشخص‌شده</value>
+  </data>
+
+  <data name="DicodeGeoFileReady" xml:space="preserve">
+    <value>GeoFile آمادهٔ دریافت آخرین داده‌های رسمی است</value>
+  </data>
 </root>

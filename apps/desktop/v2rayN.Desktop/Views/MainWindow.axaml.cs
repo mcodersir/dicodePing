@@ -384,7 +384,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
                 return;
             }
             await File.WriteAllTextAsync(promptFile, (count + 1).ToString());
-            if (await UI.ShowYesNo("به کانال رسمی دیکد پینگ بپیوندید؟\nhttps://t.me/dicodeping") == ButtonResult.Yes)
+            if (await UI.ShowYesNo(ResUI.DicodeJoinTelegramPrompt) == ButtonResult.Yes)
             {
                 ProcUtils.ProcessStart("https://t.me/dicodeping");
             }
@@ -464,6 +464,8 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         _layoutBindingsDisposable.Create(currentLayoutDisposables);
 
         this.OneWayBind(ViewModel, vm => vm.ProfilesViewModel, v => v.tabProfiles.Content).DisposeWith(currentLayoutDisposables);
+        this.OneWayBind(ViewModel, vm => vm.ClashProxiesViewModel, v => v.tabProxies.Content).DisposeWith(currentLayoutDisposables);
+        this.OneWayBind(ViewModel, vm => vm.MsgViewModel, v => v.tabReports.Content).DisposeWith(currentLayoutDisposables);
     }
 
     private void MenuItem_Click(object? sender, RoutedEventArgs e)

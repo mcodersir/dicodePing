@@ -15,12 +15,12 @@ Desktop publication uses a SQLite transaction; Android uses the existing locked,
 
 ## Upstream integration
 
-- PattNG `2.3.7-P42`, commit `2f315db080c48136104352b26c6370eef0fd6ef4`.
-- AndroidLibXrayLite `v26.9.7`, commit `716713ee8cbf0108232aeddbdba66a444aca782a`; AAR SHA-256 `569839c532b0d02a9e06f849ebe446faa30b7aeb6ed980a59a2991310b6e53eb`.
-- hev-socks5-tunnel `941c758101385d145c66210ac88991daaf27d4b6`.
-- Desktop uses `patterniha/xray-core v26.9.7`, with each platform archive pinned by SHA-256 in the release workflow. Existing sing-box and Mihomo runtimes remain bundled.
+- PattNG `2.3.10-P60`, commit `7dbdf0cfc2971709b4d47f202a66e05e974ca1c9`.
+- AndroidLibXrayLite `v26.10.4`, commit `dc2d0b1388808fa10916fd212907befd6723e553`; AAR SHA-256 `086e7c3e74c0d0e5365215b0e17597b4b8449741fb0655b141879dd4420b074f`.
+- hev-socks5-tunnel revision pinned by PattNG P60.
+- Desktop uses `XTLS/Xray-core v26.9.30`, `SagerNet/sing-box v1.14.2` and `MetaCubeX/mihomo v1.19.32`, with each platform archive pinned by SHA-256 in the release workflow.
 
-P42 changes were merged against the previously imported PattNG source, preserving Dicode's branding, subscription usage fields, always-on traffic counters, domain filters, sanctions tests and main-screen layout. The upstream main-screen row-model rewrite was intentionally excluded to retain those custom fields; its dependent LocateTarget model remains compatible with Dicode's UI.
+P60 changes are consumed through the release workflow native build while preserving Dicode's branding, subscription usage fields, always-on traffic counters, domain filters, sanctions tests and main-screen layout. The upstream main-screen row-model rewrite remains intentionally excluded where it conflicts with Dicode-specific desktop and Android fields.
 
 Network reachability depends on the device, ISP and the public channels at collection time. CI checks parsing, validation, application builds and core startup; it does not certify connectivity on every user's network.
 

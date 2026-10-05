@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.1 (pre-release)
+
+- Bump desktop and Android display versions to 4.0.1, with desktop FileVersion 4.0.1.1 and Android versionCode 400101.
+- Update bundled desktop runtimes to Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32 and Loyalsoldier geo data 202610042206 with SHA-256 verification in release CI.
+- Update Android native integration to PattNG 2.3.10-P60 and AndroidLibXrayLite/libv2ray v26.10.4 with pinned commit/hash validation.
+- Mark the GitHub publication as a pre-release for public validation of the redesigned desktop UI and full English-language coverage.
+
 ## 4.0.0 (stable, revision 2)
 
 - Prefer an already working DicodePing proxy regardless of its subscription, then the system route provided by another VPN, before touching the official subscription.

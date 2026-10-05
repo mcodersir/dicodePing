@@ -752,8 +752,8 @@ public partial class MainWindowViewModel : MyReactiveObject
             _reloadSemaphore.Release();
         }
         ProfilesViewModel.IsConnected = false;
-        ProfilesViewModel.ConnectionStatusText = "اتصال TUN";
-        NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
+        ProfilesViewModel.ConnectionStatusText = ResUI.DicodeTunConnect;
+        NoticeManager.Instance.Enqueue(ResUI.DicodeTunDisconnected);
     }
 
     public async Task Reload(bool forceStart = false)
