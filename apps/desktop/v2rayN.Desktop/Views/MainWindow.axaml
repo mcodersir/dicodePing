@@ -28,6 +28,9 @@
         <StreamGeometry x:Key="DicodeIconSettings">M4,7.5 H20 M4,12 H20 M4,16.5 H20 M9,5.8 A1.7,1.7 0 1,0 9,9.2 A1.7,1.7 0 1,0 9,5.8 Z M15,10.3 A1.7,1.7 0 1,0 15,13.7 A1.7,1.7 0 1,0 15,10.3 Z M7.5,14.8 A1.7,1.7 0 1,0 7.5,18.2 A1.7,1.7 0 1,0 7.5,14.8 Z</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconReports">M4,20 H20 M7,16.5 V11.5 M12,16.5 V7 M17,16.5 V13</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconAbout">M12,3 A9,9 0 1,0 12,21 A9,9 0 1,0 12,3 Z M12,7.6 V7.61 M12,11 V16.5</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconPool">M12,3.5 L21,8.25 L12,13 L3,8.25 Z M4.6,12.1 L12,16.1 L19.4,12.1 M4.6,16 L12,20 L19.4,16</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconZap">M13.2,2.5 L5,13.5 H11 L10.8,21.5 L19,10.5 H13 Z</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconRefresh">M20.5,12 A8.5,8.5 0 1,1 17.8,5.9 M20.5,3.2 V7.4 H16.3</StreamGeometry>
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
@@ -42,9 +45,47 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="8">
-                        <Button Content="{x:Static resx:ResUI.DicodeServerPool}" Click="OpenServerPool" />
-                        <Button Content="{x:Static resx:ResUI.DicodeSmartConnect}" Command="{Binding ProfilesViewModel.ConnectBestCmd}" />
-                        <Button Content="{x:Static resx:ResUI.DicodeRefresh}" Command="{Binding ReloadCmd}" />
+                        <Button Click="OpenServerPool">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource DicodeIconPool}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeServerPool}" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ProfilesViewModel.ConnectBestCmd}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource DicodeIconZap}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeSmartConnect}" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ReloadCmd}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource DicodeIconRefresh}"
+                                    Stretch="Uniform"
+                                    Stroke="{DynamicResource DicodeTextSecondary}"
+                                    StrokeLineCap="Round"
+                                    StrokeLineJoin="Round"
+                                    StrokeThickness="1.5" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeRefresh}" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
@@ -170,7 +211,7 @@
                 </Border>
 
                 <Panel Grid.Column="1" Margin="14,0,0,0">
-                    <Panel x:Name="pageHome">
+                    <Panel x:Name="pageHome" Classes="DicodePage">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
                             <Border Padding="18" Classes="DicodeCard">
                                 <StackPanel Spacing="6">
@@ -182,7 +223,7 @@
                         </Grid>
                     </Panel>
 
-                    <Panel x:Name="pageProfiles" IsVisible="False">
+                    <Panel x:Name="pageProfiles" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
                             <Border Padding="18" Classes="DicodeCard">
                                 <StackPanel Spacing="6">
@@ -194,7 +235,7 @@
                         </Grid>
                     </Panel>
 
-                    <Panel x:Name="pageProxies" IsVisible="False">
+                    <Panel x:Name="pageProxies" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
                             <Border Padding="18" Classes="DicodeCard">
                                 <StackPanel Spacing="6">
@@ -206,7 +247,7 @@
                         </Grid>
                     </Panel>
 
-                    <Panel x:Name="pageSettings" IsVisible="False">
+                    <Panel x:Name="pageSettings" Classes="DicodePage" IsVisible="False">
                         <Border Padding="22" Classes="DicodeCard">
                             <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
                                 <StackPanel Spacing="6">
@@ -225,16 +266,24 @@
                         </Border>
                     </Panel>
 
-                    <Panel x:Name="pageReports" IsVisible="False">
-                        <ContentControl x:Name="tabReports" />
+                    <Panel x:Name="pageReports" Classes="DicodePage" IsVisible="False">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <Border Padding="18" Classes="DicodeCard">
+                                <StackPanel Spacing="6">
+                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeReportsTitle}" />
+                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeReportsSubtitle}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <ContentControl x:Name="tabReports" Grid.Row="1" />
+                        </Grid>
                     </Panel>
 
-                    <Panel x:Name="pageAbout" IsVisible="False">
+                    <Panel x:Name="pageAbout" Classes="DicodePage" IsVisible="False">
                         <Border Padding="22" Classes="DicodeCard" VerticalAlignment="Top">
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
                                 <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.2 pre-release" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.3 pre-release" />
                             </StackPanel>
                         </Border>
                     </Panel>

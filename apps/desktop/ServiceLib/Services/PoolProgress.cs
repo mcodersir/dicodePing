@@ -41,14 +41,14 @@ public static class PoolNetwork
             catch (Exception) { }
             await Task.Delay(500, token);
         }
-        throw new IOException("The local core port was not ready; check the connection log.");
+        throw new IOException(ResUI.DicodePoolLocalPortNotReady);
     }
 
     public static string Describe(Exception error) => error switch
     {
         HttpRequestException http when http.StatusCode.HasValue => $"HTTP {(int)http.StatusCode.Value}",
-        OperationCanceledException => "Response timeout",
-        HttpRequestException => "Network, DNS or TLS error",
+        OperationCanceledException => ResUI.DicodePoolTimeout,
+        HttpRequestException => ResUI.DicodePoolNetworkError,
         _ => error.GetType().Name
     };
 
@@ -64,18 +64,18 @@ public static class PoolNetwork
                 try
                 {
                     var channels = ServerPoolService.ParseChannels(await fetch(source, token));
-                    if (channels.Count == 0) throw new InvalidDataException("Invalid list");
-                    progress.Report(new("Channels", $"Received {channels.Count} channels."));
+                    if (channels.Count == 0) throw new InvalidDataException(ResUI.DicodePoolInvalidList);
+                    progress.Report(new("Channels", string.Format(ResUI.DicodePoolChannelsReceived, channels.Count)));
                     return channels;
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                 catch (Exception error)
                 {
-                    progress.Report(new("Channels", $"Fetch from {new Uri(source).Host} · attempt {attempt}/2: {Describe(error)}"));
+                    progress.Report(new("Channels", string.Format(ResUI.DicodePoolFetchAttempt, new Uri(source).Host, attempt, Describe(error))));
                     if (attempt == 1) await Task.Delay(750, token);
                 }
             }
         }
-        throw new IOException("The connection port is ready, but fetching the channel list from GitHub failed. Try again; this does not mean the VPN is disconnected.");
+        throw new IOException(ResUI.DicodePoolPortReadyFetchFail);
     }
 }

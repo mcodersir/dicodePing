@@ -5885,5 +5885,716 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("DicodeGeoFileReady", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Ready to collect.
+        /// </summary>
+        public static string DicodePoolReady {
+            get {
+                return ResourceManager.GetString("DicodePoolReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Active route -> default subscription fallback -> channels -> test -> save.
+        /// </summary>
+        public static string DicodePoolPipeline {
+            get {
+                return ResourceManager.GetString("DicodePoolPipeline", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Every response must be valid and no slower than 900 ms..
+        /// </summary>
+        public static string DicodePoolRequirement {
+            get {
+                return ResourceManager.GetString("DicodePoolRequirement", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Follow log.
+        /// </summary>
+        public static string DicodePoolFollowLog {
+            get {
+                return ResourceManager.GetString("DicodePoolFollowLog", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Start collection.
+        /// </summary>
+        public static string DicodePoolStart {
+            get {
+                return ResourceManager.GetString("DicodePoolStart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stop.
+        /// </summary>
+        public static string DicodePoolStop {
+            get {
+                return ResourceManager.GetString("DicodePoolStop", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Copy log.
+        /// </summary>
+        public static string DicodePoolCopyLog {
+            get {
+                return ResourceManager.GetString("DicodePoolCopyLog", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Clear log.
+        /// </summary>
+        public static string DicodePoolClearLog {
+            get {
+                return ResourceManager.GetString("DicodePoolClearLog", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Target successful servers.
+        /// </summary>
+        public static string DicodePoolTarget {
+            get {
+                return ResourceManager.GetString("DicodePoolTarget", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Test rounds per server.
+        /// </summary>
+        public static string DicodePoolRounds {
+            get {
+                return ResourceManager.GetString("DicodePoolRounds", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Live log.
+        /// </summary>
+        public static string DicodePoolLiveLog {
+            get {
+                return ResourceManager.GetString("DicodePoolLiveLog", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Saved servers.
+        /// </summary>
+        public static string DicodePoolSavedServers {
+            get {
+                return ResourceManager.GetString("DicodePoolSavedServers", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Running....
+        /// </summary>
+        public static string DicodePoolRunning {
+            get {
+                return ResourceManager.GetString("DicodePoolRunning", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stopping gracefully; completed successful servers will be saved....
+        /// </summary>
+        public static string DicodePoolStopSaving {
+            get {
+                return ResourceManager.GetString("DicodePoolStopSaving", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stopping collection....
+        /// </summary>
+        public static string DicodePoolStopping {
+            get {
+                return ResourceManager.GetString("DicodePoolStopping", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to New run · {0} · target {1} servers · {2} rounds.
+        /// </summary>
+        public static string DicodePoolNewRun {
+            get {
+                return ResourceManager.GetString("DicodePoolNewRun", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stopped.
+        /// </summary>
+        public static string DicodePoolStopped {
+            get {
+                return ResourceManager.GetString("DicodePoolStopped", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The operation stopped before a successful result completed; the previous pool was kept..
+        /// </summary>
+        public static string DicodePoolStoppedKeepPrev {
+            get {
+                return ResourceManager.GetString("DicodePoolStoppedKeepPrev", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Run again.
+        /// </summary>
+        public static string DicodePoolRunAgain {
+            get {
+                return ResourceManager.GetString("DicodePoolRunAgain", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        public static string DicodePoolError {
+            get {
+                return ResourceManager.GetString("DicodePoolError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0}/{1} · candidates: {2} · errors: {3}.
+        /// </summary>
+        public static string DicodePoolCountsCollecting {
+            get {
+                return ResourceManager.GetString("DicodePoolCountsCollecting", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0}/{1} · passed: {2} · failed: {3}.
+        /// </summary>
+        public static string DicodePoolCountsTest {
+            get {
+                return ResourceManager.GetString("DicodePoolCountsTest", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Active route.
+        /// </summary>
+        public static string DicodePoolStageActiveRoute {
+            get {
+                return ResourceManager.GetString("DicodePoolStageActiveRoute", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Pool.
+        /// </summary>
+        public static string DicodePoolStagePool {
+            get {
+                return ResourceManager.GetString("DicodePoolStagePool", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Default subscription.
+        /// </summary>
+        public static string DicodePoolStageDefaultSub {
+            get {
+                return ResourceManager.GetString("DicodePoolStageDefaultSub", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Connection.
+        /// </summary>
+        public static string DicodePoolStageConnection {
+            get {
+                return ResourceManager.GetString("DicodePoolStageConnection", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Channels.
+        /// </summary>
+        public static string DicodePoolStageChannels {
+            get {
+                return ResourceManager.GetString("DicodePoolStageChannels", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Collecting.
+        /// </summary>
+        public static string DicodePoolStageCollecting {
+            get {
+                return ResourceManager.GetString("DicodePoolStageCollecting", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Test.
+        /// </summary>
+        public static string DicodePoolStageTest {
+            get {
+                return ResourceManager.GetString("DicodePoolStageTest", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Save.
+        /// </summary>
+        public static string DicodePoolStageSave {
+            get {
+                return ResourceManager.GetString("DicodePoolStageSave", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stopped.
+        /// </summary>
+        public static string DicodePoolStageStopped {
+            get {
+                return ResourceManager.GetString("DicodePoolStageStopped", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Done.
+        /// </summary>
+        public static string DicodePoolStageDone {
+            get {
+                return ResourceManager.GetString("DicodePoolStageDone", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Active DicodePing connection.
+        /// </summary>
+        public static string DicodePoolActiveConnection {
+            get {
+                return ResourceManager.GetString("DicodePoolActiveConnection", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Direct system route or another VPN.
+        /// </summary>
+        public static string DicodePoolDirectRoute {
+            get {
+                return ResourceManager.GetString("DicodePoolDirectRoute", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Default subscription fallback route.
+        /// </summary>
+        public static string DicodePoolFallbackRoute {
+            get {
+                return ResourceManager.GetString("DicodePoolFallbackRoute", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Public message page was not received.
+        /// </summary>
+        public static string DicodePoolNoPublicPage {
+            get {
+                return ResourceManager.GetString("DicodePoolNoPublicPage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to create the Server Pool subscription..
+        /// </summary>
+        public static string DicodePoolSubCreateFailed {
+            get {
+                return ResourceManager.GetString("DicodePoolSubCreateFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Checking {0} without changing the current connection....
+        /// </summary>
+        public static string DicodePoolCheckingRoute {
+            get {
+                return ResourceManager.GetString("DicodePoolCheckingRoute", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Channel list is unavailable.
+        /// </summary>
+        public static string DicodePoolChannelListUnavailable {
+            get {
+                return ResourceManager.GetString("DicodePoolChannelListUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Telegram preview is unavailable.
+        /// </summary>
+        public static string DicodePoolTelegramUnavailable {
+            get {
+                return ResourceManager.GetString("DicodePoolTelegramUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} is usable; the user connection will not be changed..
+        /// </summary>
+        public static string DicodePoolRouteUsable {
+            get {
+                return ResourceManager.GetString("DicodePoolRouteUsable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} was not usable for both GitHub and Telegram sources..
+        /// </summary>
+        public static string DicodePoolRouteNotUsable {
+            get {
+                return ResourceManager.GetString("DicodePoolRouteNotUsable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Another collection is already running..
+        /// </summary>
+        public static string DicodePoolAnotherRunning {
+            get {
+                return ResourceManager.GetString("DicodePoolAnotherRunning", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Independent subscription {0} is ready..
+        /// </summary>
+        public static string DicodePoolSubReady {
+            get {
+                return ResourceManager.GetString("DicodePoolSubReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No active route for Telegram was found; testing the default subscription....
+        /// </summary>
+        public static string DicodePoolNoTelegramRoute {
+            get {
+                return ResourceManager.GetString("DicodePoolNoTelegramRoute", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Subscription update returned no results; testing the existing cache..
+        /// </summary>
+        public static string DicodePoolSubNoResults {
+            get {
+                return ResourceManager.GetString("DicodePoolSubNoResults", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Subscription update was unavailable ({0}); testing the existing cache..
+        /// </summary>
+        public static string DicodePoolSubUnavailable {
+            get {
+                return ResourceManager.GetString("DicodePoolSubUnavailable", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No active route or healthy config was found in the default subscription cache; try again..
+        /// </summary>
+        public static string DicodePoolNoHealthyConfig {
+            get {
+                return ResourceManager.GetString("DicodePoolNoHealthyConfig", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Starting fallback connection to the best default-subscription route · {0} ms.
+        /// </summary>
+        public static string DicodePoolFallbackStarting {
+            get {
+                return ResourceManager.GetString("DicodePoolFallbackStarting", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Fallback connected, but GitHub and Telegram are still unreachable through it..
+        /// </summary>
+        public static string DicodePoolFallbackStillBlocked {
+            get {
+                return ResourceManager.GetString("DicodePoolFallbackStillBlocked", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} channels from {1} are ready..
+        /// </summary>
+        public static string DicodePoolChannelsReady {
+            get {
+                return ResourceManager.GetString("DicodePoolChannelsReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Unique configs: {0}.
+        /// </summary>
+        public static string DicodePoolUniqueConfigs {
+            get {
+                return ResourceManager.GetString("DicodePoolUniqueConfigs", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No V2Ray config was extracted from reachable messages; testing did not start. Check channel details in the log; the previous pool was kept..
+        /// </summary>
+        public static string DicodePoolNoConfigs {
+            get {
+                return ResourceManager.GetString("DicodePoolNoConfigs", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} testable configs · target {1} successful servers · {2} concurrent real-test rounds.
+        /// </summary>
+        public static string DicodePoolTestStart {
+            get {
+                return ResourceManager.GetString("DicodePoolTestStart", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to No qualified config was found; the previous pool was kept..
+        /// </summary>
+        public static string DicodePoolNoQualified {
+            get {
+                return ResourceManager.GetString("DicodePoolNoQualified", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Stopped; saving {0} completed successful servers....
+        /// </summary>
+        public static string DicodePoolSavingStopped {
+            get {
+                return ResourceManager.GetString("DicodePoolSavingStopped", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Saving {0} verified configs....
+        /// </summary>
+        public static string DicodePoolSaving {
+            get {
+                return ResourceManager.GetString("DicodePoolSaving", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Testing was stopped by request and {0} successful servers were saved to the pool..
+        /// </summary>
+        public static string DicodePoolStoppedSaved {
+            get {
+                return ResourceManager.GetString("DicodePoolStoppedSaved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to {0} healthy configs were saved to the pool..
+        /// </summary>
+        public static string DicodePoolSaved {
+            get {
+                return ResourceManager.GetString("DicodePoolSaved", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This batch core did not become ready; isolating the incompatible config....
+        /// </summary>
+        public static string DicodePoolCoreNotReady {
+            get {
+                return ResourceManager.GetString("DicodePoolCoreNotReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to A core-incompatible config was rejected; other servers will continue testing..
+        /// </summary>
+        public static string DicodePoolIncompatibleRejected {
+            get {
+                return ResourceManager.GetString("DicodePoolIncompatibleRejected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The config core exited before testing, so the server was rejected..
+        /// </summary>
+        public static string DicodePoolCoreExited {
+            get {
+                return ResourceManager.GetString("DicodePoolCoreExited", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Server {0} · test-core port was not ready.
+        /// </summary>
+        public static string DicodePoolTestPortNotReady {
+            get {
+                return ResourceManager.GetString("DicodePoolTestPortNotReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Server {0} · round {1}/{2}: {3}.
+        /// </summary>
+        public static string DicodePoolServerRound {
+            get {
+                return ResourceManager.GetString("DicodePoolServerRound", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to failed.
+        /// </summary>
+        public static string DicodePoolFailed {
+            get {
+                return ResourceManager.GetString("DicodePoolFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Server {0} · responses: {1} · {2}.
+        /// </summary>
+        public static string DicodePoolServerResponses {
+            get {
+                return ResourceManager.GetString("DicodePoolServerResponses", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to accepted.
+        /// </summary>
+        public static string DicodePoolAccepted {
+            get {
+                return ResourceManager.GetString("DicodePoolAccepted", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to rejected.
+        /// </summary>
+        public static string DicodePoolRejected {
+            get {
+                return ResourceManager.GetString("DicodePoolRejected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Real route test · passed {0}/{1}.
+        /// </summary>
+        public static string DicodePoolRealTestPassed {
+            get {
+                return ResourceManager.GetString("DicodePoolRealTestPassed", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Real route test.
+        /// </summary>
+        public static string DicodePoolRealTest {
+            get {
+                return ResourceManager.GetString("DicodePoolRealTest", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The local core port was not ready; check the connection log..
+        /// </summary>
+        public static string DicodePoolLocalPortNotReady {
+            get {
+                return ResourceManager.GetString("DicodePoolLocalPortNotReady", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Response timeout.
+        /// </summary>
+        public static string DicodePoolTimeout {
+            get {
+                return ResourceManager.GetString("DicodePoolTimeout", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Network, DNS or TLS error.
+        /// </summary>
+        public static string DicodePoolNetworkError {
+            get {
+                return ResourceManager.GetString("DicodePoolNetworkError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid list.
+        /// </summary>
+        public static string DicodePoolInvalidList {
+            get {
+                return ResourceManager.GetString("DicodePoolInvalidList", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Received {0} channels..
+        /// </summary>
+        public static string DicodePoolChannelsReceived {
+            get {
+                return ResourceManager.GetString("DicodePoolChannelsReceived", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Fetch from {0} · attempt {1}/2: {2}.
+        /// </summary>
+        public static string DicodePoolFetchAttempt {
+            get {
+                return ResourceManager.GetString("DicodePoolFetchAttempt", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The connection port is ready, but fetching the channel list from GitHub failed. Try again; this does not mean the VPN is disconnected..
+        /// </summary>
+        public static string DicodePoolPortReadyFetchFail {
+            get {
+                return ResourceManager.GetString("DicodePoolPortReadyFetchFail", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Reports.
+        /// </summary>
+        public static string DicodeReportsTitle {
+            get {
+                return ResourceManager.GetString("DicodeReportsTitle", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Live app events, connection log and diagnostics..
+        /// </summary>
+        public static string DicodeReportsSubtitle {
+            get {
+                return ResourceManager.GetString("DicodeReportsSubtitle", resourceCulture);
+            }
+        }
             }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.0.3 (pre-release)
+
+- Fix the sidebar regression that froze navigation on the Home page: the page-switch event handlers were never wired in 4.0.2. Navigation now also re-triggers on click and lands with a calm slide-fade transition.
+- Give the header quick actions (Server pool, Smart connect, Refresh) minimal single-stroke line icons.
+- Fully localize the Server Pool window and the pool service progress messages (`DicodePool*` resources, Persian included); the pool window follows the language flow direction (RTL for Persian).
+- Add short description headers to every page and give the Reports page the same title card as the others.
+- Refine the dark theme palette: clearly dark surfaces with stable borders, never pitch black.
+- Android versionCode 400301 with install guidance: pick the universal or arm64-v8a APK, and re-download if a "parse package" error appears (partial downloads break installation).
+
 ## 4.0.2 (pre-release)
 
 - Redesign the desktop navigation rail with minimal single-stroke line icons; it renders on the visual right in Persian (RTL) and the visual left in English (LTR), because window flow direction now follows the selected language instead of forcing RTL everywhere.

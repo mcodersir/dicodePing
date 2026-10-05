@@ -34,7 +34,7 @@ public sealed class ServerPoolService
             ? Newest.HasValue
                 ? $"{Links.Count} candidates from the latest visible messages · date {Newest:yyyy-MM-dd}"
                 : $"{Links.Count} candidates from the latest visible messages · no date in HTML"
-            : Posts == 0 ? "Public message page was not received"
+            : Posts == 0 ? ResUI.DicodePoolNoPublicPage
             : DatedPosts == 0 ? $"{Posts} messages; no direct V2Ray links · no date in HTML"
             : $"{Posts} messages; no direct V2Ray links";
     }
@@ -94,7 +94,7 @@ public sealed class ServerPoolService
         var item = await AppManager.Instance.GetSubItem(PoolId) ?? new SubItem { Id = PoolId };
         item.Remarks = PoolName; item.Url = ""; item.Enabled = true; item.AutoUpdateInterval = 0;
         if (await ConfigHandler.AddSubItem(AppManager.Instance.Config, item) != 0)
-            throw new IOException("Failed to create the Server Pool subscription.");
+            throw new IOException(ResUI.DicodePoolSubCreateFailed);
     }
 
     public static bool AcceptSamples(IReadOnlyList<int> samples, int requiredRounds = 3) =>
@@ -110,7 +110,7 @@ public sealed class ServerPoolService
 
     private static void ConfigureBrowserHeaders(HttpClient client)
     {
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.2");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.3");
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
     }
 
@@ -140,7 +140,7 @@ public sealed class ServerPoolService
         ConfigureBrowserHeaders(client);
         try
         {
-            progress.Report(new("Active route", $"Checking {name} without changing the current connection..."));
+            progress.Report(new(ResUI.DicodePoolStageActiveRoute, string.Format(ResUI.DicodePoolCheckingRoute, name)));
             List<string>? channels = null;
             foreach (var source in PoolNetwork.ChannelSources)
             {
@@ -153,7 +153,7 @@ public sealed class ServerPoolService
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                 catch { }
             }
-            if (channels is null || channels.Count == 0) throw new IOException("Channel list is unavailable");
+            if (channels is null || channels.Count == 0) throw new IOException(ResUI.DicodePoolChannelListUnavailable);
 
             async Task<bool> CanReadChannel(string channel)
             {
@@ -169,8 +169,8 @@ public sealed class ServerPoolService
             }
 
             var telegramChecks = await Task.WhenAll(channels.Take(5).Select(CanReadChannel));
-            if (!telegramChecks.Any(x => x)) throw new IOException("Telegram preview is unavailable");
-            progress.Report(new("Active route", $"{name} is usable; the user connection will not be changed."));
+            if (!telegramChecks.Any(x => x)) throw new IOException(ResUI.DicodePoolTelegramUnavailable);
+            progress.Report(new(ResUI.DicodePoolStageActiveRoute, string.Format(ResUI.DicodePoolRouteUsable, name)));
             return new PreparedRoute(client, channels, name);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -181,7 +181,7 @@ public sealed class ServerPoolService
         catch
         {
             client.Dispose();
-            progress.Report(new("Active route", $"{name} was not usable for both GitHub and Telegram sources."));
+            progress.Report(new(ResUI.DicodePoolStageActiveRoute, string.Format(ResUI.DicodePoolRouteNotUsable, name)));
             return null;
         }
     }
@@ -190,7 +190,7 @@ public sealed class ServerPoolService
         IProgress<PoolProgress> progress, ServerPoolOptions requestedOptions,
         CancellationToken stopToken, CancellationToken abortToken)
     {
-        if (!await Gate.WaitAsync(0, abortToken)) throw new InvalidOperationException("Another collection is already running.");
+        if (!await Gate.WaitAsync(0, abortToken)) throw new InvalidOperationException(ResUI.DicodePoolAnotherRunning);
         var options = requestedOptions.Normalize();
         using var preparation = CancellationTokenSource.CreateLinkedTokenSource(stopToken, abortToken);
         var preparationToken = preparation.Token;
@@ -198,12 +198,12 @@ public sealed class ServerPoolService
         try
         {
             await EnsureSubscriptionAsync();
-            progress.Report(new("Pool", $"Independent subscription {PoolName} is ready."));
-            var route = await TryPrepareRouteAsync("Active DicodePing connection", LocalProxy(config), progress, preparationToken)
-                ?? await TryPrepareRouteAsync("Direct system route or another VPN", null, progress, preparationToken);
+            progress.Report(new(ResUI.DicodePoolStagePool, string.Format(ResUI.DicodePoolSubReady, PoolName)));
+            var route = await TryPrepareRouteAsync(ResUI.DicodePoolActiveConnection, LocalProxy(config), progress, preparationToken)
+                ?? await TryPrepareRouteAsync(ResUI.DicodePoolDirectRoute, null, progress, preparationToken);
             if (route is null)
             {
-                progress.Report(new("Default subscription", "No active route for Telegram was found; testing the default subscription..."));
+                progress.Report(new(ResUI.DicodePoolStageDefaultSub, ResUI.DicodePoolNoTelegramRoute));
                 await DicodePingBootstrap.EnsureDefaultsAsync(config);
                 var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
                 var subscriptionUpdated = false;
@@ -215,29 +215,29 @@ public sealed class ServerPoolService
                         return Task.CompletedTask;
                     });
                     if (!subscriptionUpdated)
-                        progress.Report(new("Default subscription", "Subscription update returned no results; testing the existing cache."));
+                        progress.Report(new(ResUI.DicodePoolStageDefaultSub, ResUI.DicodePoolSubNoResults));
                 }
                 catch (Exception error)
                 {
-                    progress.Report(new("Default subscription", $"Subscription update was unavailable ({PoolNetwork.Describe(error)}); testing the existing cache."));
+                    progress.Report(new(ResUI.DicodePoolStageDefaultSub, string.Format(ResUI.DicodePoolSubUnavailable, PoolNetwork.Describe(error))));
                 }
                 preparationToken.ThrowIfCancellationRequested();
                 var initialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
                 var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
                     preparationToken, CancellationToken.None);
                 var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
-                if (best.Profile == null) throw new InvalidOperationException("No active route or healthy config was found in the default subscription cache; try again.");
-                progress.Report(new("Connection", $"Starting fallback connection to the best default-subscription route · {best.Delay} ms"));
+                if (best.Profile == null) throw new InvalidOperationException(ResUI.DicodePoolNoHealthyConfig);
+                progress.Report(new(ResUI.DicodePoolStageConnection, string.Format(ResUI.DicodePoolFallbackStarting, best.Delay)));
                 await connect(best.Profile, preparationToken);
                 preparationToken.ThrowIfCancellationRequested();
-                route = await TryPrepareRouteAsync("Default subscription fallback route", LocalProxy(config), progress, preparationToken)
-                    ?? throw new InvalidOperationException("Fallback connected, but GitHub and Telegram are still unreachable through it.");
+                route = await TryPrepareRouteAsync(ResUI.DicodePoolFallbackRoute, LocalProxy(config), progress, preparationToken)
+                    ?? throw new InvalidOperationException(ResUI.DicodePoolFallbackStillBlocked);
             }
             using (route)
             {
             var client = route.Client;
             var channels = route.Channels;
-            progress.Report(new("Channels", $"{channels.Count} channels from {route.Name} are ready."));
+            progress.Report(new(ResUI.DicodePoolStageChannels, string.Format(ResUI.DicodePoolChannelsReady, channels.Count, route.Name)));
             var collected = new ConcurrentDictionary<string, byte>();
             int completed = 0, failed = 0;
             await Parallel.ForEachAsync(channels, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = preparationToken }, async (channel, ct) =>
@@ -251,17 +251,17 @@ public sealed class ServerPoolService
                     }
                     if (extraction.Posts == 0) Interlocked.Increment(ref failed);
                     foreach (var link in extraction.Links) collected.TryAdd(link, 0);
-                    progress.Report(new("Collecting", $"@{channel} · {extraction.Summary}"));
+                    progress.Report(new(ResUI.DicodePoolStageCollecting, $"@{channel} · {extraction.Summary}"));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                catch (Exception error) { Interlocked.Increment(ref failed); progress.Report(new("Collecting", $"@{channel} · {PoolNetwork.Describe(error)}")); }
-                progress.Report(new("Collecting", $"Unique configs: {collected.Count}", Interlocked.Increment(ref completed), channels.Count, collected.Count, failed));
+                catch (Exception error) { Interlocked.Increment(ref failed); progress.Report(new(ResUI.DicodePoolStageCollecting, $"@{channel} · {PoolNetwork.Describe(error)}")); }
+                progress.Report(new(ResUI.DicodePoolStageCollecting, string.Format(ResUI.DicodePoolUniqueConfigs, collected.Count), Interlocked.Increment(ref completed), channels.Count, collected.Count, failed));
             });
             var profiles = collected.Keys.Select(x => FmtHandler.ResolveConfig(x, out _)).OfType<ProfileItem>().ToList();
-            if (profiles.Count == 0) throw new InvalidOperationException("No V2Ray config was extracted from reachable messages; testing did not start. Check channel details in the log; the previous pool was kept.");
+            if (profiles.Count == 0) throw new InvalidOperationException(ResUI.DicodePoolNoConfigs);
             foreach (var profile in profiles) { profile.IndexId = Utils.GetGuid(false); profile.Subid = PoolId; }
-            progress.Report(new("Test",
-                $"{profiles.Count} testable configs · target {options.TargetCount} successful servers · {options.TestRounds} concurrent real-test rounds",
+            progress.Report(new(ResUI.DicodePoolStageTest,
+                string.Format(ResUI.DicodePoolTestStart, profiles.Count, options.TargetCount, options.TestRounds),
                 0, profiles.Count, 0, 0, options.TargetCount));
             var accepted = await ProbeAsync(profiles, options.TestRounds, options.TargetCount, true,
                 progress, abortToken, stopToken);
@@ -270,11 +270,11 @@ public sealed class ServerPoolService
             if (accepted.Count == 0)
             {
                 if (stopped) throw new OperationCanceledException(stopToken);
-                throw new InvalidOperationException("No qualified config was found; the previous pool was kept.");
+                throw new InvalidOperationException(ResUI.DicodePoolNoQualified);
             }
-            progress.Report(new("Save", stopped
-                ? $"Stopped; saving {accepted.Count} completed successful servers..."
-                : $"Saving {accepted.Count} verified configs...", Passed: accepted.Count, Target: options.TargetCount));
+            progress.Report(new(ResUI.DicodePoolStageSave, stopped
+                ? string.Format(ResUI.DicodePoolSavingStopped, accepted.Count)
+                : string.Format(ResUI.DicodePoolSaving, accepted.Count), Passed: accepted.Count, Target: options.TargetCount));
             await ProfileOperationCoordinator.Gate.WaitAsync(abortToken);
             try
             {
@@ -284,10 +284,10 @@ public sealed class ServerPoolService
                 await ProfileExManager.Instance.SaveTo();
             }
             finally { ProfileOperationCoordinator.Gate.Release(); }
-            progress.Report(new(stopped ? "Stopped" : "Done",
+            progress.Report(new(stopped ? ResUI.DicodePoolStageStopped : ResUI.DicodePoolStageDone,
                 stopped
-                    ? $"Testing was stopped by request and {accepted.Count} successful servers were saved to the pool."
-                    : $"{accepted.Count} healthy configs were saved to the pool.",
+                    ? string.Format(ResUI.DicodePoolStoppedSaved, accepted.Count)
+                    : string.Format(ResUI.DicodePoolSaved, accepted.Count),
                 accepted.Count, accepted.Count, accepted.Count, 0, options.TargetCount));
             return accepted.Count;
             }
@@ -314,11 +314,11 @@ public sealed class ServerPoolService
             var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
             if (core == null)
             {
-                progress.Report(new("Test", "This batch core did not become ready; isolating the incompatible config..."));
+                progress.Report(new(ResUI.DicodePoolStageTest, ResUI.DicodePoolCoreNotReady));
                 if (chunk.Length == 1)
                 {
                     var rejected = Interlocked.Increment(ref done);
-                    progress.Report(new("Test", "A core-incompatible config was rejected; other servers will continue testing.",
+                    progress.Report(new(ResUI.DicodePoolStageTest, ResUI.DicodePoolIncompatibleRejected,
                         rejected, profiles.Count, result.Count, Math.Max(0, rejected - result.Count), strict ? targetCount : 0));
                 }
                 else
@@ -339,7 +339,7 @@ public sealed class ServerPoolService
                     if (chunk.Length == 1)
                     {
                         var rejected = Interlocked.Increment(ref done);
-                        progress.Report(new("Test", "The config core exited before testing, so the server was rejected.",
+                        progress.Report(new(ResUI.DicodePoolStageTest, ResUI.DicodePoolCoreExited,
                             rejected, profiles.Count, result.Count, Math.Max(0, rejected - result.Count), strict ? targetCount : 0));
                     }
                     else
@@ -358,7 +358,7 @@ public sealed class ServerPoolService
                         if (!item.AllowTest || (strict && result.Count >= targetCount)) return;
                         var ready = true;
                         try { await PoolNetwork.WaitForListenerAsync(() => item.Port, ct, 10); }
-                        catch (IOException) { ready = false; progress.Report(new("Test", $"Server {baseIndex + item.QueueNum + 1} · test-core port was not ready")); }
+                        catch (IOException) { ready = false; progress.Report(new(ResUI.DicodePoolStageTest, string.Format(ResUI.DicodePoolTestPortNotReady, baseIndex + item.QueueNum + 1))); }
                         var webProxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
                         for (var round = 0; round < rounds; round++)
                         {
@@ -370,7 +370,7 @@ public sealed class ServerPoolService
                             ct.ThrowIfCancellationRequested();
                             samples.Add(delay);
                             progress.Report(new(strict ? "Test" : "Default subscription",
-                                $"Server {baseIndex + item.QueueNum + 1} · round {round + 1}/{rounds}: {(delay > 0 ? $"{delay} ms" : "failed")}",
+                                string.Format(ResUI.DicodePoolServerRound, baseIndex + item.QueueNum + 1, round + 1, rounds, delay > 0 ? $"{delay} ms" : ResUI.DicodePoolFailed),
                                 Passed: result.Count, Target: strict ? targetCount : 0));
                         }
                         var accepted = strict ? AcceptSamples(samples, rounds) : samples.Count == rounds && samples.All(x => x > 0);
@@ -381,14 +381,14 @@ public sealed class ServerPoolService
                                 result.TryAdd(item.Profile.IndexId, (item.Profile, samples.Order().ElementAt(samples.Count / 2)));
                         }
                         progress.Report(new(strict ? "Test" : "Default subscription",
-                            $"Server {item.QueueNum + baseIndex + 1} · responses: {string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : "failed"))} · {(accepted ? "accepted" : "rejected")}",
+                            string.Format(ResUI.DicodePoolServerResponses, item.QueueNum + baseIndex + 1, string.Join(" / ", samples.Select(x => x > 0 ? $"{x} ms" : ResUI.DicodePoolFailed)), accepted ? ResUI.DicodePoolAccepted : ResUI.DicodePoolRejected),
                             Passed: result.Count, Target: strict ? targetCount : 0));
                     }
                     finally
                     {
                         var tested = Interlocked.Increment(ref done);
                         progress.Report(new(strict ? "Test" : "Default subscription",
-                            strict ? $"Real route test · passed {result.Count}/{targetCount}" : "Real route test",
+                            strict ? string.Format(ResUI.DicodePoolRealTestPassed, result.Count, targetCount) : ResUI.DicodePoolRealTest,
                             tested, profiles.Count, result.Count, Math.Max(0, tested - result.Count), strict ? targetCount : 0));
                     }
                 });

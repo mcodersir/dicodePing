@@ -25,6 +25,21 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     {
         InitializeComponent();
 
+        // Sidebar navigation: Checked switches pages, Click also re-shows the
+        // active page so a misclick can never leave the window unresponsive.
+        navHome.Checked += Nav_Checked;
+        navHome.Click += Nav_Click;
+        navProfiles.Checked += Nav_Checked;
+        navProfiles.Click += Nav_Click;
+        navProxies.Checked += Nav_Checked;
+        navProxies.Click += Nav_Click;
+        navSettings.Checked += Nav_Checked;
+        navSettings.Click += Nav_Click;
+        navReports.Checked += Nav_Checked;
+        navReports.Click += Nav_Click;
+        navAbout.Checked += Nav_Checked;
+        navAbout.Click += Nav_Click;
+
         _config = AppManager.Instance.Config;
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
@@ -170,14 +185,41 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         }
     }
 
+    private void Nav_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string page, IsChecked: true })
+        {
+            ShowPage(page);
+        }
+    }
+
     private void ShowPage(string page)
     {
-        pageHome.IsVisible = page == "home";
-        pageProfiles.IsVisible = page == "profiles";
-        pageProxies.IsVisible = page == "proxies";
-        pageSettings.IsVisible = page == "settings";
-        pageReports.IsVisible = page == "reports";
-        pageAbout.IsVisible = page == "about";
+        var target = page switch
+        {
+            "profiles" => pageProfiles,
+            "proxies" => pageProxies,
+            "settings" => pageSettings,
+            "reports" => pageReports,
+            "about" => pageAbout,
+            _ => pageHome,
+        };
+
+        pageHome.IsVisible = target == pageHome;
+        pageProfiles.IsVisible = target == pageProfiles;
+        pageProxies.IsVisible = target == pageProxies;
+        pageSettings.IsVisible = target == pageSettings;
+        pageReports.IsVisible = target == pageReports;
+        pageAbout.IsVisible = target == pageAbout;
+
+        // Subtle slide-fade so navigation feels alive without being loud.
+        target.Opacity = 0;
+        target.RenderTransform = TransformOperations.Parse("translateY(10px)");
+        Dispatcher.UIThread.Post(() =>
+        {
+            target.Opacity = 1;
+            target.RenderTransform = TransformOperations.Parse("translateY(0px)");
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnProgramStarted(object state, bool timeout)

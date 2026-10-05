@@ -183,5 +183,15 @@
         </Style.Animations>
     </Style>
 
+    <!--  Page transition: every navigation lands with a calm slide-fade.  -->
+    <Style Selector="Panel.DicodePage">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Easing="CubicEaseOut" Duration="0:0:0.22" Property="Opacity" />
+                <TransformOperationsTransition Easing="CubicEaseOut" Duration="0:0:0.25" Property="RenderTransform" />
+            </Transitions>
+        </Setter>
+    </Style>
+
 
 </Styles>

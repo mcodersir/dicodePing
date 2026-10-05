@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.2
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.3
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.2 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.3 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.0.2-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.0.3-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.0.2-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.0.3-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.2
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.3
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,27 +264,27 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.0.2 — Pre-release
+          name: DicodePing 4.0.3 — Pre-release
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.0.2 — Pre-release
+            ## DicodePing 4.0.3 — Pre-release
 
-            پیش‌نمایش 4.0.2 با تمرکز بر بازخورد کاربران نسخه 4.0.1: رابط کاربری مینیمال‌تر و راست‌به‌چپِ درست، پینگ سریع‌تر بدون خطای «آزمون در حال اجرا»، ترجمه کامل فارسی و رفع مشکل نصب اندروید.
+            پیش‌نمایش 4.0.3 بر اساس بازخورد 4.0.2: رفع کامل سایدبار (تعویض تب‌ها)، آیکون خطی برای دکمه‌های بالا، ترجمه کامل فارسی صفحه استخر سرورها، ترنزیشن نرم بین صفحات و تم تیره اصلاح‌شده.
 
-            - نوار کناری (سایدبار) با آیکون‌های خطی مینیمال بازطراحی شد؛ در فارسی سمت راست و در انگلیسی سمت چپ قرار می‌گیرد.
-            - جهت رابط کاربری اکنون بر اساس زبان انتخابی تنظیم می‌شود (فارسی: RTL، سایر زبان‌ها: LTR).
-            - ۱۱۶ رشتهٔ باقی‌ماندهٔ انگلیسی در صفحه‌های DNS، مسیریابی، گروه سیاست و ترنسپورت به فارسی ترجمه شد.
-            - آزمون پینگ دیگر خطای «یک آزمون دیگر در حال اجراست» نمی‌دهد؛ آزمون قبلی خودکار متوقف و اعداد قدیمی با شیمر لودینگ پاک می‌شوند.
-            - هشدارهای نادرست «به‌روزرسانی در دسترس» در برنامه حذف شد (تگ‌های آلفای قابل تجزیه دیگر به‌عنوان به‌روزرسانی گزارش نمی‌شوند).
-            - اندروید اکنون با targetSdk 36 (اندروید ۱۶ پایدار) ساخته می‌شود؛ مشکل پیام «برنامه برای نسخهٔ قدیمی‌تر اندروید طراحی شده» روی دستگاه‌های پایدار رفع شد.
-            - نسخهٔ دسکتاپ با FileVersion 4.0.2.1 و نسخهٔ اندروید با versionCode 400201 منتشر می‌شود.
+            - سایدبار: رفع باگی که باعث می‌شد تعویض تب‌ها کار نکند؛ حالا همه صفحات با ترنزیشن اسلاید-فیید نرم باز می‌شوند.
+            - دکمه‌های «استخر سرورها»، «اتصال هوشمند» و «تازه‌سازی» در نوار بالا آیکون خطی مینیمال گرفتند.
+            - صفحه استخر سرورها (پنجره و تمام پیام‌های پیشرفت) به‌طور کامل بومی‌سازی شد و در فارسی راست‌به‌چپ است.
+            - هر صفحه توضیح کوتاه و مینیمال دارد؛ صفحه گزارش‌ها هم مثل بقیه صفحات کارت عنوان گرفت.
+            - تم تیره اصلاح شد: تیره و باثبات، بدون مشکی مطلق.
+            - اندروید: versionCode 400301؛ راهنمای نصب در پایین همین صفحه.
+            - نسخهٔ دسکتاپ با FileVersion 4.0.3.1 منتشر می‌شود.
 
             English summary:
-            - Minimal line-icon sidebar: visual right in Persian (RTL), left in English (LTR); flow direction now follows the selected language.
-            - 116 remaining untranslated UI strings (DNS, routing, policy groups, transport pages) translated to Persian.
-            - Latency tests supersede a running test instead of reporting "another test is running"; stale results clear with a shimmer placeholder.
-            - Removed false "update available" prompts caused by unparseable alpha release tags.
-            - Android now targets the stable Android 16 (targetSdk 36), fixing "designed for an older Android" installer complaints on stable devices.
-            - For installation, prefer DicodePing-4.0.2-universal.apk or the arm64-v8a APK.
+            - Sidebar page switching fixed (event wiring was missing in 4.0.2) with a calm slide-fade page transition.
+            - Header quick actions (Server pool / Smart connect / Refresh) now carry minimal line icons.
+            - Server Pool window and all progress messages are fully localized (Persian RTL aware).
+            - Every page has a short minimal description header; Reports page matches the other pages.
+            - Dark theme refined: properly dark and stable, never pitch black.
+            - Android versionCode 400301. For installation pick DicodePing-4.0.3-universal.apk (or arm64-v8a). If you see a "parse package" error, re-download the file — a partial download breaks installation.
           files: artifacts/*

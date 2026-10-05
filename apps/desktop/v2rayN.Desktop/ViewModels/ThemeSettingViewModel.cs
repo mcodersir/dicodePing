@@ -114,12 +114,12 @@ public partial class ThemeSettingViewModel : MyReactiveObject
     {
         var palette = themeName switch
         {
-            nameof(ETheme.Dark) => ("#0D141C", "#121B25", "#18232F", "#293746", "#F2F5F8", "#ADB8C5", "#1D3A58", "#63A9FF"),
+            nameof(ETheme.Dark) => ("#0B1219", "#121A24", "#18222D", "#2C3B4B", "#F3F6F9", "#A8B5C3", "#1E3D5E", "#5FA9FF"),
             nameof(ETheme.Aquatic) => ("#071B20", "#0C252B", "#123139", "#24505A", "#EAFBFC", "#A9D0D4", "#164957", "#48C6D4"),
             nameof(ETheme.Desert) => ("#FBF5E9", "#FFFDF8", "#F5EBD9", "#E2D2B8", "#2B241B", "#746653", "#F2DFC0", "#B8762D"),
             nameof(ETheme.Dusk) => ("#1B1422", "#241A2D", "#30213B", "#503B5E", "#FAF3FF", "#C8B3D2", "#49305D", "#C58AE2"),
             nameof(ETheme.NightSky) => ("#080F20", "#0E1930", "#15233E", "#293D60", "#F2F6FF", "#AAB9D3", "#183A66", "#72A8FF"),
-            nameof(ETheme.FollowSystem) when systemIsDark => ("#0D141C", "#121B25", "#18232F", "#293746", "#F2F5F8", "#ADB8C5", "#1D3A58", "#63A9FF"),
+            nameof(ETheme.FollowSystem) when systemIsDark => ("#0B1219", "#121A24", "#18222D", "#2C3B4B", "#F3F6F9", "#A8B5C3", "#1E3D5E", "#5FA9FF"),
             _ => ("#F5F7FA", "#FFFFFF", "#F9FAFC", "#DCE2EA", "#17212B", "#5F6B7A", "#E0EDFF", "#3278D3"),
         };
 

@@ -1,5 +1,5 @@
 #define MyAppName "DicodePing"
-#define MyAppVersion "4.0.2"
+#define MyAppVersion "4.0.3"
 #define MyAppPublisher "DicodePing"
 #define MyAppExeName "DicodePing.exe"
 
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\DicodePing
 DefaultGroupName=DicodePing
 OutputDir=..\..\dist
-OutputBaseFilename=DicodePing-4.0.2-windows-x64-installer
+OutputBaseFilename=DicodePing-4.0.3-windows-x64-installer
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
