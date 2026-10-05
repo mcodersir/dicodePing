@@ -348,12 +348,12 @@ public partial class ProfilesViewModel : MyReactiveObject
 
                 // End the shimmer on every row; rows that never produced a
                 // numeric result fall back to the neutral placeholder.
-                foreach (var item in ProfileItems.Where(t => t.IsTesting))
+                foreach (var pending in ProfileItems.Where(t => t.IsTesting))
                 {
-                    item.IsTesting = false;
-                    if (item.DelayVal == ResUI.DicodeChecking)
+                    pending.IsTesting = false;
+                    if (pending.DelayVal == ResUI.DicodeChecking)
                     {
-                        item.DelayVal = "--";
+                        pending.DelayVal = "--";
                     }
                 }
             }
