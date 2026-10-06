@@ -5,6 +5,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:vm="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    x:DataType="vm:SanctionsServicesViewModel"
     Title="{x:Static resx:ResUI.DicodeSanctionsServices}"
     Width="780"
     Height="620"
@@ -28,7 +30,7 @@
             <ScrollViewer>
                 <ItemsControl x:Name="lstRows">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="vm:SanctionServiceRow">
                             <Border
                                 Margin="0,2"
                                 Padding="10,8"
@@ -60,7 +62,7 @@
                                         Grid.Column="4"
                                         MinWidth="36"
                                         Padding="8,4"
-                                        Command="{Binding $parent[Window].DataContext.DeleteRowCmd}"
+                                        Command="{Binding $parent[Window].((vm:SanctionsServicesViewModel)DataContext).DeleteRowCmd}"
                                         CommandParameter="{Binding}"
                                         Content="✕" />
                                 </Grid>
