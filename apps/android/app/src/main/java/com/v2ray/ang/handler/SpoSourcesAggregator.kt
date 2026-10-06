@@ -37,7 +37,7 @@ object SpoSourcesAggregator {
                     UrlContentRequest(
                         url = source.url,
                         userAgent = "",
-                        requestHeaders = emptyMap<String, String>(),
+                        requestHeaders = null,
                         timeout = 12000,
                         httpPort = 0,
                         proxyUsername = "",
