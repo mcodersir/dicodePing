@@ -34,10 +34,10 @@ object SpoSourcesAggregator {
             if (collected.size >= maxConfigs) break
             try {
                 val response = HttpUtil.getUrlContentResponseWithUserAgent(
-                    HttpUtil.UrlContentRequest(
+                    UrlContentRequest(
                         url = source.url,
                         userAgent = "",
-                        requestHeaders = emptyMap(),
+                        requestHeaders = emptyMap<String, String>(),
                         timeout = 12000,
                         httpPort = 0,
                         proxyUsername = "",
