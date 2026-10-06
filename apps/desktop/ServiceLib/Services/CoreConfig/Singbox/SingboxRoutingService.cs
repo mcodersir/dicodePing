@@ -308,22 +308,40 @@ public partial class CoreConfigSingboxService
                         continue;
                     }
 
-                    var subRule = new Rule4Sbox();
-                    if (!ParseV2Domain(entry, subRule))
+                    // A plain entry in the UI means the domain and its subdomains
+                    // (domain_suffix). Every v2ray-style prefix maps to its sing-box
+                    // counterpart instead of being treated as a literal suffix that
+                    // can never match.
+                    if (entry.StartsWith("domain:", StringComparison.OrdinalIgnoreCase))
                     {
-                        continue;
+                        filterRule.domain_suffix ??= [];
+                        filterRule.domain_suffix.Add(entry[7..]);
                     }
-
-                    filterRule.domain ??= [];
-                    filterRule.domain_suffix ??= [];
-                    filterRule.domain_keyword ??= [];
-                    filterRule.domain_regex ??= [];
-                    filterRule.geosite ??= [];
-                    filterRule.domain.AddRange(subRule.domain ?? []);
-                    filterRule.domain_suffix.AddRange(subRule.domain_suffix ?? []);
-                    filterRule.domain_keyword.AddRange(subRule.domain_keyword ?? []);
-                    filterRule.domain_regex.AddRange(subRule.domain_regex ?? []);
-                    filterRule.geosite.AddRange(subRule.geosite ?? []);
+                    else if (entry.StartsWith("full:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain ??= [];
+                        filterRule.domain.Add(entry[5..]);
+                    }
+                    else if (entry.StartsWith("regexp:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain_regex ??= [];
+                        filterRule.domain_regex.Add(entry[7..]);
+                    }
+                    else if (entry.StartsWith("geosite:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.geosite ??= [];
+                        filterRule.geosite.Add(entry[8..]);
+                    }
+                    else if (entry.StartsWith("keyword:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain_keyword ??= [];
+                        filterRule.domain_keyword.Add(entry[8..]);
+                    }
+                    else
+                    {
+                        filterRule.domain_suffix ??= [];
+                        filterRule.domain_suffix.Add(entry);
+                    }
                 }
 
                 var hasAny = (filterRule.domain?.Count ?? 0)
