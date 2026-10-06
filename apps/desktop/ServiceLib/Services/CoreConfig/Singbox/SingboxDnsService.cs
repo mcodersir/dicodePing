@@ -17,7 +17,6 @@ public partial class CoreConfigSingboxService
             GenDnsRules();
 
             _coreConfig.dns ??= new Dns4Sbox();
-            _coreConfig.dns.independent_cache = true;
 
             // final dns
             var routing = context.RoutingItem;
@@ -164,7 +163,20 @@ public partial class CoreConfigSingboxService
         _coreConfig.dns ??= new Dns4Sbox();
         _coreConfig.dns.rules ??= [];
 
-        _coreConfig.dns.rules.Add(new() { ip_accept_any = true, server = Global.SingboxHostsDNSTag });
+        // sing-box 1.14 moved ip_accept_any behind match_response + evaluate; the
+        // hosts server is better served by matching the known hosts names directly
+        // (full match), which also avoids the deprecated response-matching path.
+        var hostsDomains = new List<string>();
+        if (simpleDnsItem.UseSystemHosts == true)
+        {
+            hostsDomains.AddRange(Utils.GetSystemHosts().Select(h => h.Key));
+        }
+        hostsDomains.AddRange(Utils.ParseHostsToDictionary(simpleDnsItem.Hosts).Select(kvp => kvp.Key));
+        hostsDomains = hostsDomains.Where(h => h.IsNotEmpty()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (hostsDomains.Count > 0)
+        {
+            _coreConfig.dns.rules.Add(new() { server = Global.SingboxHostsDNSTag, domain = hostsDomains });
+        }
 
         if (context.ProtectDomainList.Count > 0)
         {

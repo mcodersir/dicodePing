@@ -269,6 +269,35 @@
         <Setter Property="Stroke" Value="#2E9E5B" />
     </Style>
 
+    <!--  Toasts / alerts follow the active Dicode palette.  -->
+    <Style Selector="NotificationCard">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="NotificationCard /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="NotificationCard.Information">
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <Style Selector="NotificationCard.Warning">
+        <Setter Property="BorderBrush" Value="#9A6700" />
+    </Style>
+
+    <Style Selector="NotificationCard.Critical">
+        <Setter Property="BorderBrush" Value="#B3261E" />
+    </Style>
+
+    <Style Selector="NotificationCard.Success">
+        <Setter Property="BorderBrush" Value="#2E9E5B" />
+    </Style>
+
     <!--  Page transition: every navigation lands with a calm slide-fade.  -->
     <Style Selector="Panel.DicodePage">
         <Setter Property="Transitions">

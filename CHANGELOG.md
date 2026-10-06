@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.6 (pre-release)
+
+- **Fix TUN connections**: the generated sing-box DNS config contained the hosts rule `{ ip_accept_any: true }`, which sing-box 1.14 rejects (`FATAL initialize dns router: Response Match Fields ... require match_response to be enabled`) — found in the app's own log and verified with `sing-box check` against the installed binary. The hosts DNS rule is now built from the known hosts domains (full match), and the config validates cleanly.
+- Remove the deprecated `independent_cache` DNS option (silences the sing-box 1.14 warning).
+- Reports page: the log list items source is now wired both via compiled binding and code, so the page fills in every scenario; core output recording from 4.0.5 continues.
+- Theme-styled toasts/alerts: NotificationCard follows the active palette with type-colored borders (info/warning/error/success).
+- Latency/speed/location/sanctions/security tests run through the recorded pipeline; a `--` result means the probed proxy itself did not answer (the log shows why).
+- Bundled mihomo remains v1.19.32 (latest stable); users on older local cores can update from Settings → Check updates.
+- Android versionCode 400601.
+
 ## 4.0.5 (pre-release)
 
 - Root-cause the "core failed to start" report by testing the real installed app: Xray exited instantly because it resolved `geosite.dat` next to its own exe while the assets live in `bin/`. Geo files are now copied beside every core binary on launch, and the asset environment variable is verified.
