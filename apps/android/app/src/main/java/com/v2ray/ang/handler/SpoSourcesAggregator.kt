@@ -1,6 +1,7 @@
 package com.v2ray.ang.handler
 
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.util.HttpUtil
 
 /**
