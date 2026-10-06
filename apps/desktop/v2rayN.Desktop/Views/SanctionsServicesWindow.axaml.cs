@@ -9,7 +9,7 @@ public partial class SanctionsServicesWindow : WindowBase<SanctionsServicesViewM
         InitializeComponent();
 
         btnCancel.Click += (_, _) => Close(false);
-        btnSave.Click += async (_, _) => Close(await ViewModel?.SaveCmd.Execute() ?? false);
+        btnSave.Click += (_, _) => ViewModel?.SaveCmd.Execute().Subscribe(result => Close(result));
 
         this.WhenActivated(disposables =>
         {
