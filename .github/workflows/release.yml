@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.3
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.4
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.3 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.4 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.0.3-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.0.4-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.0.3-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.0.4-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.3
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.4
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,27 +264,31 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.0.3 — Pre-release
+          name: DicodePing 4.0.4 — Pre-release
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.0.3 — Pre-release
+            ## DicodePing 4.0.4 — Pre-release
 
-            پیش‌نمایش 4.0.3 بر اساس بازخورد 4.0.2: رفع کامل سایدبار (تعویض تب‌ها)، آیکون خطی برای دکمه‌های بالا، ترجمه کامل فارسی صفحه استخر سرورها، ترنزیشن نرم بین صفحات و تم تیره اصلاح‌شده.
+            پیش‌نمایش 4.0.4 با تمرکز روی رفع مشکلات اتصال و گزارش‌گیری، بر اساس لاگ‌های واقعی کاربران نسخه 4.0.3.
 
-            - سایدبار: رفع باگی که باعث می‌شد تعویض تب‌ها کار نکند؛ حالا همه صفحات با ترنزیشن اسلاید-فیید نرم باز می‌شوند.
-            - دکمه‌های «استخر سرورها»، «اتصال هوشمند» و «تازه‌سازی» در نوار بالا آیکون خطی مینیمال گرفتند.
-            - صفحه استخر سرورها (پنجره و تمام پیام‌های پیشرفت) به‌طور کامل بومی‌سازی شد و در فارسی راست‌به‌چپ است.
-            - هر صفحه توضیح کوتاه و مینیمال دارد؛ صفحه گزارش‌ها هم مثل بقیه صفحات کارت عنوان گرفت.
-            - تم تیره اصلاح شد: تیره و باثبات، بدون مشکی مطلق.
-            - اندروید: versionCode 400301؛ راهنمای نصب در پایین همین صفحه.
-            - نسخهٔ دسکتاپ با FileVersion 4.0.3.1 منتشر می‌شود.
+            - رفع قطع شدن اتصال: پیکربندی‌های دارای «ویژگی اضافی» خراب از اشتراک دیگر کل اتصال را نمی‌بندند؛ مقدار نامعتبر حذف و سرور با تنظیمات پایه وصل می‌شود.
+            - رفع خطای ERR_QUIC_PROTOCOL_ERROR در مرورگر: QUIC (UDP 443) در حالت TUN مسدود می‌شود تا مرورگر به TCP/TLS برگردد.
+            - صفحه گزارش‌ها بازطراحی کامل شد: ثبت واقعی همه رویدادها و خروجی هسته، با نشان رنگی سطح لاگ (INFO/ERROR/DEBUG) و فیلتر زنده.
+            - بررسی تحریم کاملاً بازنویسی شد: ۲۲ سرویس (یوتیوب، نتفلیکس، چت‌جی‌پی‌تی، Docker Hub و…) با منطق دقیق «سرویس‌های سخت‌گیرانه»؛ نتیجه نام سرویس‌های مسدودشده را هم نشان می‌دهد.
+            - مدیریت سرویس‌های بررسی تحریم از تنظیمات: افزودن/ویرایش/حذف/غیرفعال‌سازی (دسکتاپ) و لیست دقیق‌تر در اندروید.
+            - رفع فیلتر دامنه در حالت TUN: آدرس‌های paste شده و پیشوندهای full:/regexp:/geosite:/keyword: درست پردازش می‌شوند.
+            - تراز متن فارسی در جملات ترکیبی با انگلیسی اصلاح شد (علامت‌های جهت RTL).
+            - تم تیره با طیف خاکستری (#141414 / #1F1F1F / #242629) طبق سلیقه کاربران.
+            - mihomo v1.19.32 در بسته است (آخرین نسخه پایدار).
 
             English summary:
-            - Sidebar page switching fixed (event wiring was missing in 4.0.2) with a calm slide-fade page transition.
-            - Header quick actions (Server pool / Smart connect / Refresh) now carry minimal line icons.
-            - Server Pool window and all progress messages are fully localized (Persian RTL aware).
-            - Every page has a short minimal description header; Reports page matches the other pages.
-            - Dark theme refined: properly dark and stable, never pitch black.
-            - Android versionCode 400301. For installation pick DicodePing-4.0.3-universal.apk (or arm64-v8a). If you see a "parse package" error, re-download the file — a partial download breaks installation.
+            - Connection fixes: invalid subscription extras no longer block the core; they are stripped with a warning.
+            - QUIC (UDP 443) is rejected in TUN mode so browsers fall back to TCP/TLS (fixes ERR_QUIC_PROTOCOL_ERROR).
+            - Reports page rebuilt: every event and core output is recorded with colored level badges and live filtering.
+            - Sanctions check rewritten: 22 services with strict-service gating, failed-service names in the result, and a full management dialog in desktop settings.
+            - Domain filter fixed in TUN mode (URLs and full:/regexp:/geosite:/keyword: entries now work).
+            - Persian bidi alignment fixed in mixed-language strings (RLM marks).
+            - Dark theme switched to neutral grays (#141414 / #1F1F1F / #242629).
+            - Bundled mihomo v1.19.32; Android versionCode 400401. Pick DicodePing-4.0.4-universal.apk (or arm64-v8a) for installation.
           files: artifacts/*

@@ -6596,5 +6596,41 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("DicodeReportsSubtitle", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Sanctions check services.
+        /// </summary>
+        public static string DicodeSanctionsServices {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsServices", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Manage the services probed by the sanctions reachability test. Strict services gate the final verdict; unchecked services are skipped..
+        /// </summary>
+        public static string DicodeSanctionsServicesDesc {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsServicesDesc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Add service.
+        /// </summary>
+        public static string DicodeSanctionsAddService {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsAddService", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Restore defaults.
+        /// </summary>
+        public static string DicodeSanctionsResetDefaults {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsResetDefaults", resourceCulture);
+            }
+        }
             }
 }

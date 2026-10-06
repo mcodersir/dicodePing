@@ -186,7 +186,7 @@
     <value>هسته با موفقیت بروزرسانی شد! راه اندازی مجدد سرویس...</value>
   </data>
   <data name="NonvmessOrssProtocol" xml:space="preserve">
-    <value>پروتکل غیر VMess یا ss</value>
+    <value>پروتکل غیر VMess یا ss‏</value>
   </data>
   <data name="NotFoundCore" xml:space="preserve">
     <value>فایل Core (نام فایل: {1}) در زیر پوشه ({0}) یافت نشد، لطفاً آن را دانلود کرده و در پوشه قرار دهید، آدرس دانلود: {2}</value>
@@ -276,10 +276,10 @@
     <value>لطفاً DNS سفارشی صحیح را پر کنید</value>
   </data>
   <data name="TransportPathTip1" xml:space="preserve">
-    <value>* مسیر ws</value>
+    <value>* مسیر ws‏</value>
   </data>
   <data name="TransportPathTip2" xml:space="preserve">
-    <value>* مسیر h2</value>
+    <value>* مسیر h2‏</value>
   </data>
   <data name="TransportPathTip3" xml:space="preserve">
     <value>*QUIC key/Kcp seed</value>
@@ -288,10 +288,10 @@
     <value>gRPC serviceName</value>
   </data>
   <data name="TransportRequestHostTip1" xml:space="preserve">
-    <value>*هاست http جدا شده با کاما (،)</value>
+    <value>*هاست http جدا شده با کاما (،)‏</value>
   </data>
   <data name="TransportRequestHostTip2" xml:space="preserve">
-    <value>*هاست ws</value>
+    <value>*هاست ws‏</value>
   </data>
   <data name="TransportRequestHostTip3" xml:space="preserve">
     <value>*هاست h2 با کاما (،) جدا شده است</value>
@@ -300,16 +300,16 @@
     <value>*QUIC securty</value>
   </data>
   <data name="TransportHeaderType1" xml:space="preserve">
-    <value>نوع استتار Raw</value>
+    <value>نوع استتار Raw‏</value>
   </data>
   <data name="TransportHeaderType2" xml:space="preserve">
-    <value>نوع استتار kcp</value>
+    <value>نوع استتار kcp‏</value>
   </data>
   <data name="TransportHeaderType3" xml:space="preserve">
-    <value>نوع استتار QUIC</value>
+    <value>نوع استتار QUIC‏</value>
   </data>
   <data name="TransportHeaderType4" xml:space="preserve">
-    <value>حالت grpc</value>
+    <value>حالت grpc‏</value>
   </data>
   <data name="LvTLS" xml:space="preserve">
     <value>TLS</value>
@@ -402,7 +402,7 @@
     <value>پروکسی سیستم تغییر نکند</value>
   </data>
   <data name="menuSystemProxyPac" xml:space="preserve">
-    <value>حالت Pac</value>
+    <value>حالت Pac‏</value>
   </data>
   <data name="menuSystemProxySet" xml:space="preserve">
     <value>تنظیم پراکسی سیستم</value>
@@ -444,7 +444,7 @@
     <value>تست سرعت دانلود سرورها</value>
   </data>
   <data name="menuTcpingServer" xml:space="preserve">
-    <value>تست سرورها با tcping</value>
+    <value>تست سرورها با tcping‏</value>
   </data>
   <data name="menuExport2ClientConfig" xml:space="preserve">
     <value>سرور انتخابی را برای پیکربندی کلاینت صادر کنید</value>
@@ -531,10 +531,10 @@
     <value>اثرانگشت</value>
   </data>
   <data name="TbHeaderType" xml:space="preserve">
-    <value>نوع Camouflage</value>
+    <value>نوع Camouflage‏</value>
   </data>
   <data name="TbId" xml:space="preserve">
-    <value>UUID (شناسه)</value>
+    <value>UUID (شناسه)‏</value>
   </data>
   <data name="TbNetwork" xml:space="preserve">
     <value>پروتکل جابجایی (شبکه)</value>
@@ -558,7 +558,7 @@
     <value>TLS</value>
   </data>
   <data name="TipNetwork" xml:space="preserve">
-    <value>*مقدار پیش فرض raw</value>
+    <value>*مقدار پیش فرض raw‏</value>
   </data>
   <data name="TbCoreType" xml:space="preserve">
     <value>نوع هسته</value>
@@ -576,7 +576,7 @@
     <value>رمز عبور (اختیاری)</value>
   </data>
   <data name="TbId5" xml:space="preserve">
-    <value>UUID (شناسه)</value>
+    <value>UUID (شناسه)‏</value>
   </data>
   <data name="TbSecurity3" xml:space="preserve">
     <value>رمزگذاری</value>
@@ -609,19 +609,19 @@
     <value>مخفی کردن خودکار هنگام راه اندازی</value>
   </data>
   <data name="TbSettingsAutoUpdateInterval" xml:space="preserve">
-    <value>فاصله به روز رسانی خودکار برای فایل های Geo (ساعت)</value>
+    <value>فاصله به روز رسانی خودکار برای فایل های Geo (ساعت)‏</value>
   </data>
   <data name="TbSettingsCore" xml:space="preserve">
     <value>هسته: تنظیمات اولیه</value>
   </data>
   <data name="TbCustomDnsRay" xml:space="preserve">
-    <value>DNS سفارشی V2ray</value>
+    <value>DNS سفارشی V2ray‏</value>
   </data>
   <data name="TbSettingsCoreKcp" xml:space="preserve">
-    <value>هسته: تنظیمات KCP</value>
+    <value>هسته: تنظیمات KCP‏</value>
   </data>
   <data name="TbSettingsCoreType" xml:space="preserve">
-    <value>تنظیمات CoreType</value>
+    <value>تنظیمات CoreType‏</value>
   </data>
   <data name="TbSettingsDefAllowInsecure" xml:space="preserve">
     <value>اعطای مجوز ناامن</value>
@@ -654,22 +654,22 @@
     <value>سطح ثبت رویداد</value>
   </data>
   <data name="TbSettingsMuxEnabled" xml:space="preserve">
-    <value>فعال کردن Mux Multiplexing</value>
+    <value>فعال کردن Mux Multiplexing‏</value>
   </data>
   <data name="TbSettingsN" xml:space="preserve">
-    <value>تنظیمات DicodePing</value>
+    <value>تنظیمات DicodePing‏</value>
   </data>
   <data name="TbSettingsPass" xml:space="preserve">
     <value>مجوز احراز هویت</value>
   </data>
   <data name="TbSettingsSetUWP" xml:space="preserve">
-    <value>تنظیم کردن Win10 UWP Loopback</value>
+    <value>تنظیم کردن Win10 UWP Loopback‏</value>
   </data>
   <data name="TbSettingsSniffingEnabled" xml:space="preserve">
-    <value>فعال کردن Sniffing</value>
+    <value>فعال کردن Sniffing‏</value>
   </data>
   <data name="TbSettingsSocksPort" xml:space="preserve">
-    <value>پورت Mixed</value>
+    <value>پورت Mixed‏</value>
   </data>
   <data name="TbSettingsStartBoot" xml:space="preserve">
     <value>درهنگام راه ائدازی شروع شود</value>
@@ -687,7 +687,7 @@
     <value>محدودیت نمایش سرورهای منوی سینی کلیک راست</value>
   </data>
   <data name="TbSettingsUdpEnabled" xml:space="preserve">
-    <value>فعال سازی UDP</value>
+    <value>فعال سازی UDP‏</value>
   </data>
   <data name="TbSettingsUser" xml:space="preserve">
     <value>تایید کاربر</value>
@@ -714,10 +714,10 @@
     <value>تنظیم پراکسی سیستم</value>
   </data>
   <data name="TbSystemProxyPac" xml:space="preserve">
-    <value>حالت Pac</value>
+    <value>حالت Pac‏</value>
   </data>
   <data name="menuShareServer" xml:space="preserve">
-    <value>اشتراک گذاری سرور(Ctrl+F)</value>
+    <value>اشتراک گذاری سرور(Ctrl+F)‏</value>
   </data>
   <data name="menuRouting" xml:space="preserve">
     <value>مسیریابی</value>
@@ -729,7 +729,7 @@
     <value>اجرا به عنوان ادمین</value>
   </data>
   <data name="menuMoveBottom" xml:space="preserve">
-    <value>به پایین حرکت شود(B)</value>
+    <value>به پایین حرکت شود(B)‏</value>
   </data>
   <data name="menuMoveDown" xml:space="preserve">
     <value>پایین</value>
@@ -774,7 +774,7 @@
     <value>وارد کردن قوانین از فایل</value>
   </data>
   <data name="menuImportRulesFromUrl" xml:space="preserve">
-    <value>وارد کردن قوانین از آدرس اینترنتی Sub</value>
+    <value>وارد کردن قوانین از آدرس اینترنتی Sub‏</value>
   </data>
   <data name="menuRoutingRuleSetting" xml:space="preserve">
     <value>تنظیم قانون</value>
@@ -819,13 +819,13 @@
     <value>از سرورهای پروکسی برای آدرس های محلی (اینترانت) استفاده نکنید</value>
   </data>
   <data name="menuMixedTestServer" xml:space="preserve">
-    <value>تاخیر و سرعت تست با یک کلیک (Ctrl+E)</value>
+    <value>تاخیر و سرعت تست با یک کلیک (Ctrl+E)‏</value>
   </data>
   <data name="LvTestDelay" xml:space="preserve">
     <value>تاخیر (میلی‌ثانیه)</value>
   </data>
   <data name="LvTestSpeed" xml:space="preserve">
-    <value>سرعت (MB/s)</value>
+    <value>سرعت (MB/s)‏</value>
   </data>
   <data name="FailedToRunCore" xml:space="preserve">
     <value>Core اجرا نشد، لطفاً گزارش را ببینید</value>
@@ -837,13 +837,13 @@
     <value>نمایش گزارش</value>
   </data>
   <data name="TbEnableTunAs" xml:space="preserve">
-    <value>فعال سازی Tun</value>
+    <value>فعال سازی Tun‏</value>
   </data>
   <data name="TbSettingsNewPort4LAN" xml:space="preserve">
-    <value>پورت جدید برای LAN</value>
+    <value>پورت جدید برای LAN‏</value>
   </data>
   <data name="TbSettingsTunMode" xml:space="preserve">
-    <value>تنظیمات TunMode</value>
+    <value>تنظیمات TunMode‏</value>
   </data>
   <data name="menuMoveToGroup" xml:space="preserve">
     <value>انتقال به گروه</value>
@@ -873,10 +873,10 @@
     <value>User-Agent</value>
   </data>
   <data name="TbSettingsDefUserAgentTips" xml:space="preserve">
-    <value>این پارامتر فقط برای raw/http، ws، gRPC و xhttp معتبر است</value>
+    <value>این پارامتر فقط برای raw/http‏، ws‏، gRPC و xhttp معتبر است</value>
   </data>
   <data name="TbSettingsCurrentFontFamily" xml:space="preserve">
-    <value>FontFamily (نیاز به راه اندازی مجدد)</value>
+    <value>FontFamily (نیاز به راه اندازی مجدد)‏</value>
   </data>
   <data name="TbSettingsCurrentFontFamilyTip" xml:space="preserve">
     <value>فایل TTF/TTC فونت را در دایرکتوری guiFonts کپی کنید. پنجره تنظیمات را دوباره باز کنید</value>
@@ -894,7 +894,7 @@
     <value>یمقدار تاخیر تست سرعت منفرد</value>
   </data>
   <data name="TbSettingsSpeedTestUrl" xml:space="preserve">
-    <value>/آدرس اینترنتی SpeedTest</value>
+    <value>/آدرس اینترنتی SpeedTest‏</value>
   </data>
   <data name="menuMoveTo" xml:space="preserve">
     <value>بالا و پایین حرکت کنید</value>
@@ -945,10 +945,10 @@
     <value>اگر نیازی به تبدیل نیست، لطفاً خالی بگذارید</value>
   </data>
   <data name="menuDNSSetting" xml:space="preserve">
-    <value>تنظیمات DNS</value>
+    <value>تنظیمات DNS‏</value>
   </data>
   <data name="TbCustomDnsSingbox" xml:space="preserve">
-    <value>DNS سفارشی sing-box</value>
+    <value>DNS سفارشی sing-box‏</value>
   </data>
   <data name="TbDnsSingboxObjectDoc" xml:space="preserve">
     <value>لطفا ساختار DNS را پر کنید، برای مشاهده سند کلیک کنید</value>
@@ -957,16 +957,16 @@
     <value>برای وارد کردن تنظیمات پیش‌فرض DNS کلیک کنید</value>
   </data>
   <data name="TbdomainStrategy4Singbox" xml:space="preserve">
-    <value>استراتژی دامنه sing-box</value>
+    <value>استراتژی دامنه sing-box‏</value>
   </data>
   <data name="TbSettingsMux4SboxProtocol" xml:space="preserve">
-    <value>پروتکل sing-box Mux</value>
+    <value>پروتکل sing-box Mux‏</value>
   </data>
   <data name="TbRoutingRuleProcess" xml:space="preserve">
     <value>فرآیند (لینوکس/ویندوز)</value>
   </data>
   <data name="TbRoutingRuleIP" xml:space="preserve">
-    <value>IP یا CIDR</value>
+    <value>IP یا CIDR‏</value>
   </data>
   <data name="TbRoutingRuleDomain" xml:space="preserve">
     <value>دامنه</value>
@@ -978,10 +978,10 @@
     <value>حداکتر پهنای باند هیستریا (آپلود/دانلود)</value>
   </data>
   <data name="TbSettingsUseSystemHosts" xml:space="preserve">
-    <value>استفاده کردن از System Hosts</value>
+    <value>استفاده کردن از System Hosts‏</value>
   </data>
   <data name="menuAddTuicServer" xml:space="preserve">
-    <value>افزودن سرور [TUIC]</value>
+    <value>افزودن سرور [TUIC]‏</value>
   </data>
   <data name="TbHeaderType8" xml:space="preserve">
     <value>کنترل تراکم</value>
@@ -1008,10 +1008,10 @@
     <value>MTU</value>
   </data>
   <data name="TbSettingsEnableIPv6Address" xml:space="preserve">
-    <value>فعال سازی آدرس IPv6</value>
+    <value>فعال سازی آدرس IPv6‏</value>
   </data>
   <data name="menuAddWireguardServer" xml:space="preserve">
-    <value>افزودن سرور [WireGuard]</value>
+    <value>افزودن سرور [WireGuard]‏</value>
   </data>
   <data name="TbPrivateKey" xml:space="preserve">
     <value>کلید خصوصی</value>
@@ -1020,16 +1020,16 @@
     <value>رزرو شده</value>
   </data>
   <data name="TbLocalAddress" xml:space="preserve">
-    <value>آدرس (IPv4, IPv6)</value>
+    <value>آدرس (IPv4, IPv6)‏</value>
   </data>
   <data name="TbPath7" xml:space="preserve">
-    <value>پسورد obfs</value>
+    <value>پسورد obfs‏</value>
   </data>
   <data name="TbRuleMatchingTips" xml:space="preserve">
     <value>(Domain or IP or ProcName) and Port and Protocol and InboundTag =&gt; OutboundTag</value>
   </data>
   <data name="TbAutoScrollToEnd" xml:space="preserve">
-    <value>خودکار ScrollToEnd</value>
+    <value>خودکار ScrollToEnd‏</value>
   </data>
   <data name="TbSettingsSpeedPingTestUrl" xml:space="preserve">
     <value>آدرس اینترنتی تست پینگ سرعت</value>
@@ -1041,7 +1041,7 @@
     <value>RPC Authority</value>
   </data>
   <data name="menuAddHttpServer" xml:space="preserve">
-    <value>افزودن سرور [HTTP]</value>
+    <value>افزودن سرور [HTTP]‏</value>
   </data>
   <data name="TbSettingsEnableFragment" xml:space="preserve">
     <value>فعال کردن فرگمنت</value>
@@ -1050,7 +1050,7 @@
     <value>پکت‌های فرگمنت</value>
   </data>
   <data name="TbSettingsFragmentPacketsTip" xml:space="preserve">
-    <value>پکت‌های قابل فرگمنت: tlshello (TLS ClientHello) یا 1-1 تا 1-5 (N اول پکت TCP)</value>
+    <value>پکت‌های قابل فرگمنت: tlshello (TLS ClientHello) یا 1-1 تا 1-5 (N اول پکت TCP)‏</value>
   </data>
   <data name="TbSettingsFragmentLength" xml:space="preserve">
     <value>طول فرگمنت</value>
@@ -1080,10 +1080,10 @@
     <value>فرمت محدوده نامعتبر. از 'from-to' استفاده کنید (مثلا 50-100).</value>
   </data>
   <data name="TbSettingsEnableCacheFile4Sbox" xml:space="preserve">
-    <value>فعال کردن کش فایل مجموعه قوانین برای sing-box</value>
+    <value>فعال کردن کش فایل مجموعه قوانین برای sing-box‏</value>
   </data>
   <data name="LvCustomRulesetPath4Singbox" xml:space="preserve">
-    <value>سفارش سازی مجموعه قوانین sing box</value>
+    <value>سفارش سازی مجموعه قوانین sing box‏</value>
   </data>
   <data name="NeedRebootTips" xml:space="preserve">
     <value>عملکرد موفقیت آمیز بود، روی منوی تنظیمات کلیک کنید تا برنامه راه اندازی مجدد شود.</value>
@@ -1203,28 +1203,28 @@
     <value>بازیابی از محلی</value>
   </data>
   <data name="menuRemoteBackup" xml:space="preserve">
-    <value>پشتیبان گیری از راه دور (WebDAV)</value>
+    <value>پشتیبان گیری از راه دور (WebDAV)‏</value>
   </data>
   <data name="menuRemoteRestore" xml:space="preserve">
-    <value>بازیابی از راه دور (WebDAV)</value>
+    <value>بازیابی از راه دور (WebDAV)‏</value>
   </data>
   <data name="menuLocalBackupAndRestore" xml:space="preserve">
     <value>محلی</value>
   </data>
   <data name="menuRemoteBackupAndRestore" xml:space="preserve">
-    <value>از راه دور (WebDAV)</value>
+    <value>از راه دور (WebDAV)‏</value>
   </data>
   <data name="LvWebDavUrl" xml:space="preserve">
-    <value>آدرس اینترنتی WebDav</value>
+    <value>آدرس اینترنتی WebDav‏</value>
   </data>
   <data name="LvWebDavUserName" xml:space="preserve">
-    <value>نام کاربری WebDav</value>
+    <value>نام کاربری WebDav‏</value>
   </data>
   <data name="LvWebDavPassword" xml:space="preserve">
-    <value>پسورد WebDav</value>
+    <value>پسورد WebDav‏</value>
   </data>
   <data name="LvWebDavCheck" xml:space="preserve">
-    <value>چک کردن WebDav</value>
+    <value>چک کردن WebDav‏</value>
   </data>
   <data name="LvWebDavDirName" xml:space="preserve">
     <value>نام پوشه راه دور (اختیاری)</value>
@@ -1242,7 +1242,7 @@
     <value>منبع فایل های جغرافیایی (اختیاری)</value>
   </data>
   <data name="TbSettingsSrsFilesSource" xml:space="preserve">
-    <value>منبع فایل های مجموعه قوانین sing-box (اختیاری)</value>
+    <value>منبع فایل های مجموعه قوانین sing-box (اختیاری)‏</value>
   </data>
   <data name="UpgradeAppNotExistTip" xml:space="preserve">
     <value>برنامه ارتقا وجود ندارد</value>
@@ -1290,7 +1290,7 @@
     <value>رمز عبور از طریق خط فرمان اعتبارسنجی می‌شود. اگر خطای اعتبارسنجی باعث خرابی برنامه شد، برنامه را دوباره راه‌اندازی کنید. رمز عبور ذخیره نمی‌شود و پس از هر بار راه‌اندازی باید دوباره وارد شود.</value>
   </data>
   <data name="TransportHeaderType5" xml:space="preserve">
-    <value>حالت xhttp</value>
+    <value>حالت xhttp‏</value>
   </data>
   <data name="TransportExtraTip" xml:space="preserve">
     <value>JSON خام، قالب: { XHTTP Object }</value>
@@ -1305,13 +1305,13 @@
     <value>موارد استثنا: از سرور پروکسی برای آدرس های زیر استفاده نکنید. برای جدا کردن ورودی ها از کاما (،) استفاده کنید.</value>
   </data>
   <data name="TbSettingsDestOverride" xml:space="preserve">
-    <value>نوع Sniffing</value>
+    <value>نوع Sniffing‏</value>
   </data>
   <data name="TbSettingsSecondLocalPortEnabled" xml:space="preserve">
     <value>فعال کردن دومین پورت ترکیبی</value>
   </data>
   <data name="TbRoutingInboundTagTips" xml:space="preserve">
-    <value>socks:پورت محلی، socks2: پورت دوم محلی، socks3: پورت LAN</value>
+    <value>socks:پورت محلی، socks2: پورت دوم محلی، socks3: پورت LAN‏</value>
   </data>
   <data name="TbSettingsTheme" xml:space="preserve">
     <value>تم</value>
@@ -1374,16 +1374,16 @@
     <value>FakeIP</value>
   </data>
   <data name="TbBlockSVCBHTTPSQueries" xml:space="preserve">
-    <value>مسدودسازی درخواست‌های SVCB و HTTPS</value>
+    <value>مسدودسازی درخواست‌های SVCB و HTTPS‏</value>
   </data>
   <data name="TbDNSHostsConfig" xml:space="preserve">
-    <value>هاست‌های DNS: (در هر خط "دامنه ip1 ip2")</value>
+    <value>هاست‌های DNS: (در هر خط "دامنه ip1 ip2")‏</value>
   </data>
   <data name="ThBasicDNSSettings" xml:space="preserve">
-    <value>تنظیمات پایه DNS</value>
+    <value>تنظیمات پایه DNS‏</value>
   </data>
   <data name="ThAdvancedDNSSettings" xml:space="preserve">
-    <value>تنظیمات پیشرفته DNS</value>
+    <value>تنظیمات پیشرفته DNS‏</value>
   </data>
   <data name="TbValidateDirectExpectedIPs" xml:space="preserve">
     <value>اعتبارسنجی IP دامنه‌های منطقه‌ای</value>
@@ -1410,10 +1410,10 @@
     <value>فعال‌سازی قالب پیکربندی کامل</value>
   </data>
   <data name="TbRayFullConfigTemplate" xml:space="preserve">
-    <value>قالب پیکربندی کامل v2ray</value>
+    <value>قالب پیکربندی کامل v2ray‏</value>
   </data>
   <data name="TbRayFullConfigTemplateDesc" xml:space="preserve">
-    <value>فقط افزودن Outbound، routing.balancers و routing.rules.outboundTag؛ برای مشاهده مستندات کلیک کنید</value>
+    <value>فقط افزودن Outbound‏، routing.balancers و routing.rules.outboundTag‏؛ برای مشاهده مستندات کلیک کنید</value>
   </data>
   <data name="TbAddProxyProtocolOutboundOnly" xml:space="preserve">
     <value>افزودن نکردن Outbound غیرپروکسی</value>
@@ -1422,10 +1422,10 @@
     <value>تنظیم تگ پراکسی بالادست</value>
   </data>
   <data name="TbSBFullConfigTemplate" xml:space="preserve">
-    <value>قالب پیکربندی کامل sing-box</value>
+    <value>قالب پیکربندی کامل sing-box‏</value>
   </data>
   <data name="TbSBFullConfigTemplateDesc" xml:space="preserve">
-    <value>فقط افزودن پیکربندی Outbound و Endpoint؛ برای مشاهده مستندات کلیک کنید</value>
+    <value>فقط افزودن پیکربندی Outbound و Endpoint‏؛ برای مشاهده مستندات کلیک کنید</value>
   </data>
   <data name="TbFullConfigTemplateDesc" xml:space="preserve">
     <value>این قابلیت برای کاربران پیشرفته و نیازهای خاص است. پس از فعال‌سازی، تنظیمات پایه هسته، DNS و مسیریابی نادیده گرفته می‌شود. باید مطمئن شوید پورت پروکسی سیستم، آمار ترافیک و سایر پیکربندی‌های مرتبط را درست تنظیم کرده‌اید — همه‌چیز بر عهده خودتان خواهد بود.</value>
@@ -1479,7 +1479,7 @@
     <value>پیکربندی ۱؛ افزودن خودکار از گروه اشتراک</value>
   </data>
   <data name="TbFallback" xml:space="preserve">
-    <value>پشتیبان (Fallback)</value>
+    <value>پشتیبان (Fallback)‏</value>
   </data>
   <data name="MsgCoreNotSupportNetwork" xml:space="preserve">
     <value>هسته '{0}' از نوع شبکه '{1}' پشتیبانی نمی‌کند</value>
@@ -1509,7 +1509,7 @@
     <value>DNS اولیه</value>
   </data>
   <data name="TbBootstrapDNSTips" xml:space="preserve">
-    <value>حل دامنه سرورهای DNS؛ به IP نیاز دارد</value>
+    <value>حل دامنه سرورهای DNS‏؛ به IP نیاز دارد</value>
   </data>
   <data name="menuFastRealPing" xml:space="preserve">
     <value>آزمون تأخیر واقعی</value>
@@ -1518,7 +1518,7 @@
     <value>افزودن خودکار پیکربندی‌های فیلترشده از گروه‌های اشتراک</value>
   </data>
   <data name="TbCertPinning" xml:space="preserve">
-    <value>سنجاق گواهی (Pinning)</value>
+    <value>سنجاق گواهی (Pinning)‏</value>
   </data>
   <data name="TbCertPinningTips" xml:space="preserve">
     <value>Server Certificate (PEM format, optional)
@@ -1548,7 +1548,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>مسیر فایل اسکریپت پروکسی سیستم سفارشی</value>
   </data>
   <data name="TbSettingsMacOSShowInDock" xml:space="preserve">
-    <value>نمایش در Dock مک (نیازمند راه‌اندازی مجدد)</value>
+    <value>نمایش در Dock مک (نیازمند راه‌اندازی مجدد)‏</value>
   </data>
   <data name="menuServerList2" xml:space="preserve">
     <value>پیکربندی ۲؛ انتخاب و افزودن از موارد دستی</value>
@@ -1557,13 +1557,13 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>EchConfigList</value>
   </data>
   <data name="TbFullCertTips" xml:space="preserve">
-    <value>گواهی کامل (زنجیره)، قالب PEM</value>
+    <value>گواهی کامل (زنجیره)‏، قالب PEM‏</value>
   </data>
   <data name="TbCertSha256Tips" xml:space="preserve">
-    <value>اثر انگشت گواهی (SHA-256)</value>
+    <value>اثر انگشت گواهی (SHA-256)‏</value>
   </data>
   <data name="TbServeStale" xml:space="preserve">
-    <value>پاسخ از داده قدیمی (Serve Stale)</value>
+    <value>پاسخ از داده قدیمی (Serve Stale)‏</value>
   </data>
   <data name="TbParallelQuery" xml:space="preserve">
     <value>پرس‌وجوی موازی</value>
@@ -1659,7 +1659,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>نام کاربری</value>
   </data>
   <data name="TbIcmpRoutingPolicy" xml:space="preserve">
-    <value>سیاست مسیریابی ICMP</value>
+    <value>سیاست مسیریابی ICMP‏</value>
   </data>
   <data name="TbLegacyProtect" xml:space="preserve">
     <value>محافظت TUN قدیمی</value>
@@ -1677,10 +1677,10 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>آزمون تأخیر UDP پیکربندی‌ها</value>
   </data>
   <data name="TbSettingsUdpTestUrl" xml:space="preserve">
-    <value>آدرس آزمون UDP</value>
+    <value>آدرس آزمون UDP‏</value>
   </data>
   <data name="TbSettingsSendThrough" xml:space="preserve">
-    <value>آدرس خروجی محلی (SendThrough)</value>
+    <value>آدرس خروجی محلی (SendThrough)‏</value>
   </data>
   <data name="TbSettingsSendThroughTip" xml:space="preserve">
     <value>در محیط‌های چند کارت شبکه، آدرس IPv4 دستگاه محلی را وارد کنید</value>
@@ -1692,7 +1692,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>For multi-interface environments, enter the name of the interface to bind. Only effective on Windows systems or TUN mode</value>
   </data>
   <data name="TbPreSharedKey" xml:space="preserve">
-    <value>کلید مشترک (PreSharedKey)</value>
+    <value>کلید مشترک (PreSharedKey)‏</value>
   </data>
   <data name="menuExport2InnerUri" xml:space="preserve">
     <value>کپی پیوند داخلی DicodePing در کلیپ‌بورد</value>
@@ -1707,16 +1707,16 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>پشتیبانی نمی‌شود</value>
   </data>
   <data name="LvTestIpInfo" xml:space="preserve">
-    <value>موقعیت و IP</value>
+    <value>موقعیت و IP‏</value>
   </data>
   <data name="menuNewUpdate" xml:space="preserve">
     <value>بروزرسانی جدید</value>
   </data>
-  <data name="TbHttpOutboundHeaders" xml:space="preserve"><value>هدرهای HTTP</value></data>
+  <data name="TbHttpOutboundHeaders" xml:space="preserve"><value>هدرهای HTTP‏</value></data>
   <data name="TipHttpOutboundHeaders" xml:space="preserve"><value>هدرهای درخواست HTTP خروجی را به شکل یک شیء JSON وارد کنید.</value></data>
   <data name="TbVerifyPeerCertByName" xml:space="preserve"><value>بررسی نام گواهی سرور</value></data>
   <data name="MsgAllowInsecureDeprecated" xml:space="preserve"><value>این سرور از اتصال ناامن استفاده می‌کند و در نسخه‌های جدید هسته قابل استفاده نیست. TLS یا پین‌کردن گواهی را فعال کنید.</value></data>
-  <data name="TbRouteExcludeAddress" xml:space="preserve"><value>آدرس‌های خارج از مسیر TUN</value></data>
+  <data name="TbRouteExcludeAddress" xml:space="preserve"><value>آدرس‌های خارج از مسیر TUN‏</value></data>
   <data name="TbRouteExcludeAddressTip" xml:space="preserve"><value>آدرس‌ها را با ویرگول جدا کنید.</value></data>
   <data name="MsgTunRouteExcludeInvalidAddress" xml:space="preserve"><value>آدرس نامعتبر در فهرست استثنای مسیر TUN: {0}</value></data>
   <data name="MsgOptionsConflict" xml:space="preserve"><value>گزینه‌های {0} و {1} با هم ناسازگارند</value></data>
@@ -1724,20 +1724,20 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="TbEnableFinalFragmentTip" xml:space="preserve"><value>انتهای بسته‌ها را به قطعه‌های کوچک‌تر تقسیم می‌کند و ممکن است روی سرعت اثر بگذارد.</value></data>
   <data name="TbEnabletDnsViaProxy" xml:space="preserve"><value>DNS از مسیر پل</value></data>
   <data name="MsgInsecureConfiguration" xml:space="preserve"><value>تنظیم ناامن شناسایی شد: بررسی گواهی غیرفعال است و گواهی مشخصی ثبت نشده؛ احتمال حملهٔ میانی وجود دارد.</value></data>
-  <data name="TbHy2RealmUrl" xml:space="preserve"><value>نشانی Realm</value></data>
+  <data name="TbHy2RealmUrl" xml:space="preserve"><value>نشانی Realm‏</value></data>
   <data name="InvalidHy2RealmUrl" xml:space="preserve"><value>نشانی Realm معتبر نیست.</value></data>
   <data name="InvalidHttpOutboundHeaders" xml:space="preserve"><value>هدرهای HTTP را با JSON معتبر وارد کنید.</value></data>
   <data name="TbHy2RealmUrlTip" xml:space="preserve"><value>قالب: realm://&lt;token&gt;@&lt;host&gt;[:port]/&lt;name&gt;</value></data>
-  <data name="TbGeckoPacketSize" xml:space="preserve"><value>اندازهٔ بستهٔ Gecko (کمینه/بیشینه)</value></data>
+  <data name="TbGeckoPacketSize" xml:space="preserve"><value>اندازهٔ بستهٔ Gecko (کمینه/بیشینه)‏</value></data>
   <data name="TbLegacyProtectTip" xml:space="preserve"><value>در حالت فعال از TUN سازگار استفاده می‌شود؛ در غیر این صورت TUN هستهٔ اصلی به کار می‌رود.</value></data>
   <data name="TbRootCertificateProvider" xml:space="preserve"><value>منبع گواهی‌های ریشه</value></data>
   <data name="TbRootCertificateProviderTip" xml:space="preserve"><value>فقط برای دانلودها و درخواست‌های خود برنامه است و بررسی گواهی هسته را تغییر نمی‌دهد.</value></data>
   <data name="TbProxyDialResolveStrategy" xml:space="preserve"><value>روش تبدیل نام برای اتصال پروکسی</value></data>
   <data name="TbProxyDialResolveStrategyTip" xml:space="preserve"><value>توصیه نمی‌شود؛ ممکن است حلقهٔ مسیریابی ایجاد کند.</value></data>
-  <data name="TbEnableHappyEyeballs" xml:space="preserve"><value>انتخاب سریع خودکار IPv4/IPv6</value></data>
+  <data name="TbEnableHappyEyeballs" xml:space="preserve"><value>انتخاب سریع خودکار IPv4/IPv6‏</value></data>
   <data name="TbEnableHappyEyeballsTip" xml:space="preserve"><value>IPv4 و IPv6 را هم‌زمان آزمایش می‌کند و مسیر سریع‌تر را برمی‌گزیند.</value></data>
-  <data name="TbIpv6Address" xml:space="preserve"><value>آدرس IPv6</value></data>
-  <data name="TbIpv4Address" xml:space="preserve"><value>آدرس IPv4</value></data>
+  <data name="TbIpv6Address" xml:space="preserve"><value>آدرس IPv6‏</value></data>
+  <data name="TbIpv4Address" xml:space="preserve"><value>آدرس IPv4‏</value></data>
   <data name="menuAddCustomOutboundServer" xml:space="preserve"><value>افزودن خروجی سفارشی</value></data>
   <data name="MsgCustomOutboundFileNotFound" xml:space="preserve"><value>فایل خروجی سفارشی {0} پیدا نشد: {1}</value></data>
   <data name="TbCustomOutboundTip" xml:space="preserve"><value>فقط یک خروجی یا نقطهٔ پایانی پشتیبانی می‌شود.</value></data>
@@ -1795,10 +1795,10 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>تنظیمات</value>
   </data>
   <data name="DicodeSettingsSubtitle" xml:space="preserve">
-    <value>مسیریابی، DNS، فیلتر دامنه، بروزرسانی و پشتیبان‌گیری را یکجا مدیریت کنید.</value>
+    <value>مسیریابی، DNS‏، فیلتر دامنه، بروزرسانی و پشتیبان‌گیری را یکجا مدیریت کنید.</value>
   </data>
   <data name="DicodeAboutTitle" xml:space="preserve">
-    <value>درباره DicodePing</value>
+    <value>درباره DicodePing‏</value>
   </data>
   <data name="DicodeAboutText" xml:space="preserve">
     <value>DicodePing یک کلاینت مستقل فقط TUN بر پایه v2rayN و PattNG است که روی مسیریابی امن و رابط تمیز فارسی/انگلیسی تمرکز دارد.</value>
@@ -1835,7 +1835,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   </data>
   <data name="DicodeJoinTelegramPrompt" xml:space="preserve">
     <value>به کانال رسمی دیکد پینگ بپیوندید؟
-https://t.me/dicodeping</value>
+https://t.me/dicodeping‏</value>
   </data>
   <data name="DicodeDomainFilterDesc" xml:space="preserve">
     <value>مشخص کنید تونل روی دامنه‌های فهرست‌شده اعمال شود یا این دامنه‌ها مستقیماً باز شوند.</value>
@@ -1859,10 +1859,10 @@ https://t.me/dicodeping</value>
     <value>لوکیشن سرورها (بتا) — آزمایش لوکیشن از آیکون کره‌زمین اجرا می‌شود.</value>
   </data>
   <data name="DicodeEventLog" xml:space="preserve">
-    <value>رویدادهای DicodePing</value>
+    <value>رویدادهای DicodePing‏</value>
   </data>
   <data name="DicodeTunConnect" xml:space="preserve">
-    <value>اتصال TUN</value>
+    <value>اتصال TUN‏</value>
   </data>
   <data name="DicodeTunConnected" xml:space="preserve">
     <value>متصل؛ برای قطع کلیک کنید</value>
@@ -1898,7 +1898,7 @@ https://t.me/dicodeping</value>
     <value>پرخطر · بدون رمزنگاری</value>
   </data>
   <data name="DicodeSecurityMediumNoTls" xml:space="preserve">
-    <value>متوسط · بدون TLS</value>
+    <value>متوسط · بدون TLS‏</value>
   </data>
   <data name="DicodeSecurityDone" xml:space="preserve">
     <value>آزمایش امنیت پیکربندی همهٔ سرورها انجام شد</value>
@@ -1949,4 +1949,4 @@ https://t.me/dicodeping</value>
   <data name="DicodeGeoFileReady" xml:space="preserve">
     <value>GeoFile آمادهٔ دریافت آخرین داده‌های رسمی است</value>
   </data>
-<data name="DicodePoolReady" xml:space="preserve"><value>آماده جمع‌آوری</value></data><data name="DicodePoolPipeline" xml:space="preserve"><value>مسیر فعال ← جایگزین اشتراک پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره</value></data><data name="DicodePoolRequirement" xml:space="preserve"><value>هر پاسخ باید معتبر باشد و از ۹۰۰ میلی‌ثانیه کندتر نباشد.</value></data><data name="DicodePoolFollowLog" xml:space="preserve"><value>دنبال کردن گزارش</value></data><data name="DicodePoolStart" xml:space="preserve"><value>شروع جمع‌آوری</value></data><data name="DicodePoolStop" xml:space="preserve"><value>توقف</value></data><data name="DicodePoolCopyLog" xml:space="preserve"><value>کپی گزارش</value></data><data name="DicodePoolClearLog" xml:space="preserve"><value>پاک کردن گزارش</value></data><data name="DicodePoolTarget" xml:space="preserve"><value>تعداد سرورهای موفق</value></data><data name="DicodePoolRounds" xml:space="preserve"><value>دورهای آزمون هر سرور</value></data><data name="DicodePoolLiveLog" xml:space="preserve"><value>گزارش زنده</value></data><data name="DicodePoolSavedServers" xml:space="preserve"><value>سرورهای ذخیره‌شده</value></data><data name="DicodePoolRunning" xml:space="preserve"><value>در حال اجرا...</value></data><data name="DicodePoolStopSaving" xml:space="preserve"><value>توقف تدریجی؛ سرورهای موفقِ کامل‌شده ذخیره می‌شوند...</value></data><data name="DicodePoolStopping" xml:space="preserve"><value>در حال توقف جمع‌آوری...</value></data><data name="DicodePoolNewRun" xml:space="preserve"><value>اجرای جدید · {0} · هدف {1} سرور · {2} نوبت</value></data><data name="DicodePoolStopped" xml:space="preserve"><value>متوقف شد</value></data><data name="DicodePoolStoppedKeepPrev" xml:space="preserve"><value>عملیات قبل از تکمیل نتیجه موفق متوقف شد؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolRunAgain" xml:space="preserve"><value>اجرای دوباره</value></data><data name="DicodePoolError" xml:space="preserve"><value>خطا</value></data><data name="DicodePoolCountsCollecting" xml:space="preserve"><value>{0}/{1} · نامزدها: {2} · خطاها: {3}</value></data><data name="DicodePoolCountsTest" xml:space="preserve"><value>{0}/{1} · قبول: {2} · رد: {3}</value></data><data name="DicodePoolStageActiveRoute" xml:space="preserve"><value>مسیر فعال</value></data><data name="DicodePoolStagePool" xml:space="preserve"><value>استخر</value></data><data name="DicodePoolStageDefaultSub" xml:space="preserve"><value>اشتراک پیش‌فرض</value></data><data name="DicodePoolStageConnection" xml:space="preserve"><value>اتصال</value></data><data name="DicodePoolStageChannels" xml:space="preserve"><value>کانال‌ها</value></data><data name="DicodePoolStageCollecting" xml:space="preserve"><value>جمع‌آوری</value></data><data name="DicodePoolStageTest" xml:space="preserve"><value>آزمون</value></data><data name="DicodePoolStageSave" xml:space="preserve"><value>ذخیره</value></data><data name="DicodePoolStageStopped" xml:space="preserve"><value>متوقف</value></data><data name="DicodePoolStageDone" xml:space="preserve"><value>انجام شد</value></data><data name="DicodePoolActiveConnection" xml:space="preserve"><value>اتصال فعال DicodePing</value></data><data name="DicodePoolDirectRoute" xml:space="preserve"><value>مسیر مستقیم سیستم یا VPN دیگر</value></data><data name="DicodePoolFallbackRoute" xml:space="preserve"><value>مسیر جایگزین اشتراک پیش‌فرض</value></data><data name="DicodePoolNoPublicPage" xml:space="preserve"><value>صفحه پیام‌های عمومی دریافت نشد</value></data><data name="DicodePoolSubCreateFailed" xml:space="preserve"><value>ساخت اشتراک استخر سرورها ناموفق بود.</value></data><data name="DicodePoolCheckingRoute" xml:space="preserve"><value>بررسی {0} بدون تغییر اتصال فعلی...</value></data><data name="DicodePoolChannelListUnavailable" xml:space="preserve"><value>فهرست کانال‌ها در دسترس نیست</value></data><data name="DicodePoolTelegramUnavailable" xml:space="preserve"><value>پیش‌نمایش تلگرام در دسترس نیست</value></data><data name="DicodePoolRouteUsable" xml:space="preserve"><value>{0} قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند.</value></data><data name="DicodePoolRouteNotUsable" xml:space="preserve"><value>{0} برای هر دو منبع GitHub و تلگرام قابل استفاده نبود.</value></data><data name="DicodePoolAnotherRunning" xml:space="preserve"><value>جمع‌آوری دیگری در حال اجراست.</value></data><data name="DicodePoolSubReady" xml:space="preserve"><value>اشتراک مستقل {0} آماده است.</value></data><data name="DicodePoolNoTelegramRoute" xml:space="preserve"><value>مسیر فعالی برای تلگرام پیدا نشد؛ آزمون اشتراک پیش‌فرض...</value></data><data name="DicodePoolSubNoResults" xml:space="preserve"><value>به‌روزرسانی اشتراک نتیجه‌ای برنگرداند؛ آزمون کش موجود...</value></data><data name="DicodePoolSubUnavailable" xml:space="preserve"><value>به‌روزرسانی اشتراک در دسترس نبود ({0})؛ آزمون کش موجود...</value></data><data name="DicodePoolNoHealthyConfig" xml:space="preserve"><value>در کش اشتراک پیش‌فرض مسیر فعال یا پیکربندی سالمی پیدا نشد؛ دوباره تلاش کنید.</value></data><data name="DicodePoolFallbackStarting" xml:space="preserve"><value>شروع اتصال جایگزین به بهترین مسیر اشتراک پیش‌فرض · {0} ms</value></data><data name="DicodePoolFallbackStillBlocked" xml:space="preserve"><value>اتصال جایگزین برقرار شد؛ اما GitHub و تلگرام همچنان از طریق آن در دسترس نیستند.</value></data><data name="DicodePoolChannelsReady" xml:space="preserve"><value>{0} کانال از {1} آماده است.</value></data><data name="DicodePoolUniqueConfigs" xml:space="preserve"><value>پیکربندی‌های یکتا: {0}</value></data><data name="DicodePoolNoConfigs" xml:space="preserve"><value>هیچ پیکربندی V2Ray از پیام‌های در دسترس استخراج نشد؛ آزمون شروع نشد. جزئیات کانال‌ها را در گزارش ببینید؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolTestStart" xml:space="preserve"><value>{0} پیکربندی قابل آزمون · هدف {1} سرور موفق · {2} نوبت آزمون واقعی همزمان</value></data><data name="DicodePoolNoQualified" xml:space="preserve"><value>پیکربندی واجد شرایطی پیدا نشد؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolSavingStopped" xml:space="preserve"><value>متوقف شد؛ ذخیره {0} سرور موفقِ کامل‌شده...</value></data><data name="DicodePoolSaving" xml:space="preserve"><value>در حال ذخیره {0} پیکربندی تاییدشده...</value></data><data name="DicodePoolStoppedSaved" xml:space="preserve"><value>آزمون با درخواست شما متوقف شد و {0} سرور موفق در استخر ذخیره شد.</value></data><data name="DicodePoolSaved" xml:space="preserve"><value>{0} پیکربندی سالم در استخر ذخیره شد.</value></data><data name="DicodePoolCoreNotReady" xml:space="preserve"><value>هسته این دسته آماده نشد؛ پیکربندی ناسازگار جدا می‌شود...</value></data><data name="DicodePoolIncompatibleRejected" xml:space="preserve"><value>یک پیکربندی ناسازگار با هسته رد شد؛ سایر سرورها به آزمون ادامه می‌دهند.</value></data><data name="DicodePoolCoreExited" xml:space="preserve"><value>هسته پیکربندی قبل از آزمون بسته شد؛ این سرور رد شد.</value></data><data name="DicodePoolTestPortNotReady" xml:space="preserve"><value>سرور {0} · پورت هسته آزمون آماده نبود</value></data><data name="DicodePoolServerRound" xml:space="preserve"><value>سرور {0} · نوبت {1}/{2}: {3}</value></data><data name="DicodePoolFailed" xml:space="preserve"><value>ناموفق</value></data><data name="DicodePoolServerResponses" xml:space="preserve"><value>سرور {0} · پاسخ‌ها: {1} · {2}</value></data><data name="DicodePoolAccepted" xml:space="preserve"><value>پذیرفته شد</value></data><data name="DicodePoolRejected" xml:space="preserve"><value>رد شد</value></data><data name="DicodePoolRealTestPassed" xml:space="preserve"><value>آزمون مسیر واقعی · قبول {0}/{1}</value></data><data name="DicodePoolRealTest" xml:space="preserve"><value>آزمون مسیر واقعی</value></data><data name="DicodePoolLocalPortNotReady" xml:space="preserve"><value>پورت هسته محلی آماده نبود؛ گزارش اتصال را بررسی کنید.</value></data><data name="DicodePoolTimeout" xml:space="preserve"><value>وقت پاسخ تمام شد</value></data><data name="DicodePoolNetworkError" xml:space="preserve"><value>خطای شبکه، DNS یا TLS</value></data><data name="DicodePoolInvalidList" xml:space="preserve"><value>فهرست نامعتبر</value></data><data name="DicodePoolChannelsReceived" xml:space="preserve"><value>{0} کانال دریافت شد.</value></data><data name="DicodePoolFetchAttempt" xml:space="preserve"><value>دریافت از {0} · تلاش {1}/2: {2}</value></data><data name="DicodePoolPortReadyFetchFail" xml:space="preserve"><value>پورت اتصال آماده است؛ اما دریافت فهرست کانال‌ها از GitHub ناموفق بود. دوباره تلاش کنید؛ این به معنی قطع بودن VPN نیست.</value></data><data name="DicodeReportsTitle" xml:space="preserve"><value>گزارش‌ها</value></data><data name="DicodeReportsSubtitle" xml:space="preserve"><value>رویدادهای زنده برنامه، گزارش اتصال و عیب‌یابی.</value></data></root>
+<data name="DicodePoolReady" xml:space="preserve"><value>آماده جمع‌آوری</value></data><data name="DicodePoolPipeline" xml:space="preserve"><value>مسیر فعال ← جایگزین اشتراک پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره</value></data><data name="DicodePoolRequirement" xml:space="preserve"><value>هر پاسخ باید معتبر باشد و از ۹۰۰ میلی‌ثانیه کندتر نباشد.</value></data><data name="DicodePoolFollowLog" xml:space="preserve"><value>دنبال کردن گزارش</value></data><data name="DicodePoolStart" xml:space="preserve"><value>شروع جمع‌آوری</value></data><data name="DicodePoolStop" xml:space="preserve"><value>توقف</value></data><data name="DicodePoolCopyLog" xml:space="preserve"><value>کپی گزارش</value></data><data name="DicodePoolClearLog" xml:space="preserve"><value>پاک کردن گزارش</value></data><data name="DicodePoolTarget" xml:space="preserve"><value>تعداد سرورهای موفق</value></data><data name="DicodePoolRounds" xml:space="preserve"><value>دورهای آزمون هر سرور</value></data><data name="DicodePoolLiveLog" xml:space="preserve"><value>گزارش زنده</value></data><data name="DicodePoolSavedServers" xml:space="preserve"><value>سرورهای ذخیره‌شده</value></data><data name="DicodePoolRunning" xml:space="preserve"><value>در حال اجرا...</value></data><data name="DicodePoolStopSaving" xml:space="preserve"><value>توقف تدریجی؛ سرورهای موفقِ کامل‌شده ذخیره می‌شوند...</value></data><data name="DicodePoolStopping" xml:space="preserve"><value>در حال توقف جمع‌آوری...</value></data><data name="DicodePoolNewRun" xml:space="preserve"><value>اجرای جدید · {0} · هدف {1} سرور · {2} نوبت</value></data><data name="DicodePoolStopped" xml:space="preserve"><value>متوقف شد</value></data><data name="DicodePoolStoppedKeepPrev" xml:space="preserve"><value>عملیات قبل از تکمیل نتیجه موفق متوقف شد؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolRunAgain" xml:space="preserve"><value>اجرای دوباره</value></data><data name="DicodePoolError" xml:space="preserve"><value>خطا</value></data><data name="DicodePoolCountsCollecting" xml:space="preserve"><value>{0}/{1} · نامزدها: {2} · خطاها: {3}</value></data><data name="DicodePoolCountsTest" xml:space="preserve"><value>{0}/{1} · قبول: {2} · رد: {3}</value></data><data name="DicodePoolStageActiveRoute" xml:space="preserve"><value>مسیر فعال</value></data><data name="DicodePoolStagePool" xml:space="preserve"><value>استخر</value></data><data name="DicodePoolStageDefaultSub" xml:space="preserve"><value>اشتراک پیش‌فرض</value></data><data name="DicodePoolStageConnection" xml:space="preserve"><value>اتصال</value></data><data name="DicodePoolStageChannels" xml:space="preserve"><value>کانال‌ها</value></data><data name="DicodePoolStageCollecting" xml:space="preserve"><value>جمع‌آوری</value></data><data name="DicodePoolStageTest" xml:space="preserve"><value>آزمون</value></data><data name="DicodePoolStageSave" xml:space="preserve"><value>ذخیره</value></data><data name="DicodePoolStageStopped" xml:space="preserve"><value>متوقف</value></data><data name="DicodePoolStageDone" xml:space="preserve"><value>انجام شد</value></data><data name="DicodePoolActiveConnection" xml:space="preserve"><value>اتصال فعال DicodePing‏</value></data><data name="DicodePoolDirectRoute" xml:space="preserve"><value>مسیر مستقیم سیستم یا VPN دیگر</value></data><data name="DicodePoolFallbackRoute" xml:space="preserve"><value>مسیر جایگزین اشتراک پیش‌فرض</value></data><data name="DicodePoolNoPublicPage" xml:space="preserve"><value>صفحه پیام‌های عمومی دریافت نشد</value></data><data name="DicodePoolSubCreateFailed" xml:space="preserve"><value>ساخت اشتراک استخر سرورها ناموفق بود.</value></data><data name="DicodePoolCheckingRoute" xml:space="preserve"><value>بررسی {0} بدون تغییر اتصال فعلی...</value></data><data name="DicodePoolChannelListUnavailable" xml:space="preserve"><value>فهرست کانال‌ها در دسترس نیست</value></data><data name="DicodePoolTelegramUnavailable" xml:space="preserve"><value>پیش‌نمایش تلگرام در دسترس نیست</value></data><data name="DicodePoolRouteUsable" xml:space="preserve"><value>{0} قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند.</value></data><data name="DicodePoolRouteNotUsable" xml:space="preserve"><value>{0} برای هر دو منبع GitHub و تلگرام قابل استفاده نبود.</value></data><data name="DicodePoolAnotherRunning" xml:space="preserve"><value>جمع‌آوری دیگری در حال اجراست.</value></data><data name="DicodePoolSubReady" xml:space="preserve"><value>اشتراک مستقل {0} آماده است.</value></data><data name="DicodePoolNoTelegramRoute" xml:space="preserve"><value>مسیر فعالی برای تلگرام پیدا نشد؛ آزمون اشتراک پیش‌فرض...</value></data><data name="DicodePoolSubNoResults" xml:space="preserve"><value>به‌روزرسانی اشتراک نتیجه‌ای برنگرداند؛ آزمون کش موجود...</value></data><data name="DicodePoolSubUnavailable" xml:space="preserve"><value>به‌روزرسانی اشتراک در دسترس نبود ({0})؛ آزمون کش موجود...</value></data><data name="DicodePoolNoHealthyConfig" xml:space="preserve"><value>در کش اشتراک پیش‌فرض مسیر فعال یا پیکربندی سالمی پیدا نشد؛ دوباره تلاش کنید.</value></data><data name="DicodePoolFallbackStarting" xml:space="preserve"><value>شروع اتصال جایگزین به بهترین مسیر اشتراک پیش‌فرض · {0} ms‏</value></data><data name="DicodePoolFallbackStillBlocked" xml:space="preserve"><value>اتصال جایگزین برقرار شد؛ اما GitHub و تلگرام همچنان از طریق آن در دسترس نیستند.</value></data><data name="DicodePoolChannelsReady" xml:space="preserve"><value>{0} کانال از {1} آماده است.</value></data><data name="DicodePoolUniqueConfigs" xml:space="preserve"><value>پیکربندی‌های یکتا: {0}</value></data><data name="DicodePoolNoConfigs" xml:space="preserve"><value>هیچ پیکربندی V2Ray از پیام‌های در دسترس استخراج نشد؛ آزمون شروع نشد. جزئیات کانال‌ها را در گزارش ببینید؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolTestStart" xml:space="preserve"><value>{0} پیکربندی قابل آزمون · هدف {1} سرور موفق · {2} نوبت آزمون واقعی همزمان</value></data><data name="DicodePoolNoQualified" xml:space="preserve"><value>پیکربندی واجد شرایطی پیدا نشد؛ استخر قبلی حفظ شد.</value></data><data name="DicodePoolSavingStopped" xml:space="preserve"><value>متوقف شد؛ ذخیره {0} سرور موفقِ کامل‌شده...</value></data><data name="DicodePoolSaving" xml:space="preserve"><value>در حال ذخیره {0} پیکربندی تاییدشده...</value></data><data name="DicodePoolStoppedSaved" xml:space="preserve"><value>آزمون با درخواست شما متوقف شد و {0} سرور موفق در استخر ذخیره شد.</value></data><data name="DicodePoolSaved" xml:space="preserve"><value>{0} پیکربندی سالم در استخر ذخیره شد.</value></data><data name="DicodePoolCoreNotReady" xml:space="preserve"><value>هسته این دسته آماده نشد؛ پیکربندی ناسازگار جدا می‌شود...</value></data><data name="DicodePoolIncompatibleRejected" xml:space="preserve"><value>یک پیکربندی ناسازگار با هسته رد شد؛ سایر سرورها به آزمون ادامه می‌دهند.</value></data><data name="DicodePoolCoreExited" xml:space="preserve"><value>هسته پیکربندی قبل از آزمون بسته شد؛ این سرور رد شد.</value></data><data name="DicodePoolTestPortNotReady" xml:space="preserve"><value>سرور {0} · پورت هسته آزمون آماده نبود</value></data><data name="DicodePoolServerRound" xml:space="preserve"><value>سرور {0} · نوبت {1}/{2}: {3}</value></data><data name="DicodePoolFailed" xml:space="preserve"><value>ناموفق</value></data><data name="DicodePoolServerResponses" xml:space="preserve"><value>سرور {0} · پاسخ‌ها: {1} · {2}</value></data><data name="DicodePoolAccepted" xml:space="preserve"><value>پذیرفته شد</value></data><data name="DicodePoolRejected" xml:space="preserve"><value>رد شد</value></data><data name="DicodePoolRealTestPassed" xml:space="preserve"><value>آزمون مسیر واقعی · قبول {0}/{1}</value></data><data name="DicodePoolRealTest" xml:space="preserve"><value>آزمون مسیر واقعی</value></data><data name="DicodePoolLocalPortNotReady" xml:space="preserve"><value>پورت هسته محلی آماده نبود؛ گزارش اتصال را بررسی کنید.</value></data><data name="DicodePoolTimeout" xml:space="preserve"><value>وقت پاسخ تمام شد</value></data><data name="DicodePoolNetworkError" xml:space="preserve"><value>خطای شبکه، DNS یا TLS‏</value></data><data name="DicodePoolInvalidList" xml:space="preserve"><value>فهرست نامعتبر</value></data><data name="DicodePoolChannelsReceived" xml:space="preserve"><value>{0} کانال دریافت شد.</value></data><data name="DicodePoolFetchAttempt" xml:space="preserve"><value>دریافت از {0} · تلاش {1}/2: {2}</value></data><data name="DicodePoolPortReadyFetchFail" xml:space="preserve"><value>پورت اتصال آماده است؛ اما دریافت فهرست کانال‌ها از GitHub ناموفق بود. دوباره تلاش کنید؛ این به معنی قطع بودن VPN نیست.</value></data><data name="DicodeReportsTitle" xml:space="preserve"><value>گزارش‌ها</value></data><data name="DicodeReportsSubtitle" xml:space="preserve"><value>رویدادهای زنده برنامه، گزارش اتصال و عیب‌یابی.</value></data><data name="DicodeSanctionsServices" xml:space="preserve"><value>سرویس‌های بررسی تحریم</value></data><data name="DicodeSanctionsServicesDesc" xml:space="preserve"><value>مدیریت سرویس‌هایی که آزمون دسترس تحریم بررسی می‌کند. سرویس‌های سختگیرانه در نتیجه نهایی مورد استفاده قرار می‌گیرند؛ سرویس‌های غیرفعال نادیده گرفته می‌شوند.</value></data><data name="DicodeSanctionsAddService" xml:space="preserve"><value>افزودن سرویس</value></data><data name="DicodeSanctionsResetDefaults" xml:space="preserve"><value>بازگردانی پیش‌فرض‌ها</value></data></root>

@@ -183,6 +183,32 @@
         </Style.Animations>
     </Style>
 
+    <!--  Reports page: per-level log badges.  -->
+    <Style Selector="Border.logBadge">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="MinWidth" Value="52" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Border.logBadge TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+    <Style Selector="Border.logBadgeError">
+        <Setter Property="Background" Value="#B3261E" />
+    </Style>
+    <Style Selector="Border.logBadgeError TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Border.logBadgeWarn">
+        <Setter Property="Background" Value="#9A6700" />
+    </Style>
+    <Style Selector="Border.logBadgeWarn TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Border.logBadgeDebug">
+        <Setter Property="Background" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
     <!--  Page transition: every navigation lands with a calm slide-fade.  -->
     <Style Selector="Panel.DicodePage">
         <Setter Property="Transitions">

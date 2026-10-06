@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.4 (pre-release)
+
+- Fix the connection blockers seen in user logs: profiles whose `XHTTP extra`/`Finalmask` JSON from the subscription is invalid no longer produce validation errors that abort the connection — the broken extra is stripped with a warning and the server connects with plain transport.
+- Block QUIC (UDP 443) in TUN mode for both Xray and sing-box routing so browsers fall back to TCP/TLS instead of failing with `ERR_QUIC_PROTOCOL_ERROR`.
+- Rebuild the Reports page: every event and core output line is now recorded (parsed from the live message stream and today's log file) with colored level badges (INFO/WARN/ERROR/DEBUG), a live regex filter, autoscroll and copy/clear.
+- Rewrite the sanctions reachability check: 22 default services (Gemini, Google AI Studio, ChatGPT, OpenAI API, Docker Hub, YouTube, Netflix, Spotify, GitHub, Steam, ...) with strict-service gating, failed-service names reported in the result. The service list is fully manageable from desktop settings (add/edit/enable/disable/delete/reset to defaults) and Android now uses the same richer, stricter logic.
+- Fix the domain filter in TUN mode: pasted URLs are reduced to their host and `full:`/`regexp:`/`geosite:`/`keyword:` entries map to their sing-box counterparts instead of silently never matching.
+- Fix Persian text alignment in mixed Persian/Latin strings by inserting RTL marks (U+200F) across the Persian resource strings.
+- Dark theme now uses the neutral gray ramp requested in feedback: `#141414` page background, `#1F1F1F` surfaces, `#242629` elevated surfaces.
+- Android versionCode 400401; bundled mihomo remains v1.19.32 (latest stable).
+
 ## 4.0.3 (pre-release)
 
 - Fix the sidebar regression that froze navigation on the Home page: the page-switch event handlers were never wired in 4.0.2. Navigation now also re-triggers on click and lands with a calm slide-fade transition.

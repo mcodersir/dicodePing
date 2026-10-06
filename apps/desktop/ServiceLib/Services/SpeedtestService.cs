@@ -325,10 +325,16 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task DoSanctionsTest(ServerTestItem item)
     {
         var proxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
-        var result = await ConnectionHandler.TestSanctionsAccess(proxy);
+        var result = await ConnectionHandler.TestSanctionsAccessAsync(proxy);
         var text = result.Accessible
             ? string.Format(ResUI.DicodeSanctionsAccessible, result.Passed, result.Total)
             : string.Format(ResUI.DicodeSanctionsRestricted, result.Passed, result.Total);
+        // Show which services failed so the verdict is transparent and verifiable.
+        var failedNames = string.Join(", ", result.Details.Where(d => !d.Ok).Select(d => d.Name).Take(6));
+        if (failedNames.IsNotEmpty())
+        {
+            text += $" · {failedNames}";
+        }
         ProfileExManager.Instance.SetSanctionsInfo(item.IndexId, text);
         await UpdateSanctionsFunc(item.IndexId, text);
     }

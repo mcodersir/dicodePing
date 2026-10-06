@@ -575,7 +575,19 @@ public partial class CoreConfigV2rayService
                     }
                     if (xhttpExtra.IsNotEmpty())
                     {
-                        xhttpSettings.extra = JsonUtils.ParseJson(xhttpExtra);
+                        // A broken "extra" from a subscription must never kill the whole
+                        // config: strip it and let the server connect with plain xhttp.
+                        try
+                        {
+                            if (JsonUtils.ParseJson(xhttpExtra) is JsonObject extraObject)
+                            {
+                                xhttpSettings.extra = extraObject;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logging.SaveLog("Strip invalid xhttp extra", ex);
+                        }
                     }
 
                     streamSettings.xhttpSettings = xhttpSettings;

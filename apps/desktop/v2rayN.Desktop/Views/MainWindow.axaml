@@ -30,6 +30,7 @@
         <StreamGeometry x:Key="DicodeIconAbout">M12,3 A9,9 0 1,0 12,21 A9,9 0 1,0 12,3 Z M12,7.6 V7.61 M12,11 V16.5</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconPool">M12,3.5 L21,8.25 L12,13 L3,8.25 Z M4.6,12.1 L12,16.1 L19.4,12.1 M4.6,16 L12,20 L19.4,16</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconZap">M13.2,2.5 L5,13.5 H11 L10.8,21.5 L19,10.5 H13 Z</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconShield">M12,3 L19.5,6 V11.2 C19.5,16 16.2,19.6 12,21 C7.8,19.6 4.5,16 4.5,11.2 V6 Z M12,8.2 V12.6 M12,15.4 V15.41</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconRefresh">M20.5,12 A8.5,8.5 0 1,1 17.8,5.9 M20.5,3.2 V7.4 H16.3</StreamGeometry>
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
@@ -258,6 +259,7 @@
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
+                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeSanctionsServices}" Command="{Binding SanctionsServicesCmd}" />
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
                                     <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
@@ -283,7 +285,7 @@
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
                                 <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.3 pre-release" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.4 pre-release" />
                             </StackPanel>
                         </Border>
                     </Panel>

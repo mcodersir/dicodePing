@@ -54,6 +54,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> RoutingSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> DomainFilterSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> DNSSettingCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SanctionsServicesCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> FullConfigTemplateCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> GlobalHotkeySettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RebootAsAdminCmd { get; }
@@ -208,6 +209,10 @@ public partial class MainWindowViewModel : MyReactiveObject
             {
                 await Reload();
             }
+        });
+        SanctionsServicesCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await AppManager.Instance.WindowDialog.ShowDialogAsync(new SanctionsServicesViewModel());
         });
         DNSSettingCmd = ReactiveCommand.CreateFromTask(async () =>
         {

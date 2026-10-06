@@ -303,3 +303,28 @@ public class HappyEyeballs4RayItem
     public int? Interleave { get; set; }
     public int? MaxConcurrentTry { get; set; }
 }
+
+/// <summary>
+///     Services probed by the sanctions reachability check. An empty list falls
+///     back to the built-in defaults, so existing configurations keep working.
+/// </summary>
+public class SanctionsItem
+{
+    public List<SanctionServiceItem>? Services { get; set; }
+
+    /// <summary>Per-request timeout for each probe, in seconds.</summary>
+    public int TimeoutSeconds { get; set; } = 9;
+}
+
+public class SanctionServiceItem
+{
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Probe URL; a 2xx-499 response (except 403/451) counts as reachable.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>Strict services weigh the verdict double and gate the accessible verdict.</summary>
+    public bool Strict { get; set; }
+
+    public bool Enabled { get; set; } = true;
+}

@@ -98,7 +98,7 @@ class RealPingWorkerService(
                     if (scope.isActive) {
                         onEvent(RealPingEvent.Result(
                             guid, result, location?.country, location?.ipAddress,
-                            sanctions?.first, sanctions?.second ?: 0, SANCTIONS_URLS.size
+                            sanctions?.first, sanctions?.second ?: 0, SANCTIONS_SERVICES.size
                         ))
                     }
                 } catch (_: Throwable) {
@@ -141,31 +141,51 @@ class RealPingWorkerService(
 
     private suspend fun startRealPing(guid: String): Long = RealPingProbe.measure(context, guid)
 
-    private suspend fun startSanctionsCheck(guid: String): Pair<Boolean, Int> {
-        val config = MmkvManager.decodeServerConfig(guid) ?: return false to 0
+    private suspend fun startSanctionsCheck(guid: String): Triple<Boolean, Int, Int> {
+        val config = MmkvManager.decodeServerConfig(guid) ?: return Triple(false, 0, 0)
         val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
-        if (!configResult.status) return false to 0
+        if (!configResult.status) return Triple(false, 0, 0)
         var passed = 0
-        var googleAiPassed = false
+        var strictFailed = false
         RealPingExecutionLimiter.run(config.configType) {
-            SANCTIONS_URLS.forEachIndexed { index, url ->
-                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, url)
+            SANCTIONS_SERVICES.forEach { service ->
+                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url)
                 if (delay >= 0L) {
                     passed++
-                    if (index < 2) googleAiPassed = true
+                } else if (service.strict) {
+                    strictFailed = true
                 }
             }
         }
-        return (googleAiPassed && passed >= 3) to passed
+        val total = SANCTIONS_SERVICES.size
+        // Strict services are the most reliable sanctions indicators; the overall
+        // pass ratio must also clear two thirds for an accessible verdict.
+        val accessible = !strictFailed && passed * 3 >= total * 2
+        return Triple(accessible, passed, total)
     }
 
     private companion object {
-        val SANCTIONS_URLS = listOf(
-            "https://gemini.google.com/",
-            "https://flow.google/",
-            "https://firebase.google.com/",
-            "https://dart.dev/",
-            "https://flutter.dev/"
+        data class SanctionService(val name: String, val url: String, val strict: Boolean)
+
+        val SANCTIONS_SERVICES = listOf(
+            SanctionService("Gemini", "https://gemini.google.com/", true),
+            SanctionService("Google AI Studio", "https://aistudio.google.com/", true),
+            SanctionService("ChatGPT", "https://chatgpt.com/", true),
+            SanctionService("OpenAI API", "https://api.openai.com/", true),
+            SanctionService("Docker Hub", "https://hub.docker.com/", true),
+            SanctionService("YouTube", "https://www.youtube.com/", false),
+            SanctionService("YouTube Studio", "https://studio.youtube.com/", false),
+            SanctionService("Netflix", "https://www.netflix.com/", false),
+            SanctionService("Spotify", "https://open.spotify.com/", false),
+            SanctionService("Telegram Web", "https://web.telegram.org/k/", false),
+            SanctionService("GitHub", "https://github.com/", false),
+            SanctionService("Hugging Face", "https://huggingface.co/", false),
+            SanctionService("Steam", "https://store.steampowered.com/", false),
+            SanctionService("Figma", "https://www.figma.com/", false),
+            SanctionService("Notion", "https://www.notion.so/", false),
+            SanctionService("Medium", "https://medium.com/", false),
+            SanctionService("Wikipedia", "https://www.wikipedia.org/", false),
+            SanctionService("JetBrains", "https://www.jetbrains.com/", false)
         )
     }
 

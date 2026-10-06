@@ -161,7 +161,9 @@ public class NodeValidator
         {
             if (JsonUtils.ParseJson(transport.XhttpExtra) is not JsonObject)
             {
-                v.Error(string.Format(ResUI.MsgInvalidProperty, ResUI.TransportExtra));
+                // Downgraded to a warning: the invalid extra is stripped during config
+                // generation, so the server can still connect with plain xhttp.
+                v.Warning(string.Format(ResUI.MsgInvalidProperty, ResUI.TransportExtra));
             }
         }
 
@@ -169,7 +171,7 @@ public class NodeValidator
         {
             if (JsonUtils.ParseJson(item.Finalmask) is not JsonObject)
             {
-                v.Error(string.Format(ResUI.MsgInvalidProperty, ResUI.TbFinalmask));
+                v.Warning(string.Format(ResUI.MsgInvalidProperty, ResUI.TbFinalmask));
             }
         }
     }
