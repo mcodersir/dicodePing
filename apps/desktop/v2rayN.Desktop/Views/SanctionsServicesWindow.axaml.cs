@@ -8,9 +8,6 @@ public partial class SanctionsServicesWindow : WindowBase<SanctionsServicesViewM
     {
         InitializeComponent();
 
-        btnCancel.Click += (_, _) => Close(false);
-        btnSave.Click += (_, _) => ViewModel?.SaveCmd.Execute().Subscribe(result => Close(result));
-
         EditorView.btnCancel.Click += (_, _) => Close(false);
         EditorView.btnSave.Click += (_, _) => ViewModel?.SaveCmd.Execute().Subscribe(result => Close(result));
     }
