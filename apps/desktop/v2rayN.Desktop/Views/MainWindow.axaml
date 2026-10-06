@@ -306,7 +306,7 @@
                                                 Stretch="Uniform"
                                                 Stroke="{DynamicResource DicodeTextSecondary}"
                                                 StrokeLineCap="Round"
-                                                StrokeLineJoin="Round"
+                                                StrokeJoin="Round"
                                                 StrokeThickness="1.5" />
                                             <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeJoinTelegram}" />
                                         </StackPanel>
