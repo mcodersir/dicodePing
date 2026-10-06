@@ -274,6 +274,9 @@
                                 <TabItem Header="{x:Static resx:ResUI.DicodeSettingsTabSanctions}">
                                     <views:SanctionsServicesView x:Name="sanctionsSettingsView" Margin="4" />
                                 </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.DicodeSpoSources}">
+                                    <views:SpoSourcesView x:Name="spoSourcesView" Margin="4" />
+                                </TabItem>
                             </TabControl>
                         </Grid>
                     </Panel>

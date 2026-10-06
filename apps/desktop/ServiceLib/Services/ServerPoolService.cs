@@ -110,7 +110,7 @@ public sealed class ServerPoolService
 
     private static void ConfigureBrowserHeaders(HttpClient client)
     {
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.0.6");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128 Safari/537.36 DicodePing/4.1.0");
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.8,fa;q=0.7");
     }
 
@@ -226,7 +226,38 @@ public sealed class ServerPoolService
                 var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
                     preparationToken, CancellationToken.None);
                 var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
-                if (best.Profile == null) throw new InvalidOperationException(ResUI.DicodePoolNoHealthyConfig);
+                if (best.Profile == null)
+                {
+                    // The Config Checker cache had nothing healthy: try the DicodeSpo
+                    // sources subscription before giving up.
+                    progress.Report(new(ResUI.DicodePoolStageDefaultSub, ResUI.DicodePoolSpoTrying));
+                    try
+                    {
+                        await DicodePingBootstrap.EnsureDefaultsAsync(config);
+                        var spoSub = (await AppManager.Instance.SubItems())!
+                            .FirstOrDefault(x => x.Url == DicodePingBootstrap.SpoSourcesSubUrl);
+                        if (spoSub != null)
+                        {
+                            await SubscriptionHandler.UpdateProcess(config, spoSub.Id, false, (_, _) => Task.CompletedTask);
+                            var spoProfiles = await AppManager.Instance.ProfileItems(spoSub.Id) ?? [];
+                            if (spoProfiles.Count > 0)
+                            {
+                                var spoInitial = await ProbeAsync(spoProfiles, 1, spoProfiles.Count, false, progress,
+                                    preparationToken, CancellationToken.None);
+                                var spoBest = spoInitial.OrderBy(x => x.Delay).FirstOrDefault();
+                                if (spoBest.Profile != null)
+                                {
+                                    best = spoBest;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        progress.Report(new(ResUI.DicodePoolStageDefaultSub, PoolNetwork.Describe(error)));
+                    }
+                    if (best.Profile == null) throw new InvalidOperationException(ResUI.DicodePoolNoHealthyConfig);
+                }
                 progress.Report(new(ResUI.DicodePoolStageConnection, string.Format(ResUI.DicodePoolFallbackStarting, best.Delay)));
                 await connect(best.Profile, preparationToken);
                 preparationToken.ThrowIfCancellationRequested();

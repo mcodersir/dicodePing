@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.1.0 (stable)
+
+First stable release of the 4.x series. Highlights of everything included since 4.0.0:
+
+### New
+- **DicodeSpo sources subscription**: the app's first subscription aggregates free configs from curated public sources — Patterniha Free-Configs (priority #1), 0xRadikal Top100, roosterkid, ermaozi, MatinGhanbari, barry-far, SoliSpirit, Pawdroid, peasoft and Epodonios. Plain and base64 sources are handled, results are deduplicated and capped (500) so it stays light. Available on desktop and Android; individual sources can be disabled or edited from desktop settings, and the server-pool flow now also falls back to DicodeSpo when the Config Checker cache has nothing healthy.
+- **Sanctions reachability check**: 22 services with strict-service gating, failed-service names reported, and full per-service management from desktop settings (search, enable-all, add/edit/delete/reset).
+- Telegram channel button in About (t.me/dicodeping); in-page tabbed Settings (General / Sanctions / DicodeSpo sources).
+
+### Fixed
+- "Core failed to start": geo assets are copied beside every core binary; core stdout/stderr is always captured into the gui log and the Reports page; instant-exit errors include the core's own message.
+- TUN connections: the legacy hosts DNS rule (`ip_accept_any`) that sing-box 1.14 rejects was rebuilt as an explicit domains rule — verified with `sing-box check` against the real installed binary; deprecated `independent_cache` removed.
+- Reports page now truly fills (compiled-binding + code items source) with colored level badges, live filter, autoscroll.
+- Latency/speed/location/sanctions/security tests: instant reset of previous values with a shimmer placeholder, then live per-server results; superseding a running test works.
+- `ERR_QUIC_PROTOCOL_ERROR`: QUIC (UDP 443) is rejected in TUN mode so browsers fall back to TCP/TLS.
+- Domain filter in TUN mode (URLs and full:/regexp:/geosite:/keyword: entries).
+- Persian bidi alignment in mixed-language strings; theme-aware buttons; RTL table headers; toast theming; sidebar navigation and page transitions.
+
+### Cores
+- Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32, PattNG 2.3.10-P60, AndroidLibXrayLite v26.10.4, Loyalsoldier geo 202610042206 — all pinned with SHA-256 in release CI.
+- Android versionCode 401000; desktop FileVersion 4.1.0.1.
+
+
 ## 4.0.6 (pre-release)
 
 - **Fix TUN connections**: the generated sing-box DNS config contained the hosts rule `{ ip_accept_any: true }`, which sing-box 1.14 rejects (`FATAL initialize dns router: Response Match Fields ... require match_response to be enabled`) — found in the app's own log and verified with `sing-box check` against the installed binary. The hosts DNS rule is now built from the known hosts domains (full match), and the config validates cleanly.

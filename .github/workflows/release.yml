@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.6
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.1.0
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.6 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.1.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.0.6-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.1.0-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.0.6-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.1.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.6
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.1.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,28 +264,35 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.0.6 — Pre-release
-          prerelease: true
+          name: DicodePing 4.1.0 — Stable
+          prerelease: false
           generate_release_notes: false
           body: |
-            ## DicodePing 4.0.6 — Pre-release
+            ## DicodePing 4.1.0 — نسخه پایدار (Stable)
 
-            پیش‌نمایش 4.0.6: ریشهٔ اصلی قطع شدن TUN از لاگ خود برنامه پیدا و با تست مستقیم روی sing-box نسخهٔ نصب‌شده تأیید شد.
+            اولین نسخه پایدار سری 4.x با تمرکز بر اتصال پایدار TUN، شفافیت کامل گزارش‌ها، بررسی دقیق تحریم و قابلیت جدید ساب منابع DicodeSpo.
 
-            - **ریشهٔ قطع شدن TUN**: کانفیگ DNS تولیدی شامل قانون hosts با `ip_accept_any` بود که sing-box 1.14 آن را بدون `match_response` رد می‌کرد (FATAL: initialize dns router). قانون hosts حالا با لیست دامنه‌های شناخته‌شده ساخته می‌شود — با `sing-box check` روی کانفیگ واقعی تأیید شد که کانفیگ بدون هیچ خطایی validate می‌شود.
-            - هشدار منسوخ `independent_cache` هم حذف شد.
-            - صفحه گزارش‌ها: اتصال داده لیست حالا هم با binding و هم در کد انجام می‌شود تا در هر شرایطی پر شود؛ خروجی کامل هسته (بیلد 4.0.5 به بعد) در لاگ و همین صفحه ثبت می‌شود.
-            - توست‌ها و هشدارها با تم هماهنگ شدند (حاشیه رنگی بر اساس نوع: اطلاعات/هشدار/خطا/موفق).
-            - هسته‌های دسکتاپ تست‌های پینگ/سرعت/لوکیشن/تحریم/امنیت را اجرا می‌کنند؛ اگر نتیجه‌ای «--» شد یعنی آن پروکسی پاسخ نداده (سرور مرده) — لاگ دلیلش را نشان می‌دهد.
-            - mihomo v1.19.32 در بسته است؛ برای به‌روزرسانی هستهٔ محلی: تنظیمات → بررسی به‌روزرسانی → mihomo.
-            - Android versionCode 400601. نصب: DicodePing-4.0.6-universal.apk (یا arm64-v8a).
+            ## قابلیت‌های جدید
+            - **ساب منابع DicodeSpo**: اولین ساب برنامه که کانفیگ‌های رایگان را از منابع معتبر (Patterniha Free-Configs در اولویت اول، 0xRadikal Top100، roosterkid، ermaozi، MatinGhanbari، barry-far و…) جمع و بدون تکرار وارد می‌کند؛ سبک است و بعد از پرشدن سقف (۵۰۰ کانفیگ) متوقف می‌شود. در اندروید هم همین ساب اولین ساب است.
+            - مدیریت منابع از تنظیمات دسکتاپ: تب «DicodeSpo sources» — فعال/غیرفعال کردن کل منبع یا تک‌تک لینک‌ها، جستجو، افزودن، حذف و بازگردانی پیش‌فرض‌ها.
+            - استخر سرورها: اگر قبل از جمع‌آوری وصل نبود، بعد از ساب Config Checker حالا ساب منابع DicodeSpo را هم آزمایش می‌کند.
+            - بررسی تحریم با ۲۲ سرویس، نتایج دقیق با نام سرویس‌های مسدودشده و مدیریت کامل از تنظیمات.
+            - دکمه عضویت در کانال تلگرام در صفحه درباره (t.me/dicodeping).
+
+            ## رفع اشکالات
+            - «Core اجرا نشد»: فایل‌های geo کنار هر هسته کپی می‌شوند و خروجی کامل هسته همیشه در لاگ و صفحه گزارش‌ها ثبت می‌شود.
+            - اتصال TUN: قانون DNS منسوخ hosts (ip_accept_any) که sing-box 1.14 آن را رد می‌کرد بازنویسی شد — با sing-box check تأیید شد.
+            - صفحه گزارش‌ها حالا واقعاً پر می‌شود با نشان رنگی سطح لاگ و فیلتر زنده.
+            - پینگ/سرعت/لوکیشن/تحریم/امنیت: پاک شدن آنی اعداد قبلی و نمایش «در حال بررسی» با شیمر، سپس نتایج لحظه‌ای.
+            - خطای ERR_QUIC_PROTOCOL_ERROR با مسدود کردن QUIC در TUN.
+            - فیلتر دامنه در حالت TUN، تراز متن فارسی ترکیبی، رنگ دکمه‌ها هماهنگ با تم، توست‌های تم‌دار.
+            - رفع minSdk اندروید برای libv2ray جدید و targetSdk پایدار 36.
+
+            ## به‌روزرسانی هسته‌ها
+            - Xray v26.9.30 · sing-box v1.14.2 · mihomo v1.19.32 · PattNG 2.3.10-P60 · AndroidLibXrayLite v26.10.4 · geo 202610042206
 
             English summary:
-            - TUN connection root cause (found in the app's own log, verified with sing-box check against the real binary): the generated hosts DNS rule used ip_accept_any, which sing-box 1.14 rejects without match_response. The hosts rule is now built from the known hosts domains; the config validates cleanly.
-            - Removed the deprecated independent_cache DNS option.
-            - Reports page: doubly-wired items source; full core output continues to be recorded.
-            - Theme-styled toasts/alerts (info/warning/error/success borders).
-            - Latency/speed/location/sanctions/security tests all run through the recorded pipeline; "--" means the probed proxy itself did not answer (see the log for the reason).
-            - Bundled mihomo v1.19.32; update the local core from Settings → Check updates.
-            - Android versionCode 400601. For installation pick DicodePing-4.0.6-universal.apk (or arm64-v8a).
+            - 4.1.0 is the first stable release of the 4.x series: reliable TUN connections (sing-box 1.14 DNS schema fixed and verified with sing-box check), fully recorded Reports page, instant test resets with live results, accurate 22-service sanctions check with settings management, and the new DicodeSpo sources subscription (priority-ordered free-config aggregation, per-source management, pool fallback).
+            - Bundled cores: Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32, PattNG 2.3.10-P60, libv2ray v26.10.4, geo 202610042206.
+            - Android versionCode 401000. For installation pick DicodePing-4.1.0-universal.apk (or arm64-v8a).
           files: artifacts/*

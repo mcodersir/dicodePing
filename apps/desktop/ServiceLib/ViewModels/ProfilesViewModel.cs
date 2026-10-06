@@ -975,6 +975,21 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         try
         {
+        // Clear stale values for every visible row immediately, even before the
+        // coordination gate frees up — the user must see the old pings vanish
+        // the instant a new test is requested.
+        RxSchedulers.MainThreadScheduler.Schedule(() =>
+        {
+            foreach (var item in ProfileItems)
+            {
+                item.IsTesting = true;
+                item.DelayVal = ResUI.DicodeChecking;
+                item.SpeedVal = string.Empty;
+                item.IpInfo = string.Empty;
+                item.SanctionsInfo = string.Empty;
+            }
+        });
+
         await ProfileOperationCoordinator.Gate.WaitAsync();
         try
         {

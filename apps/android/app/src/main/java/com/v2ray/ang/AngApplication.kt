@@ -40,6 +40,29 @@ class AngApplication : Application() {
 
         // The product source is authoritative and is created once without
         // replacing any subscriptions the user adds later.
+        if (MmkvManager.decodeSubscription(AppConfig.DICODE_SPO_SUBSCRIPTION_ID) == null) {
+            MmkvManager.encodeSubscription(
+                AppConfig.DICODE_SPO_SUBSCRIPTION_ID,
+                SubscriptionItem(
+                    remarks = "DicodeSpo \u00b7 Sources",
+                    url = AppConfig.DICODE_SPO_SUBSCRIPTION_URL,
+                    enabled = true,
+                    autoUpdate = true,
+                    updateInterval = 360,
+                ),
+            )
+        }
+        // DicodeSpo is the first subscription of the app.
+        runCatching {
+            val subsList = MmkvManager.decodeSubsList()
+            val idx = subsList.indexOf(AppConfig.DICODE_SPO_SUBSCRIPTION_ID)
+            if (idx > 0) {
+                subsList.removeAt(idx)
+                subsList.add(0, AppConfig.DICODE_SPO_SUBSCRIPTION_ID)
+                MmkvManager.encodeSubsList(subsList)
+            }
+        }
+
         if (MmkvManager.decodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) == null) {
             MmkvManager.encodeSubscription(
                 AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID,

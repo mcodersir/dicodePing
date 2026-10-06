@@ -127,6 +127,13 @@ public static class SubscriptionHandler
 
     private static async Task<string> DownloadMainSubscription(Config config, SubItem item, bool blProxy, DownloadService downloadHandle)
     {
+        // DicodeSpo is not a downloadable URL: its content is aggregated from the
+        // enabled free-config sources managed in Settings.
+        if (string.Equals(item.Url.TrimEx(), DicodePingBootstrap.SpoSourcesSubUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return await SpoSourcesService.BuildSubscriptionTextAsync(config);
+        }
+
         // Prepare subscription URL and download directly
         var url = Utils.GetPunycode(item.Url.TrimEx());
 

@@ -488,6 +488,21 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(skipCount = 1)
             }
 
+            // DicodeSpo aggregates the free-config sources instead of fetching a URL.
+            if (it.subscription.url == AppConfig.DICODE_SPO_SUBSCRIPTION_URL) {
+                val spoText = SpoSourcesAggregator.aggregate()
+                if (spoText.isBlank()) {
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
+                val spoCount = parseConfigViaSub(spoText, it.guid, false)
+                if (spoCount > 0) {
+                    it.subscription.lastUpdated = System.currentTimeMillis()
+                    MmkvManager.encodeSubscription(it.guid, it.subscription)
+                    return SubscriptionUpdateResult(configCount = spoCount, successCount = 1)
+                }
+                return SubscriptionUpdateResult(failureCount = 1)
+            }
+
             val url = HttpUtil.toIdnUrl(it.subscription.url)
             if (!Utils.isValidUrl(url)) {
                 return SubscriptionUpdateResult(failureCount = 1)

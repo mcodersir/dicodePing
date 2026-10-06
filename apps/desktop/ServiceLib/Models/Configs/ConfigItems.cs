@@ -328,3 +328,23 @@ public class SanctionServiceItem
 
     public bool Enabled { get; set; } = true;
 }
+
+/// <summary>
+///     Sources aggregated by the DicodeSpo subscription ("sources sub"). An empty
+///     list falls back to the built-in defaults. The aggregator walks the sources
+///     in order and stops once MaxConfigs unique configs are collected, so heavy
+///     sources at the end of the list only fill whatever space remains.
+/// </summary>
+public class SpoSourcesItem
+{
+    public List<SpoSourceItem>? Sources { get; set; }
+
+    public int MaxConfigs { get; set; } = 500;
+}
+
+public class SpoSourceItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public bool Enabled { get; set; } = true;
+}

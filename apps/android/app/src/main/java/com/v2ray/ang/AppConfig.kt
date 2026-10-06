@@ -21,6 +21,11 @@ object AppConfig {
     const val DICODE_PRIMARY_SUBSCRIPTION_ID = "__dicode_primary_subscription__"
     const val DICODE_PRIMARY_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 
+    // DicodeSpo: the "sources" subscription. Never fetched; its content is
+    // aggregated from the free-config sources at update time.
+    const val DICODE_SPO_SUBSCRIPTION_ID = "DicodeSpoSub"
+    const val DICODE_SPO_SUBSCRIPTION_URL = "https://dicodeping.local/dicode-spo/sources"
+
     /** Preferences mapped to MMKV storage. */
     const val PREF_SNIFFING_ENABLED = "pref_sniffing_enabled"
     const val PREF_ROUTE_ONLY_ENABLED = "pref_route_only_enabled"

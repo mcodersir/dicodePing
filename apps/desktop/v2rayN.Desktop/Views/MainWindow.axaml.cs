@@ -42,6 +42,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
         // Settings page embeds the sanctions editor; give it its own view model.
         sanctionsSettingsView.DataContext ??= new SanctionsServicesViewModel();
+        spoSourcesView.DataContext ??= new SpoSourcesViewModel();
 
         _config = AppManager.Instance.Config;
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };

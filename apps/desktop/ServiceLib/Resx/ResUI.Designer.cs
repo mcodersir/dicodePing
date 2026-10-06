@@ -6677,5 +6677,41 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("DicodeJoinTelegram", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Testing the DicodeSpo sources subscription....
+        /// </summary>
+        public static string DicodePoolSpoTrying {
+            get {
+                return ResourceManager.GetString("DicodePoolSpoTrying", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to DicodeSpo sources.
+        /// </summary>
+        public static string DicodeSpoSources {
+            get {
+                return ResourceManager.GetString("DicodeSpoSources", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The DicodeSpo subscription aggregates these free-config sources (in priority order). Disable the ones you do not want; the list stops once the cap is reached..
+        /// </summary>
+        public static string DicodeSpoSourcesDesc {
+            get {
+                return ResourceManager.GetString("DicodeSpoSourcesDesc", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Add source.
+        /// </summary>
+        public static string DicodeSpoAddSource {
+            get {
+                return ResourceManager.GetString("DicodeSpoAddSource", resourceCulture);
+            }
+        }
             }
 }
