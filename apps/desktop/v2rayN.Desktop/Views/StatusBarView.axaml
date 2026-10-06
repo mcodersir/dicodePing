@@ -2,6 +2,7 @@
     x:Class="v2rayN.Desktop.Views.StatusBarView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:v2rayN.Desktop.Views"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:DataType="vms:StatusBarViewModel">
@@ -16,6 +17,7 @@
         <StackPanel Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
           <Button
               x:Name="btnToggleConnection"
+              Classes.DicodePower="True"
               Width="164"
               Height="164"
               HorizontalAlignment="Center"
@@ -25,9 +27,17 @@
               BorderThickness="2"
               Classes.Success="{Binding IsConnected}"
               CornerRadius="82">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-              <TextBlock HorizontalAlignment="Center" FontSize="34" FontWeight="Bold" Text="ON" />
-              <TextBlock HorizontalAlignment="Center" FontSize="13" Text="{Binding ConnectionStatusText}" TextWrapping="Wrap" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+              <Path
+                  HorizontalAlignment="Center"
+                  Width="40"
+                  Height="40"
+                  Data="M12,3 V12 M6.2,6.5 A8,8 0 1,0 17.8,6.5"
+                  Stretch="Uniform"
+                  Stroke="{DynamicResource DicodeTextPrimary}"
+                  StrokeLineCap="Round"
+                  StrokeThickness="2" />
+              <TextBlock HorizontalAlignment="Center" FontSize="12" Text="{Binding ConnectionStatusText}" TextWrapping="Wrap" TextAlignment="Center" />
             </StackPanel>
           </Button>
           <Button
@@ -45,7 +55,23 @@
               <TextBlock x:Name="txtRunningServerDisplay" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
               <StackPanel Orientation="Horizontal" Spacing="14">
                 <TextBlock Text="{Binding PingDisplay}" Opacity="0.82" />
-                <TextBlock Text="{Binding LocationDisplay}" Opacity="0.82" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <local:CountryFlagIcon
+                      Width="22"
+                      Height="15"
+                      VerticalAlignment="Center"
+                      SourceText="{Binding LocationCountry}" />
+                  <Path
+                      Width="13"
+                      Height="13"
+                      VerticalAlignment="Center"
+                      Data="M12,21 C12,21 5.5,14.8 5.5,10 A6.5,6.5 0 0,1 18.5,10 C18.5,14.8 12,21 12,21 Z M12,12.2 A2.2,2.2 0 1,0 12,7.8 A2.2,2.2 0 1,0 12,12.2 Z"
+                      Stretch="Uniform"
+                      Stroke="{DynamicResource DicodeTextSecondary}"
+                      StrokeLineCap="Round"
+                      StrokeThickness="1.5" />
+                  <TextBlock Text="{Binding LocationDisplay}" Opacity="0.82" />
+                </StackPanel>
               </StackPanel>
               <TextBlock x:Name="txtRunningInfoDisplay" TextWrapping="Wrap" Opacity="0.72" />
             </StackPanel>

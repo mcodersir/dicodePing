@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.4
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.0.5
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.4 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.0.5 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.0.4-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.0.5-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.0.4-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.0.5-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.4
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.0.5
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,31 +264,25 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.0.4 — Pre-release
+          name: DicodePing 4.0.5 — Pre-release
           prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.0.4 — Pre-release
+            ## DicodePing 4.0.5 — Pre-release
 
-            پیش‌نمایش 4.0.4 با تمرکز روی رفع مشکلات اتصال و گزارش‌گیری، بر اساس لاگ‌های واقعی کاربران نسخه 4.0.3.
+            پیش‌نمایش 4.0.5: عیب‌یابی واقعی روی سیستم نصب‌شده انجام شد و ریشهٔ «Core اجرا نشد» پیدا و رفع شد.
 
-            - رفع قطع شدن اتصال: پیکربندی‌های دارای «ویژگی اضافی» خراب از اشتراک دیگر کل اتصال را نمی‌بندند؛ مقدار نامعتبر حذف و سرور با تنظیمات پایه وصل می‌شود.
-            - رفع خطای ERR_QUIC_PROTOCOL_ERROR در مرورگر: QUIC (UDP 443) در حالت TUN مسدود می‌شود تا مرورگر به TCP/TLS برگردد.
-            - صفحه گزارش‌ها بازطراحی کامل شد: ثبت واقعی همه رویدادها و خروجی هسته، با نشان رنگی سطح لاگ (INFO/ERROR/DEBUG) و فیلتر زنده.
-            - بررسی تحریم کاملاً بازنویسی شد: ۲۲ سرویس (یوتیوب، نتفلیکس، چت‌جی‌پی‌تی، Docker Hub و…) با منطق دقیق «سرویس‌های سخت‌گیرانه»؛ نتیجه نام سرویس‌های مسدودشده را هم نشان می‌دهد.
-            - مدیریت سرویس‌های بررسی تحریم از تنظیمات: افزودن/ویرایش/حذف/غیرفعال‌سازی (دسکتاپ) و لیست دقیق‌تر در اندروید.
-            - رفع فیلتر دامنه در حالت TUN: آدرس‌های paste شده و پیشوندهای full:/regexp:/geosite:/keyword: درست پردازش می‌شوند.
-            - تراز متن فارسی در جملات ترکیبی با انگلیسی اصلاح شد (علامت‌های جهت RTL).
-            - تم تیره با طیف خاکستری (#141414 / #1F1F1F / #242629) طبق سلیقه کاربران.
-            - mihomo v1.19.32 در بسته است (آخرین نسخه پایدار).
+            - **ریشهٔ «Core اجرا نشد»**: هسته به‌دلیل پیدا نکردن geosite.dat کنار فایل اجرایی بلافاصله خارج می‌شد. فایل‌های geo اکنون کنار هسته هم کپی می‌شوند و متغیر محیطی مسیر asset تضمین می‌شود.
+            - **گزارش‌ها دیگر خالی نیستند**: خروجی کامل هسته همیشه گرفته و در لاگ و صفحه گزارش‌ها ثبت می‌شود؛ پیام خطا هم دلیل واقعی خروج هسته را نشان می‌دهد.
+            - رفع ERR_QUIC_PROTOCOL_ERROR: QUIC (UDP 443) در حالت TUN مسدود است تا مرورگر به TCP برگردد (پس از برقراری اتصال).
+            - تنظیمات به‌صورت تب‌بندی‌شده در همان صفحه: تب «عمومی» و تب «بررسی تحریم» با ویرایشگر کامل سرویس‌ها (جستجو، فعال‌سازی همه، افزودن/حذف).
+            - دکمه‌ها با رنگ‌های هماهنگ با تم (روشن/تیره)؛ راست‌چین شدن عنوان ستون‌ها؛ صفحه خانه با دکمه پاور آیکونی، انیمیشن تنفس، پرچم واقعی لوکیشن و آیکون پین.
+            - صفحه درباره: دکمه عضویت در کانال تلگرام (t.me/dicodeping).
+            - Android versionCode 400501. نصب اندروید: DicodePing-4.0.5-universal.apk (یا arm64-v8a).
 
             English summary:
-            - Connection fixes: invalid subscription extras no longer block the core; they are stripped with a warning.
-            - QUIC (UDP 443) is rejected in TUN mode so browsers fall back to TCP/TLS (fixes ERR_QUIC_PROTOCOL_ERROR).
-            - Reports page rebuilt: every event and core output is recorded with colored level badges and live filtering.
-            - Sanctions check rewritten: 22 services with strict-service gating, failed-service names in the result, and a full management dialog in desktop settings.
-            - Domain filter fixed in TUN mode (URLs and full:/regexp:/geosite:/keyword: entries now work).
-            - Persian bidi alignment fixed in mixed-language strings (RLM marks).
-            - Dark theme switched to neutral grays (#141414 / #1F1F1F / #242629).
-            - Bundled mihomo v1.19.32; Android versionCode 400401. Pick DicodePing-4.0.4-universal.apk (or arm64-v8a) for installation.
+            - Root cause of "core failed to start" found by testing the real install: the core resolved geo assets next to its exe. Geo files are now copied beside every core and output is always captured.
+            - Core stdout/stderr is persisted to the gui log and the Reports page; instant-exit errors now include the core's own message.
+            - Reports page fixes (log list now actually populated), theme-aware buttons, RTL column headers, Home page power-button animation with drawn country flag and pin icon, in-page tabbed settings with the sanctions services editor (search + enable all), Telegram channel button in About.
+            - Android versionCode 400501. For installation pick DicodePing-4.0.5-universal.apk (or arm64-v8a).
           files: artifacts/*

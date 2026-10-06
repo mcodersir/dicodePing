@@ -40,6 +40,9 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         navAbout.IsCheckedChanged += Nav_Checked;
         navAbout.Click += Nav_Click;
 
+        // Settings page embeds the sanctions editor; give it its own view model.
+        sanctionsSettingsView.DataContext ??= new SanctionsServicesViewModel();
+
         _config = AppManager.Instance.Config;
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
@@ -191,6 +194,11 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         {
             ShowPage(page);
         }
+    }
+
+    private void OpenTelegramChannel(object? sender, RoutedEventArgs e)
+    {
+        ProcUtils.ProcessStart("https://t.me/dicodeping");
     }
 
     private void ShowPage(string page)

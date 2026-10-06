@@ -10,10 +10,16 @@ public partial class SanctionServiceRow : ReactiveObject
 
 public partial class SanctionsServicesViewModel : MyReactiveObject
 {
-    public ObservableCollection<SanctionServiceRow> Rows { get; } = [];
+    private readonly ObservableCollection<SanctionServiceRow> _allRows = [];
+
+    public ObservableCollection<SanctionServiceRow> VisibleRows { get; } = [];
+
+    [Reactive]
+    public partial string SearchText { get; set; }
 
     public ReactiveCommand<SanctionServiceRow, RxVoid> DeleteRowCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddRowCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> EnableAllCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> ResetDefaultsCmd { get; }
     public ReactiveCommand<RxVoid, bool> SaveCmd { get; }
 
@@ -23,7 +29,7 @@ public partial class SanctionsServicesViewModel : MyReactiveObject
 
         foreach (var service in ConnectionHandler.GetSanctionServices())
         {
-            Rows.Add(new SanctionServiceRow
+            _allRows.Add(new SanctionServiceRow
             {
                 Enabled = service.Enabled,
                 Name = service.Name,
@@ -31,39 +37,58 @@ public partial class SanctionsServicesViewModel : MyReactiveObject
                 Strict = service.Strict,
             });
         }
+        RebuildVisible();
 
         DeleteRowCmd = ReactiveCommand.Create<SanctionServiceRow, RxVoid>(row =>
         {
-            Rows.Remove(row);
+            _allRows.Remove(row);
+            VisibleRows.Remove(row);
             return RxVoid.Default;
         });
 
         AddRowCmd = ReactiveCommand.Create<RxVoid, RxVoid>(_ =>
         {
-            Rows.Add(new SanctionServiceRow { Enabled = true, Name = string.Empty, Url = "https://", Strict = false });
+            var row = new SanctionServiceRow { Enabled = true, Name = string.Empty, Url = "https://", Strict = false };
+            _allRows.Add(row);
+            VisibleRows.Add(row);
+            return RxVoid.Default;
+        });
+
+        EnableAllCmd = ReactiveCommand.Create<RxVoid, RxVoid>(_ =>
+        {
+            foreach (var row in _allRows)
+            {
+                row.Enabled = true;
+            }
             return RxVoid.Default;
         });
 
         ResetDefaultsCmd = ReactiveCommand.Create<RxVoid, RxVoid>(_ =>
         {
-            Rows.Clear();
+            _allRows.Clear();
+            VisibleRows.Clear();
             foreach (var service in SanctionsDefaults.Services)
             {
-                Rows.Add(new SanctionServiceRow
+                var row = new SanctionServiceRow
                 {
                     Enabled = service.Enabled,
                     Name = service.Name,
                     Url = service.Url,
                     Strict = service.Strict,
-                });
+                };
+                _allRows.Add(row);
+                VisibleRows.Add(row);
             }
             return RxVoid.Default;
         });
 
+        this.WhenAnyValue(x => x.SearchText)
+            .Subscribe(_ => RebuildVisible());
+
         SaveCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             _config.SanctionsItem ??= new SanctionsItem();
-            _config.SanctionsItem.Services = Rows
+            _config.SanctionsItem.Services = _allRows
                 .Where(r => r.Name.Trim().IsNotEmpty() && r.Url.Trim().IsNotEmpty())
                 .Select(r => new SanctionServiceItem
                 {
@@ -76,5 +101,20 @@ public partial class SanctionsServicesViewModel : MyReactiveObject
             await ConfigHandler.SaveConfig(_config);
             return true;
         });
+    }
+
+    private void RebuildVisible()
+    {
+        var filter = SearchText?.Trim() ?? string.Empty;
+        VisibleRows.Clear();
+        foreach (var row in _allRows)
+        {
+            if (filter.IsNullOrEmpty()
+                || row.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || row.Url.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                VisibleRows.Add(row);
+            }
+        }
     }
 }

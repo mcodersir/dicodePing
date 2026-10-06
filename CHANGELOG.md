@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.0.5 (pre-release)
+
+- Root-cause the "core failed to start" report by testing the real installed app: Xray exited instantly because it resolved `geosite.dat` next to its own exe while the assets live in `bin/`. Geo files are now copied beside every core binary on launch, and the asset environment variable is verified.
+- Always capture core stdout/stderr: every core line is persisted to the gui log (so "see the report" finally has content) and sent to the Reports page; an instant-exit failure now includes the core's own error message.
+- Fix the Reports page being empty: the log list was never given its items source. The page now populates from the live message stream and today's log file.
+- Settings become an in-page tabbed section: a General tab (existing dialogs) and a Sanctions-check tab embedding the services editor with search, enable-all, add/edit/enable/disable/delete and reset-to-defaults.
+- Theme-aware button styling (surface, border and hover follow the active palette), right-aligned DataGrid column headers for the Persian-first tables.
+- Home page: the power button uses a line power icon with a soft breathing animation and a green connected state; the location card shows the drawn country flag (Windows cannot render flag emoji) plus a pin icon.
+- About page: add a Telegram channel button (t.me/dicodeping).
+- Android versionCode 400501; bundled mihomo remains v1.19.32.
+
 ## 4.0.4 (pre-release)
 
 - Fix the connection blockers seen in user logs: profiles whose `XHTTP extra`/`Finalmask` JSON from the subscription is invalid no longer produce validation errors that abort the connection — the broken extra is stripped with a warning and the server connects with plain transport.

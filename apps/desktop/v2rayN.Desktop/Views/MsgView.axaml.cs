@@ -11,6 +11,7 @@ public partial class MsgView : ReactiveUserControl<MsgViewModel>
 
         this.WhenActivated(disposables =>
         {
+            lstLog.ItemsSource = ViewModel?.LogItems;
             this.Bind(ViewModel, vm => vm.MsgFilter, v => v.cmbMsgFilter.Text).DisposeWith(disposables);
             this.Bind(ViewModel, vm => vm.AutoRefresh, v => v.togAutoRefresh.IsChecked).DisposeWith(disposables);
 

@@ -101,6 +101,7 @@ public partial class StatusBarViewModel : MyReactiveObject
     [Reactive] public partial string TotalTrafficDisplay { get; set; }
     [Reactive] public partial string PingDisplay { get; set; }
     [Reactive] public partial string LocationDisplay { get; set; }
+    [Reactive] public partial string LocationCountry { get; set; }
     [Reactive] public partial bool IsConnected { get; set; }
     [Reactive] public partial string ConnectionStatusText { get; set; }
 
@@ -360,7 +361,8 @@ public partial class StatusBarViewModel : MyReactiveObject
         var result = await Task.Run(ConnectionHandler.RunAvailabilityCheckDetailed);
         var country = result.Location?.Country;
         PingDisplay = result.Delay > 0 ? $"{ResUI.DicodePingLabel}: {result.Delay} ms" : ResUI.DicodePingFailed;
-        LocationDisplay = country.IsNotEmpty() ? $"{CountryFlag(country!)} {country}" : ResUI.DicodeNoLocation;
+        LocationCountry = country.IsNotEmpty() ? country : string.Empty;
+        LocationDisplay = country.IsNotEmpty() ? country! : ResUI.DicodeNoLocation;
         var msg = $"{PingDisplay} · {LocationDisplay}";
         NoticeManager.Instance.SendMessageEx(msg);
         await TestServerAvailabilitySub(string.Empty);

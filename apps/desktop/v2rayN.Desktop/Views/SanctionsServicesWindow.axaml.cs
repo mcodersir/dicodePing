@@ -11,11 +11,7 @@ public partial class SanctionsServicesWindow : WindowBase<SanctionsServicesViewM
         btnCancel.Click += (_, _) => Close(false);
         btnSave.Click += (_, _) => ViewModel?.SaveCmd.Execute().Subscribe(result => Close(result));
 
-        this.WhenActivated(disposables =>
-        {
-            this.OneWayBind(ViewModel, x => x.Rows, v => v.lstRows.ItemsSource).DisposeWith(disposables);
-            this.BindCommand(ViewModel, x => x.AddRowCmd, v => v.btnAdd).DisposeWith(disposables);
-            this.BindCommand(ViewModel, x => x.ResetDefaultsCmd, v => v.btnReset).DisposeWith(disposables);
-        });
+        EditorView.btnCancel.Click += (_, _) => Close(false);
+        EditorView.btnSave.Click += (_, _) => ViewModel?.SaveCmd.Execute().Subscribe(result => Close(result));
     }
 }

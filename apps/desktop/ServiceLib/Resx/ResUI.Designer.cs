@@ -6632,5 +6632,50 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("DicodeSanctionsResetDefaults", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Enable all.
+        /// </summary>
+        public static string DicodeSanctionsEnableAll {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsEnableAll", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Search services....
+        /// </summary>
+        public static string DicodeSanctionsSearch {
+            get {
+                return ResourceManager.GetString("DicodeSanctionsSearch", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to General.
+        /// </summary>
+        public static string DicodeSettingsTabGeneral {
+            get {
+                return ResourceManager.GetString("DicodeSettingsTabGeneral", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Sanctions check.
+        /// </summary>
+        public static string DicodeSettingsTabSanctions {
+            get {
+                return ResourceManager.GetString("DicodeSettingsTabSanctions", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Join Telegram channel.
+        /// </summary>
+        public static string DicodeJoinTelegram {
+            get {
+                return ResourceManager.GetString("DicodeJoinTelegram", resourceCulture);
+            }
+        }
             }
 }

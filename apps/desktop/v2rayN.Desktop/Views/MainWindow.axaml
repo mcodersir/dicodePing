@@ -7,6 +7,7 @@
     xmlns:dialogHost="clr-namespace:DialogHostAvalonia;assembly=DialogHost.Avalonia"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:views="clr-namespace:v2rayN.Desktop.Views"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     Title="DicodePing"
     Width="1200"
@@ -30,6 +31,7 @@
         <StreamGeometry x:Key="DicodeIconAbout">M12,3 A9,9 0 1,0 12,21 A9,9 0 1,0 12,3 Z M12,7.6 V7.61 M12,11 V16.5</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconPool">M12,3.5 L21,8.25 L12,13 L3,8.25 Z M4.6,12.1 L12,16.1 L19.4,12.1 M4.6,16 L12,20 L19.4,16</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconZap">M13.2,2.5 L5,13.5 H11 L10.8,21.5 L19,10.5 H13 Z</StreamGeometry>
+        <StreamGeometry x:Key="DicodeIconTelegram">M21.5,4.5 L2.8,11.7 C2.3,11.9 2.3,12.5 2.8,12.7 L7.5,14.2 L9.3,19.8 C9.5,20.3 10,20.4 10.4,20 L12.9,17.5 L17.4,20.9 C17.8,21.2 18.4,21 18.5,20.4 L21.9,5.4 C22,4.8 21.6,4.3 21.5,4.5 Z M7.5,14.2 L17.8,7.6 L10.4,15.4 L10.2,18.9</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconShield">M12,3 L19.5,6 V11.2 C19.5,16 16.2,19.6 12,21 C7.8,19.6 4.5,16 4.5,11.2 V6 Z M12,8.2 V12.6 M12,15.4 V15.41</StreamGeometry>
         <StreamGeometry x:Key="DicodeIconRefresh">M20.5,12 A8.5,8.5 0 1,1 17.8,5.9 M20.5,3.2 V7.4 H16.3</StreamGeometry>
     </Window.Resources>
@@ -249,23 +251,31 @@
                     </Panel>
 
                     <Panel x:Name="pageSettings" Classes="DicodePage" IsVisible="False">
-                        <Border Padding="22" Classes="DicodeCard">
-                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+                            <Border Padding="18" Classes="DicodeCard">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSettingsTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
                                 </StackPanel>
-                                <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeSanctionsServices}" Command="{Binding SanctionsServicesCmd}" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
-                                    <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
-                                </WrapPanel>
-                            </Grid>
-                        </Border>
+                            </Border>
+                            <TabControl Grid.Row="1" TabStripPlacement="Top">
+                                <TabItem Header="{x:Static resx:ResUI.DicodeSettingsTabGeneral}">
+                                    <ScrollViewer>
+                                        <WrapPanel Margin="4" Orientation="Horizontal">
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
+                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
+                                        </WrapPanel>
+                                    </ScrollViewer>
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.DicodeSettingsTabSanctions}">
+                                    <views:SanctionsServicesView x:Name="sanctionsSettingsView" Margin="4" />
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
                     </Panel>
 
                     <Panel x:Name="pageReports" Classes="DicodePage" IsVisible="False">
@@ -285,7 +295,24 @@
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
                                 <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.4 pre-release" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.5 pre-release" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Click="OpenTelegramChannel" Classes="DicodeTelegramButton">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path
+                                                Width="16"
+                                                Height="16"
+                                                Data="{StaticResource DicodeIconTelegram}"
+                                                Stretch="Uniform"
+                                                Stroke="{DynamicResource DicodeTextSecondary}"
+                                                StrokeLineCap="Round"
+                                                StrokeLineJoin="Round"
+                                                StrokeThickness="1.5" />
+                                            <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeJoinTelegram}" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock VerticalAlignment="Center" Opacity="0.6" Text="t.me/dicodeping" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Panel>

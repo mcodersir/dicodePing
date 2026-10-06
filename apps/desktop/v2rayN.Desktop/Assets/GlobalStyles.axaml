@@ -50,6 +50,39 @@
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="MinHeight" Value="40" />
         <Setter Property="CornerRadius" Value="10" />
+        <!-- Theme-aware surfaces: buttons always follow the active Dicode palette. -->
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="Button.DicodeTelegramButton">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Button.DicodeTelegramButton Path">
+        <Setter Property="Stroke" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <!-- Persian-first tables: headers and list headers align to the right. -->
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
+    </Style>
+
+    <Style Selector="HeaderedContentControl">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
 
     <Style Selector="Menu">
@@ -207,6 +240,33 @@
     </Style>
     <Style Selector="Border.logBadgeDebug">
         <Setter Property="Background" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
+    <!--  Home power button: soft breathing ring, green while connected.  -->
+    <Style Selector="Button.DicodePower">
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" />
+        <Style.Animations>
+            <Animation Easing="SineEaseInOut" Duration="0:0:2.4" IterationCount="INFINITE">
+                <KeyFrame Cue="0%">
+                    <Setter Property="Opacity" Value="1" />
+                </KeyFrame>
+                <KeyFrame Cue="50%">
+                    <Setter Property="Opacity" Value="0.82" />
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="Opacity" Value="1" />
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+
+    <Style Selector="Button.DicodePower.Success">
+        <Setter Property="BorderBrush" Value="#2E9E5B" />
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+    </Style>
+
+    <Style Selector="Button.DicodePower.Success Path">
+        <Setter Property="Stroke" Value="#2E9E5B" />
     </Style>
 
     <!--  Page transition: every navigation lands with a calm slide-fade.  -->
