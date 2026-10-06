@@ -163,7 +163,7 @@ public class ProcessService : IDisposable
                 }
                 // Persist every core line: the gui log is what "لطفاً گزارش را ببینید"
                 // points at, so it must contain the core's own diagnostics too.
-                Logging.SaveLog("Core", e.Data);
+                Logging.SaveLog("Core: " + e.Data);
                 _ = _updateFunc?.Invoke(false, e.Data + Environment.NewLine);
             }
         }
