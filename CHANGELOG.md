@@ -1,3 +1,11 @@
+## 4.2.1 — Desktop interface redesign
+
+- Compact, bounded profile workspace with numbered rows, country icons, aligned diagnostics and consistent line icons.
+- Reactive active-server selection and security-test busy state preserved across refreshes.
+- Compact connection panel, updated light/dark palettes and no continuous power animation.
+- Responsive download cards; synchronized binary, installer and Android versions.
+- Headless desktop layout previews in RTL/LTR and both themes; web checks on desktop and mobile.
+
 # Changelog
 
 ## 4.2.0 (stable)

@@ -21,3 +21,7 @@ coverage/
 /apps/desktop/**/obj/
 /apps/android/**/build/
 /apps/android/.gradle/
+
+# UI verification output
+/desktop-qa/
+/web-qa-*.png

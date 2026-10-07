@@ -12,6 +12,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     public ProfilesView()
     {
         InitializeComponent();
+        lstProfiles.SizeChanged += (_, _) => lstProfiles.Classes.Set("narrow", lstProfiles.Bounds.Width < 660);
 
         _config = AppManager.Instance.Config;
 
@@ -24,6 +25,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
 
         this.WhenActivated(disposables =>
         {
+            if (ViewModel is null) return;
             this.OneWayBind(ViewModel, vm => vm.ProfileItems, v => v.lstProfiles.ItemsSource).DisposeWith(disposables);
             this.Bind(ViewModel, vm => vm.SelectedProfile, v => v.lstProfiles.SelectedItem).DisposeWith(disposables);
 

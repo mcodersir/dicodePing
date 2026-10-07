@@ -6,9 +6,9 @@
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:DataType="vms:StatusBarViewModel">
-  <Grid RowDefinitions="*,Auto" RowSpacing="14">
-    <Border Padding="28" Classes="DicodeCard">
-      <Grid RowDefinitions="*,Auto" ColumnDefinitions="1.2*,1*" RowSpacing="18" ColumnSpacing="20">
+  <Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1000" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+    <Border Padding="24" Classes="DicodeCard">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="1.2*,1*" RowSpacing="18" ColumnSpacing="20">
         <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
           <Button
               x:Name="btnToggleConnection"
@@ -21,7 +21,7 @@
               BorderBrush="{DynamicResource DicodeAccent}"
               BorderThickness="2"
               Classes.Success="{Binding IsConnected}"
-              CornerRadius="70">
+              CornerRadius="40">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
               <Path
                   HorizontalAlignment="Center"

@@ -466,6 +466,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             next.SecurityInfo = previous.SecurityInfo;
             next.IsLatencyTesting = previous.IsLatencyTesting; next.IsSpeedTesting = previous.IsSpeedTesting;
             next.IsLocationTesting = previous.IsLocationTesting; next.IsSanctionsTesting = previous.IsSanctionsTesting;
+            next.IsSecurityTesting = previous.IsSecurityTesting;
             if (next.IpInfo.IsNullOrEmpty() && previous.IpInfo.IsNotEmpty())
             {
                 next.IpInfo = previous.IpInfo;
@@ -475,6 +476,8 @@ public partial class ProfilesViewModel : MyReactiveObject
                 next.SanctionsInfo = previous.SanctionsInfo;
             }
         }
+        for (var row = 0; row < (lstModel?.Count ?? 0); row++)
+            lstModel![row].RowNumber = row + 1;
         ProfileItems.ReplaceAll(lstModel ?? []);
         HasProfiles = ProfileItems.Count > 0;
         _profileLookup.Clear();

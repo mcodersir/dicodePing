@@ -114,13 +114,13 @@ public partial class ThemeSettingViewModel : MyReactiveObject
     {
         var palette = themeName switch
         {
-            nameof(ETheme.Dark) => ("#141414", "#1F1F1F", "#242629", "#3A3D42", "#F2F2F2", "#9E9EA6", "#26364A", "#5FA9FF"),
+            nameof(ETheme.Dark) => ("#11151E", "#1B202A", "#242B38", "#343E50", "#EDF2FF", "#A0ACBF", "#303752", "#A2ADFF"),
             nameof(ETheme.Aquatic) => ("#071B20", "#0C252B", "#123139", "#24505A", "#EAFBFC", "#A9D0D4", "#164957", "#48C6D4"),
             nameof(ETheme.Desert) => ("#FBF5E9", "#FFFDF8", "#F5EBD9", "#E2D2B8", "#2B241B", "#746653", "#F2DFC0", "#B8762D"),
             nameof(ETheme.Dusk) => ("#1B1422", "#241A2D", "#30213B", "#503B5E", "#FAF3FF", "#C8B3D2", "#49305D", "#C58AE2"),
             nameof(ETheme.NightSky) => ("#080F20", "#0E1930", "#15233E", "#293D60", "#F2F6FF", "#AAB9D3", "#183A66", "#72A8FF"),
-            nameof(ETheme.FollowSystem) when systemIsDark => ("#141414", "#1F1F1F", "#242629", "#3A3D42", "#F2F2F2", "#9E9EA6", "#26364A", "#5FA9FF"),
-            _ => ("#F5F7FA", "#FFFFFF", "#F9FAFC", "#DCE2EA", "#17212B", "#5F6B7A", "#E0EDFF", "#3278D3"),
+            nameof(ETheme.FollowSystem) when systemIsDark => ("#11151E", "#1B202A", "#242B38", "#343E50", "#EDF2FF", "#A0ACBF", "#303752", "#A2ADFF"),
+            _ => ("#F6F7FB", "#FFFFFF", "#F0F2F8", "#E0E4EE", "#222535", "#70758A", "#EAECFF", "#6465D8"),
         };
 
         SetBrush(app, "DicodePageBackground", palette.Item1);
