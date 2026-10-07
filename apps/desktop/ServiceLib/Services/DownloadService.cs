@@ -24,17 +24,19 @@ public class DownloadService
     /// </summary>
     public async Task<int> DownloadDataAsync(string url, IWebProxy webProxy, Func<bool, string, Task> updateFunc, CancellationToken cancellationToken = default)
     {
+        var pendingUpdates = new ConcurrentQueue<Task>();
         try
         {
             await DownloaderHelper.Instance.DownloadDataAsync4Speed(webProxy,
                   url,
                   OnProgress,
                   cancellationToken);
+            await Task.WhenAll(pendingUpdates.ToArray());
 
             void OnProgress(string message)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                updateFunc.Invoke(false, $"{message}");
+                pendingUpdates.Enqueue(updateFunc.Invoke(false, $"{message}"));
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

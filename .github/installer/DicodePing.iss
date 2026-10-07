@@ -7,6 +7,7 @@
 AppId={{4B2D3F4A-2204-4F7C-B2C0-7B6606B587B2}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion=4.1.1.1
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\DicodePing
 DefaultGroupName=DicodePing

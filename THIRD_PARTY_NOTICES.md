@@ -2,7 +2,7 @@
 
 ## Xray-core
 
-Copyright XTLS/Xray-core contributors. Version `XTLS/Xray-core v26.9.30`. Licensed under Mozilla Public License 2.0. DicodePing runs it as a separate runtime. Source: https://github.com/XTLS/Xray-core
+Copyright XTLS/Xray-core contributors. Version `patterniha/Xray-core v26.10.7`. Licensed under Mozilla Public License 2.0. DicodePing runs it as a separate runtime. Source: https://github.com/patterniha/Xray-core
 
 ## PattNG / v2rayNG (Android)
 

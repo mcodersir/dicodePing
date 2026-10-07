@@ -3,7 +3,6 @@ name: Release 4.1.1 Preview
 on:
   push:
     tags: ['v4.*']
-    branches: ['codex/release-*']
   workflow_dispatch:
 
 permissions:
@@ -18,7 +17,7 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             xray_asset: Xray-windows-64.zip
-            xray_sha256: b17a619343c11b89d8faf36278298856749b15c52277d875d32051b33dcda617
+            xray_sha256: 3e486f34154ee4021d690272723bced8573659a46c890f2b51e94343e0eb61e8
             xray_binary: xray.exe
             mihomo_asset: mihomo-windows-amd64-v1-v1.19.32.zip
             mihomo_binary: mihomo.exe
@@ -30,7 +29,7 @@ jobs:
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
-            xray_sha256: f851110beaff16e78d643f0ccfd9524b4a44dfd59bae3e34bb52bba378f7690e
+            xray_sha256: dc3cc01ef111b8d7eee113da43cd88ff938400f5f65a3c39946190313eafd22b
             xray_binary: xray
             mihomo_asset: mihomo-linux-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
@@ -42,7 +41,7 @@ jobs:
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
-            xray_sha256: 1f366aaf21d3c3003d1556d066c4e08f9dd62d1f96555ecedde85b397df0f684
+            xray_sha256: a9b7999ff4ffce1c85de83f1a064e37a6db85935252077f883bf557cae66abef
             xray_binary: xray
             mihomo_asset: mihomo-darwin-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
@@ -54,7 +53,7 @@ jobs:
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
-            xray_sha256: 4b363bd924df5bf09f87bd445755ff8e5742b9a8a0480cda261061416c3c7dce
+            xray_sha256: 079f4f8b1bc153032be90216a21eb4b615f72105fcb0a59c5eaa8ee04b7588ee
             xray_binary: xray
             mihomo_asset: mihomo-darwin-arm64-v1.19.32.gz
             mihomo_binary: mihomo
@@ -84,7 +83,7 @@ jobs:
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.9.30/${{ matrix.xray_asset }}"
+          $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.7/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           $expected = '${{ matrix.xray_sha256 }}'
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
@@ -277,7 +276,7 @@ jobs:
             - تنظیمات عمومی، مسیریابی، DNS، فیلتر دامنه، به‌روزرسانی و پشتیبان‌گیری داخل تب‌های همان صفحه؛ ذخیره بدون بستن فرم.
             - حذف کامل اشتراک و مدیریت منابع DicodeSpo؛ گروه **Dicode Config Checker** از هر دو لینک رسمی Config Checker و Patterniha Free-Configs پر می‌شود. نصب قبلی به‌صورت خودکار مهاجرت می‌کند.
             - Android: حفظ پایهٔ **PattNG 2.3.10-P60** و libv2ray v26.10.4، اضافه‌شدن لغو بومی دستهٔ آزمون‌ها و ادغام دو منبع در یک اشتراک.
-            - هسته‌های بسته‌بندی‌شده: Xray v26.9.30، sing-box v1.14.2، mihomo v1.19.32؛ داده‌های geo نسخهٔ 202610062207 با بررسی SHA-256.
+            - هسته‌های بسته‌بندی‌شده: PattN Xray v26.10.7، sing-box v1.14.2، mihomo v1.19.32؛ داده‌های geo نسخهٔ 202610062207 با بررسی SHA-256.
 
             این نسخه پیش‌انتشار است. آزمون امنیت، بررسی تنظیمات TLS پیکربندی است و نتیجهٔ تحریم، دسترسی شبکه به سرویس‌های انتخاب‌شده را نشان می‌دهد.
             برای اندروید فایل universal.apk یا فایل متناسب با معماری دستگاه را نصب کنید.

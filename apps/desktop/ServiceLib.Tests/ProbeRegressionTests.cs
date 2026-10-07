@@ -51,4 +51,17 @@ public class ProbeRegressionTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ConnectionHandler.GetRealPingTime(null, cancellation.Token));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new DownloadService().TryDownloadString("http://127.0.0.1:1/", (IWebProxy?)null, "", cancellation.Token));
     }
+    [Theory]
+    [InlineData("none")]
+    [InlineData("")]
+    public void PlainVlessIsNeverReportedAsSecure(string security)
+    {
+        Assert.Equal(ResUI.DicodeSecurityHighRiskPlain, ConfigurationSecurityAudit.Describe(new ProfileItem { ConfigType = EConfigType.VLESS, StreamSecurity = security }));
+    }
+
+    [Fact]
+    public void DisabledCertificateVerificationTakesPriorityOverTls()
+    {
+        Assert.Equal(ResUI.DicodeSecurityHighRiskInsecure, ConfigurationSecurityAudit.Describe(new ProfileItem { ConfigType = EConfigType.VLESS, StreamSecurity = "tls", AllowInsecure = Global.StringTrue }));
+    }
 }

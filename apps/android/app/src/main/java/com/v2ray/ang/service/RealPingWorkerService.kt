@@ -16,6 +16,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -92,7 +94,7 @@ class RealPingWorkerService(
                 runningCount.incrementAndGet()
                 try {
                     val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
-                    val result = if (sanctionsOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
+                    val result = if (sanctionsOnly || locationOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
                     val location = if (locationOnly) {
                         SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server)
                     } else null
@@ -151,6 +153,7 @@ class RealPingWorkerService(
         var strictFailed = false
         RealPingExecutionLimiter.run(config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
+                currentCoroutineContext().ensureActive()
                 val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
                 if (delay >= 0L) {
                     passed++

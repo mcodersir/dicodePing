@@ -6,6 +6,7 @@
 - Embedded settings tabs and redesigned profiles workspace.
 - Retired DicodeSpo and merged the two official feeds under Dicode Config Checker on desktop and Android.
 - PattNG P60 native batch cancellation and refreshed verified geo data.
+- Bundle PattN Xray v26.10.7 with SHA-256 verification on all desktop platforms.
 
 
 ## 4.1.0 (stable)

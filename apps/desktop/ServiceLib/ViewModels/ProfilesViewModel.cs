@@ -231,13 +231,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
                 if (profile is null) continue;
-                model.SecurityInfo = profile.GetAllowInsecure()
-                    ? ResUI.DicodeSecurityHighRiskInsecure
-                    : profile.StreamSecurity.IsNotEmpty()
-                        ? string.Format(ResUI.DicodeSecuritySecure, profile.StreamSecurity.ToUpperInvariant())
-                        : profile.ConfigType is EConfigType.SOCKS or EConfigType.HTTP
-                            ? ResUI.DicodeSecurityHighRiskPlain
-                            : ResUI.DicodeSecurityMediumNoTls;
+                model.SecurityInfo = ConfigurationSecurityAudit.Describe(profile);
             }
             NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
         });
