@@ -16,7 +16,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -153,7 +152,7 @@ class RealPingWorkerService(
         var strictFailed = false
         RealPingExecutionLimiter.run(config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
-                currentCoroutineContext().ensureActive()
+                job.ensureActive()
                 val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
                 if (delay >= 0L) {
                     passed++
