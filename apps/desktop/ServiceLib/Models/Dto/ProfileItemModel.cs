@@ -3,7 +3,11 @@ namespace ServiceLib.Models.Dto;
 [Serializable]
 public partial class ProfileItemModel : ReactiveObject
 {
-    public bool IsActive { get; set; }
+    [Reactive]
+    public partial bool IsActive { get; set; }
+
+    [Reactive]
+    public partial int RowNumber { get; set; }
     public string IndexId { get; set; }
     public EConfigType ConfigType { get; set; }
     public string Remarks { get; set; }
@@ -48,6 +52,28 @@ public partial class ProfileItemModel : ReactiveObject
 
     [Reactive]
     public partial string TotalDown { get; set; }
+
+    /// <summary>
+    /// True while a latency/location test for this row is in flight; drives
+    /// the shimmer placeholder in the results grid.
+    /// </summary>
+    [Reactive]
+    public partial bool IsTesting { get; set; }
+
+    [Reactive]
+    public partial bool IsLatencyTesting { get; set; }
+
+    [Reactive]
+    public partial bool IsSpeedTesting { get; set; }
+
+    [Reactive]
+    public partial bool IsLocationTesting { get; set; }
+
+    [Reactive]
+    public partial bool IsSecurityTesting { get; set; }
+
+    [Reactive]
+    public partial bool IsSanctionsTesting { get; set; }
 
     public string GetSummary()
     {

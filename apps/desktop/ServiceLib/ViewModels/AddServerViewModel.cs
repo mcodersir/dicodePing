@@ -17,6 +17,9 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
     public partial bool MuxEnabled { get; set; }
 
     [Reactive]
+    public partial string TargetStrategy { get; set; }
+
+    [Reactive]
     public partial string Cert { get; set; }
 
     [Reactive]
@@ -71,6 +74,9 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
     public partial int WgMtu { get; set; }
 
     [Reactive]
+    public partial string WgDns { get; set; }
+
+    [Reactive]
     public partial bool Uot { get; set; }
 
     [Reactive]
@@ -93,6 +99,12 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
 
     [Reactive]
     public partial int GeckoMaxPacketSize { get; set; }
+
+    [Reactive]
+    public partial string MasquePath { get; set; }
+
+    [Reactive]
+    public partial string MasqueHeaders { get; set; }
 
     [Reactive]
     public partial string RawHeaderType { get; set; }
@@ -290,6 +302,7 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
         CoreType = SelectedSource?.CoreType?.ToString();
         AllowInsecure = SelectedSource?.GetAllowInsecure() == true;
         MuxEnabled = SelectedSource?.MuxEnabled == true;
+        TargetStrategy = SelectedSource?.GetTargetStrategy() ?? Global.AsIs;
         Cert = SelectedSource?.Cert ?? string.Empty;
         CertSha = SelectedSource?.CertSha ?? string.Empty;
 
@@ -310,6 +323,7 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
         WgInterfaceAddress = protocolExtra.WgInterfaceAddress ?? string.Empty;
         WgReserved = protocolExtra.WgReserved ?? string.Empty;
         WgMtu = protocolExtra.WgMtu ?? 1280;
+        WgDns = protocolExtra.WgDns ?? string.Empty;
         Uot = protocolExtra.Uot ?? false;
         CongestionControl = protocolExtra.CongestionControl ?? string.Empty;
         InsecureConcurrency = protocolExtra.InsecureConcurrency > 0 ? protocolExtra.InsecureConcurrency : null;
@@ -318,6 +332,8 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
         Hy2RealmUrl = protocolExtra.Hy2RealmUrl ?? string.Empty;
         GeckoMinPacketSize = protocolExtra.GeckoMinPacketSize.ToInt();
         GeckoMaxPacketSize = protocolExtra.GeckoMaxPacketSize.ToInt();
+        MasquePath = protocolExtra.MasquePath ?? string.Empty;
+        MasqueHeaders = protocolExtra.MasqueHeaders ?? string.Empty;
 
         RawHeaderType = transport.RawHeaderType ?? Global.None;
         Host = transport.Host ?? string.Empty;
@@ -388,9 +404,18 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
             NoticeManager.Instance.Enqueue(ResUI.InvalidHttpOutboundHeaders);
             return;
         }
+        // PattN: the ECH outbound needs EchConfigList and a tag of its own
+        var echOutboundError = NodeValidator.ValidateEchOutbound(SelectedSource);
+        if (echOutboundError != null)
+        {
+            NoticeManager.Instance.Enqueue(echOutboundError);
+            return;
+        }
         SelectedSource.CoreType = CoreType.IsNullOrEmpty() ? null : Enum.Parse<ECoreType>(CoreType);
         SelectedSource.AllowInsecure = AllowInsecure ? Global.StringTrue : Global.StringFalse;
         SelectedSource.MuxEnabled = MuxEnabled;
+        SelectedSource.TargetStrategy = TargetStrategy ?? string.Empty;
+        SelectedSource.TargetStrategy = SelectedSource.GetTargetStrategy() ?? string.Empty;
         SelectedSource.Cert = Cert.IsNullOrEmpty() ? string.Empty : Cert;
         SelectedSource.CertSha = CertSha.IsNullOrEmpty() ? string.Empty : CertSha;
         if (!Global.Networks.Contains(SelectedSource.Network))
@@ -431,6 +456,7 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
             WgInterfaceAddress = WgInterfaceAddress.NullIfEmpty(),
             WgReserved = WgReserved.NullIfEmpty(),
             WgMtu = WgMtu >= 576 ? WgMtu : null,
+            WgDns = WgDns.NullIfEmpty(),
             Uot = Uot ? true : null,
             CongestionControl = CongestionControl.NullIfEmpty(),
             InsecureConcurrency = InsecureConcurrency > 0 ? InsecureConcurrency : null,
@@ -438,6 +464,8 @@ public partial class AddServerViewModel : MyReactiveObject, ICloseable
             Hy2RealmUrl = realm?.ToUri().NullIfEmpty(),
             GeckoMinPacketSize = GeckoMinPacketSize > 0 ? GeckoMinPacketSize.ToString() : null,
             GeckoMaxPacketSize = GeckoMaxPacketSize > 0 ? GeckoMaxPacketSize.ToString() : null,
+            MasquePath = MasquePath.NullIfEmpty(),
+            MasqueHeaders = MasqueHeaders.NullIfEmpty(),
         });
         SelectedSource.SetTransportExtra(transport);
 

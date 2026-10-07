@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+<ItemGroup><ProjectReference Include="../v2rayN.Desktop/v2rayN.Desktop.csproj" /><PackageReference Include="Avalonia.Headless" /></ItemGroup>
+</Project>

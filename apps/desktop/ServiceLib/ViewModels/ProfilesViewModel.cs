@@ -17,13 +17,13 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     #region private prop
 
-    private List<ProfileItem> _lstProfile;
     private string _serverFilter = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
-    private SpeedtestService? _speedtestService;
+    private readonly ConcurrentDictionary<string, ProfileItemModel> _profileLookup = new();
+    private readonly ConcurrentDictionary<ESpeedActionType, SpeedtestService> _probeServices = new();
     private string? _pendingSelectIndexId;
     private readonly Timer _connectionStateTimer;
-    private readonly SemaphoreSlim _speedtestLock = new(1, 1);
+    private readonly ConcurrentDictionary<ESpeedActionType, SemaphoreSlim> _probeLocks = new();
 
     #endregion private prop
 
@@ -49,6 +49,9 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     [Reactive]
     public partial bool IsConnected { get; set; }
+
+    [Reactive]
+    public partial bool HasProfiles { get; set; }
 
     [Reactive]
     public partial string ConnectionStatusText { get; set; }
@@ -111,7 +114,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ProfilesViewModel()
     {
         _config = AppManager.Instance.Config;
-        ConnectionStatusText = "اتصال TUN";
+        ConnectionStatusText = ResUI.DicodeTunConnect;
 
         #region WhenAnyValue && ReactiveCommand
 
@@ -119,26 +122,25 @@ public partial class ProfilesViewModel : MyReactiveObject
            x => x.SelectedProfile,
            selectedSource => selectedSource != null && !selectedSource.IndexId.IsNullOrEmpty());
 
-        this.WhenAnyValue(
-            x => x.SelectedSub,
-            y => y != null && !y.Remarks.IsNullOrEmpty() && _config.SubIndexId != y.Id)
-                .Subscribe(async c => await SubSelectedChangedAsync(c));
-        this.WhenAnyValue(
-             x => x.SelectedMoveToGroup,
-             y => y != null && !y.Remarks.IsNullOrEmpty())
-                 .Subscribe(async c => await MoveToGroup(c));
+        this.WhenAnyValue(x => x.SelectedSub)
+            .Where(y => y != null && !y.Remarks.IsNullOrEmpty() && _config.SubIndexId != y.Id)
+            .SubscribeAsync(async _ => await SubSelectedChangedAsync());
+        this.WhenAnyValue(x => x.SelectedMoveToGroup)
+            .Where(y => y != null && !y.Remarks.IsNullOrEmpty())
+            .SubscribeAsync(async _ => await MoveToGroup());
 
-        this.WhenAnyValue(
-          x => x.ServerFilter,
-          y => y != null && _serverFilter != y)
-              .Subscribe(async c => await ServerFilterChanged(c));
+        this.WhenAnyValue(x => x.ServerFilter)
+            .Throttle(TimeSpan.FromMilliseconds(250), RxSchedulers.MainThreadScheduler)
+            .DistinctUntilChanged()
+            .Where(y => y != null && _serverFilter != y)
+            .SubscribeAsync(async _ => await ServerFilterChanged());
 
         _connectionStateTimer = new Timer(_ =>
         {
             RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
                 IsConnected = CoreManager.Instance.IsRunning;
-                ConnectionStatusText = IsConnected ? "متصل؛ برای قطع کلیک کنید" : "اتصال TUN";
+                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected : ResUI.DicodeTunConnect;
             });
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
@@ -213,7 +215,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         });
         MixedTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            await ServerSpeedtest(ESpeedActionType.Mixedtest);
+            await ServerSpeedtest(ESpeedActionType.Speedtest);
         });
         TcpingServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -233,17 +235,15 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             foreach (var model in ProfileItems)
             {
-                var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
-                if (profile is null) continue;
-                model.SecurityInfo = profile.GetAllowInsecure()
-                    ? "پرخطر · تأیید گواهی غیرفعال"
-                    : profile.StreamSecurity.IsNotEmpty()
-                        ? $"ایمن · {profile.StreamSecurity.ToUpperInvariant()}"
-                        : profile.ConfigType is EConfigType.SOCKS or EConfigType.HTTP
-                            ? "پرخطر · بدون رمزنگاری"
-                            : "متوسط · بدون TLS";
+                model.IsSecurityTesting = true;
             }
-            NoticeManager.Instance.Enqueue("آزمایش امنیت پیکربندی همهٔ سرورها انجام شد");
+            foreach (var model in ProfileItems)
+            {
+                var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
+                try { model.SecurityInfo = profile is null ? "—" : ConfigurationSecurityAudit.Describe(profile); }
+                finally { model.IsSecurityTesting = false; }
+            }
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
         });
         SanctionsTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -308,7 +308,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         AppEvents.DispatcherStatisticsRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async result => await UpdateStatistics(result));
+            .SubscribeAsync(async result => await UpdateStatistics(result));
 
         #endregion AppEvents
 
@@ -334,52 +334,58 @@ public partial class ProfilesViewModel : MyReactiveObject
         ReloadRequested.Publish();
     }
 
-    public async Task SetSpeedTestResult(SpeedTestResult result)
+    public Task SetSpeedTestResult(SpeedTestResult result) => ApplyProbeResult(result, ESpeedActionType.Mixedtest);
+
+    private Task ApplyProbeResult(SpeedTestResult result, ESpeedActionType action)
     {
         if (result.IndexId.IsNullOrEmpty())
         {
-            NoticeManager.Instance.SendMessageEx(result.Delay);
-            NoticeManager.Instance.Enqueue(result.Delay);
             if (result.Delay == ResUI.SpeedtestingCompleted)
             {
-                // Every successful row is already updated and persisted live.
-                // Rebuilding the collection here caused the whole grid to flash.
-                await ProfileExManager.Instance.SaveTo();
+                foreach (var row in ProfileItems) SetMetricBusy(row, action, false);
             }
-            return;
+            else if (result.Delay.IsNotEmpty()) NoticeManager.Instance.SendMessageEx(result.Delay);
+            return Task.CompletedTask;
         }
-        var item = ProfileItems.FirstOrDefault(it => it.IndexId == result.IndexId);
-        if (item == null)
+        var item = _profileLookup.GetValueOrDefault(result.IndexId) ?? ProfileItems.FirstOrDefault(x => x.IndexId == result.IndexId);
+        if (item is null) return Task.CompletedTask;
+        static bool IsPending(string? value) => value == ResUI.Speedtesting || value == ResUI.DicodeChecking;
+        if (result.Delay.IsNotEmpty() && action is not ESpeedActionType.Speedtest && !IsPending(result.Delay))
         {
-            return;
+            item.Delay = int.TryParse(result.Delay, out var delay) ? delay : -1;
+            item.DelayVal = item.Delay > 0 ? result.Delay! : "—";
+            item.IsLatencyTesting = false;
         }
+        if (result.Speed.IsNotEmpty() && !IsPending(result.Speed))
+        {
+            item.SpeedVal = result.Speed!;
+            if (decimal.TryParse(result.Speed, out var speed)) item.Speed = speed;
+            item.IsSpeedTesting = false;
+        }
+        if (result.IpInfo.IsNotEmpty() && !IsPending(result.IpInfo))
+        {
+            item.IpInfo = result.IpInfo!;
+            item.IsLocationTesting = false;
+        }
+        if (result.SanctionsInfo.IsNotEmpty() && !IsPending(result.SanctionsInfo))
+        {
+            item.SanctionsInfo = result.SanctionsInfo!;
+            item.IsSanctionsTesting = false;
+        }
+        return Task.CompletedTask;
+    }
 
-        // Progress messages such as "testing" must not overwrite the last
-        // measured value. Keep the previous real ping visible until a numeric
-        // result arrives, and persist every completed result immediately.
-        if (result.Delay.IsNotEmpty() && int.TryParse(result.Delay, out var parsedDelay) && parsedDelay > 0)
+    private static void SetMetricBusy(ProfileItemModel item, ESpeedActionType action, bool busy)
+    {
+        switch (action)
         {
-            item.Delay = parsedDelay;
-            item.DelayVal = result.Delay ?? string.Empty;
+            case ESpeedActionType.Location: item.IsLocationTesting = busy; break;
+            case ESpeedActionType.Sanctions: item.IsSanctionsTesting = busy; break;
+            case ESpeedActionType.Speedtest: item.IsSpeedTesting = busy; break;
+            case ESpeedActionType.Mixedtest: item.IsSpeedTesting = busy; item.IsLatencyTesting = busy; break;
+            default: item.IsLatencyTesting = busy; break;
         }
-        if (result.Speed.IsNotEmpty()
-            && decimal.TryParse(result.Speed, out var parsedSpeed)
-            && parsedSpeed > 0)
-        {
-            item.SpeedVal = result.Speed ?? string.Empty;
-        }
-        if (result.IpInfo.IsNotEmpty()
-            && result.IpInfo != ResUI.Speedtesting
-            && result.IpInfo != ResUI.SpeedtestingSkip
-            && result.IpInfo != Global.None)
-        {
-            item.IpInfo = result.IpInfo ?? string.Empty;
-        }
-        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != "در حال بررسی…")
-        {
-            item.SanctionsInfo = result.SanctionsInfo ?? string.Empty;
-        }
-        // The test service owns the durable flush at the end of each batch.
+        item.IsTesting = item.IsLatencyTesting || item.IsSpeedTesting || item.IsLocationTesting || item.IsSanctionsTesting;
     }
 
     public async Task UpdateStatistics(ServerSpeedItem update)
@@ -412,12 +418,8 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     #region Servers && Groups
 
-    private async Task SubSelectedChangedAsync(bool c)
+    private async Task SubSelectedChangedAsync()
     {
-        if (!c)
-        {
-            return;
-        }
         _config.SubIndexId = SelectedSub?.Id;
 
         await RefreshServers();
@@ -425,12 +427,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ProfilesFocusInteraction.HandleSafe(RxVoid.Default);
     }
 
-    private async Task ServerFilterChanged(bool c)
+    private async Task ServerFilterChanged()
     {
-        if (!c)
-        {
-            return;
-        }
         _serverFilter = ServerFilter;
         if (_serverFilter.IsNullOrEmpty())
         {
@@ -450,7 +448,6 @@ public partial class ProfilesViewModel : MyReactiveObject
     public async Task RefreshServersBiz()
     {
         var lstModel = await GetProfileItemsEx(_config.SubIndexId, _serverFilter);
-        _lstProfile = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(lstModel)) ?? [];
 
         // A background subscription refresh may overlap a test. Prefer the
         // currently visible valid measurements if the DB snapshot is older.
@@ -466,16 +463,10 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 continue;
             }
-            if (next.Delay <= 0 && previous.Delay > 0)
-            {
-                next.Delay = previous.Delay;
-                next.DelayVal = previous.DelayVal;
-            }
-            if (next.Speed <= 0 && previous.Speed > 0)
-            {
-                next.Speed = previous.Speed;
-                next.SpeedVal = previous.SpeedVal;
-            }
+            next.SecurityInfo = previous.SecurityInfo;
+            next.IsLatencyTesting = previous.IsLatencyTesting; next.IsSpeedTesting = previous.IsSpeedTesting;
+            next.IsLocationTesting = previous.IsLocationTesting; next.IsSanctionsTesting = previous.IsSanctionsTesting;
+            next.IsSecurityTesting = previous.IsSecurityTesting;
             if (next.IpInfo.IsNullOrEmpty() && previous.IpInfo.IsNotEmpty())
             {
                 next.IpInfo = previous.IpInfo;
@@ -485,7 +476,12 @@ public partial class ProfilesViewModel : MyReactiveObject
                 next.SanctionsInfo = previous.SanctionsInfo;
             }
         }
+        for (var row = 0; row < (lstModel?.Count ?? 0); row++)
+            lstModel![row].RowNumber = row + 1;
         ProfileItems.ReplaceAll(lstModel ?? []);
+        HasProfiles = ProfileItems.Count > 0;
+        _profileLookup.Clear();
+        foreach (var item in ProfileItems) _profileLookup[item.IndexId] = item;
         if (lstModel?.Count > 0)
         {
             ProfileItemModel? selected = null;
@@ -506,8 +502,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         var subItems = await AppManager.Instance.SubItems();
         subItems.Insert(0, new SubItem { Remarks = ResUI.AllGroupServers });
 
-        SubItems.Clear();
-        SubItems.AddRange(subItems);
+        SubItems.ReplaceRange(subItems);
 
         SelectedSub = (_config.SubIndexId.IsNotEmpty()
                         ? subItems.FirstOrDefault(t => t.Id == _config.SubIndexId)
@@ -529,6 +524,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         var lstServerStat = (_config.GuiItem.EnableStatistics ? StatisticsManager.Instance.ServerStat : null) ?? [];
         var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
+        var auditMap = await AppManager.Instance.GetProfileItemsByIndexIdsAsMap(lstModel.Select(x => x.IndexId).ToList());
         var subscriptionMap = (await AppManager.Instance.SubItems()).ToDictionary(x => x.Id);
         lstModel = (from t in lstModel
                     join t2 in lstServerStat on t.IndexId equals t2.IndexId into t2b
@@ -556,12 +552,12 @@ public partial class ProfilesViewModel : MyReactiveObject
                         SpeedVal = t33?.Speed > 0 ? $"{t33?.Speed}" : t33?.Message ?? string.Empty,
                         IpInfo = t33?.IpInfo ?? string.Empty,
                         SanctionsInfo = t33?.SanctionsInfo ?? string.Empty,
+                        SecurityInfo = auditMap.TryGetValue(t.IndexId, out var audited) ? ConfigurationSecurityAudit.Describe(audited) : "—",
                         TodayDown = t22 == null ? "" : Utils.HumanFy(t22.TodayDown),
                         TodayUp = t22 == null ? "" : Utils.HumanFy(t22.TodayUp),
                         TotalDown = t22 == null ? "" : Utils.HumanFy(t22.TotalDown),
                         TotalUp = t22 == null ? "" : Utils.HumanFy(t22.TotalUp)
-                    }).OrderBy(t => t.Delay <= 0 ? int.MaxValue : t.Delay)
-                      .ThenBy(t => t.Sort)
+                    }).OrderBy(t => t.Sort)
                       .ToList();
 
         return lstModel;
@@ -761,11 +757,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (SelectedProfile.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
             await SetDefaultServer(SelectedProfile.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -784,7 +780,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         // real-path measurements before selecting when no usable result has been recorded.
         if (!ProfileItems.Any(item => item.Delay > 0))
         {
-            NoticeManager.Instance.Enqueue("در حال آزمایش مسیر واقعی برای اتصال هوشمند…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
             await ServerSpeedtest(ESpeedActionType.FastRealping);
             await RefreshServersBiz();
         }
@@ -804,11 +800,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (best.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
             await SetDefaultServer(best.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -823,8 +819,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         IsConnected = CoreManager.Instance.IsRunning;
         NoticeManager.Instance.Enqueue(IsConnected
-            ? "اتصال TUN برقرار شد"
-            : "اتصال TUN برقرار نشد؛ جزئیات را در لاگ بررسی کنید");
+            ? ResUI.DicodeTunConnectedNotice
+            : ResUI.DicodeTunFailedNotice);
     }
 
     public async Task ShareServerAsync()
@@ -876,7 +872,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
-        _dicHeaderSort.TryAdd(colName, true);
+        _dicHeaderSort.TryAdd(colName, colName != nameof(EServerColName.SpeedVal));
         _dicHeaderSort.TryGetValue(colName, out var asc);
         if (await ConfigHandler.SortServers(_config, _config.SubIndexId, colName, asc) != 0)
         {
@@ -894,13 +890,8 @@ public partial class ProfilesViewModel : MyReactiveObject
     }
 
     //move server
-    private async Task MoveToGroup(bool c)
+    private async Task MoveToGroup()
     {
-        if (!c)
-        {
-            return;
-        }
-
         var lstSelected = await GetProfileItems(true);
         if (lstSelected == null)
         {
@@ -917,19 +908,15 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task MoveServer(EMove eMove)
     {
-        var item = _lstProfile.FirstOrDefault(t => t.IndexId == SelectedProfile.IndexId);
-        if (item is null)
+        var lstProfile = ProfileItems?.Select(t => t.IndexId).ToList() ?? [];
+        var index = lstProfile.IndexOf(SelectedProfile.IndexId);
+        if (index < 0)
         {
             NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer);
             return;
         }
 
-        var index = _lstProfile.IndexOf(item);
-        if (index < 0)
-        {
-            return;
-        }
-        if (await ConfigHandler.MoveServer(_config, _lstProfile, index, eMove) == 0)
+        if (await ConfigHandler.MoveServer(_config, lstProfile, index, eMove) == 0)
         {
             await RefreshServers();
         }
@@ -940,79 +927,71 @@ public partial class ProfilesViewModel : MyReactiveObject
         var targetIndex = ProfileItems.IndexOf(targetItem);
         if (startIndex >= 0 && targetIndex >= 0 && startIndex != targetIndex)
         {
-            if (await ConfigHandler.MoveServer(_config, _lstProfile, startIndex, EMove.Position, targetIndex) == 0)
+            var lstProfile = ProfileItems?.Select(t => t.IndexId).ToList() ?? [];
+            if (await ConfigHandler.MoveServer(_config, lstProfile, startIndex, EMove.Position, targetIndex) == 0)
             {
                 await RefreshServers();
             }
         }
     }
 
-    public async Task ServerSpeedtest(ESpeedActionType actionType)
+    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
     {
-        if (!await _speedtestLock.WaitAsync(0))
+        var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Speedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
+        if (actionType == ESpeedActionType.FastRealping) actionType = ESpeedActionType.Realping;
+        if (actionType == ESpeedActionType.Mixedtest) actionType = ESpeedActionType.Speedtest;
+        var lane = actionType is ESpeedActionType.Tcping or ESpeedActionType.Realping or ESpeedActionType.UdpTest ? ESpeedActionType.Realping
+            : actionType == ESpeedActionType.Mixedtest ? ESpeedActionType.Speedtest : actionType;
+        var gate = _probeLocks.GetOrAdd(lane, _ => new SemaphoreSlim(1, 1));
+        if (!await gate.WaitAsync(0))
         {
-            NoticeManager.Instance.Enqueue("یک آزمایش در حال اجراست؛ پس از پایان دوباره تلاش کنید");
-            return;
+            if (_probeServices.TryGetValue(lane, out var previous)) previous.ExitLoop();
+            await gate.WaitAsync();
         }
-
         try
         {
-        await ProfileOperationCoordinator.Gate.WaitAsync();
-        try
-        {
-        List<ProfileItem>? lstSelected;
-        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location or ESpeedActionType.Sanctions)
-        {
-            if (actionType == ESpeedActionType.FastRealping)
+            List<ProfileItem>? selected;
+            // Hold the mutation lock only while taking a DB snapshot. Test processes
+            // use independent ports and can run while other diagnostics are active.
+            await ProfileOperationCoordinator.Gate.WaitAsync();
+            try
             {
-                actionType = ESpeedActionType.Realping;
+                selected = targetProfiles is not null
+                    ? JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(targetProfiles))
+                    : testAll ? JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems.OrderBy(x => x.Sort)))
+                    : await GetProfileItems(false);
             }
-
-            lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems?.OrderBy(t => t.Sort)));
-        }
-        else
-        {
-            lstSelected = await GetProfileItems(false);
-        }
-
-        if (lstSelected is null || lstSelected.Count <= 0)
-        {
-            return;
-        }
-
-        _speedtestService ??= new SpeedtestService(_config, async (SpeedTestResult result) =>
-        {
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            RxSchedulers.MainThreadScheduler.Schedule(async () =>
+            finally { ProfileOperationCoordinator.Gate.Release(); }
+            if (selected is not { Count: > 0 }) return;
+            var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
+            foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, true);
+            var service = new SpeedtestService(_config, result => OnUiAsync(() => ApplyProbeResult(result, actionType)));
+            _probeServices[lane] = service;
+            try { await service.RunLoop(actionType, selected); }
+            finally
             {
-                try
-                {
-                    await SetSpeedTestResult(result);
-                    completion.TrySetResult();
-                }
-                catch (Exception ex)
-                {
-                    completion.TrySetException(ex);
-                }
-            });
-            await completion.Task;
+                _probeServices.TryRemove(lane, out _);
+                await OnUiAsync(() => { foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, false); return Task.CompletedTask; });
+            }
+        }
+        catch (Exception ex) { Logging.SaveLog("Profile diagnostics", ex); NoticeManager.Instance.Enqueue(ResUI.FailedToRunCore); }
+        finally { gate.Release(); }
+    }
+
+    private static Task OnUiAsync(Func<Task> action)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        RxSchedulers.MainThreadScheduler.Schedule(async () =>
+        {
+            try { await action(); completion.TrySetResult(); }
+            catch (Exception ex) { completion.TrySetException(ex); }
         });
-        await _speedtestService.RunLoop(actionType, lstSelected);
-        }
-        finally
-        {
-            ProfileOperationCoordinator.Gate.Release();
-        }
-        }
-        finally
-        {
-            _speedtestLock.Release();
-        }
+        return completion.Task;
     }
 
     public void ServerSpeedtestStop()
     {
-        _speedtestService?.ExitLoop();
+        foreach (var service in _probeServices.Values) service.ExitLoop();
     }
 
     private async Task Export2ClientConfigAsync(bool blClipboard)
@@ -1153,7 +1132,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (await AppManager.Instance.WindowDialog.ShowDialogAsync(subEditViewModel) == true)
         {
             await RefreshSubscriptions();
-            await SubSelectedChangedAsync(true);
+            await SubSelectedChangedAsync();
         }
     }
 
@@ -1172,7 +1151,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.DeleteSubItem(_config, item.Id);
 
         await RefreshSubscriptions();
-        await SubSelectedChangedAsync(true);
+        await SubSelectedChangedAsync();
     }
 
     #endregion Subscription

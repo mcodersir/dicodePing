@@ -101,8 +101,8 @@
     <string name="server_lab_reserved">Reserved (اختياري، مفصول بفواصل)</string>
     <string name="server_lab_local_address">العنوان المحلي (اختياري IPv4/IPv6، مفصولة بفواصل)</string>
     <string name="server_lab_local_mtu">MTU (اختياري، الافتراضي 1420)</string>
-    <string name="server_lab_kcp_mtu">mKCP MTU (اختياري، الافتراضي في النواة 1350)</string>
-    <string name="server_lab_kcp_tti">mKCP TTI (اختياري، الافتراضي في النواة 50)</string>
+    <string name="server_lab_kcp_mtu">mKCP MTU (اختياري، الافتراضي 1350)</string>
+    <string name="server_lab_kcp_tti">mKCP TTI (اختياري، الافتراضي 50 مللي ثانية)</string>
     <string name="toast_success">نجاح</string>
     <string name="toast_failure">فشل</string>
     <string name="toast_none_data">لا يوجد شيء</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">وضع XHTTP</string>
     <string name="server_lab_xhttp_extra">JSON خام لحقل XHTTP Extra، بالتنسيق: { XHTTPObject }</string>
     <string name="server_lab_final_mask">JSON خام لحقل finalMask، بالتنسيق: { FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">التحقق من شهادة النظير بالاسم</string>
     <string name="server_lab_pinned_ca256">بصمة الشهادة (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">إعدادات VPN</string>
     <string name="title_pref_per_app_proxy">الوكيل لكل تطبيق</string>
     <string name="summary_pref_per_app_proxy">عام: تستخدم التطبيقات المحددة الوكيل، وتتصل التطبيقات غير المحددة مباشرة؛\nوضع التجاوز: تتصل التطبيقات المحددة مباشرة، وتستخدم التطبيقات غير المحددة الوكيل.\nيتوفر في القائمة خيار لتحديد التطبيقات التي ستستخدم الوكيل تلقائيًا.</string>
-    <string name="title_pref_is_booted">الاتصال تلقائياً عند بدء التشغيل</string>
-    <string name="summary_pref_is_booted">الاتصال تلقائياً بالخادم المحدد عند بدء التشغيل؛ قد لا تنجح المحاولة</string>
+    <string name="title_pref_is_booted">الاتصال بعد إقلاع الجهاز</string>
+    <string name="summary_pref_is_booted">الاتصال تلقائياً بالخادم المحدد بعد إقلاع الجهاز. قد يقيّد Android بدء التشغيل في الخلفية.</string>
+    <string name="title_system_vpn_settings">إعدادات VPN للنظام</string>
+    <string name="summary_system_vpn_settings">فتح إعدادات VPN في Android لإعداد VPN الدائم، إذا كان الجهاز يدعمه.</string>
+    <string name="toast_system_vpn_settings_unavailable">إعدادات VPN للنظام غير متاحة.</string>
 
 
     <string name="subscription_updater_job_tips">ستعمل المهمة في الخلفية، وسيُعرض تقدمها في الإشعار.</string>
@@ -284,6 +288,7 @@
     <string name="title_about">حول التطبيق</string>
     <string name="title_source_code">الكود المصدري</string>
     <string name="title_oss_license">تراخيص المصادر المفتوحة</string>
+    <string name="title_translators">المترجمون</string>
     <string name="title_tg_channel">قناة Telegram</string>
 
     <string name="title_pref_promotion">ترويج</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">رؤوس الطلب (بتنسيق JSON)</string>
     <string name="sub_setting_filter">مرشح تعبير نمطي للملاحظات</string>
+    <string name="sub_setting_override_address">استبدال العنوان</string>
+    <string name="sub_setting_override_port">استبدال المنفذ</string>
+    <string name="sub_setting_override_tip">اتركه فارغًا للإبقاء على القيمة من الاشتراك</string>
     <string name="sub_setting_enable">تفعيل التحديث</string>
     <string name="sub_auto_update">تفعيل التحديث التلقائي</string>
     <string name="sub_allow_insecure_url">السماح بعنوان HTTP غير آمن</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">يُضاف الوكيل المحدد قبل كل ملف تعريف في هذا الاشتراك كحلقة الدخول في سلسلة الوكلاء لذلك الملف.</string>
     <string name="sub_setting_exit_proxy_tip">يُضاف الوكيل المحدد بعد كل ملف تعريف في هذا الاشتراك كحلقة الخروج في سلسلة الوكلاء لذلك الملف.</string>
     <string name="toast_invalid_update_interval">فاصل التحديث غير صالح. الحد الأدنى هو 15 دقيقة.</string>
+    <string name="toast_invalid_override_port">منفذ الاستبدال غير صالح. استخدم قيمة بين 1 و 65535.</string>
     <string name="title_sub_update">تحديث الاشتراك</string>
     <string name="title_ping_all_server">اختبار تأخير TCP (TCPing)</string>
     <string name="title_real_ping_all_server">اختبار زمن الاستجابة الفعلي</string>

@@ -2,24 +2,28 @@
     x:Class="v2rayN.Desktop.Views.DomainFilterSettingWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     Width="620" Height="520" MinWidth="460" MinHeight="420"
-    Title="فیلتر دامنه" x:DataType="vms:DomainFilterSettingViewModel"
+    Title="{x:Static resx:ResUI.DicodeDomainFilter}" x:DataType="vms:DomainFilterSettingViewModel"
+    Background="{DynamicResource DicodePageBackground}"
     ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
-  <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto">
-    <TextBlock FontSize="24" FontWeight="SemiBold" Text="فیلتر دامنه" />
-    <TextBlock Grid.Row="1" Margin="0,8,0,18" Opacity="0.72" TextWrapping="Wrap"
-               Text="مشخص کنید تونل روی دامنه‌های فهرست‌شده اعمال شود یا این دامنه‌ها مستقیماً باز شوند." />
-    <StackPanel Grid.Row="2" Spacing="10">
-      <ToggleSwitch x:Name="togOnly" Content="ترافیک فقط از این دامنه‌ها رد شود" />
-      <ToggleSwitch x:Name="togBypass" Content="ترافیک از این دامنه‌ها رد نشود" />
-    </StackPanel>
-    <TextBox x:Name="txtDomains" Grid.Row="3" Margin="0,18,0,18" AcceptsReturn="True"
-             TextWrapping="Wrap" VerticalContentAlignment="Top"
-             Watermark="example.com — هر دامنه در یک خط" />
-    <StackPanel Grid.Row="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
-      <Button x:Name="btnCancel" MinWidth="96" Content="انصراف" />
-      <Button x:Name="btnSave" MinWidth="120" Classes="Accent" Content="ذخیره و اعمال" />
-    </StackPanel>
-  </Grid>
+  <Border Margin="24" Padding="22" Classes="DicodeCard">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+      <TextBlock FontSize="24" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeDomainFilter}" />
+      <TextBlock Grid.Row="1" Margin="0,8,0,18" Opacity="0.72" TextWrapping="Wrap"
+                 Text="{x:Static resx:ResUI.DicodeDomainFilterDesc}" />
+      <StackPanel Grid.Row="2" Spacing="10">
+        <ToggleSwitch x:Name="togOnly" Content="{x:Static resx:ResUI.DicodeDomainFilterOnly}" />
+        <ToggleSwitch x:Name="togBypass" Content="{x:Static resx:ResUI.DicodeDomainFilterBypass}" />
+      </StackPanel>
+      <TextBox x:Name="txtDomains" Grid.Row="3" Margin="0,18,0,18" AcceptsReturn="True"
+               TextWrapping="Wrap" VerticalContentAlignment="Top"
+               PlaceholderText="{x:Static resx:ResUI.DicodeDomainFilterWatermark}" />
+      <StackPanel Grid.Row="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+        <Button x:Name="btnCancel" MinWidth="96" Content="{x:Static resx:ResUI.DicodeCancel}" />
+        <Button x:Name="btnSave" MinWidth="120" Classes="Accent" Content="{x:Static resx:ResUI.DicodeSaveApply}" />
+      </StackPanel>
+    </Grid>
+  </Border>
 </Window>

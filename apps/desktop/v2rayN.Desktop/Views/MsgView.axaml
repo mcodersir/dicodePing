@@ -2,121 +2,111 @@
     x:Class="v2rayN.Desktop.Views.MsgView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:dd="clr-namespace:v2rayN.Desktop.DesignData"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:vm="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    x:DataType="vm:MsgViewModel"
     d:DesignHeight="450"
     d:DesignWidth="800"
     Design.DataContext="{x:Static dd:DesignData.Msg}"
     mc:Ignorable="d">
-    <DockPanel Margin="2">
+    <Grid Margin="2" RowDefinitions="Auto,*">
         <Border
             Margin="{StaticResource Margin4}"
-            DockPanel.Dock="Top"
-            Padding="8"
-            Theme="{DynamicResource CardBorder}">
-        <WrapPanel VerticalAlignment="Center" Orientation="Horizontal">
-
-            <TextBox
-                x:Name="cmbMsgFilter"
-                Width="200"
-                Margin="{StaticResource MarginLr8}"
-                VerticalContentAlignment="Center"
-                PlaceholderText="{x:Static resx:ResUI.MsgFilterTitle}" />
-
-            <Button
-                x:Name="btnCopy"
-                Margin="{StaticResource MarginLr8}"
-                Classes="IconButton Success"
-                Click="menuMsgViewCopyAll_Click"
-                ToolTip.Tip="{x:Static resx:ResUI.menuMsgViewCopyAll}">
-                <Button.Content>
-                    <PathIcon Data="{StaticResource SemiIconCopy}" />
-                </Button.Content>
-            </Button>
-            <Button
-                x:Name="btnClear"
-                Margin="{StaticResource MarginLr8}"
-                Classes="IconButton Success"
-                Click="menuMsgViewClear_Click"
-                ToolTip.Tip="{x:Static resx:ResUI.menuMsgViewClear}">
-                <Button.Content>
-                    <PathIcon Data="{StaticResource SemiIconDelete}" />
-                </Button.Content>
-            </Button>
-            <TextBlock
-                Margin="{StaticResource MarginLr8}"
-                VerticalAlignment="Center"
-                Text="{x:Static resx:ResUI.TbAutoRefresh}" />
-            <ToggleSwitch
-                x:Name="togAutoRefresh"
-                Margin="{StaticResource MarginLr8}"
-                HorizontalAlignment="Left"
-                IsChecked="True"
-                Theme="{DynamicResource SimpleToggleSwitch}" />
-            <TextBlock
-                Margin="{StaticResource MarginLr8}"
-                VerticalAlignment="Center"
-                Text="{x:Static resx:ResUI.TbAutoScrollToEnd}" />
-            <ToggleSwitch
-                x:Name="togScrollToEnd"
-                Margin="{StaticResource MarginLr8}"
-                HorizontalAlignment="Left"
-                IsChecked="True"
-                Theme="{DynamicResource SimpleToggleSwitch}" />
-        </WrapPanel>
+            Padding="10"
+            Classes="DicodeCard"
+            DockPanel.Dock="Top">
+            <WrapPanel VerticalAlignment="Center" Orientation="Horizontal">
+                <TextBox
+                    x:Name="cmbMsgFilter"
+                    Width="220"
+                    Margin="{StaticResource MarginLr8}"
+                    VerticalContentAlignment="Center"
+                    PlaceholderText="{x:Static resx:ResUI.MsgFilterTitle}" />
+                <Button
+                    x:Name="btnCopy"
+                    Margin="{StaticResource MarginLr8}"
+                    Click="menuMsgViewCopyAll_Click"
+                    Content="{x:Static resx:ResUI.menuMsgViewCopyAll}" />
+                <Button
+                    x:Name="btnClear"
+                    Margin="{StaticResource MarginLr8}"
+                    Click="menuMsgViewClear_Click"
+                    Content="{x:Static resx:ResUI.menuMsgViewClear}" />
+                <TextBlock
+                    Margin="{StaticResource MarginLr8}"
+                    VerticalAlignment="Center"
+                    Text="{x:Static resx:ResUI.TbAutoRefresh}" />
+                <ToggleSwitch
+                    x:Name="togAutoRefresh"
+                    Margin="{StaticResource MarginLr8}"
+                    HorizontalAlignment="Left"
+                    IsChecked="True"
+                    Theme="{DynamicResource SimpleToggleSwitch}" />
+                <TextBlock
+                    Margin="{StaticResource MarginLr8}"
+                    VerticalAlignment="Center"
+                    Text="{x:Static resx:ResUI.TbAutoScrollToEnd}" />
+                <ToggleSwitch
+                    x:Name="togScrollToEnd"
+                    Margin="{StaticResource MarginLr8}"
+                    HorizontalAlignment="Left"
+                    IsChecked="True"
+                    Theme="{DynamicResource SimpleToggleSwitch}" />
+            </WrapPanel>
         </Border>
 
         <Border
+            Grid.Row="1"
             Margin="{StaticResource Margin8}"
             Padding="10"
-            Theme="{DynamicResource CardBorder}">
+            Classes="DicodeCard">
             <Grid RowDefinitions="Auto,*">
-            <Border
-                Grid.Row="0"
-                Margin="0,0,0,8"
-                Padding="10,6"
-                Background="{DynamicResource SemiColorFill0}">
-                <TextBlock FontWeight="SemiBold" Text="رویدادهای DicodePing" />
-            </Border>
-            <avaloniaEdit:TextEditor
-                Grid.Row="1"
-                Name="txtMsg"
-                FlowDirection="LeftToRight"
-                IsReadOnly="True"
-                FontFamily="Cascadia Mono,Consolas,monospace"
-                VerticalScrollBarVisibility="Auto"
-                WordWrap="True">
-            <avaloniaEdit:TextEditor.Options>
-                <avaloniaEdit:TextEditorOptions AllowScrollBelowDocument="False" />
-            </avaloniaEdit:TextEditor.Options>
-            <avaloniaEdit:TextEditor.ContextFlyout>
-                <MenuFlyout>
-                    <MenuItem
-                        x:Name="menuMsgViewSelectAll"
-                        Click="menuMsgViewSelectAll_Click"
-                        Header="{x:Static resx:ResUI.menuMsgViewSelectAll}"
-                        InputGesture="Ctrl+A" />
-                    <MenuItem
-                        x:Name="menuMsgViewCopy"
-                        Click="menuMsgViewCopy_Click"
-                        Header="{x:Static resx:ResUI.menuMsgViewCopy}"
-                        InputGesture="Ctrl+C" />
-                    <MenuItem
-                        x:Name="menuMsgViewCopyAll"
-                        Click="menuMsgViewCopyAll_Click"
-                        Header="{x:Static resx:ResUI.menuMsgViewCopyAll}" />
-                    <MenuItem
-                        x:Name="menuMsgViewClear"
-                        Click="menuMsgViewClear_Click"
-                        Header="{x:Static resx:ResUI.menuMsgViewClear}" />
-                </MenuFlyout>
-            </avaloniaEdit:TextEditor.ContextFlyout>
-            </avaloniaEdit:TextEditor>
+                <Border
+                    Grid.Row="0"
+                    Margin="0,0,0,8"
+                    Padding="10,6"
+                    Background="{DynamicResource DicodeSurfaceElevated}"
+                    CornerRadius="8">
+                    <TextBlock FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeEventLog}" />
+                </Border>
+                <ListBox
+                    x:Name="lstLog"
+                    Grid.Row="1"
+                    ItemsSource="{Binding LogItems}"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:LogItemModel">
+                            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+                                <Border
+                                    Padding="7,2"
+                                    VerticalAlignment="Top"
+                                    Classes.logBadge="True"
+                                    Classes.logBadgeDebug="{Binding IsDebug}"
+                                    Classes.logBadgeError="{Binding IsError}"
+                                    Classes.logBadgeInfo="{Binding IsInfo}"
+                                    Classes.logBadgeWarn="{Binding IsWarning}"
+                                    CornerRadius="6">
+                                    <TextBlock FontSize="11" FontWeight="SemiBold" Text="{Binding Level}" />
+                                </Border>
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Top"
+                                    FontSize="11"
+                                    Opacity="0.6"
+                                    Text="{Binding Time}" />
+                                <SelectableTextBlock
+                                    Grid.Column="2"
+                                    VerticalAlignment="Top"
+                                    Text="{Binding Content}"
+                                    TextWrapping="Wrap" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </Grid>
         </Border>
-
-    </DockPanel>
+    </Grid>
 </UserControl>

@@ -12,6 +12,117 @@ public partial class CoreConfigV2rayService
         return ApplyFullConfigTemplate(coreConfigContent);
     }
 
+    /// <summary>
+    ///     PattN: registers the ECH outbound of the profile being built and returns the tag that its
+    ///     echSockopt points at. Profiles with the same ECH outbound share it. A different ECH outbound
+    ///     under a tag that an earlier one has gets a numbered tag of its own ("ech-2"): the tag only
+    ///     links a proxy outbound to its ECH outbound, and a group or a speed test puts unrelated
+    ///     profiles in one config.
+    /// </summary>
+    private string AddEchOutbound(JsonObject echOutbound)
+    {
+        var same = context.EchOutbounds.FirstOrDefault(item => JsonNode.DeepEquals(item.Outbound, echOutbound));
+        if (same != null)
+        {
+            return same.Tag;
+        }
+        var tag = NodeValidator.GetOutboundTag(echOutbound) ?? string.Empty;
+        var uniqueTag = tag;
+        for (var i = 2; context.EchOutbounds.Any(item => item.Tag == uniqueTag); i++)
+        {
+            uniqueTag = $"{tag}-{i}";
+        }
+        context.EchOutbounds.Add(new EchOutboundItem(echOutbound, uniqueTag));
+        return uniqueTag;
+    }
+
+    /// <summary>
+    ///     PattN: appends the ECH outbounds of the profiles after every other outbound, exactly as the
+    ///     user wrote them rather than through the typed model, which would drop fields it does not know.
+    ///     A tag the user wrote that another outbound of the config already has fails the config instead
+    ///     of sending the ECH config query through that outbound. A numbered tag ("ech-2") that one has
+    ///     moves on to a free number.
+    /// </summary>
+    /// <returns>The error message, or null on success.</returns>
+    private string? AppendEchOutbounds(ref string coreConfigContent)
+    {
+        if (context.EchOutbounds.Count == 0)
+        {
+            return null;
+        }
+        if (JsonUtils.ParseJson(coreConfigContent) is not JsonObject coreConfigNode)
+        {
+            return ResUI.FailedGenDefaultConfiguration;
+        }
+        if (coreConfigNode["outbounds"] is not JsonArray outboundsNode)
+        {
+            outboundsNode = [];
+            coreConfigNode["outbounds"] = outboundsNode;
+        }
+
+        var usedTags = outboundsNode
+            .Select(o => o is JsonObject outbound ? NodeValidator.GetOutboundTag(outbound) : null)
+            .OfType<string>()
+            .ToHashSet();
+        var takenTags = usedTags.Concat(context.EchOutbounds.Select(item => item.Tag)).ToHashSet();
+        var renumbered = new Dictionary<string, string>();
+        for (var i = 0; i < context.EchOutbounds.Count; i++)
+        {
+            var item = context.EchOutbounds[i];
+            if (!usedTags.Contains(item.Tag))
+            {
+                continue;
+            }
+            var tag = NodeValidator.GetOutboundTag(item.Outbound) ?? string.Empty;
+            if (item.Tag == tag)
+            {
+                return string.Format(ResUI.MsgEchOutboundTagConflict, tag);
+            }
+            var freeTag = item.Tag;
+            for (var number = 2; takenTags.Contains(freeTag); number++)
+            {
+                freeTag = $"{tag}-{number}";
+            }
+            takenTags.Add(freeTag);
+            renumbered[item.Tag] = freeTag;
+            context.EchOutbounds[i] = item with { Tag = freeTag };
+        }
+        if (renumbered.Count > 0)
+        {
+            RelinkEchSockopts(outboundsNode, renumbered);
+        }
+
+        foreach (var item in context.EchOutbounds)
+        {
+            var echOutbound = item.Outbound.DeepClone().AsObject();
+            echOutbound["tag"] = item.Tag;
+            outboundsNode.Add(echOutbound);
+        }
+        coreConfigContent = JsonUtils.Serialize(coreConfigNode);
+        return null;
+    }
+
+    /// <summary>
+    ///     PattN: points the echSockopt of the generated outbounds that use a renumbered ECH tag at its
+    ///     new number. Other outbounds keep theirs: the old number is the tag of one of them.
+    /// </summary>
+    private void RelinkEchSockopts(JsonArray outboundsNode, Dictionary<string, string> renumbered)
+    {
+        var generatedTags = _coreConfig.outbounds?.Select(o => o.tag).ToHashSet() ?? [];
+        foreach (var outbound in outboundsNode.OfType<JsonObject>())
+        {
+            if (NodeValidator.GetOutboundTag(outbound) is { } outboundTag
+                && generatedTags.Contains(outboundTag)
+                && outbound["streamSettings"]?["tlsSettings"]?["echSockopt"] is JsonObject echSockopt
+                && echSockopt["dialerProxy"] is JsonValue value
+                && value.TryGetValue<string>(out var dialerProxy)
+                && renumbered.TryGetValue(dialerProxy, out var tag))
+            {
+                echSockopt["dialerProxy"] = tag;
+            }
+        }
+    }
+
     private string ApplyCustomOutboundReplace()
     {
         var coreConfigContent = JsonUtils.Serialize(_coreConfig);
@@ -174,6 +285,12 @@ public partial class CoreConfigV2rayService
             }
         }
 
+        // Keep the generated policy (levels etc.) unless the template defines its own
+        if (_coreConfig.policy != null && fullConfigTemplateNode["policy"] == null)
+        {
+            fullConfigTemplateNode["policy"] = JsonNode.Parse(JsonUtils.Serialize(_coreConfig.policy));
+        }
+
         var customOutboundsNode = new JsonArray();
 
         var coreConfigNode = JsonNode.Parse(coreConfigContent);
@@ -282,9 +399,8 @@ public partial class CoreConfigV2rayService
             return false;
         }
 
-        var outboundAddress = outbound.settings?.servers?.FirstOrDefault()?.address
-                              ?? outbound.settings?.vnext?.FirstOrDefault()?.address
-                              ?? outbound.settings?.address?.ToString()
+        var outboundAddress = outbound.settings?.address?.ToString()
+                              ?? outbound.settings?.peers?.FirstOrDefault()?.endpoint
                               ?? string.Empty;
 
         if (outboundAddress.Equals("localhost", StringComparison.OrdinalIgnoreCase))

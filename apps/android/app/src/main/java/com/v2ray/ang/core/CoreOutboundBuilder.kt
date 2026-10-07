@@ -36,9 +36,27 @@ object CoreOutboundBuilder {
         }
 
         outbound ?: return null
+        applyDialMode(outbound, profileItem)
         val ret = updateOutboundWithGlobalSettings(outbound)
         if (!ret) return null
         return outbound
+    }
+
+    /**
+     * Copies the profile dialMode into streamSettings.sockopt.dialMode.
+     *
+     * Only the dialMode field is written, so sockopt options set elsewhere
+     * (dialerProxy, domainStrategy, happyEyeballs, ...) are kept.
+     */
+    internal fun applyDialMode(outbound: OutboundBean, profileItem: ProfileItem) {
+        val dialMode = profileItem.dialMode.nullIfBlank() ?: return
+        if (outbound.streamSettings == null) {
+            // wireguard outbounds are built without streamSettings, but Xray still dials
+            // their endpoint through the system dialer with streamSettings.sockopt.
+            // Add one that only carries sockopt: network stays unset as there is no transport.
+            outbound.streamSettings = OutboundBean.StreamSettingsBean(network = null)
+        }
+        outbound.ensureSockopt().dialMode = dialMode
     }
 
     /** Applies global outbound options (mux, protocol-specific tweaks, etc.). */
@@ -62,7 +80,7 @@ object CoreOutboundBuilder {
             if (muxEnabled) {
                 outbound.mux?.enabled = true
                 outbound.mux?.concurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_CONCURRENCY, "8").orEmpty().toInt()
-                outbound.mux?.xudpConcurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, "16").orEmpty().toInt()
+                outbound.mux?.xudpConcurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY).orEmpty().toInt()
                 outbound.mux?.xudpProxyUDP443 = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_QUIC, "reject")
                 if (protocol.equals(EConfigType.VLESS.name, true) && outbound.settings?.flow?.isNotEmpty() == true) {
                     outbound.mux?.concurrency = -1
@@ -122,7 +140,6 @@ object CoreOutboundBuilder {
             settings.port = profileItem.serverPort.orEmpty().toInt()
             settings.id = profileItem.password.orEmpty()
             settings.security = profileItem.method
-            settings.level = AppConfig.DEFAULT_LEVEL
         }
 
         val sni = outboundBean?.streamSettings?.let {
@@ -145,7 +162,6 @@ object CoreOutboundBuilder {
             settings.id = profileItem.password.orEmpty()
             settings.encryption = profileItem.method
             settings.flow = profileItem.flow
-            settings.level = AppConfig.DEFAULT_LEVEL
         }
 
         val sni = outboundBean?.streamSettings?.let {
@@ -167,7 +183,6 @@ object CoreOutboundBuilder {
             settings.port = profileItem.serverPort.orEmpty().toInt()
             settings.password = profileItem.password
             settings.method = profileItem.method
-            settings.level = AppConfig.DEFAULT_LEVEL
         }
 
         val sni = outboundBean?.streamSettings?.let {
@@ -189,7 +204,6 @@ object CoreOutboundBuilder {
             settings.port = profileItem.serverPort.orEmpty().toInt()
             settings.password = profileItem.password
             settings.flow = profileItem.flow
-            settings.level = AppConfig.DEFAULT_LEVEL
         }
 
         val sni = outboundBean?.streamSettings?.let {
@@ -209,7 +223,6 @@ object CoreOutboundBuilder {
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
             settings.port = profileItem.serverPort.orEmpty().toInt()
-            settings.level = AppConfig.DEFAULT_LEVEL
             if (profileItem.username.isNotNullEmpty()) {
                 settings.user = profileItem.username.orEmpty()
                 settings.pass = profileItem.password.orEmpty()
@@ -225,7 +238,6 @@ object CoreOutboundBuilder {
         outboundBean?.settings?.let { settings ->
             settings.address = getServerAddress(profileItem)
             settings.port = profileItem.serverPort.orEmpty().toInt()
-            settings.level = AppConfig.DEFAULT_LEVEL
             if (profileItem.username.isNotNullEmpty()) {
                 settings.user = profileItem.username.orEmpty()
                 settings.pass = profileItem.password.orEmpty()
@@ -668,7 +680,7 @@ object CoreOutboundBuilder {
         }
 
         val domain = HttpUtil.toIdnDomain(profileItem.server.orEmpty())
-        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") != "2") {
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD) != "2") {
             return domain
         }
         //Resolve and replace domain
