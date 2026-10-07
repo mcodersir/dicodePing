@@ -1,5 +1,8 @@
 name: Publish download website
 on:
+  push:
+    branches: [codex/pages-download-refresh]
+    paths: [web/**, .github/workflows/website.yml]
   workflow_dispatch:
 permissions:
   contents: read
