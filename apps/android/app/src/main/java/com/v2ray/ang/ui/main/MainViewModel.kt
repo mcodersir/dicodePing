@@ -77,6 +77,9 @@ class MainViewModel(
     @Volatile
     private var testingGroupId: String? = null
 
+    @Volatile
+    private var startupLocationPending = false
+
     private val initialPageReady = CompletableDeferred<Unit>()
 
     // ---------- Service events ----------
@@ -264,12 +267,20 @@ class MainViewModel(
                 dataSource.syncSubscriptions()
                 // The default source is refreshed in the background at startup. Once loaded,
                 // use the existing real-path tester and persist the fastest-first ordering.
-                dataSource.updateConfigViaSubAll()
-                // Always begin on the aggregate tab so the first test covers every enabled
-                // subscription, then persist the best-first order for each source.
-                dataSource.setSelectedSubscriptionId("")
+                val primary = dataSource.getSubscriptions().firstOrNull {
+                    it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID
+                }
+                if (primary == null) {
+                    LogUtil.e(AppConfig.TAG, "Official startup subscription is missing")
+                    return@launch
+                }
+                // Startup owns only the official source. Testing the aggregate tab also pulled
+                // user and pool profiles into the same native batch, causing long stalls and
+                // occasional core-process crashes on lower-memory devices.
+                dataSource.updateConfigViaSub(primary)
+                dataSource.setSelectedSubscriptionId(primary.guid)
                 setupGroupTab(forceRefresh = true).join()
-                testAllRealPing()
+                testAllRealPing(continueWithLocation = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -735,11 +746,13 @@ class MainViewModel(
         }
     }
 
-    fun testAllRealPing(onlyTcp: Boolean = false) {
+    fun testAllRealPing(onlyTcp: Boolean = false, continueWithLocation: Boolean = false) {
         dataSource.cancelAllPing()
+        startupLocationPending = continueWithLocation
         val groupId = uiState.value.selectedGroupId
         val servers = currentServers()
         if (servers.isEmpty()) {
+            startupLocationPending = false
             _uiState.update { it.copy(isTesting = false) }
             return
         }
@@ -781,10 +794,9 @@ class MainViewModel(
         }
     }
 
-    fun testAllLocations() {
+    fun testAllLocations(groupId: String = uiState.value.selectedGroupId) {
         dataSource.cancelAllPing()
-        val groupId = uiState.value.selectedGroupId
-        val servers = currentServers()
+        val servers = mutableServersForGroup(groupId).value
         if (servers.isEmpty()) return
         testingGroupId = groupId
         _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
@@ -826,6 +838,7 @@ class MainViewModel(
 
     private fun onTestsFinished() {
         viewModelScope.launch(ioDispatcher) {
+            val finishedGroupId = testingGroupId
             sortByTestResultsInternal()
             cacheMutex.withLock { groupDataCache.clear() }
             testingGroupId = null
@@ -834,6 +847,10 @@ class MainViewModel(
                     isTesting = false,
                     status = if (it.isRunning) MainStatus.Connected else MainStatus.Disconnected
                 )
+            }
+            if (startupLocationPending && finishedGroupId != null) {
+                startupLocationPending = false
+                testAllLocations(finishedGroupId)
             }
             reloadAllGroups(_uiState.value.groups.map { it.id })
         }

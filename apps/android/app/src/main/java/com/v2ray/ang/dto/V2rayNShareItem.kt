@@ -7,7 +7,7 @@ import com.v2ray.ang.enums.NetworkType
 
 @Suppress("PropertyName")
 data class V2rayNShareItem(
-    // val IndexId: String?,
+    val IndexId: String?,
     val ConfigType: Int?,
     // val CoreType: Int?,
     val ConfigVersion: Int?,
@@ -27,6 +27,7 @@ data class V2rayNShareItem(
     val Alpn: String?,
     val Fingerprint: String?,
     val CipherSuites: String?,
+    val DialMode: String?,
     val PublicKey: String?,
     val ShortId: String?,
     val SpiderX: String?,
@@ -133,6 +134,7 @@ data class V2rayNShareItem(
             alpn = Alpn,
             fingerPrint = Fingerprint,
             cipherSuites = CipherSuites,
+            dialMode = DialMode,
             insecure = AllowInsecure?.toBoolean(),
             echConfigList = EchConfigList,
             verifyPeerCertByName = VerifyPeerCertByName,

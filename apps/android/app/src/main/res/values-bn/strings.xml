@@ -101,8 +101,8 @@
     <string name="server_lab_reserved">Reserved (ঐচ্ছিক, কমা দিয়ে পৃথক)</string>
     <string name="server_lab_local_address">স্থানীয় ঠিকানা (ঐচ্ছিক IPv4/IPv6, কমা দ্বারা পৃথক করা)</string>
     <string name="server_lab_local_mtu">MTU (ঐচ্ছিক, ডিফল্ট 1420)</string>
-    <string name="server_lab_kcp_mtu">mKCP MTU (ঐচ্ছিক, কোর ডিফল্ট 1350)</string>
-    <string name="server_lab_kcp_tti">mKCP TTI (ঐচ্ছিক, কোর ডিফল্ট 50)</string>
+    <string name="server_lab_kcp_mtu">mKCP MTU (ঐচ্ছিক, ডিফল্ট 1350)</string>
+    <string name="server_lab_kcp_tti">mKCP TTI (ঐচ্ছিক, ডিফল্ট 50 মিলিসেকেন্ড)</string>
     <string name="toast_success">সফল</string>
     <string name="toast_failure">ব্যর্থ</string>
     <string name="toast_none_data">কোনও তথ্য নেই</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">XHTTP মোড</string>
     <string name="server_lab_xhttp_extra">XHTTP Extra-এর কাঁচা JSON, ফরম্যাট: { XHTTPObject }</string>
     <string name="server_lab_final_mask">finalMask-এর কাঁচা JSON, ফরম্যাট: { FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">নাম দিয়ে পিয়ার সার্টিফিকেট যাচাই করুন</string>
     <string name="server_lab_pinned_ca256">সার্টিফিকেট ফিঙ্গারপ্রিন্ট (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">VPN সেটিংস</string>
     <string name="title_pref_per_app_proxy">প্রতি-অ্যাপ প্রক্সি</string>
     <string name="summary_pref_per_app_proxy">সাধারণ: নির্বাচিত অ্যাপ প্রক্সি ব্যবহার করে, অনির্বাচিত অ্যাপ সরাসরি সংযুক্ত হয়;\nবাইপাস মোড: নির্বাচিত অ্যাপ সরাসরি সংযুক্ত হয়, অনির্বাচিত অ্যাপ প্রক্সি ব্যবহার করে।\nযেসব অ্যাপ প্রক্সি ব্যবহার করবে, সেগুলি স্বয়ংক্রিয়ভাবে নির্বাচনের বিকল্পটি মেনুতে আছে।</string>
-    <string name="title_pref_is_booted">চালুর সময় স্বয়ংক্রিয় সংযোগ</string>
-    <string name="summary_pref_is_booted">চালুর সময় নির্বাচিত সার্ভারে স্বয়ংক্রিয়ভাবে সংযোগ করে; সংযোগ ব্যর্থ হতে পারে</string>
+    <string name="title_pref_is_booted">ডিভাইস চালু হওয়ার পর সংযোগ</string>
+    <string name="summary_pref_is_booted">ডিভাইস চালু হওয়ার পর নির্বাচিত সার্ভারে স্বয়ংক্রিয়ভাবে সংযোগ করুন। Android ব্যাকগ্রাউন্ডে চালু হওয়া সীমিত করতে পারে।</string>
+    <string name="title_system_vpn_settings">সিস্টেমের VPN সেটিংস</string>
+    <string name="summary_system_vpn_settings">ডিভাইসে সমর্থিত হলে সর্বদা চালু VPN কনফিগার করতে Android-এর VPN সেটিংস খুলুন।</string>
+    <string name="toast_system_vpn_settings_unavailable">সিস্টেমের VPN সেটিংস উপলভ্য নয়।</string>
 
 
     <string name="subscription_updater_job_tips">কাজটি ব্যাকগ্রাউন্ডে চলবে এবং অগ্রগতির তথ্য বিজ্ঞপ্তিতে দেখানো হবে।</string>
@@ -284,6 +288,7 @@
     <string name="title_about">সম্পর্কিত</string>
     <string name="title_source_code">সোর্স কোড</string>
     <string name="title_oss_license">ওপেন সোর্স লাইসেন্স</string>
+    <string name="title_translators">অনুবাদকগণ</string>
     <string name="title_tg_channel">টেলিগ্রাম চ্যানেল</string>
 
     <string name="title_pref_promotion">প্রচার</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">রিকোয়েস্ট হেডার (JSON ফরম্যাট)</string>
     <string name="sub_setting_filter">মন্তব্যের রেগুলার এক্সপ্রেশন ফিল্টার</string>
+    <string name="sub_setting_override_address">ঠিকানা ওভাররাইড</string>
+    <string name="sub_setting_override_port">পোর্ট ওভাররাইড</string>
+    <string name="sub_setting_override_tip">সাবস্ক্রিপশনের মান রাখতে খালি রাখুন</string>
     <string name="sub_setting_enable">আপডেট সক্রিয় করুন</string>
     <string name="sub_auto_update">স্বয়ংক্রিয় আপডেট সক্রিয় করুন</string>
     <string name="sub_allow_insecure_url">অনিরাপদ HTTP ঠিকানা অনুমোদন করুন</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">নির্বাচিত প্রক্সিটি এই সাবস্ক্রিপশনের প্রতিটি প্রোফাইলের আগে সেই প্রোফাইলের প্রক্সি চেইনের প্রবেশ লিঙ্ক হিসেবে যোগ করা হবে।</string>
     <string name="sub_setting_exit_proxy_tip">নির্বাচিত প্রক্সিটি এই সাবস্ক্রিপশনের প্রতিটি প্রোফাইলের পরে সেই প্রোফাইলের প্রক্সি চেইনের প্রস্থান লিঙ্ক হিসেবে যোগ করা হবে।</string>
     <string name="toast_invalid_update_interval">আপডেটের বিরতি সঠিক নয়। সর্বনিম্ন ১৫ মিনিট।</string>
+    <string name="toast_invalid_override_port">ওভাররাইড পোর্ট অবৈধ। 1 থেকে 65535 এর মধ্যে একটি মান দিন।</string>
     <string name="title_sub_update">সাবস্ক্রিপশন আপডেট</string>
     <string name="title_ping_all_server">TCP বিলম্ব পরীক্ষা করুন (TCPing)</string>
     <string name="title_real_ping_all_server">প্রকৃত বিলম্ব পরীক্ষা করুন</string>

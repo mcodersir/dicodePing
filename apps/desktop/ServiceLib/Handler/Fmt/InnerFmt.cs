@@ -188,6 +188,8 @@ public class InnerFmt : BaseFmt
             customOutboundFilePath = WriteAllText(customOutboundContent);
             jsonObj.Remove("CustomOutboundObj");
         }
+        // PattN: targetStrategy is a local choice and never travels in share links
+        jsonObj.Remove(nameof(ProfileItem.TargetStrategy));
         var profileItem = JsonUtils.Deserialize<ProfileItem>(JsonUtils.Serialize(jsonObj, false));
         if (profileItem is null)
         {
@@ -274,6 +276,8 @@ public class InnerFmt : BaseFmt
         // remove subid and isSub
         jsonObj.Remove("Subid");
         jsonObj.Remove("IsSub");
+        // PattN: targetStrategy is a local choice and never travels in share links
+        jsonObj.Remove(nameof(ProfileItem.TargetStrategy));
         // Remove empty properties to reduce the length of the exported string
         RemoveEmptyJson(jsonObj);
         var jsonStr = JsonUtils.Serialize(jsonObj, false);

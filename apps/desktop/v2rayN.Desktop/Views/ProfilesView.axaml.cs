@@ -12,6 +12,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     public ProfilesView()
     {
         InitializeComponent();
+        lstProfiles.SizeChanged += (_, _) => lstProfiles.Classes.Set("narrow", lstProfiles.Bounds.Width < 660);
 
         _config = AppManager.Instance.Config;
 
@@ -21,20 +22,10 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         lstProfiles.KeyDown += LstProfiles_KeyDown;
         lstProfiles.SelectionChanged += lstProfiles_SelectionChanged;
         lstProfiles.DoubleTapped += LstProfiles_DoubleTapped;
-        lstProfiles.LoadingRow += LstProfiles_LoadingRow;
-        lstProfiles.Sorting += LstProfiles_Sorting;
-        lstProfiles.SizeChanged += (_, _) => ApplyResponsiveColumns();
-        if (_config.UiItem.EnableDragDropSort)
-        {
-            lstProfiles.SetValue(DragDrop.AllowDropProperty, true);
-
-            lstProfiles.AddHandler(PointerPressedEvent, LstProfiles_PointerPressed, RoutingStrategies.Bubble, true);
-            lstProfiles.AddHandler(DragDrop.DragOverEvent, LstProfiles_DragOver, RoutingStrategies.Bubble);
-            lstProfiles.AddHandler(DragDrop.DropEvent, LstProfiles_Drop, RoutingStrategies.Bubble);
-        }
 
         this.WhenActivated(disposables =>
         {
+            if (ViewModel is null) return;
             this.OneWayBind(ViewModel, vm => vm.ProfileItems, v => v.lstProfiles.ItemsSource).DisposeWith(disposables);
             this.Bind(ViewModel, vm => vm.SelectedProfile, v => v.lstProfiles.SelectedItem).DisposeWith(disposables);
 
@@ -156,20 +147,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
               .DisposeWith(disposables);
         });
 
-        RestoreUI();
-        ApplyResponsiveColumns();
-    }
 
-    private async void LstProfiles_Sorting(object? sender, DataGridColumnEventArgs e)
-    {
-        e.Handled = true;
-
-        if (ViewModel != null && e.Column?.Tag?.ToString() != null)
-        {
-            await ViewModel.SortServer(e.Column.Tag.ToString());
-        }
-
-        e.Handled = false;
     }
 
     #region Event
@@ -189,7 +167,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     {
         if (lstProfiles.SelectedIndex >= 0)
         {
-            lstProfiles.ScrollIntoView(lstProfiles.SelectedItem, null);
+            lstProfiles.ScrollIntoView(lstProfiles.SelectedItem);
         }
     }
 
@@ -218,23 +196,6 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
             ViewModel?.EditServerAsync();
         }
     }
-
-    private void LstProfiles_LoadingRow(object? sender, DataGridRowEventArgs e)
-    {
-        e.Row.Header = $" {e.Row.Index + 1}";
-    }
-
-    //private void LstProfiles_ColumnHeader_Click(object? sender, RoutedEventArgs e)
-    //{
-    //    var colHeader = sender as DataGridColumnHeader;
-    //    if (colHeader == null || colHeader.TabIndex < 0 || colHeader.Column == null)
-    //    {
-    //        return;
-    //    }
-
-    //    var colName = ((MyDGTextColumn)colHeader.Column).ExName;
-    //    ViewModel?.SortServer(colName);
-    //}
 
     private void menuSelectAll_Click(object? sender, RoutedEventArgs e)
     {
@@ -322,66 +283,23 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         AutofitColumnWidth();
     }
 
-    private void AutofitColumnWidth()
+    private void AutofitColumnWidth() { }
+    private async void ConnectProfile(object? sender, RoutedEventArgs e)
     {
-        try
-        {
-            //First scroll horizontally to the initial position to avoid the control crash bug
-            if (lstProfiles.SelectedIndex >= 0)
-            {
-                lstProfiles.ScrollIntoView(lstProfiles.SelectedItem, lstProfiles.Columns[0]);
-            }
-            else
-            {
-                var model = lstProfiles.ItemsSource.Cast<ProfileItemModel>();
-                if (model.Any())
-                {
-                    lstProfiles.ScrollIntoView(model.First(), lstProfiles.Columns[0]);
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            foreach (var it in lstProfiles.Columns)
-            {
-                it.Width = new DataGridLength(1, DataGridLengthUnitType.Auto);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logging.SaveLog(_tag, ex);
-        }
+        if (ViewModel is null || sender is not Button { DataContext: ProfileItemModel item }) return;
+        try { await ViewModel.SetDefaultServer(item.IndexId); } catch (Exception ex) { Logging.SaveLog(_tag, ex); }
+        e.Handled = true;
     }
-
-    private void ApplyResponsiveColumns()
+    private async void EditProfile(object? sender, RoutedEventArgs e)
     {
-        var width = lstProfiles.Bounds.Width;
-        if (width <= 0) return;
-        foreach (var column in lstProfiles.Columns)
-        {
-            var tag = column.Tag?.ToString();
-            if (tag.IsNullOrEmpty()) continue;
-            column.Width = tag switch
-            {
-                "Remarks" => new DataGridLength(2.3, DataGridLengthUnitType.Star),
-                "IpInfo" => new DataGridLength(2.1, DataGridLengthUnitType.Star),
-                "SubRemarks" => new DataGridLength(1.5, DataGridLengthUnitType.Star),
-                "SecurityInfo" or "SanctionsInfo" => new DataGridLength(1.35, DataGridLengthUnitType.Star),
-                _ => new DataGridLength(1, DataGridLengthUnitType.Star)
-            };
-            column.IsVisible = tag switch
-            {
-                "Address" or "Port" or "Network" or "StreamSecurity" or "TotalUp" or "TotalDown" => false,
-                "IpInfo" => !_config.UiItem.HideColumnIpInfo,
-                "SecurityInfo" or "SanctionsInfo" => width >= 1180,
-                "TodayUp" or "TodayDown" => width >= 1450 && _config.GuiItem.EnableStatistics,
-                "SpeedVal" or "SubRemarks" => width >= 980,
-                _ => true
-            };
-        }
+        if (ViewModel is null || sender is not Button { DataContext: ProfileItemModel item }) return;
+        lstProfiles.SelectedItem = item;
+        try { await ViewModel.EditServerAsync(); } catch (Exception ex) { Logging.SaveLog(_tag, ex); }
+        e.Handled = true;
     }
+    private async void SortByLatency(object? sender, RoutedEventArgs e) { if (ViewModel != null) await ViewModel.SortServer("DelayVal"); }
+    private async void SortBySpeed(object? sender, RoutedEventArgs e) { if (ViewModel != null) await ViewModel.SortServer("SpeedVal"); }
+    private void StopDiagnostics(object? sender, RoutedEventArgs e) => ViewModel?.ServerSpeedtestStop();
 
     private void TxtServerFilter_KeyDown(object? sender, KeyEventArgs e)
     {
@@ -393,172 +311,5 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
 
     #endregion Event
 
-    #region UI
-
-    private void RestoreUI()
-    {
-        try
-        {
-            var lvColumnItem = _config.UiItem.MainColumnItem.OrderBy(t => t.Index).ToList();
-            var displayIndex = 0;
-            foreach (var item in lvColumnItem)
-            {
-                foreach (var item2 in lstProfiles.Columns)
-                {
-                    if (item2.Tag == null)
-                    {
-                        continue;
-                    }
-                    if (item2.Tag.Equals(item.Name))
-                    {
-                        if (item.Width < 0)
-                        {
-                            item2.IsVisible = false;
-                        }
-                        else
-                        {
-                            item2.Width = new DataGridLength(item.Width, DataGridLengthUnitType.Pixel);
-                            item2.DisplayIndex = displayIndex++;
-                        }
-                        if (item.Name.StartsWith("to", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            item2.IsVisible = _config.GuiItem.EnableStatistics;
-                        }
-                        if (item.Name.Equals("IpInfo", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            item2.IsVisible = _config.SpeedTestItem.IPAPIUrl.IsNotEmpty() && !_config.UiItem.HideColumnIpInfo;
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logging.SaveLog(_tag, ex);
-        }
-    }
-
-    private void StorageUI()
-    {
-        try
-        {
-            List<ColumnItem> lvColumnItem = [];
-            foreach (var item2 in lstProfiles.Columns)
-            {
-                if (item2.Tag == null)
-                {
-                    continue;
-                }
-                lvColumnItem.Add(new()
-                {
-                    Name = (string)item2.Tag,
-                    Width = (int)(item2.IsVisible == true ? item2.ActualWidth : -1),
-                    Index = item2.DisplayIndex
-                });
-            }
-            _config.UiItem.MainColumnItem = lvColumnItem;
-        }
-        catch (Exception ex)
-        {
-            Logging.SaveLog(_tag, ex);
-        }
-    }
-
-    #endregion UI
-
-    #region Drag and Drop
-
-    private static readonly DataFormat<object> LstProfilesRowFormat =
-        DataFormat.CreateInProcessFormat<object>("LstProfilesRow");
-
-    private async void LstProfiles_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        try
-        {
-            if (e.Source is not Visual visualSource)
-            {
-                return;
-            }
-
-            var row = visualSource.FindAncestorOfType<DataGridRow>(true);
-            if (row?.DataContext == null)
-            {
-                return;
-            }
-
-            if (e.GetCurrentPoint(row).Properties.IsLeftButtonPressed)
-            {
-                var dragData = new DataTransfer();
-                var item = DataTransferItem.Create(LstProfilesRowFormat, row.DataContext);
-                dragData.Add(item);
-                await DragDrop.DoDragDropAsync(e, dragData, DragDropEffects.Move);
-            }
-        }
-        catch
-        {
-            // Ignore
-        }
-    }
-
-    private void LstProfiles_DragOver(object? sender, DragEventArgs e)
-    {
-        if (!e.DataTransfer.Contains(LstProfilesRowFormat))
-        {
-            e.DragEffects = DragDropEffects.None;
-            return;
-        }
-        e.DragEffects = DragDropEffects.Move;
-    }
-
-    private void LstProfiles_Drop(object? sender, DragEventArgs e)
-    {
-        if (!e.DataTransfer.Contains(LstProfilesRowFormat))
-        {
-            return;
-        }
-        ProfileItemModel? sourceItem = null;
-        foreach (var item in e.DataTransfer.Items)
-        {
-            if (!item.Formats.Contains(LstProfilesRowFormat))
-            {
-                continue;
-            }
-            if (item.TryGetRaw(LstProfilesRowFormat) is not ProfileItemModel model)
-            {
-                continue;
-            }
-            sourceItem = model;
-            break;
-        }
-        if (sourceItem == null)
-        {
-            return;
-        }
-        if (e.Source is not Visual visualTarget)
-        {
-            return;
-        }
-
-        var targetRow = visualTarget.FindAncestorOfType<DataGridRow>(true);
-        if (targetRow is not { DataContext: ProfileItemModel targetItem })
-        {
-            return;
-        }
-        if (ReferenceEquals(sourceItem, targetItem))
-        {
-            return;
-        }
-        if (lstProfiles.ItemsSource is not IList<ProfileItemModel> items)
-        {
-            return;
-        }
-        var oldIndex = items.IndexOf(sourceItem);
-        var newIndex = items.IndexOf(targetItem);
-        if (oldIndex >= 0 && newIndex >= 0)
-        {
-            ViewModel?.MoveServerTo(oldIndex, targetItem);
-        }
-    }
-
-    #endregion Drag and Drop
+    private void StorageUI() { }
 }

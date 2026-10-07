@@ -5,7 +5,6 @@ namespace ServiceLib.UdpTest;
 public class UdpTestService
 {
     private const string DefaultUdpTestType = "ntp";
-    private readonly IUdpTest _udpTest;
 
     private static readonly IReadOnlyDictionary<string, Func<IUdpTest>> UdpTestFactories =
         new Dictionary<string, Func<IUdpTest>>(StringComparer.OrdinalIgnoreCase)
@@ -15,6 +14,8 @@ public class UdpTestService
             ["stun"] = () => new StunService(),
             ["mcbe"] = () => new McBeService(),
         };
+
+    private readonly IUdpTest _udpTest;
 
     private UdpTestService(IUdpTest udpTest)
     {
@@ -88,24 +89,26 @@ public class UdpTestService
         return (targetServerHost, _udpTest.GetDefaultTargetPort());
     }
 
-    public async Task<TimeSpan> SendUdpRequestAsync(string targetServerHost, int socks5Port, TimeSpan operationTimeout)
+    public async Task<TimeSpan> SendUdpRequestAsync(string targetServerHost, int socks5Port,
+        CancellationToken ct = default)
     {
-        using var cts = new CancellationTokenSource(operationTimeout);
-        var cancellationToken = cts.Token;
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        var linkedCt = linkedCts.Token;
         var udpRequestPacket = _udpTest.BuildUdpRequestPacket();
         if (udpRequestPacket == null || udpRequestPacket.Length == 0)
         {
             throw new InvalidOperationException("Failed to build UDP request packet.");
         }
         using var channel = new Socks5UdpChannel("127.0.0.1", socks5Port);
-        if (!await channel.EstablishUdpAssociationAsync(cancellationToken).ConfigureAwait(false))
+        if (!await channel.EstablishUdpAssociationAsync(linkedCt).ConfigureAwait(false))
         {
             throw new Exception("Failed to establish UDP association with SOCKS5 proxy.");
         }
 
         var (targetHost, targetPort) = ParseHostAndPort(targetServerHost);
 
-        byte[] udpReceiveResult = null;
+        byte[]? validUdpReceiveResult = null;
 
         // Get minimum round trip time from two attempts
         var roundTripTime = TimeSpan.MaxValue;
@@ -116,17 +119,25 @@ public class UdpTestService
             {
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
-                await channel.SendAsync(targetHost, targetPort, udpRequestPacket).ConfigureAwait(false);
-                var (_, receiveResult) = await channel.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                await channel.SendAsync(targetHost, targetPort, udpRequestPacket, linkedCt).ConfigureAwait(false);
+                var (_, receiveResult) = await channel.ReceiveAsync(linkedCt).ConfigureAwait(false);
                 stopwatch.Stop();
 
-                udpReceiveResult = receiveResult;
+                if (!_udpTest.VerifyAndExtractUdpResponse(receiveResult))
+                {
+                    continue;
+                }
+                validUdpReceiveResult = receiveResult;
 
                 var currentRoundTripTime = stopwatch.Elapsed;
                 if (currentRoundTripTime < roundTripTime)
                 {
                     roundTripTime = currentRoundTripTime;
                 }
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -137,18 +148,10 @@ public class UdpTestService
             }
         }
 
-        if ((udpReceiveResult?.Length ?? 0) < 4 + 1 + 4 + 2)
-        {
-            throw new Exception("Received NTP response is too short.");
-        }
-
-        if (udpReceiveResult != null && _udpTest.VerifyAndExtractUdpResponse(udpReceiveResult))
+        if (validUdpReceiveResult != null)
         {
             return roundTripTime;
         }
-        else
-        {
-            throw new Exception("Failed to verify and extract UDP response.");
-        }
+        throw new Exception("Failed to verify and extract UDP response.");
     }
 }

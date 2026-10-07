@@ -61,24 +61,22 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
             SelectFinish();
         });
 
-        this.WhenAnyValue(
-            x => x.SelectedSub,
-            y => y != null && !y.Remarks.IsNullOrEmpty() && _subIndexId != y.Id)
-                .Subscribe(async c => await SubSelectedChangedAsync(c));
+        this.WhenAnyValue(x => x.SelectedSub)
+            .Where(y => y != null && !y.Remarks.IsNullOrEmpty() && _subIndexId != y.Id)
+            .SubscribeAsync(async _ => await SubSelectedChangedAsync());
 
-        this.WhenAnyValue(
-          x => x.ServerFilter,
-          y => y != null && _serverFilter != y)
-              .Subscribe(async c => await ServerFilterChanged(c));
+        this.WhenAnyValue(x => x.ServerFilter)
+            .Where(y => y != null && _serverFilter != y)
+            .SubscribeAsync(async _ => await ServerFilterChanged());
 
         // React to ConfigType filter changes
         this.WhenAnyValue(x => x.FilterExclude)
             .Skip(1)
-            .Subscribe(async _ => await RefreshServersBiz());
+            .SubscribeAsync(async _ => await RefreshServers());
 
         this.WhenAnyValue(x => x.FilterConfigTypes)
             .Skip(1)
-            .Subscribe(async _ => await RefreshServersBiz());
+            .SubscribeAsync(async _ => await RefreshServers());
 
         #endregion WhenAnyValue && ReactiveCommand
 
@@ -128,12 +126,8 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
 
     #region Servers && Groups
 
-    private async Task SubSelectedChangedAsync(bool c)
+    private async Task SubSelectedChangedAsync()
     {
-        if (!c)
-        {
-            return;
-        }
         _subIndexId = SelectedSub?.Id;
 
         await RefreshServers();
@@ -141,12 +135,8 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
         await ProfilesFocusInteraction.HandleSafe(RxVoid.Default);
     }
 
-    private async Task ServerFilterChanged(bool c)
+    private async Task ServerFilterChanged()
     {
-        if (!c)
-        {
-            return;
-        }
         _serverFilter = ServerFilter;
         if (_serverFilter.IsNullOrEmpty())
         {
@@ -156,15 +146,20 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
 
     public async Task RefreshServers()
     {
-        await RefreshServersBiz();
+        await Signal.FromAsync(async () =>
+        {
+            await RefreshServersBiz();
+            return RxVoid.Default;
+        })
+           .SubscribeOn(RxSchedulers.MainThreadScheduler)
+           .ToTask();
     }
 
     private async Task RefreshServersBiz()
     {
         var lstModel = await GetProfileItemsEx(_subIndexId, _serverFilter);
 
-        ProfileItems.Clear();
-        ProfileItems.AddRange(lstModel);
+        ProfileItems.ReplaceRange(lstModel);
         if (lstModel.Count > 0)
         {
             var selected = lstModel.FirstOrDefault(t => t.IndexId == _config.IndexId);
@@ -177,8 +172,7 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
         var subItems = await AppManager.Instance.SubItems();
         subItems.Insert(0, new SubItem { Remarks = ResUI.AllGroupServers });
 
-        SubItems.Clear();
-        SubItems.AddRange(subItems);
+        SubItems.ReplaceRange(subItems);
 
         SelectedSub = (_config.SubIndexId.IsNotEmpty()
                         ? subItems.FirstOrDefault(t => t.Id == _config.SubIndexId)
@@ -188,7 +182,10 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
     private async Task<List<ProfileItemModel>?> GetProfileItemsEx(string subid, string filter)
     {
         var lstModel = await AppManager.Instance.ProfileModels(_subIndexId, filter);
+        var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
         lstModel = (from t in lstModel
+                    join t3 in lstProfileExs on t.IndexId equals t3.IndexId into t3b
+                    from t33 in t3b.DefaultIfEmpty()
                     select new ProfileItemModel
                     {
                         IndexId = t.IndexId,
@@ -202,6 +199,12 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
                         Subid = t.Subid,
                         SubRemarks = t.SubRemarks,
                         IsActive = t.IndexId == _config.IndexId,
+                        Sort = t33?.Sort ?? 0,
+                        Delay = t33?.Delay ?? 0,
+                        Speed = t33?.Speed ?? 0,
+                        DelayVal = t33?.Delay != 0 ? $"{t33?.Delay}" : string.Empty,
+                        SpeedVal = t33?.Speed > 0 ? $"{t33?.Speed}" : t33?.Message ?? string.Empty,
+                        IpInfo = t33?.IpInfo ?? string.Empty,
                     }).OrderBy(t => t.Sort).ToList();
 
         // Apply ConfigType filter (include or exclude)
@@ -298,8 +301,7 @@ public partial class ProfilesSelectViewModel : MyReactiveObject, ICloseable
             : ProfileItems.OrderByDescending(KeySelector, comparer);
 
         var list = sorted.ToList();
-        ProfileItems.Clear();
-        ProfileItems.AddRange(list);
+        ProfileItems.ReplaceRange(list);
 
         _dicHeaderSort[colName] = !asc;
 

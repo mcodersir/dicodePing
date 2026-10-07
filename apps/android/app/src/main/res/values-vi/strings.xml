@@ -101,8 +101,8 @@
     <string name="server_lab_reserved">Reserved (không bắt buộc, phân cách bằng dấu phẩy)</string>
     <string name="server_lab_local_address">Địa chỉ cục bộ (IPv4/IPv6 không bắt buộc, phân cách bằng dấu phẩy)</string>
     <string name="server_lab_local_mtu">MTU (không bắt buộc, mặc định 1420)</string>
-    <string name="server_lab_kcp_mtu">mKCP MTU (không bắt buộc, mặc định của core là 1350)</string>
-    <string name="server_lab_kcp_tti">mKCP TTI (không bắt buộc, mặc định của core là 50)</string>
+    <string name="server_lab_kcp_mtu">mKCP MTU (không bắt buộc, mặc định 1350)</string>
+    <string name="server_lab_kcp_tti">mKCP TTI (không bắt buộc, mặc định 50 ms)</string>
     <string name="toast_success">Thành công!</string>
     <string name="toast_failure">Đã xảy ra lỗi, vui lòng thử lại!</string>
     <string name="toast_none_data">Không có gì ở đây!</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">Chế độ XHTTP</string>
     <string name="server_lab_xhttp_extra">JSON thô của XHTTP Extra, định dạng: { XHTTPObject }</string>
     <string name="server_lab_final_mask">JSON thô của finalMask, định dạng: { FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">Xác minh chứng chỉ ngang hàng theo tên</string>
     <string name="server_lab_pinned_ca256">Dấu vân tay chứng chỉ (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">Cài đặt VPN</string>
     <string name="title_pref_per_app_proxy">Proxy theo từng ứng dụng</string>
     <string name="summary_pref_per_app_proxy">Thông thường: ứng dụng đã chọn dùng proxy, ứng dụng chưa chọn kết nối trực tiếp;\nChế độ bỏ qua: ứng dụng đã chọn kết nối trực tiếp, ứng dụng chưa chọn dùng proxy.\nTrong trình đơn có tùy chọn tự động chọn các ứng dụng sẽ dùng proxy.</string>
-    <string name="title_pref_is_booted">Tự động kết nối khi khởi động</string>
-    <string name="summary_pref_is_booted">Tự động kết nối với máy chủ đã chọn khi khởi động; thao tác này có thể không thành công</string>
+    <string name="title_pref_is_booted">Kết nối sau khi thiết bị khởi động</string>
+    <string name="summary_pref_is_booted">Tự động kết nối với máy chủ đã chọn sau khi thiết bị khởi động. Android có thể hạn chế khởi chạy trong nền.</string>
+    <string name="title_system_vpn_settings">Cài đặt VPN hệ thống</string>
+    <string name="summary_system_vpn_settings">Mở cài đặt VPN của Android để cấu hình VPN luôn bật, nếu thiết bị này hỗ trợ.</string>
+    <string name="toast_system_vpn_settings_unavailable">Không có cài đặt VPN hệ thống.</string>
 
 
     <string name="subscription_updater_job_tips">Tác vụ sẽ chạy trong nền và thông tin tiến độ sẽ hiển thị trong thông báo.</string>
@@ -284,6 +288,7 @@
     <string name="title_about">Giới thiệu</string>
     <string name="title_source_code">Mã nguồn</string>
     <string name="title_oss_license">Giấy phép mã nguồn mở</string>
+    <string name="title_translators">Người dịch</string>
     <string name="title_tg_channel">Kênh Telegram</string>
 
     <string name="title_pref_promotion">Ưu đãi</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">Tiêu đề yêu cầu (định dạng JSON)</string>
     <string name="sub_setting_filter">Bộ lọc biểu thức chính quy cho tên ghi chú</string>
+    <string name="sub_setting_override_address">Ghi đè địa chỉ</string>
+    <string name="sub_setting_override_port">Ghi đè cổng</string>
+    <string name="sub_setting_override_tip">Để trống để giữ giá trị từ gói đăng ký</string>
     <string name="sub_setting_enable">Bật cập nhật</string>
     <string name="sub_auto_update">Bật tự động cập nhật</string>
     <string name="sub_allow_insecure_url">Cho phép địa chỉ HTTP không an toàn</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">Proxy đã chọn được thêm trước mỗi cấu hình trong gói đăng ký, làm mắt xích đầu vào của chuỗi proxy cho cấu hình đó.</string>
     <string name="sub_setting_exit_proxy_tip">Proxy đã chọn được thêm sau mỗi cấu hình trong gói đăng ký, làm mắt xích đầu ra của chuỗi proxy cho cấu hình đó.</string>
     <string name="toast_invalid_update_interval">Khoảng thời gian cập nhật không hợp lệ. Giá trị tối thiểu là 15 phút.</string>
+    <string name="toast_invalid_override_port">Cổng ghi đè không hợp lệ. Hãy dùng giá trị từ 1 đến 65535.</string>
     <string name="title_sub_update">Cập nhật gói đăng ký</string>
     <string name="title_ping_all_server">Kiểm tra độ trễ TCP (TCPing)</string>
     <string name="title_real_ping_all_server">Kiểm tra độ trễ thực</string>

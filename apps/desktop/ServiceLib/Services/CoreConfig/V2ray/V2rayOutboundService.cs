@@ -59,6 +59,8 @@ public partial class CoreConfigV2rayService
             return outbound;
         }
         FillOutbound(outbound);
+        // PattN: per-profile targetStrategy, set on the outbound itself (not in sockopt)
+        outbound.targetStrategy = _node.GetTargetStrategy();
         outbound.tag = baseTagName;
         return outbound;
     }
@@ -69,166 +71,85 @@ public partial class CoreConfigV2rayService
         {
             var protocolExtra = _node.GetProtocolExtra();
             var muxEnabled = _node.MuxEnabled ?? false;
+            var outboundSettings = outbound.settings;
             switch (_node.ConfigType)
             {
                 case EConfigType.VMess:
                     {
-                        VnextItem4Ray vnextItem;
-                        if (outbound.settings.vnext.Count <= 0)
-                        {
-                            vnextItem = new VnextItem4Ray();
-                            outbound.settings.vnext.Add(vnextItem);
-                        }
-                        else
-                        {
-                            vnextItem = outbound.settings.vnext.First();
-                        }
-                        vnextItem.address = _node.Address;
-                        vnextItem.port = _node.Port;
-
-                        UsersItem4Ray usersItem;
-                        if (vnextItem.users.Count <= 0)
-                        {
-                            usersItem = new UsersItem4Ray();
-                            vnextItem.users.Add(usersItem);
-                        }
-                        else
-                        {
-                            usersItem = vnextItem.users.First();
-                        }
-
-                        usersItem.id = _node.Password;
-                        usersItem.alterId = int.TryParse(protocolExtra?.AlterId, out var result) ? result : 0;
-                        usersItem.email = Global.UserEMail;
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
+                        outboundSettings.id = _node.Password;
+                        outboundSettings.alterId = int.TryParse(protocolExtra?.AlterId, out var result) ? result : 0;
+                        outboundSettings.email = Global.UserEMail;
                         if (Global.VmessSecurities.Contains(protocolExtra.VmessSecurity))
                         {
-                            usersItem.security = protocolExtra.VmessSecurity;
+                            outboundSettings.security = protocolExtra.VmessSecurity;
                         }
                         else
                         {
-                            usersItem.security = Global.DefaultSecurity;
+                            outboundSettings.security = Global.DefaultSecurity;
                         }
 
                         FillOutboundMux(outbound, muxEnabled, muxEnabled);
-
-                        outbound.settings.servers = null;
                         break;
                     }
                 case EConfigType.Shadowsocks:
                     {
-                        ServersItem4Ray serversItem;
-                        if (outbound.settings.servers.Count <= 0)
-                        {
-                            serversItem = new ServersItem4Ray();
-                            outbound.settings.servers.Add(serversItem);
-                        }
-                        else
-                        {
-                            serversItem = outbound.settings.servers.First();
-                        }
-                        serversItem.address = _node.Address;
-                        serversItem.port = _node.Port;
-                        serversItem.password = _node.Password;
-                        serversItem.method = AppManager.Instance.GetShadowsocksSecurities(_node).Contains(protocolExtra.SsMethod)
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
+                        outboundSettings.password = _node.Password;
+                        outboundSettings.method = AppManager.Instance.GetShadowsocksSecurities(_node).Contains(protocolExtra.SsMethod)
                             ? protocolExtra.SsMethod : "none";
-                        serversItem.uot = protocolExtra.Uot == true ? true : null;
+                        outboundSettings.uot = protocolExtra.Uot == true ? true : null;
 
-                        serversItem.ota = false;
-                        serversItem.level = 1;
+                        outboundSettings.ota = false;
 
                         FillOutboundMux(outbound);
-
-                        outbound.settings.vnext = null;
                         break;
                     }
                 case EConfigType.SOCKS:
                     {
-                        ServersItem4Ray serversItem;
-                        if (outbound.settings.servers.Count <= 0)
-                        {
-                            serversItem = new ServersItem4Ray();
-                            outbound.settings.servers.Add(serversItem);
-                        }
-                        else
-                        {
-                            serversItem = outbound.settings.servers.First();
-                        }
-                        serversItem.address = _node.Address;
-                        serversItem.port = _node.Port;
-                        serversItem.method = null;
-                        serversItem.password = null;
-
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
                         if (_node.Username.IsNotEmpty()
                             && _node.Password.IsNotEmpty())
                         {
-                            SocksUsersItem4Ray socksUsersItem = new()
-                            {
-                                user = _node.Username ?? "",
-                                pass = _node.Password,
-                                level = 1
-                            };
-
-                            serversItem.users = new List<SocksUsersItem4Ray>() { socksUsersItem };
+                            outboundSettings.user = _node.Username;
+                            outboundSettings.pass = _node.Password;
+                            outboundSettings.email = Global.UserEMail;
                         }
 
                         FillOutboundMux(outbound);
-
-                        outbound.settings.vnext = null;
                         break;
                     }
                 case EConfigType.HTTP:
                     {
-                        outbound.settings.address = _node.Address;
-                        outbound.settings.port = _node.Port;
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
 
                         if (protocolExtra.HttpHeaders.IsNotEmpty())
                         {
-                            outbound.settings.headers = JsonUtils.ParseJson(protocolExtra.HttpHeaders);
+                            outboundSettings.headers = JsonUtils.ParseJson(protocolExtra.HttpHeaders);
                         }
 
                         if (_node.Username.IsNotEmpty()
                             && _node.Password.IsNotEmpty())
                         {
-                            outbound.settings.user = _node.Username;
-                            outbound.settings.pass = _node.Password;
-                            outbound.settings.level = 1;
-                            outbound.settings.email = Global.UserEMail;
+                            outboundSettings.user = _node.Username;
+                            outboundSettings.pass = _node.Password;
+                            outboundSettings.email = Global.UserEMail;
                         }
 
                         FillOutboundMux(outbound);
-
-                        outbound.settings.vnext = null;
-                        outbound.settings.servers = null;
                         break;
                     }
                 case EConfigType.VLESS:
                     {
-                        VnextItem4Ray vnextItem;
-                        if (outbound.settings.vnext?.Count <= 0)
-                        {
-                            vnextItem = new VnextItem4Ray();
-                            outbound.settings.vnext.Add(vnextItem);
-                        }
-                        else
-                        {
-                            vnextItem = outbound.settings.vnext.First();
-                        }
-                        vnextItem.address = _node.Address;
-                        vnextItem.port = _node.Port;
-
-                        UsersItem4Ray usersItem;
-                        if (vnextItem.users.Count <= 0)
-                        {
-                            usersItem = new UsersItem4Ray();
-                            vnextItem.users.Add(usersItem);
-                        }
-                        else
-                        {
-                            usersItem = vnextItem.users.First();
-                        }
-                        usersItem.id = _node.Password;
-                        usersItem.email = Global.UserEMail;
-                        usersItem.encryption = protocolExtra.VlessEncryption;
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
+                        outboundSettings.id = _node.Password;
+                        outboundSettings.email = Global.UserEMail;
+                        outboundSettings.encryption = protocolExtra.VlessEncryption;
 
                         if (protocolExtra.Flow.IsNullOrEmpty())
                         {
@@ -236,46 +157,33 @@ public partial class CoreConfigV2rayService
                         }
                         else
                         {
-                            usersItem.flow = protocolExtra.Flow;
+                            outboundSettings.flow = protocolExtra.Flow;
                             FillOutboundMux(outbound, false, muxEnabled);
                         }
-                        outbound.settings.servers = null;
                         break;
                     }
                 case EConfigType.Trojan:
                     {
-                        ServersItem4Ray serversItem;
-                        if (outbound.settings.servers.Count <= 0)
-                        {
-                            serversItem = new ServersItem4Ray();
-                            outbound.settings.servers.Add(serversItem);
-                        }
-                        else
-                        {
-                            serversItem = outbound.settings.servers.First();
-                        }
-                        serversItem.address = _node.Address;
-                        serversItem.port = _node.Port;
-                        serversItem.password = _node.Password;
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
+                        outboundSettings.password = _node.Password;
 
-                        serversItem.ota = false;
-                        serversItem.level = 1;
+                        outboundSettings.ota = false;
 
                         FillOutboundMux(outbound);
-
-                        outbound.settings.vnext = null;
                         break;
                     }
                 case EConfigType.Hysteria2:
                     {
-                        outbound.settings = new()
-                        {
-                            version = 2,
-                            address = _node.Address,
-                            port = _node.Port,
-                            vnext = null,
-                            servers = null,
-                        };
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
+                        outboundSettings.version = 2;
+                        break;
+                    }
+                case EConfigType.MASQUE:
+                    {
+                        outboundSettings.address = _node.Address;
+                        outboundSettings.port = _node.Port;
                         break;
                     }
                 case EConfigType.WireGuard:
@@ -297,11 +205,10 @@ public partial class CoreConfigV2rayService
                             secretKey = _node.Password,
                             reserved = Utils.String2List(protocolExtra.WgReserved)?.Select(s => s.Trim()).Select(int.Parse).ToList(),
                             mtu = protocolExtra.WgMtu > 0 ? protocolExtra.WgMtu : Global.TunMtus.First(),
-                            peers = [peer]
+                            remoteDNS = Utils.String2List(protocolExtra.WgDns)?.Select(s => s.Trim()).ToList(),
+                            peers = [peer],
                         };
                         outbound.settings = setting;
-                        outbound.settings.vnext = null;
-                        outbound.settings.servers = null;
                         break;
                     }
             }
@@ -348,14 +255,26 @@ public partial class CoreConfigV2rayService
     {
         try
         {
+            outbound.streamSettings ??= new();
             var streamSettings = outbound.streamSettings;
             var network = _node.GetNetwork();
             if (_node.ConfigType == EConfigType.Hysteria2)
             {
                 network = "hysteria";
             }
+            else if (_node.ConfigType == EConfigType.MASQUE)
+            {
+                network = "masque";
+            }
             streamSettings.network = network;
+            if (_node.DialMode.IsNotEmpty())
+            {
+                // Only dialMode is set here so sockopt options added later (dialerProxy, domainStrategy, ...) are kept.
+                streamSettings.sockopt ??= new();
+                streamSettings.sockopt.dialMode = _node.DialMode;
+            }
             var transport = _node.GetTransportExtra();
+            var protocolExtra = _node.GetProtocolExtra();
             var host = string.Empty;
             var path = string.Empty;
             var kcpSeed = string.Empty;
@@ -411,6 +330,7 @@ public partial class CoreConfigV2rayService
                 TlsSettings4Ray tlsSettings = new()
                 {
                     alpn = _node.GetAlpn(),
+                    cipherSuites = _node.CipherSuites.IsNullOrEmpty() ? null : _node.CipherSuites,
                     fingerprint = _node.Fingerprint.IsNullOrEmpty() ? _config.CoreBasicItem.DefFingerprint : _node.Fingerprint,
                     echConfigList = _node.EchConfigList.NullIfEmpty(),
                     verifyPeerCertByName = _node.VerifyPeerCertByName.NullIfEmpty(),
@@ -427,6 +347,12 @@ public partial class CoreConfigV2rayService
                 {
                     // For legacy xray compatibility, remove this in the future
                     tlsSettings.echForceQuery = "full";
+                }
+                // PattN: the ECH config query goes through the profile's ECH outbound, which is
+                // appended to the config after every other outbound (AppendEchOutbounds)
+                if (NodeValidator.ValidateEchOutbound(_node, out var echOutbound) == null && echOutbound != null)
+                {
+                    tlsSettings.echSockopt = new Sockopt4Ray { dialerProxy = AddEchOutbound(echOutbound) };
                 }
                 var certs = CertPemManager.ParsePemChain(_node.Cert);
                 if (certs.Count > 0)
@@ -575,7 +501,19 @@ public partial class CoreConfigV2rayService
                     }
                     if (xhttpExtra.IsNotEmpty())
                     {
-                        xhttpSettings.extra = JsonUtils.ParseJson(xhttpExtra);
+                        // A broken "extra" from a subscription must never kill the whole
+                        // config: strip it and let the server connect with plain xhttp.
+                        try
+                        {
+                            if (JsonUtils.ParseJson(xhttpExtra) is JsonObject extraObject)
+                            {
+                                xhttpSettings.extra = extraObject;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logging.SaveLog("Strip invalid xhttp extra", ex);
+                        }
                     }
 
                     streamSettings.xhttpSettings = xhttpSettings;
@@ -599,7 +537,6 @@ public partial class CoreConfigV2rayService
                     break;
 
                 case "hysteria":
-                    var protocolExtra = _node.GetProtocolExtra();
                     var ports = protocolExtra?.Ports;
                     int? upMbps = protocolExtra?.UpMbps is { } su and >= 0
                         ? su
@@ -669,6 +606,32 @@ public partial class CoreConfigV2rayService
                     };
                     hy2Finalmask.udp?.Reverse();
                     streamSettings.finalmask = hy2Finalmask;
+                    break;
+
+                case "masque":
+                    var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    var authValue = $"Basic {Utils.Base64Encode($"{_node.Username}:{_node.Password}")}";
+                    headers.Add("Authorization", authValue);
+                    if (!string.IsNullOrEmpty(protocolExtra?.MasqueHeaders))
+                    {
+                        var userHeaders = Utils.ParseHeaders(protocolExtra.MasqueHeaders)
+                            .GroupBy(x => x.Item1, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(
+                                g => g.Key,
+                                g => string.Join(", ", g.Select(x => x.Item2)),
+                                StringComparer.OrdinalIgnoreCase
+                            );
+                        if (userHeaders.TryGetValue("Authorization", out var userAuthValue))
+                        {
+                            headers["Authorization"] = userAuthValue;
+                        }
+                        headers = userHeaders;
+                    }
+                    streamSettings.masqueSettings = new()
+                    {
+                        path = protocolExtra?.MasquePath.NullIfEmpty(),
+                        headers = headers.Count > 0 ? headers : null,
+                    };
                     break;
 
                 default:
@@ -859,7 +822,12 @@ public partial class CoreConfigV2rayService
 
     private static Outbounds4Ray BuildDnsOutbound()
     {
-        var outbound = new Outbounds4Ray { tag = Global.DnsOutboundTag, protocol = "dns", };
+        var outbound = new Outbounds4Ray
+        {
+            tag = Global.DnsOutboundTag,
+            protocol = "dns",
+            settings = new Outboundsettings4Ray { userLevel = 12 },
+        };
         return outbound;
     }
 
