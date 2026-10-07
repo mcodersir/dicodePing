@@ -22,7 +22,8 @@
     </UserControl.Resources>
     <Grid Background="{DynamicResource DicodePageBackground}">
         <DockPanel>
-            <WrapPanel Margin="12,4" Background="{DynamicResource DicodeSurface}" DockPanel.Dock="Top">
+            <Border Margin="0,0,0,12" Padding="12" Classes="DicodeCard" DockPanel.Dock="Top">
+            <WrapPanel Background="{DynamicResource DicodeSurface}" Orientation="Horizontal">
                 <ListBox
                     x:Name="lstGroup"
                     Margin="{StaticResource MarginLr4}"
@@ -44,11 +45,11 @@
                     </ListBox.ContextMenu>
                 </ListBox>
 
-                <StackPanel Orientation="Horizontal">
+                <WrapPanel Orientation="Horizontal">
                     <Button
                         x:Name="btnEditSub"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
+                        Classes="IconButton"
                         ToolTip.Tip="{x:Static resx:ResUI.menuSubEdit}">
                         <Button.Content>
                             <PathIcon Data="{StaticResource SemiIconEdit}" />
@@ -57,7 +58,7 @@
                     <Button
                         x:Name="btnAddSub"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
+                        Classes="IconButton"
                         ToolTip.Tip="{x:Static resx:ResUI.menuSubAdd}">
                         <Button.Content>
                             <PathIcon Data="{StaticResource SemiIconPlus}" />
@@ -74,7 +75,7 @@
                     <Button
                         x:Name="btnAutofitColumnWidth"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
+                        Classes="IconButton"
                         IsVisible="False"
                         ToolTip.Tip="{x:Static resx:ResUI.menuProfileAutofitColumnWidth}">
                         <Button.Content>
@@ -85,50 +86,48 @@
                     <Button
                         x:Name="btnFastRealPing"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
+                        Classes="DicodeProbeButton"
                         ToolTip.Tip="{x:Static resx:ResUI.menuFastRealPing}">
-                        <Button.Content>
-                            <PathIcon Data="{StaticResource SemiIconBolt}" />
-                        </Button.Content>
+                        <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource SemiIconBolt}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProbeLatency}" /></StackPanel>
                     </Button>
                     <Button
                         x:Name="menuMixedTestServer"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
+                        Classes="DicodeProbeButton"
                         ToolTip.Tip="{x:Static resx:ResUI.menuMixedTestServer}">
-                        <Button.Content>
-                            <PathIcon Data="{StaticResource building_ping}" />
-                        </Button.Content>
+                        <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource building_ping}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProbeSpeed}" /></StackPanel>
                     </Button>
                     <Button
                         x:Name="btnLocationTest"
                         Margin="{StaticResource MarginLr4}"
-                        Classes="IconButton Success"
-                        ToolTip.Tip="آزمایش لوکیشن همهٔ سرورها (بتا)">
-                        <PathIcon Data="{StaticResource globe_location}" />
+                        Classes="DicodeProbeButton"
+                        ToolTip.Tip="{x:Static resx:ResUI.DicodeLocationTestAll}">
+                        <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource globe_location}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProbeLocation}" /></StackPanel>
                     </Button>
-                    <Button x:Name="btnSecurityTest" Margin="4" Classes="IconButton Success"
-                            ToolTip.Tip="آزمایش امنیت همهٔ سرورها (بتا)">
-                        <PathIcon Data="{StaticResource shield_security}" />
+                    <Button x:Name="btnSecurityTest" Margin="4" Classes="DicodeProbeButton"
+                            ToolTip.Tip="{x:Static resx:ResUI.DicodeSecurityTestAll}">
+                        <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource shield_security}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProbeSecurity}" /></StackPanel>
                     </Button>
-                    <Button x:Name="btnSanctionsTest" Margin="4" Classes="IconButton Success"
-                            ToolTip.Tip="آزمایش تحریم همهٔ سرورها (بتا)">
-                        <PathIcon Data="{StaticResource google_g}" />
+                    <Button x:Name="btnSanctionsTest" Margin="4" Classes="DicodeProbeButton"
+                            ToolTip.Tip="{x:Static resx:ResUI.DicodeSanctionsTestAll}">
+                        <StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Data="{StaticResource google_g}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProbeSanctions}" /></StackPanel>
                     </Button>
-                </StackPanel>
+                </WrapPanel>
 
             </WrapPanel>
+            </Border>
             <DataGrid
                 x:Name="lstProfiles"
-                Margin="12,4,12,12"
+                Margin="0,0,0,0"
                 AutoGenerateColumns="False"
-                BorderThickness="1"
+                BorderThickness="0"
+                RowHeight="52"
                 CanUserReorderColumns="True"
                 CanUserResizeColumns="True"
                 Classes.InsetContent="True"
                 FlowDirection="LeftToRight"
                 GridLinesVisibility="Horizontal"
-                HeadersVisibility="All"
+                HeadersVisibility="Column"
                 IsReadOnly="True"
                 ItemsSource="{Binding ProfileItems}">
                 <DataGrid.KeyBindings>
@@ -310,6 +309,7 @@
                                     Margin="{StaticResource MarginLr8}"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center"
+                                    Classes.isLoading="{Binding IsTesting, Mode=OneWay}"
                                     Foreground="{Binding Delay, Converter={StaticResource DelayColorConverter}}"
                                     Text="{Binding Path=DelayVal, Mode=OneWay}" />
                             </DataTemplate>
@@ -334,9 +334,9 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTextColumn Width="2*" Binding="{Binding SecurityInfo}" Header="امنیت (بتا)" Tag="SecurityInfo" />
+                    <DataGridTextColumn Width="2*" Binding="{Binding SecurityInfo}" Header="{x:Static resx:ResUI.DicodeSecurityBeta}" Tag="SecurityInfo" />
                     <DataGridTemplateColumn Width="1.3*" SortMemberPath="SanctionsInfo" Tag="SanctionsInfo">
-                        <DataGridTemplateColumn.Header><TextBlock Text="تحریم (بتا)" /></DataGridTemplateColumn.Header>
+                        <DataGridTemplateColumn.Header><TextBlock Text="{x:Static resx:ResUI.DicodeSanctionsBeta}" /></DataGridTemplateColumn.Header>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Margin="8,0" Orientation="Horizontal" Spacing="5">

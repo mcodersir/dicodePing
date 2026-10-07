@@ -8,6 +8,11 @@ namespace v2rayN.Desktop.Views;
 
 public partial class MainWindow : WindowBase<MainWindowViewModel>
 {
+    private async void OpenServerPool(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) await new ServerPoolWindow(ViewModel).ShowDialog(this);
+    }
+
     private static Config _config;
     private readonly SingleReplaceableDisposable _layoutBindingsDisposable = new();
     private readonly WindowNotificationManager? _manager;
@@ -20,6 +25,32 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     {
         InitializeComponent();
 
+        // Sidebar navigation: IsCheckedChanged switches pages, Click also re-shows the
+        // active page so a misclick can never leave the window unresponsive.
+        navHome.IsCheckedChanged += Nav_Checked;
+        navHome.Click += Nav_Click;
+        navProfiles.IsCheckedChanged += Nav_Checked;
+        navProfiles.Click += Nav_Click;
+        navProxies.IsCheckedChanged += Nav_Checked;
+        navProxies.Click += Nav_Click;
+        navSettings.IsCheckedChanged += Nav_Checked;
+        navSettings.Click += Nav_Click;
+        navReports.IsCheckedChanged += Nav_Checked;
+        navReports.Click += Nav_Click;
+        navAbout.IsCheckedChanged += Nav_Checked;
+        navAbout.Click += Nav_Click;
+
+        // Settings page embeds the sanctions editor; give it its own view model.
+        embeddedOptionSetting.Applied += ApplyEmbeddedSettings;
+        embeddedDNSSetting.Applied += ApplyEmbeddedSettings;
+        embeddedDomainFilterSetting.Applied += ApplyEmbeddedSettings;
+        embeddedUpdates.ViewModel = new CheckUpdateViewModel();
+        embeddedBackup.ViewModel = new BackupAndRestoreViewModel();
+        sanctionsSettingsView.DataContext ??= new SanctionsServicesViewModel();
+
+        menuOptionSetting.Click += (_, _) => OpenSettingsTab(0);
+        menuRoutingSetting.Click += (_, _) => OpenSettingsTab(1);
+        menuDNSSetting.Click += (_, _) => OpenSettingsTab(3);
         _config = AppManager.Instance.Config;
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
@@ -60,10 +91,6 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             this.BindCommand(ViewModel, vm => vm.SubUpdateCmd, v => v.menuSubUpdate).DisposeWith(disposables);
 
             //setting
-            this.BindCommand(ViewModel, vm => vm.OptionSettingCmd, v => v.menuOptionSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.RoutingSettingCmd, v => v.menuRoutingSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.DomainFilterSettingCmd, v => v.menuDomainFilterSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.DNSSettingCmd, v => v.menuDNSSetting).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.FullConfigTemplateCmd, v => v.menuFullConfigTemplate).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.GlobalHotkeySettingCmd, v => v.menuGlobalHotkeySetting).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.RebootAsAdminCmd, v => v.menuRebootAsAdmin).DisposeWith(disposables);
@@ -156,6 +183,56 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     }
 
     #region Event
+
+    private void Nav_Checked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string page })
+        {
+            ShowPage(page);
+        }
+    }
+
+    private void Nav_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string page, IsChecked: true })
+        {
+            ShowPage(page);
+        }
+    }
+
+    private void OpenTelegramChannel(object? sender, RoutedEventArgs e)
+    {
+        ProcUtils.ProcessStart("https://t.me/dicodeping");
+    }
+
+    private void ShowPage(string page)
+    {
+        var target = page switch
+        {
+            "profiles" => pageProfiles,
+            "proxies" => pageProxies,
+            "settings" => pageSettings,
+            "reports" => pageReports,
+            "about" => pageAbout,
+            _ => pageHome,
+        };
+
+        pageHome.IsVisible = target == pageHome;
+        pageProfiles.IsVisible = target == pageProfiles;
+        pageProxies.IsVisible = target == pageProxies;
+        pageSettings.IsVisible = target == pageSettings;
+        pageReports.IsVisible = target == pageReports;
+        pageAbout.IsVisible = target == pageAbout;
+
+        // Subtle slide-fade so navigation feels alive without being loud.
+        target.Opacity = 0;
+        target.RenderTransform = Avalonia.Media.Transformation.TransformOperations.Parse("translateY(10px)");
+        Dispatcher.UIThread.Post(() =>
+        {
+            target.Opacity = 1;
+            target.RenderTransform = Avalonia.Media.Transformation.TransformOperations.Parse("translateY(0px)");
+        }, DispatcherPriority.Loaded);
+    }
 
     private void OnProgramStarted(object state, bool timeout)
     {
@@ -379,7 +456,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
                 return;
             }
             await File.WriteAllTextAsync(promptFile, (count + 1).ToString());
-            if (await UI.ShowYesNo("به کانال رسمی دیکد پینگ بپیوندید؟\nhttps://t.me/dicodeping") == ButtonResult.Yes)
+            if (await UI.ShowYesNo(ResUI.DicodeJoinTelegramPrompt) == ButtonResult.Yes)
             {
                 ProcUtils.ProcessStart("https://t.me/dicodeping");
             }
@@ -399,10 +476,43 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
             await ViewModel.StatusBarViewModel.RefreshServersBiz();
-            await ViewModel.UpdateSubscriptionProcess("", false);
+            await DicodePingBootstrap.EnsureDefaultsAsync(_config);
+            var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(item =>
+                string.Equals(item.Url, DicodePingBootstrap.DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
+            if (primary is null)
+            {
+                Logging.SaveLog("DicodePingStartup: official subscription was not provisioned.");
+                return;
+            }
+
+            // Refresh only the authoritative source. Updating every user subscription here made
+            // startup unbounded and could race manual tests or a newly opened pool window.
+            try
+            {
+                await Task.Run(async () => await SubscriptionHandler.UpdateProcess(
+                    _config, primary.Id, false, (_, _) => Task.CompletedTask));
+            }
+            catch (Exception ex)
+            {
+                // Cached official profiles are still useful when GitHub is temporarily blocked.
+                Logging.SaveLog("DicodePingStartup.Subscription", ex);
+            }
+
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping);
+            var officialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
+            if (officialProfiles.Count == 0) return;
+
+            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, officialProfiles);
+            var reachableIds = (await ProfileExManager.Instance.GetProfileExs())
+                .Where(item => item.Delay > 0)
+                .Select(item => item.IndexId)
+                .ToHashSet(StringComparer.Ordinal);
+            var reachableProfiles = officialProfiles.Where(item => reachableIds.Contains(item.IndexId)).ToList();
+            if (reachableProfiles.Count > 0)
+            {
+                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.Location, reachableProfiles);
+            }
         }
         catch (Exception ex)
         {
@@ -426,6 +536,8 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         _layoutBindingsDisposable.Create(currentLayoutDisposables);
 
         this.OneWayBind(ViewModel, vm => vm.ProfilesViewModel, v => v.tabProfiles.Content).DisposeWith(currentLayoutDisposables);
+        this.OneWayBind(ViewModel, vm => vm.ClashProxiesViewModel, v => v.tabProxies.Content).DisposeWith(currentLayoutDisposables);
+        this.OneWayBind(ViewModel, vm => vm.MsgViewModel, v => v.tabReports.Content).DisposeWith(currentLayoutDisposables);
     }
 
     private void MenuItem_Click(object? sender, RoutedEventArgs e)
@@ -437,4 +549,15 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     }
 
     #endregion UI
+    private void OpenSettingsTab(int index)
+    {
+        navSettings.IsChecked = true;
+        settingsTabs.SelectedIndex = index;
+    }
+
+    private async void ApplyEmbeddedSettings(object? sender, EventArgs args)
+    {
+        try { if (ViewModel != null) await ViewModel.Reload(); }
+        catch (Exception error) { Logging.SaveLog("ApplyEmbeddedSettings", error); NoticeManager.Instance.Enqueue(error.Message); }
+    }
 }

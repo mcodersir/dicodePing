@@ -5,12 +5,26 @@ public class ProcessService : IDisposable
     private readonly Process _process;
     private readonly Func<bool, string, Task>? _updateFunc;
     private bool _isDisposed;
+    private readonly Queue<string> _recentOutput = new();
+    private readonly object _outputLock = new();
 
     public int Id => _process.Id;
     public IntPtr Handle => _process.Handle;
     public bool HasExited => _process.HasExited;
     public bool StopRequested { get; private set; }
     public event Action<int>? Exited;
+
+    /// <summary>Last captured output lines (oldest first) for failure diagnostics.</summary>
+    public string RecentOutput
+    {
+        get
+        {
+            lock (_outputLock)
+            {
+                return string.Join(Environment.NewLine, _recentOutput);
+            }
+        }
+    }
 
     public ProcessService(
         string fileName,
@@ -139,6 +153,17 @@ public class ProcessService : IDisposable
         {
             if (e.Data.IsNotEmpty())
             {
+                lock (_outputLock)
+                {
+                    _recentOutput.Enqueue(e.Data);
+                    while (_recentOutput.Count > 20)
+                    {
+                        _recentOutput.Dequeue();
+                    }
+                }
+                // Persist every core line: the gui log is what "لطفاً گزارش را ببینید"
+                // points at, so it must contain the core's own diagnostics too.
+                Logging.SaveLog("Core: " + e.Data);
                 _ = _updateFunc?.Invoke(false, e.Data + Environment.NewLine);
             }
         }

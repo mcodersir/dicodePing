@@ -1,110 +1,52 @@
-<?xml version="1.0" encoding="utf-8"?>
-<root>
-  <!--
-    Microsoft ResX Schema
+<?xml version='1.0' encoding='utf-8'?>
+<root xmlns:ns1="urn:schemas-microsoft-com:xml-msdata" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
-    Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
-    associated with the data types.
-
-    Example:
-
-    ... ado.net/XML headers & schema ...
-    <resheader name="resmimetype">text/microsoft-resx</resheader>
-    <resheader name="version">2.0</resheader>
-    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
-    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
-    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-        <value>[base64 mime encoded serialized .NET Framework object]</value>
-    </data>
-    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-        <comment>This is a comment</comment>
-    </data>
-
-    There are any number of "resheader" rows that contain simple
-    name/value pairs.
-
-    Each data row contains a name, and value. The row also contains a
-    type or mimetype. Type corresponds to a .NET class that support
-    text/value conversion through the TypeConverter architecture.
-    Classes that don't support this are serialized and stored with the
-    mimetype set.
-
-    The mimetype is used for serialized objects, and tells the
-    ResXResourceReader how to depersist the object. This is currently not
-    extensible. For a given mimetype the value must be set accordingly:
-
-    Note - application/x-microsoft.net.object.binary.base64 is the format
-    that the ResXResourceWriter will generate, however the reader can
-    read any of the formats listed below.
-
-    mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with
-            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with
-            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array
-            : using a System.ComponentModel.TypeConverter
-            : and then encoded with base64 encoding.
-    -->
-  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
-    <xsd:element name="root" msdata:IsDataSet="true">
-      <xsd:complexType>
-        <xsd:choice maxOccurs="unbounded">
-          <xsd:element name="metadata">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" />
-              </xsd:sequence>
-              <xsd:attribute name="name" use="required" type="xsd:string" />
-              <xsd:attribute name="type" type="xsd:string" />
-              <xsd:attribute name="mimetype" type="xsd:string" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="assembly">
-            <xsd:complexType>
-              <xsd:attribute name="alias" type="xsd:string" />
-              <xsd:attribute name="name" type="xsd:string" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="data">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
-              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
-              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="resheader">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" />
-            </xsd:complexType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:complexType>
-    </xsd:element>
-  </xsd:schema>
+  <xs:schema id="root">
+    <xs:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xs:element name="root" ns1:IsDataSet="true">
+      <xs:complexType>
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="metadata">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" />
+              </xs:sequence>
+              <xs:attribute name="name" use="required" type="xsd:string" />
+              <xs:attribute name="type" type="xsd:string" />
+              <xs:attribute name="mimetype" type="xsd:string" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="assembly">
+            <xs:complexType>
+              <xs:attribute name="alias" type="xsd:string" />
+              <xs:attribute name="name" type="xsd:string" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="data">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+                <xs:element name="comment" type="xsd:string" minOccurs="0" ns1:Ordinal="2" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" ns1:Ordinal="1" />
+              <xs:attribute name="type" type="xsd:string" ns1:Ordinal="3" />
+              <xs:attribute name="mimetype" type="xsd:string" ns1:Ordinal="4" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="resheader">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" />
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+    </xs:element>
+  </xs:schema>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -1860,4 +1802,328 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>Custom config core</value>
   </data>
+
+  <data name="DicodeHome" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="DicodeProfiles" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="DicodeProxies" xml:space="preserve">
+    <value>Proxies</value>
+  </data>
+  <data name="DicodeSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="DicodeReports" xml:space="preserve">
+    <value>Reports</value>
+  </data>
+  <data name="DicodeAbout" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="DicodeServerPool" xml:space="preserve">
+    <value>Server pool</value>
+  </data>
+  <data name="DicodeDomainFilter" xml:space="preserve">
+    <value>Domain filter</value>
+  </data>
+  <data name="DicodeCheckUpdates" xml:space="preserve">
+    <value>Update DicodePing and cores</value>
+  </data>
+  <data name="DicodeAppSubtitle" xml:space="preserve">
+    <value>TUN-only secure routing for desktop and Android</value>
+  </data>
+  <data name="DicodeHomeTitle" xml:space="preserve">
+    <value>Connection center</value>
+  </data>
+  <data name="DicodeHomeSubtitle" xml:space="preserve">
+    <value>Choose a route, test it, then connect with one calm control.</value>
+  </data>
+  <data name="DicodeProfilesTitle" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="DicodeProfilesSubtitle" xml:space="preserve">
+    <value>Subscriptions and routes are kept separate so user profiles stay safe.</value>
+  </data>
+  <data name="DicodeProxiesTitle" xml:space="preserve">
+    <value>Proxies</value>
+  </data>
+  <data name="DicodeProxiesSubtitle" xml:space="preserve">
+    <value>Groups and selectable outbound routes live in their own page.</value>
+  </data>
+  <data name="DicodeSettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="DicodeSettingsSubtitle" xml:space="preserve">
+    <value>Adjust routing, DNS, domain filters, updates and backups from one place.</value>
+  </data>
+  <data name="DicodeAboutTitle" xml:space="preserve">
+    <value>About DicodePing</value>
+  </data>
+  <data name="DicodeAboutText" xml:space="preserve">
+    <value>DicodePing is an independent TUN-only client based on v2rayN and PattNG, focused on safe routing and a clean Persian/English interface.</value>
+  </data>
+  <data name="DicodeQuickActions" xml:space="preserve">
+    <value>Quick actions</value>
+  </data>
+  <data name="DicodeAddProfile" xml:space="preserve">
+    <value>Add profile</value>
+  </data>
+  <data name="DicodeRefresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="DicodeSmartConnect" xml:space="preserve">
+    <value>Smart connect</value>
+  </data>
+  <data name="DicodeBest" xml:space="preserve">
+    <value>Best</value>
+  </data>
+  <data name="DicodeLocationTestAll" xml:space="preserve">
+    <value>Test all server locations (beta)</value>
+  </data>
+  <data name="DicodeSecurityTestAll" xml:space="preserve">
+    <value>Test all server security (beta)</value>
+  </data>
+  <data name="DicodeSanctionsTestAll" xml:space="preserve">
+    <value>Test all sanctions access (beta)</value>
+  </data>
+  <data name="DicodeSecurityBeta" xml:space="preserve">
+    <value>Security (beta)</value>
+  </data>
+  <data name="DicodeSanctionsBeta" xml:space="preserve">
+    <value>Sanctions (beta)</value>
+  </data>
+  <data name="DicodeJoinTelegramPrompt" xml:space="preserve">
+    <value>Join the official DicodePing channel?
+https://t.me/dicodeping</value>
+  </data>
+  <data name="DicodeDomainFilterDesc" xml:space="preserve">
+    <value>Choose whether TUN should include only the listed domains or bypass them directly.</value>
+  </data>
+  <data name="DicodeDomainFilterOnly" xml:space="preserve">
+    <value>Route only these domains through TUN</value>
+  </data>
+  <data name="DicodeDomainFilterBypass" xml:space="preserve">
+    <value>Bypass TUN for these domains</value>
+  </data>
+  <data name="DicodeDomainFilterWatermark" xml:space="preserve">
+    <value>example.com — one domain per line</value>
+  </data>
+  <data name="DicodeCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DicodeSaveApply" xml:space="preserve">
+    <value>Save and apply</value>
+  </data>
+  <data name="DicodeLocationPanelTitle" xml:space="preserve">
+    <value>Server locations (beta) — run the location test from the globe button.</value>
+  </data>
+  <data name="DicodeEventLog" xml:space="preserve">
+    <value>DicodePing events</value>
+  </data>
+  <data name="DicodeTunConnect" xml:space="preserve">
+    <value>Connect TUN</value>
+  </data>
+  <data name="DicodeTunConnected" xml:space="preserve">
+    <value>Connected; click to disconnect</value>
+  </data>
+  <data name="DicodeTunDisconnected" xml:space="preserve">
+    <value>TUN disconnected</value>
+  </data>
+  <data name="DicodeTunConnectedNotice" xml:space="preserve">
+    <value>TUN connection established</value>
+  </data>
+  <data name="DicodeTunFailedNotice" xml:space="preserve">
+    <value>TUN connection failed; check the log for details</value>
+  </data>
+  <data name="DicodeConnectingSelected" xml:space="preserve">
+    <value>Connecting to the selected route...</value>
+  </data>
+  <data name="DicodeSmartTesting" xml:space="preserve">
+    <value>Testing real routes for smart connect...</value>
+  </data>
+  <data name="DicodeBestRouteConnecting" xml:space="preserve">
+    <value>Best route selected; connecting...</value>
+  </data>
+  <data name="DicodeTestAlreadyRunning" xml:space="preserve">
+    <value>A test is already running; try again after it finishes</value>
+  </data>
+  <data name="DicodeSecurityHighRiskInsecure" xml:space="preserve">
+    <value>High risk · certificate verification disabled</value>
+  </data>
+  <data name="DicodeSecuritySecure" xml:space="preserve">
+    <value>Secure · {0}</value>
+  </data>
+  <data name="DicodeSecurityHighRiskPlain" xml:space="preserve">
+    <value>High risk · no encryption</value>
+  </data>
+  <data name="DicodeSecurityMediumNoTls" xml:space="preserve">
+    <value>Medium · no TLS</value>
+  </data>
+  <data name="DicodeSecurityDone" xml:space="preserve">
+    <value>Security test completed for all server configurations</value>
+  </data>
+  <data name="DicodeChecking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+
+  <data name="DicodeRoute" xml:space="preserve">
+    <value>Route</value>
+  </data>
+  <data name="DicodeTraffic" xml:space="preserve">
+    <value>Traffic</value>
+  </data>
+  <data name="DicodeTrafficTotal" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="DicodePingLabel" xml:space="preserve">
+    <value>Ping</value>
+  </data>
+  <data name="DicodePingFailed" xml:space="preserve">
+    <value>Ping: failed</value>
+  </data>
+  <data name="DicodeNoLocation" xml:space="preserve">
+    <value>No location</value>
+  </data>
+
+  <data name="DicodeSanctionsAccessible" xml:space="preserve">
+    <value>Accessible · {0}/{1}</value>
+  </data>
+  <data name="DicodeSanctionsRestricted" xml:space="preserve">
+    <value>Restricted · {0}/{1}</value>
+  </data>
+
+  <data name="DicodeDomainList" xml:space="preserve">
+    <value>Domain list</value>
+  </data>
+  <data name="DicodeDomainFilterOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="DicodeDomainFilterBypassMode" xml:space="preserve">
+    <value>Bypass listed domains directly</value>
+  </data>
+  <data name="DicodeDomainFilterOnlyMode" xml:space="preserve">
+    <value>Use VPN only for listed domains</value>
+  </data>
+
+  <data name="DicodeGeoFileReady" xml:space="preserve">
+    <value>GeoFile is ready to download the latest official data</value>
+  </data>
+<data name="DicodePoolReady" xml:space="preserve"><value>Ready to collect</value></data><data name="DicodePoolPipeline" xml:space="preserve"><value>Active route -&gt; default subscription fallback -&gt; channels -&gt; test -&gt; save</value></data><data name="DicodePoolRequirement" xml:space="preserve"><value>Every response must be valid and no slower than 900 ms.</value></data><data name="DicodePoolFollowLog" xml:space="preserve"><value>Follow log</value></data><data name="DicodePoolStart" xml:space="preserve"><value>Start collection</value></data><data name="DicodePoolStop" xml:space="preserve"><value>Stop</value></data><data name="DicodePoolCopyLog" xml:space="preserve"><value>Copy log</value></data><data name="DicodePoolClearLog" xml:space="preserve"><value>Clear log</value></data><data name="DicodePoolTarget" xml:space="preserve"><value>Target successful servers</value></data><data name="DicodePoolRounds" xml:space="preserve"><value>Test rounds per server</value></data><data name="DicodePoolLiveLog" xml:space="preserve"><value>Live log</value></data><data name="DicodePoolSavedServers" xml:space="preserve"><value>Saved servers</value></data><data name="DicodePoolRunning" xml:space="preserve"><value>Running...</value></data><data name="DicodePoolStopSaving" xml:space="preserve"><value>Stopping gracefully; completed successful servers will be saved...</value></data><data name="DicodePoolStopping" xml:space="preserve"><value>Stopping collection...</value></data><data name="DicodePoolNewRun" xml:space="preserve"><value>New run · {0} · target {1} servers · {2} rounds</value></data><data name="DicodePoolStopped" xml:space="preserve"><value>Stopped</value></data><data name="DicodePoolStoppedKeepPrev" xml:space="preserve"><value>The operation stopped before a successful result completed; the previous pool was kept.</value></data><data name="DicodePoolRunAgain" xml:space="preserve"><value>Run again</value></data><data name="DicodePoolError" xml:space="preserve"><value>Error</value></data><data name="DicodePoolCountsCollecting" xml:space="preserve"><value>{0}/{1} · candidates: {2} · errors: {3}</value></data><data name="DicodePoolCountsTest" xml:space="preserve"><value>{0}/{1} · passed: {2} · failed: {3}</value></data><data name="DicodePoolStageActiveRoute" xml:space="preserve"><value>Active route</value></data><data name="DicodePoolStagePool" xml:space="preserve"><value>Pool</value></data><data name="DicodePoolStageDefaultSub" xml:space="preserve"><value>Default subscription</value></data><data name="DicodePoolStageConnection" xml:space="preserve"><value>Connection</value></data><data name="DicodePoolStageChannels" xml:space="preserve"><value>Channels</value></data><data name="DicodePoolStageCollecting" xml:space="preserve"><value>Collecting</value></data><data name="DicodePoolStageTest" xml:space="preserve"><value>Test</value></data><data name="DicodePoolStageSave" xml:space="preserve"><value>Save</value></data><data name="DicodePoolStageStopped" xml:space="preserve"><value>Stopped</value></data><data name="DicodePoolStageDone" xml:space="preserve"><value>Done</value></data><data name="DicodePoolActiveConnection" xml:space="preserve"><value>Active DicodePing connection</value></data><data name="DicodePoolDirectRoute" xml:space="preserve"><value>Direct system route or another VPN</value></data><data name="DicodePoolFallbackRoute" xml:space="preserve"><value>Default subscription fallback route</value></data><data name="DicodePoolNoPublicPage" xml:space="preserve"><value>Public message page was not received</value></data><data name="DicodePoolSubCreateFailed" xml:space="preserve"><value>Failed to create the Server Pool subscription.</value></data><data name="DicodePoolCheckingRoute" xml:space="preserve"><value>Checking {0} without changing the current connection...</value></data><data name="DicodePoolChannelListUnavailable" xml:space="preserve"><value>Channel list is unavailable</value></data><data name="DicodePoolTelegramUnavailable" xml:space="preserve"><value>Telegram preview is unavailable</value></data><data name="DicodePoolRouteUsable" xml:space="preserve"><value>{0} is usable; the user connection will not be changed.</value></data><data name="DicodePoolRouteNotUsable" xml:space="preserve"><value>{0} was not usable for both GitHub and Telegram sources.</value></data><data name="DicodePoolAnotherRunning" xml:space="preserve"><value>Another collection is already running.</value></data><data name="DicodePoolSubReady" xml:space="preserve"><value>Independent subscription {0} is ready.</value></data><data name="DicodePoolNoTelegramRoute" xml:space="preserve"><value>No active route for Telegram was found; testing the default subscription...</value></data><data name="DicodePoolSubNoResults" xml:space="preserve"><value>Subscription update returned no results; testing the existing cache.</value></data><data name="DicodePoolSubUnavailable" xml:space="preserve"><value>Subscription update was unavailable ({0}); testing the existing cache.</value></data><data name="DicodePoolNoHealthyConfig" xml:space="preserve"><value>No active route or healthy config was found in the default subscription cache; try again.</value></data><data name="DicodePoolFallbackStarting" xml:space="preserve"><value>Starting fallback connection to the best default-subscription route · {0} ms</value></data><data name="DicodePoolFallbackStillBlocked" xml:space="preserve"><value>Fallback connected, but GitHub and Telegram are still unreachable through it.</value></data><data name="DicodePoolChannelsReady" xml:space="preserve"><value>{0} channels from {1} are ready.</value></data><data name="DicodePoolUniqueConfigs" xml:space="preserve"><value>Unique configs: {0}</value></data><data name="DicodePoolNoConfigs" xml:space="preserve"><value>No V2Ray config was extracted from reachable messages; testing did not start. Check channel details in the log; the previous pool was kept.</value></data><data name="DicodePoolTestStart" xml:space="preserve"><value>{0} testable configs · target {1} successful servers · {2} concurrent real-test rounds</value></data><data name="DicodePoolNoQualified" xml:space="preserve"><value>No qualified config was found; the previous pool was kept.</value></data><data name="DicodePoolSavingStopped" xml:space="preserve"><value>Stopped; saving {0} completed successful servers...</value></data><data name="DicodePoolSaving" xml:space="preserve"><value>Saving {0} verified configs...</value></data><data name="DicodePoolStoppedSaved" xml:space="preserve"><value>Testing was stopped by request and {0} successful servers were saved to the pool.</value></data><data name="DicodePoolSaved" xml:space="preserve"><value>{0} healthy configs were saved to the pool.</value></data><data name="DicodePoolCoreNotReady" xml:space="preserve"><value>This batch core did not become ready; isolating the incompatible config...</value></data><data name="DicodePoolIncompatibleRejected" xml:space="preserve"><value>A core-incompatible config was rejected; other servers will continue testing.</value></data><data name="DicodePoolCoreExited" xml:space="preserve"><value>The config core exited before testing, so the server was rejected.</value></data><data name="DicodePoolTestPortNotReady" xml:space="preserve"><value>Server {0} · test-core port was not ready</value></data><data name="DicodePoolServerRound" xml:space="preserve"><value>Server {0} · round {1}/{2}: {3}</value></data><data name="DicodePoolFailed" xml:space="preserve"><value>failed</value></data><data name="DicodePoolServerResponses" xml:space="preserve"><value>Server {0} · responses: {1} · {2}</value></data><data name="DicodePoolAccepted" xml:space="preserve"><value>accepted</value></data><data name="DicodePoolRejected" xml:space="preserve"><value>rejected</value></data><data name="DicodePoolRealTestPassed" xml:space="preserve"><value>Real route test · passed {0}/{1}</value></data><data name="DicodePoolRealTest" xml:space="preserve"><value>Real route test</value></data><data name="DicodePoolLocalPortNotReady" xml:space="preserve"><value>The local core port was not ready; check the connection log.</value></data><data name="DicodePoolTimeout" xml:space="preserve"><value>Response timeout</value></data><data name="DicodePoolNetworkError" xml:space="preserve"><value>Network, DNS or TLS error</value></data><data name="DicodePoolInvalidList" xml:space="preserve"><value>Invalid list</value></data><data name="DicodePoolChannelsReceived" xml:space="preserve"><value>Received {0} channels.</value></data><data name="DicodePoolFetchAttempt" xml:space="preserve"><value>Fetch from {0} · attempt {1}/2: {2}</value></data><data name="DicodePoolPortReadyFetchFail" xml:space="preserve"><value>The connection port is ready, but fetching the channel list from GitHub failed. Try again; this does not mean the VPN is disconnected.</value></data><data name="DicodeReportsTitle" xml:space="preserve"><value>Reports</value></data><data name="DicodeReportsSubtitle" xml:space="preserve"><value>Live app events, connection log and diagnostics.</value></data><data name="DicodeSanctionsServices" xml:space="preserve"><value>Sanctions check services</value></data><data name="DicodeSanctionsServicesDesc" xml:space="preserve"><value>Manage the services probed by the sanctions reachability test. Strict services gate the final verdict; unchecked services are skipped.</value></data><data name="DicodeSanctionsAddService" xml:space="preserve"><value>Add service</value></data><data name="DicodeSanctionsResetDefaults" xml:space="preserve"><value>Restore defaults</value></data><data name="DicodeSanctionsEnableAll" xml:space="preserve"><value>Enable all</value></data><data name="DicodeSanctionsSearch" xml:space="preserve"><value>Search services...</value></data><data name="DicodeSettingsTabGeneral" xml:space="preserve"><value>General</value></data><data name="DicodeSettingsTabSanctions" xml:space="preserve"><value>Sanctions check</value></data><data name="DicodeJoinTelegram" xml:space="preserve"><value>Join Telegram channel</value></data><data name="menuCheckAndUpdate" xml:space="preserve">
+    <value>Check and Update</value>
+  </data>
+
+<data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+
+<data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+
+<data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
+
+<data name="TbSettingsEnableUpdateViaProxy" xml:space="preserve">
+    <value>Update via proxy</value>
+  </data>
+
+<data name="LvOverrideAddress" xml:space="preserve">
+    <value>Override address</value>
+  </data>
+
+<data name="LvOverridePort" xml:space="preserve">
+    <value>Override port</value>
+  </data>
+
+<data name="TipOverrideAddress" xml:space="preserve">
+    <value>Leave empty to keep the address from the subscription</value>
+  </data>
+
+<data name="TipOverridePort" xml:space="preserve">
+    <value>Leave empty to keep the port from the subscription</value>
+  </data>
+
+<data name="TbSettingsMux4RayConcurrency" xml:space="preserve">
+    <value>Xray Mux concurrency</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpConcurrency" xml:space="preserve">
+    <value>Xray Mux XUDP concurrency</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpProxyUDP443" xml:space="preserve">
+    <value>Xray Mux XUDP proxy UDP443</value>
+  </data>
+
+<data name="menuDelaytest" xml:space="preserve">
+    <value>Latency Test</value>
+  </data>
+
+<data name="menuRegionalPresetsChina" xml:space="preserve">
+    <value>China</value>
+  </data>
+
+<data name="TbXrayOnly" xml:space="preserve">
+    <value>Xray Only</value>
+  </data>
+
+<data name="TbBlockAAAAQueries" xml:space="preserve">
+    <value>Block AAAA Queries</value>
+  </data>
+
+<data name="TbBlockAAAAQueriesTips" xml:space="preserve">
+    <value>Block IPv6 queries when enabled</value>
+  </data>
+
+<data name="TbDNS" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+
+<data name="TbSettingsMux4Ray" xml:space="preserve">
+    <value>Xray Mux setting</value>
+  </data>
+
+<data name="LvRequestHeaders" xml:space="preserve">
+    <value>HTTP headers (JSON)</value>
+  </data>
+
+<data name="SubRequestHeadersTips" xml:space="preserve">
+    <value>Optional. Example: {"X-hwid": "my_device"}. Values override default headers for all URLs in this group, including the subscription conversion service.</value>
+  </data>
+
+<data name="SubRequestHeadersInvalid" xml:space="preserve">
+    <value>Invalid HTTP headers. Use a JSON object with unique header names and string values. Header names and values must not contain line breaks.</value>
+  </data>
+
+<data name="TbSortingProcess" xml:space="preserve">
+    <value>Process</value>
+  </data>
+
+<data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+
+<data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>EchOutbound requires EchConfigList</value>
+  </data>
+
+<data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>EchOutbound needs a "tag" that is not empty, not direct or block, and does not start with proxy</value>
+  </data>
+
+<data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>The tag "{0}" of EchOutbound is already used by another outbound</value>
+  </data>
+
+<data name="menuAddMasqueServer" xml:space="preserve">
+    <value>Add [MASQUE]</value>
+  </data>
+
+<data name="DicodeProbeLatency" xml:space="preserve"><value>Ping</value></data>
+<data name="DicodeProbeSpeed" xml:space="preserve"><value>Speed</value></data>
+<data name="DicodeProbeLocation" xml:space="preserve"><value>Location</value></data>
+<data name="DicodeProbeSecurity" xml:space="preserve"><value>Security</value></data>
+<data name="DicodeProbeSanctions" xml:space="preserve"><value>Access</value></data>
 </root>

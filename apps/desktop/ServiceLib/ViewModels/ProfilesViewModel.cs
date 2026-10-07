@@ -17,7 +17,6 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     #region private prop
 
-    private List<ProfileItem> _lstProfile;
     private string _serverFilter = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
     private SpeedtestService? _speedtestService;
@@ -111,7 +110,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     public ProfilesViewModel()
     {
         _config = AppManager.Instance.Config;
-        ConnectionStatusText = "اتصال TUN";
+        ConnectionStatusText = ResUI.DicodeTunConnect;
 
         #region WhenAnyValue && ReactiveCommand
 
@@ -119,26 +118,23 @@ public partial class ProfilesViewModel : MyReactiveObject
            x => x.SelectedProfile,
            selectedSource => selectedSource != null && !selectedSource.IndexId.IsNullOrEmpty());
 
-        this.WhenAnyValue(
-            x => x.SelectedSub,
-            y => y != null && !y.Remarks.IsNullOrEmpty() && _config.SubIndexId != y.Id)
-                .Subscribe(async c => await SubSelectedChangedAsync(c));
-        this.WhenAnyValue(
-             x => x.SelectedMoveToGroup,
-             y => y != null && !y.Remarks.IsNullOrEmpty())
-                 .Subscribe(async c => await MoveToGroup(c));
+        this.WhenAnyValue(x => x.SelectedSub)
+            .Where(y => y != null && !y.Remarks.IsNullOrEmpty() && _config.SubIndexId != y.Id)
+            .SubscribeAsync(async _ => await SubSelectedChangedAsync());
+        this.WhenAnyValue(x => x.SelectedMoveToGroup)
+            .Where(y => y != null && !y.Remarks.IsNullOrEmpty())
+            .SubscribeAsync(async _ => await MoveToGroup());
 
-        this.WhenAnyValue(
-          x => x.ServerFilter,
-          y => y != null && _serverFilter != y)
-              .Subscribe(async c => await ServerFilterChanged(c));
+        this.WhenAnyValue(x => x.ServerFilter)
+            .Where(y => y != null && _serverFilter != y)
+            .SubscribeAsync(async _ => await ServerFilterChanged());
 
         _connectionStateTimer = new Timer(_ =>
         {
             RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
                 IsConnected = CoreManager.Instance.IsRunning;
-                ConnectionStatusText = IsConnected ? "متصل؛ برای قطع کلیک کنید" : "اتصال TUN";
+                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected : ResUI.DicodeTunConnect;
             });
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
@@ -235,15 +231,9 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
                 if (profile is null) continue;
-                model.SecurityInfo = profile.GetAllowInsecure()
-                    ? "پرخطر · تأیید گواهی غیرفعال"
-                    : profile.StreamSecurity.IsNotEmpty()
-                        ? $"ایمن · {profile.StreamSecurity.ToUpperInvariant()}"
-                        : profile.ConfigType is EConfigType.SOCKS or EConfigType.HTTP
-                            ? "پرخطر · بدون رمزنگاری"
-                            : "متوسط · بدون TLS";
+                model.SecurityInfo = ConfigurationSecurityAudit.Describe(profile);
             }
-            NoticeManager.Instance.Enqueue("آزمایش امنیت پیکربندی همهٔ سرورها انجام شد");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
         });
         SanctionsTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -308,7 +298,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         AppEvents.DispatcherStatisticsRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async result => await UpdateStatistics(result));
+            .SubscribeAsync(async result => await UpdateStatistics(result));
 
         #endregion AppEvents
 
@@ -345,6 +335,17 @@ public partial class ProfilesViewModel : MyReactiveObject
                 // Every successful row is already updated and persisted live.
                 // Rebuilding the collection here caused the whole grid to flash.
                 await ProfileExManager.Instance.SaveTo();
+
+                // End the shimmer on every row; rows that never produced a
+                // numeric result fall back to the neutral placeholder.
+                foreach (var pending in ProfileItems.Where(t => t.IsTesting))
+                {
+                    pending.IsTesting = false;
+                    if (pending.DelayVal == ResUI.DicodeChecking)
+                    {
+                        pending.DelayVal = "--";
+                    }
+                }
             }
             return;
         }
@@ -361,6 +362,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.Delay = parsedDelay;
             item.DelayVal = result.Delay ?? string.Empty;
+            item.IsTesting = false;
         }
         if (result.Speed.IsNotEmpty()
             && decimal.TryParse(result.Speed, out var parsedSpeed)
@@ -375,7 +377,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             item.IpInfo = result.IpInfo ?? string.Empty;
         }
-        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != "در حال بررسی…")
+        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != ResUI.DicodeChecking)
         {
             item.SanctionsInfo = result.SanctionsInfo ?? string.Empty;
         }
@@ -412,12 +414,8 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     #region Servers && Groups
 
-    private async Task SubSelectedChangedAsync(bool c)
+    private async Task SubSelectedChangedAsync()
     {
-        if (!c)
-        {
-            return;
-        }
         _config.SubIndexId = SelectedSub?.Id;
 
         await RefreshServers();
@@ -425,12 +423,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ProfilesFocusInteraction.HandleSafe(RxVoid.Default);
     }
 
-    private async Task ServerFilterChanged(bool c)
+    private async Task ServerFilterChanged()
     {
-        if (!c)
-        {
-            return;
-        }
         _serverFilter = ServerFilter;
         if (_serverFilter.IsNullOrEmpty())
         {
@@ -450,7 +444,6 @@ public partial class ProfilesViewModel : MyReactiveObject
     public async Task RefreshServersBiz()
     {
         var lstModel = await GetProfileItemsEx(_config.SubIndexId, _serverFilter);
-        _lstProfile = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(lstModel)) ?? [];
 
         // A background subscription refresh may overlap a test. Prefer the
         // currently visible valid measurements if the DB snapshot is older.
@@ -506,8 +499,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         var subItems = await AppManager.Instance.SubItems();
         subItems.Insert(0, new SubItem { Remarks = ResUI.AllGroupServers });
 
-        SubItems.Clear();
-        SubItems.AddRange(subItems);
+        SubItems.ReplaceRange(subItems);
 
         SelectedSub = (_config.SubIndexId.IsNotEmpty()
                         ? subItems.FirstOrDefault(t => t.Id == _config.SubIndexId)
@@ -761,11 +753,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (SelectedProfile.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("در حال اتصال به مسیر انتخاب‌شده…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
             await SetDefaultServer(SelectedProfile.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -784,7 +776,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         // real-path measurements before selecting when no usable result has been recorded.
         if (!ProfileItems.Any(item => item.Delay > 0))
         {
-            NoticeManager.Instance.Enqueue("در حال آزمایش مسیر واقعی برای اتصال هوشمند…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
             await ServerSpeedtest(ESpeedActionType.FastRealping);
             await RefreshServersBiz();
         }
@@ -804,11 +796,11 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.SaveConfig(_config);
         if (best.IndexId == _config.IndexId)
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
         }
         else
         {
-            NoticeManager.Instance.Enqueue("بهترین مسیر انتخاب شد؛ در حال اتصال…");
+            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
             await SetDefaultServer(best.IndexId);
         }
         ConnectionStartRequested.Publish();
@@ -823,8 +815,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         IsConnected = CoreManager.Instance.IsRunning;
         NoticeManager.Instance.Enqueue(IsConnected
-            ? "اتصال TUN برقرار شد"
-            : "اتصال TUN برقرار نشد؛ جزئیات را در لاگ بررسی کنید");
+            ? ResUI.DicodeTunConnectedNotice
+            : ResUI.DicodeTunFailedNotice);
     }
 
     public async Task ShareServerAsync()
@@ -894,13 +886,8 @@ public partial class ProfilesViewModel : MyReactiveObject
     }
 
     //move server
-    private async Task MoveToGroup(bool c)
+    private async Task MoveToGroup()
     {
-        if (!c)
-        {
-            return;
-        }
-
         var lstSelected = await GetProfileItems(true);
         if (lstSelected == null)
         {
@@ -917,19 +904,15 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task MoveServer(EMove eMove)
     {
-        var item = _lstProfile.FirstOrDefault(t => t.IndexId == SelectedProfile.IndexId);
-        if (item is null)
+        var lstProfile = ProfileItems?.Select(t => t.IndexId).ToList() ?? [];
+        var index = lstProfile.IndexOf(SelectedProfile.IndexId);
+        if (index < 0)
         {
             NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer);
             return;
         }
 
-        var index = _lstProfile.IndexOf(item);
-        if (index < 0)
-        {
-            return;
-        }
-        if (await ConfigHandler.MoveServer(_config, _lstProfile, index, eMove) == 0)
+        if (await ConfigHandler.MoveServer(_config, lstProfile, index, eMove) == 0)
         {
             await RefreshServers();
         }
@@ -940,19 +923,26 @@ public partial class ProfilesViewModel : MyReactiveObject
         var targetIndex = ProfileItems.IndexOf(targetItem);
         if (startIndex >= 0 && targetIndex >= 0 && startIndex != targetIndex)
         {
-            if (await ConfigHandler.MoveServer(_config, _lstProfile, startIndex, EMove.Position, targetIndex) == 0)
+            var lstProfile = ProfileItems?.Select(t => t.IndexId).ToList() ?? [];
+            if (await ConfigHandler.MoveServer(_config, lstProfile, startIndex, EMove.Position, targetIndex) == 0)
             {
                 await RefreshServers();
             }
         }
     }
 
-    public async Task ServerSpeedtest(ESpeedActionType actionType)
+    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
     {
         if (!await _speedtestLock.WaitAsync(0))
         {
-            NoticeManager.Instance.Enqueue("یک آزمایش در حال اجراست؛ پس از پایان دوباره تلاش کنید");
-            return;
+            // A previous test is still running: supersede it instead of refusing
+            // the user's action. The stale loop exits and this new test takes over.
+            ServerSpeedtestStop();
+            if (!await _speedtestLock.WaitAsync(TimeSpan.FromSeconds(30)))
+            {
+                NoticeManager.Instance.Enqueue(ResUI.DicodeTestAlreadyRunning);
+                return;
+            }
         }
 
         try
@@ -961,13 +951,19 @@ public partial class ProfilesViewModel : MyReactiveObject
         try
         {
         List<ProfileItem>? lstSelected;
-        if (actionType is ESpeedActionType.Mixedtest or ESpeedActionType.FastRealping or ESpeedActionType.Location or ESpeedActionType.Sanctions)
+        var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
+        if (actionType == ESpeedActionType.FastRealping)
         {
-            if (actionType == ESpeedActionType.FastRealping)
-            {
-                actionType = ESpeedActionType.Realping;
-            }
-
+            actionType = ESpeedActionType.Realping;
+        }
+        if (targetProfiles is not null)
+        {
+            // Startup checks must be scoped to the official subscription regardless of the
+            // tab the user last viewed. Cloning prevents test preparation from mutating DB rows.
+            lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(targetProfiles));
+        }
+        else if (testAll)
+        {
             lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems?.OrderBy(t => t.Sort)));
         }
         else
@@ -979,6 +975,10 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             return;
         }
+
+        // Wipe stale measurements and switch affected rows to the shimmer
+        // placeholder, so the grid always reflects the freshly started test.
+        await ResetTestVisualStateAsync(lstSelected, actionType);
 
         _speedtestService ??= new SpeedtestService(_config, async (SpeedTestResult result) =>
         {
@@ -1008,6 +1008,34 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             _speedtestLock.Release();
         }
+    }
+
+    private async Task ResetTestVisualStateAsync(List<ProfileItem> selected, ESpeedActionType actionType)
+    {
+        var selectedIds = selected
+            .Where(t => t.IndexId.IsNotEmpty())
+            .Select(t => t.IndexId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        RxSchedulers.MainThreadScheduler.Schedule(() =>
+        {
+            foreach (var item in ProfileItems.Where(t => selectedIds.Contains(t.IndexId)))
+            {
+                item.IsTesting = true;
+                switch (actionType)
+                {
+                    case ESpeedActionType.Location: item.IpInfo = ResUI.DicodeChecking; break;
+                    case ESpeedActionType.Sanctions: item.SanctionsInfo = ResUI.DicodeChecking; break;
+                    case ESpeedActionType.Speedtest: item.SpeedVal = ResUI.DicodeChecking; break;
+                    case ESpeedActionType.Mixedtest:
+                        item.DelayVal = ResUI.DicodeChecking;
+                        item.SpeedVal = ResUI.DicodeChecking;
+                        break;
+                    default: item.DelayVal = ResUI.DicodeChecking; break;
+                }
+            }
+        });
+        await Task.CompletedTask;
     }
 
     public void ServerSpeedtestStop()
@@ -1153,7 +1181,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         if (await AppManager.Instance.WindowDialog.ShowDialogAsync(subEditViewModel) == true)
         {
             await RefreshSubscriptions();
-            await SubSelectedChangedAsync(true);
+            await SubSelectedChangedAsync();
         }
     }
 
@@ -1172,7 +1200,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConfigHandler.DeleteSubItem(_config, item.Id);
 
         await RefreshSubscriptions();
-        await SubSelectedChangedAsync(true);
+        await SubSelectedChangedAsync();
     }
 
     #endregion Subscription

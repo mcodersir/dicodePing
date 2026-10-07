@@ -49,6 +49,13 @@ public partial class ProfileItemModel : ReactiveObject
     [Reactive]
     public partial string TotalDown { get; set; }
 
+    /// <summary>
+    /// True while a latency/location test for this row is in flight; drives
+    /// the shimmer placeholder in the results grid.
+    /// </summary>
+    [Reactive]
+    public partial bool IsTesting { get; set; }
+
     public string GetSummary()
     {
         var summary = $"[{ConfigType}] {Remarks}";

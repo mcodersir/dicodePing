@@ -18,5 +18,7 @@ data class SubscriptionItem(
     var downloadBytes: Long = 0,
     var totalBytes: Long = 0,
     var expireUnix: Long = 0,
+    var overrideAddress: String? = null,
+    var overridePort: Int? = null,
 )
 

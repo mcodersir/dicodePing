@@ -3,7 +3,6 @@ package com.v2ray.ang.ui.subscription
 import android.os.Bundle
 import android.text.TextUtils
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -131,12 +131,14 @@ fun SubEditScreen(
     onSave: (SubscriptionItem) -> Boolean,
     onDelete: () -> Unit
 ) {
-    //val context = LocalContext.current
+    val context = LocalContext.current
     var remarks by rememberSaveable { mutableStateOf(initial.remarks.orEmpty()) }
     var url by rememberSaveable { mutableStateOf(initial.url.orEmpty()) }
     var userAgent by rememberSaveable { mutableStateOf(initial.userAgent.orEmpty()) }
     var requestHeaders by rememberSaveable { mutableStateOf(initial.requestHeaders.orEmpty()) }
     var filter by rememberSaveable { mutableStateOf(initial.filter ?: "") }
+    var overrideAddress by rememberSaveable { mutableStateOf(initial.overrideAddress ?: "") }
+    var overridePort by rememberSaveable { mutableStateOf(initial.overridePort?.toString() ?: "") }
     var enabled by rememberSaveable { mutableStateOf(initial.enabled) }
     var autoUpdate by rememberSaveable { mutableStateOf(initial.autoUpdate) }
     var updateInterval by rememberSaveable { mutableStateOf(initial.updateInterval.toString()) }
@@ -148,7 +150,13 @@ fun SubEditScreen(
     val confirmRemove = MmkvManager.decodeSettingsBool(AppConfig.PREF_CONFIRM_REMOVE, false)
     val scrollState = rememberScrollState()
 
-    fun buildSubItem(): SubscriptionItem {
+    fun buildSubItem(): SubscriptionItem? {
+        val overridePortText = overridePort.trim()
+        val overridePortValue = overridePortText.toIntOrNull()?.takeIf { it in 1..65535 }
+        if (overridePortText.isNotEmpty() && overridePortValue == null) {
+            context.toast(R.string.toast_invalid_override_port)
+            return null
+        }
         val subItem = MmkvManager.decodeSubscription(editSubId) ?: SubscriptionItem()
         subItem.remarks = remarks
         subItem.url = url
@@ -161,6 +169,8 @@ fun SubEditScreen(
         subItem.prevProfile = prevProfile
         subItem.nextProfile = nextProfile
         subItem.allowInsecureUrl = allowInsecureUrl
+        subItem.overrideAddress = overrideAddress.trim().ifEmpty { null }
+        subItem.overridePort = overridePortValue
         return subItem
     }
 
@@ -201,6 +211,19 @@ fun SubEditScreen(
             FormTextField(stringResource(R.string.sub_setting_user_agent), userAgent, { userAgent = it })
             FormTextField(stringResource(R.string.sub_setting_request_headers), requestHeaders, { requestHeaders = it })
             FormTextField(stringResource(R.string.sub_setting_filter), filter, { filter = it })
+            FormTextField(
+                stringResource(R.string.sub_setting_override_address),
+                overrideAddress,
+                { overrideAddress = it },
+                placeholder = stringResource(R.string.sub_setting_override_tip)
+            )
+            FormTextField(
+                stringResource(R.string.sub_setting_override_port),
+                overridePort,
+                { overridePort = it },
+                keyboardType = KeyboardType.Number,
+                placeholder = stringResource(R.string.sub_setting_override_tip)
+            )
             SettingsSwitchItem(
                 title = stringResource(R.string.sub_setting_enable),
                 checked = enabled,

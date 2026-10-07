@@ -300,7 +300,16 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
                     throw new ArgumentException("Type");
             }
 
-            if (curVersion >= version && version != new SemanticVersion(0, 0, 0))
+            if (version == new SemanticVersion(0, 0, 0))
+            {
+                // The remote tag could not be parsed into a comparable version
+                // (alpha/build metadata such as "v1.15.0-alpha.10"). Presenting
+                // that as an available update would only be noise, because the
+                // bundled runtimes already track the latest usable release.
+                return new UpdateResult(false, message);
+            }
+
+            if (curVersion >= version)
             {
                 return new UpdateResult(false, message);
             }

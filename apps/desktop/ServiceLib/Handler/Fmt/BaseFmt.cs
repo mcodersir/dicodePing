@@ -6,6 +6,29 @@ public class BaseFmt
 {
     private static string UrlEncodeSafe(string? value) => Utils.UrlEncode(value ?? string.Empty);
 
+    // PattN: JSON options such as echOutbound travel in share links on one line and are stored
+    // indented, as fm is; text that is not JSON is kept as it is
+    private static readonly JsonSerializerOptions ShareJsonOptions = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
+    private static readonly JsonSerializerOptions StoredJsonOptions = new(ShareJsonOptions) { WriteIndented = true };
+
+    protected static string ToShareJson(string json)
+    {
+        var node = JsonUtils.ParseJson(json);
+        return node != null ? JsonUtils.Serialize(node, ShareJsonOptions) : json;
+    }
+
+    protected static string FromShareJson(string json)
+    {
+        var node = JsonUtils.ParseJson(json);
+        return node != null ? JsonUtils.Serialize(node, StoredJsonOptions) : json;
+    }
+
     protected static string GetIpv6(string address)
     {
         if (Utils.IsIpv6(address))
@@ -65,10 +88,18 @@ public class BaseFmt
             {
                 dicQuery.Add("alpn", Utils.UrlEncode(item.Alpn));
             }
+            if (item.CipherSuites.IsNotEmpty())
+            {
+                dicQuery.Add("cs", Utils.UrlEncode(item.CipherSuites));
+            }
         }
         if (item.EchConfigList.IsNotEmpty())
         {
             dicQuery.Add("ech", Utils.UrlEncode(item.EchConfigList));
+        }
+        if (item.EchOutbound.IsNotEmpty())
+        {
+            dicQuery.Add("echOutbound", Utils.UrlEncode(ToShareJson(item.EchOutbound)));
         }
         if (item.VerifyPeerCertByName.IsNotEmpty())
         {
@@ -90,6 +121,11 @@ public class BaseFmt
                 })
                 : item.Finalmask;
             dicQuery.Add("fm", Utils.UrlEncode(finalmask));
+        }
+
+        if (item.DialMode.IsNotEmpty())
+        {
+            dicQuery.Add("dialMode", Utils.UrlEncode(item.DialMode));
         }
 
         var network = item.GetNetwork();
@@ -192,6 +228,10 @@ public class BaseFmt
         {
             dicQuery.Add("alpn", Utils.UrlEncode(item.Alpn));
         }
+        if (item.DialMode.IsNotEmpty())
+        {
+            dicQuery.Add("dialMode", Utils.UrlEncode(item.DialMode));
+        }
 
         return 0;
     }
@@ -203,14 +243,18 @@ public class BaseFmt
         item.StreamSecurity = GetQueryValue(query, "security");
         item.Sni = GetQueryValue(query, "sni");
         item.Alpn = GetQueryDecoded(query, "alpn");
+        item.CipherSuites = GetQueryDecoded(query, "cs");
         item.Fingerprint = GetQueryDecoded(query, "fp");
         item.PublicKey = GetQueryDecoded(query, "pbk");
         item.ShortId = GetQueryDecoded(query, "sid");
         item.SpiderX = GetQueryDecoded(query, "spx");
         item.Mldsa65Verify = GetQueryDecoded(query, "pqv");
         item.EchConfigList = GetQueryDecoded(query, "ech");
+        var echOutboundDecoded = GetQueryDecoded(query, "echOutbound");
+        item.EchOutbound = echOutboundDecoded.IsNotEmpty() ? FromShareJson(echOutboundDecoded) : string.Empty;
         item.VerifyPeerCertByName = GetQueryDecoded(query, "vcn");
         item.CertSha = GetQueryDecoded(query, "pcs");
+        item.DialMode = GetQueryDecoded(query, "dialMode");
 
         var finalmaskDecoded = GetQueryDecoded(query, "fm");
         if (finalmaskDecoded.IsNotEmpty())
@@ -344,8 +388,13 @@ public class BaseFmt
         return query[key] ?? defaultValue;
     }
 
+    /// <summary>
+    /// Values are already unescaped by <see cref="Utils.ParseQueryString" />, so this must not
+    /// unescape them a second time: a value that still holds a valid percent sequence after the
+    /// first pass - an obfuscation password of "ob%41fs", say - would decay into "obAfs".
+    /// </summary>
     protected static string GetQueryDecoded(NameValueCollection query, string key, string defaultValue = "")
     {
-        return Utils.UrlDecode(GetQueryValue(query, key, defaultValue));
+        return GetQueryValue(query, key, defaultValue);
     }
 }

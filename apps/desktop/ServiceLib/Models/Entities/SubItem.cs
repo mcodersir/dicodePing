@@ -16,6 +16,8 @@ public class SubItem
 
     public string UserAgent { get; set; } = string.Empty;
 
+    public string? RequestHeaders { get; set; }
+
     public int Sort { get; set; }
 
     public string? Filter { get; set; }
@@ -35,6 +37,9 @@ public class SubItem
     public string? Memo { get; set; }
 
     public ECoreType? CustomCoreType { get; set; }
+
+    public string? OverrideAddress { get; set; }
+    public int? OverridePort { get; set; }
 
     public long UploadBytes { get; set; }
     public long DownloadBytes { get; set; }

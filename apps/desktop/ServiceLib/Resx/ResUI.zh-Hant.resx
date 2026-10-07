@@ -1861,4 +1861,112 @@
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>自訂設定核心</value>
   </data>
+<data name="menuCheckAndUpdate" xml:space="preserve">
+    <value>檢查並更新</value>
+  </data>
+
+<data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+
+<data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+
+<data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
+
+<data name="TbSettingsEnableUpdateViaProxy" xml:space="preserve">
+    <value>透過代理更新</value>
+  </data>
+
+<data name="LvOverrideAddress" xml:space="preserve">
+    <value>覆蓋位址</value>
+  </data>
+
+<data name="LvOverridePort" xml:space="preserve">
+    <value>覆蓋連接埠</value>
+  </data>
+
+<data name="TipOverrideAddress" xml:space="preserve">
+    <value>留空則保留訂閱中的位址</value>
+  </data>
+
+<data name="TipOverridePort" xml:space="preserve">
+    <value>留空則保留訂閱中的連接埠</value>
+  </data>
+
+<data name="TbSettingsMux4RayConcurrency" xml:space="preserve">
+    <value>Xray Mux 並行數</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpConcurrency" xml:space="preserve">
+    <value>Xray Mux XUDP 並行數</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpProxyUDP443" xml:space="preserve">
+    <value>Xray Mux XUDP proxy UDP443</value>
+  </data>
+
+<data name="menuDelaytest" xml:space="preserve">
+    <value>延遲測試</value>
+  </data>
+
+<data name="menuRegionalPresetsChina" xml:space="preserve">
+    <value>中國大陸</value>
+  </data>
+
+<data name="TbXrayOnly" xml:space="preserve">
+    <value>僅 Xray</value>
+  </data>
+
+<data name="TbBlockAAAAQueries" xml:space="preserve">
+    <value>封鎖 AAAA 查詢</value>
+  </data>
+
+<data name="TbBlockAAAAQueriesTips" xml:space="preserve">
+    <value>啟用後將封鎖 IPv6 查詢</value>
+  </data>
+
+<data name="TbDNS" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+
+<data name="TbSettingsMux4Ray" xml:space="preserve">
+    <value>Xray Mux 設定</value>
+  </data>
+
+<data name="LvRequestHeaders" xml:space="preserve">
+    <value>HTTP 請求標頭 (JSON)</value>
+  </data>
+
+<data name="SubRequestHeadersTips" xml:space="preserve">
+    <value>可選，範例：{"X-hwid": "my_device"}。自訂值會覆寫預設標頭，套用於本組所有訂閱位址（包括訂閱轉換服務）。</value>
+  </data>
+
+<data name="SubRequestHeadersInvalid" xml:space="preserve">
+    <value>HTTP 請求標頭無效。請使用 JSON 物件，鍵名不能重複，值必須為字串；標頭名稱和值不能包含換行字元。</value>
+  </data>
+
+<data name="TbSortingProcess" xml:space="preserve">
+    <value>行程</value>
+  </data>
+
+<data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+
+<data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>EchOutbound 需要填寫 EchConfigList</value>
+  </data>
+
+<data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>EchOutbound 必須包含非空的 "tag"，不能是 direct 或 block，且不能以 proxy 開頭</value>
+  </data>
+
+<data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>EchOutbound 的 tag "{0}" 已被其他出站使用</value>
+  </data>
+
 </root>

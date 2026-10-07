@@ -1,12 +1,22 @@
 namespace ServiceLib.ViewModels;
 
+/// <summary>One parsed log entry for the Reports page.</summary>
+public class LogItemModel
+{
+    public string Time { get; set; } = string.Empty;
+    public string Level { get; set; } = "MSG";
+    public string Content { get; set; } = string.Empty;
+
+    public bool IsError => Level == "ERROR" || Level == "FATAL";
+    public bool IsWarning => Level == "WARN";
+    public bool IsInfo => Level == "INFO";
+    public bool IsDebug => Level == "DEBUG";
+}
+
 public partial class MsgViewModel : MyReactiveObject
 {
-    public Interaction<string, RxVoid> DispatcherShowMsgInteraction { get; } = new();
-
-    private readonly ConcurrentQueue<string> _queueMsg = new();
-    private volatile bool _lastMsgFilterNotAvailable;
-    private int _showLock = 0; // 0 = unlocked, 1 = locked
+    private readonly List<LogItemModel> _allEntries = [];
+    private int _lastMsgFilterNotAvailable;
     public int NumMaxMsg { get; } = 500;
 
     [Reactive]
@@ -15,28 +25,31 @@ public partial class MsgViewModel : MyReactiveObject
     [Reactive]
     public partial bool AutoRefresh { get; set; }
 
+    public ObservableCollection<LogItemModel> LogItems { get; } = [];
+
     public MsgViewModel()
     {
         _config = AppManager.Instance.Config;
         MsgFilter = _config.MsgUIItem.MainMsgFilter ?? string.Empty;
         AutoRefresh = _config.MsgUIItem.AutoRefresh ?? true;
 
-        this.WhenAnyValue(
-           x => x.MsgFilter)
-               .Subscribe(c => DoMsgFilter());
+        this.WhenAnyValue(x => x.MsgFilter)
+            .Subscribe(_ =>
+            {
+                _config.MsgUIItem.MainMsgFilter = MsgFilter;
+                _lastMsgFilterNotAvailable = 0;
+                RebuildFiltered();
+            });
 
-        this.WhenAnyValue(
-          x => x.AutoRefresh,
-          y => y == true)
-              .Subscribe(c => _config.MsgUIItem.AutoRefresh = AutoRefresh);
+        this.WhenAnyValue(x => x.AutoRefresh, y => y == true)
+            .Subscribe(c => _config.MsgUIItem.AutoRefresh = AutoRefresh);
 
         AppEvents.SendMsgViewRequested
          .AsObservable()
-         //.ObserveOn(RxSchedulers.MainThreadScheduler)
-         .Subscribe(content => _ = AppendQueueMsg(content));
+         .Subscribe(content => AppendContent(content));
 
         // The event stream only contains messages produced after this view model
-        // is created. Seed it from today's persistent file so opening the modal
+        // is created. Seed it from today's persistent file so opening the page
         // always shows useful startup, core and crash diagnostics as well.
         try
         {
@@ -45,16 +58,16 @@ public partial class MsgViewModel : MyReactiveObject
             {
                 using var stream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var reader = new StreamReader(stream, Encoding.UTF8, true);
-                var lines = new Queue<string>(NumMaxMsg);
+                var tail = new Queue<string>(NumMaxMsg * 4);
                 while (reader.ReadLine() is { } line)
                 {
-                    if (lines.Count == NumMaxMsg) lines.Dequeue();
-                    lines.Enqueue(line);
+                    if (tail.Count >= NumMaxMsg * 4)
+                    {
+                        tail.Dequeue();
+                    }
+                    tail.Enqueue(line);
                 }
-                foreach (var line in lines)
-                {
-                    EnqueueQueueMsg(line + Environment.NewLine);
-                }
+                AppendContent(string.Join(Environment.NewLine, tail));
             }
         }
         catch (Exception ex)
@@ -63,107 +76,121 @@ public partial class MsgViewModel : MyReactiveObject
         }
     }
 
-    public void FlushQueueMsg()
+    private void AppendContent(string content)
     {
-        _ = AppendQueueMsg(string.Empty);
+        if (content.IsNullOrEmpty() || AutoRefresh == false)
+        {
+            return;
+        }
+
+        var parsed = ParseEntries(content);
+        if (parsed.Count == 0)
+        {
+            return;
+        }
+
+        lock (_allEntries)
+        {
+            _allEntries.AddRange(parsed);
+            while (_allEntries.Count > NumMaxMsg)
+            {
+                _allEntries.RemoveAt(0);
+            }
+        }
+
+        RxSchedulers.MainThreadScheduler.Schedule(() => InsertParsed(parsed));
     }
 
-    private async Task AppendQueueMsg(string msg)
+    private void InsertParsed(List<LogItemModel> parsed)
     {
-        if (AutoRefresh == false)
+        foreach (var item in parsed)
         {
-            return;
+            if (PassesFilter(item))
+            {
+                LogItems.Add(item);
+            }
         }
-
-        EnqueueQueueMsg(msg);
-
-        if (!AppManager.Instance.ShowInTaskbar)
+        while (LogItems.Count > NumMaxMsg)
         {
-            return;
+            LogItems.RemoveAt(0);
         }
+    }
 
-        if (Interlocked.CompareExchange(ref _showLock, 1, 0) != 0)
+    private void RebuildFiltered()
+    {
+        RxSchedulers.MainThreadScheduler.Schedule(() =>
         {
-            return;
-        }
+            LogItems.Clear();
+            List<LogItemModel> snapshot;
+            lock (_allEntries)
+            {
+                snapshot = [.. _allEntries];
+            }
+            foreach (var item in snapshot)
+            {
+                if (PassesFilter(item))
+                {
+                    LogItems.Add(item);
+                }
+            }
+            while (LogItems.Count > NumMaxMsg)
+            {
+                LogItems.RemoveAt(0);
+            }
+        });
+    }
 
+    private bool PassesFilter(LogItemModel item)
+    {
+        if (MsgFilter.IsNullOrEmpty())
+        {
+            return true;
+        }
         try
         {
-            await Task.Delay(500).ConfigureAwait(false);
-
-            var sb = new StringBuilder();
-            while (_queueMsg.TryDequeue(out var line))
-            {
-                sb.Append(line);
-            }
-
-            if (sb.Length > 0)
-            {
-                try
-                {
-                    await DispatcherShowMsgInteraction.HandleSafe(sb.ToString());
-                }
-                catch (Exception)
-                {
-                    _queueMsg.Enqueue(sb.ToString());
-                }
-            }
+            return Regex.IsMatch($"{item.Time} {item.Level} {item.Content}", MsgFilter);
         }
-        finally
+        catch
         {
-            Interlocked.Exchange(ref _showLock, 0);
+            return true;
         }
     }
 
-    private void EnqueueQueueMsg(string msg)
+    private static List<LogItemModel> ParseEntries(string content)
     {
-        if (string.IsNullOrEmpty(msg))
-        {
-            return;
-        }
+        var entries = new List<LogItemModel>();
+        var headerRegex = new Regex(
+            @"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)-(INFO|ERROR|WARN|DEBUG|FATAL)\s?(.*)$",
+            RegexOptions.Compiled);
 
-        //filter msg
-        if (MsgFilter.IsNotEmpty() && !_lastMsgFilterNotAvailable)
+        LogItemModel? current = null;
+        foreach (var line in content.Replace("\r\n", "\n").Split('\n'))
         {
-            try
+            if (line.IsNullOrEmpty())
             {
-                if (!Regex.IsMatch(msg, MsgFilter))
+                continue;
+            }
+            var match = headerRegex.Match(line);
+            if (match.Success)
+            {
+                current = new LogItemModel
                 {
-                    return;
-                }
+                    Time = match.Groups[1].Value,
+                    Level = match.Groups[2].Value == "FATAL" ? "ERROR" : match.Groups[2].Value,
+                    Content = match.Groups[3].Value,
+                };
+                entries.Add(current);
             }
-            catch (Exception ex)
+            else if (current != null)
             {
-                EnqueueWithLimit(ex.Message);
-                _lastMsgFilterNotAvailable = true;
+                current.Content += Environment.NewLine + line;
+            }
+            else
+            {
+                current = new LogItemModel { Time = string.Empty, Level = "MSG", Content = line };
+                entries.Add(current);
             }
         }
-
-        EnqueueWithLimit(msg);
-        if (!msg.EndsWith(Environment.NewLine))
-        {
-            EnqueueWithLimit(Environment.NewLine);
-        }
-    }
-
-    private void EnqueueWithLimit(string item)
-    {
-        _queueMsg.Enqueue(item);
-
-        while (_queueMsg.Count > NumMaxMsg)
-        {
-            _queueMsg.TryDequeue(out _);
-        }
-    }
-
-    //public void ClearMsg()
-    //{
-    //    _queueMsg.Clear();
-    //}
-
-    private void DoMsgFilter()
-    {
-        _config.MsgUIItem.MainMsgFilter = MsgFilter;
-        _lastMsgFilterNotAvailable = false;
+        return entries;
     }
 }
