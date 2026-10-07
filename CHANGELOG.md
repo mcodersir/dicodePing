@@ -1,4 +1,4 @@
-## 4.2.1 — Desktop interface redesign
+## 4.2.2 — Desktop interface redesign
 
 - Compact, bounded profile workspace with numbered rows, country icons, aligned diagnostics and consistent line icons.
 - Reactive active-server selection and security-test busy state preserved across refreshes.
