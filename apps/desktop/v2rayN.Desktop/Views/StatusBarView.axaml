@@ -8,25 +8,20 @@
     x:DataType="vms:StatusBarViewModel">
   <Grid RowDefinitions="*,Auto" RowSpacing="14">
     <Border Padding="28" Classes="DicodeCard">
-      <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,260" RowSpacing="18" ColumnSpacing="20">
-        <StackPanel Grid.ColumnSpan="2" Spacing="4">
-          <TextBlock FontSize="18" FontWeight="SemiBold" Text="DicodePing" />
-          <TextBlock Opacity="0.68" Text="{x:Static resx:ResUI.DicodeAppSubtitle}" />
-        </StackPanel>
-
-        <StackPanel Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
+      <Grid RowDefinitions="*,Auto" ColumnDefinitions="1.2*,1*" RowSpacing="18" ColumnSpacing="20">
+        <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
           <Button
               x:Name="btnToggleConnection"
               Classes.DicodePower="True"
-              Width="164"
-              Height="164"
+              Width="140"
+              Height="140"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource DicodeSurfaceElevated}"
               BorderBrush="{DynamicResource DicodeAccent}"
               BorderThickness="2"
               Classes.Success="{Binding IsConnected}"
-              CornerRadius="82">
+              CornerRadius="70">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
               <Path
                   HorizontalAlignment="Center"
@@ -48,7 +43,7 @@
               ToolTip.Tip="{x:Static resx:ResUI.DicodeSmartConnect}" />
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Spacing="12">
+        <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="12">
           <Border Padding="16" Background="{DynamicResource DicodeSurfaceElevated}" BorderBrush="{DynamicResource DicodeBorder}" BorderThickness="1" CornerRadius="16">
             <StackPanel Spacing="8">
               <TextBlock FontSize="13" Opacity="0.68" Text="{x:Static resx:ResUI.DicodeRoute}" />
@@ -70,7 +65,7 @@
                       Stroke="{DynamicResource DicodeTextSecondary}"
                       StrokeLineCap="Round"
                       StrokeThickness="1.5" />
-                  <TextBlock Text="{Binding LocationDisplay}" Opacity="0.82" />
+                  <TextBlock Text="{Binding LocationDisplay}" TextWrapping="Wrap" Opacity="0.82" />
                 </StackPanel>
               </StackPanel>
               <TextBlock x:Name="txtRunningInfoDisplay" TextWrapping="Wrap" Opacity="0.72" />
@@ -86,11 +81,11 @@
           </Border>
         </StackPanel>
 
-        <TextBlock x:Name="txtSpeedProxyDisplay" Grid.Row="2" IsVisible="False" />
-        <TextBlock x:Name="txtSpeedDirectDisplay" Grid.Row="2" IsVisible="False" />
-        <ToggleSwitch x:Name="togEnableTun" Grid.Row="2" IsVisible="False" />
-        <ComboBox x:Name="cmbSystemProxy" Grid.Row="2" IsVisible="False"><ComboBoxItem /></ComboBox>
-        <ComboBox x:Name="cmbRoutings2" Grid.Row="2" IsVisible="False" ItemsSource="{Binding RoutingItems}" />
+        <TextBlock x:Name="txtSpeedProxyDisplay" Grid.Row="1" IsVisible="False" />
+        <TextBlock x:Name="txtSpeedDirectDisplay" Grid.Row="1" IsVisible="False" />
+        <ToggleSwitch x:Name="togEnableTun" Grid.Row="1" IsVisible="False" />
+        <ComboBox x:Name="cmbSystemProxy" Grid.Row="1" IsVisible="False"><ComboBoxItem /></ComboBox>
+        <ComboBox x:Name="cmbRoutings2" Grid.Row="1" IsVisible="False" ItemsSource="{Binding RoutingItems}" />
       </Grid>
     </Border>
   </Grid>

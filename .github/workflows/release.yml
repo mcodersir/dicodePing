@@ -1,4 +1,4 @@
-name: Release 4.1.1 Preview
+name: Release 4.2.0 Stable
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   desktop:
@@ -69,7 +71,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.1.1-pre.1
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.2.0
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -79,7 +81,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.1.1-pre.1 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.2.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -153,17 +155,30 @@ jobs:
       - name: Execute bundled cores in the ephemeral runner
         shell: pwsh
         run: |
-          & (Resolve-Path "publish/bin/xray/${{ matrix.xray_binary }}") version
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled Xray runtime failed its smoke test' }
-          & (Resolve-Path "publish/bin/sing_box/${{ matrix.singbox_binary }}") version
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled sing-box runtime failed its smoke test' }
-          & (Resolve-Path "publish/bin/mihomo/${{ matrix.mihomo_binary }}") -v
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled mihomo runtime failed its smoke test' }
+          $versions = @{}
+          $checks = @(
+            @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.7' },
+            @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.2' },
+            @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = '1.19.32' }
+          )
+          foreach ($check in $checks) {
+            $output = (& (Resolve-Path $check.path) $check.arg 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0 -or $output -notmatch [regex]::Escape($check.version)) { throw "Bundled $($check.name) has an incorrect version: $output" }
+            $versions[$check.name] = @{ version = $check.version; sha256 = (Get-FileHash $check.path -Algorithm SHA256).Hash.ToLower(); output = $output.Trim() }
+            Write-Host $output
+          }
+          $versions | ConvertTo-Json -Depth 4 | Set-Content publish/runtime-versions.json
+      - name: Validate generated configurations with bundled native cores
+        shell: pwsh
+        run: |
+          $env:DICODE_RUNTIME_TEST_ROOT = (Resolve-Path publish).Path
+          dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter FullyQualifiedName~NativeRuntimeTests
+          if ($LASTEXITCODE -ne 0) { throw 'Generated configurations failed native core validation' }
       - name: Archive and checksum
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.1.1-pre.1-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.2.0-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -172,7 +187,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.1.1-pre.1-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.2.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -233,7 +248,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.1.1-pre.1
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.2.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -263,21 +278,41 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.1.1 — Preview 1
-          prerelease: true
+          name: DicodePing 4.2.0 — Stable
+          prerelease: false
+          make_latest: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.1.1 — پیش‌انتشار ۱
+            ## DicodePing 4.2.0 — پایدار
 
-            - همگام‌سازی هستهٔ اتصال و تولید پیکربندی دسکتاپ با **PattN 7.25.5-P31** (08da2e96c00e44709ad09c3faa1ea183cb07eea3)، با حفظ برند و سیاست‌های اتصال DicodePing.
-            - بازنویسی آزمون‌های پینگ، سرعت و UDP بر مبنای موتور قابل‌لغو P31؛ توقف مستقل هر اجرا و پاک‌سازی پردازه‌های موقت.
-            - آزمون مستقل لوکیشن و تحریم؛ شروع هر آزمون فقط فیلد مربوط به همان آزمون را تغییر می‌دهد.
-            - بازطراحی فضای پروفایل با عنوان، ابزارهای خوانا، ردیف‌های خلوت و پالت هماهنگ با تم.
-            - تنظیمات عمومی، مسیریابی، DNS، فیلتر دامنه، به‌روزرسانی و پشتیبان‌گیری داخل تب‌های همان صفحه؛ ذخیره بدون بستن فرم.
-            - حذف کامل اشتراک و مدیریت منابع DicodeSpo؛ گروه **Dicode Config Checker** از هر دو لینک رسمی Config Checker و Patterniha Free-Configs پر می‌شود. نصب قبلی به‌صورت خودکار مهاجرت می‌کند.
-            - Android: حفظ پایهٔ **PattNG 2.3.10-P60** و libv2ray v26.10.4، اضافه‌شدن لغو بومی دستهٔ آزمون‌ها و ادغام دو منبع در یک اشتراک.
-            - هسته‌های بسته‌بندی‌شده: PattN Xray v26.10.7، sing-box v1.14.2، mihomo v1.19.32؛ داده‌های geo نسخهٔ 202610062207 با بررسی SHA-256.
+            - فهرست کارتی و مجازی‌سازی‌شدهٔ پروفایل‌ها با انتخاب چندگانه، مرتب‌سازی، جست‌وجوی سریع و اتصال مستقیم از هر ردیف.
+            - تست‌های مستقل و هم‌زمان پینگ، سرعت، موقعیت و تحریم؛ وضعیت انتظار ثابت فقط برای نتیجهٔ همان تست و توقف با Esc.
+            - اصلاح برخورد پورت پردازه‌های تست، دانلودهای موازی، حفظ انتخاب کاربر و نمایش شکست به‌جای نتیجهٔ قدیمی.
+            - اصلاح نصب هسته‌های بسته در AppData؛ هستهٔ Mihomo جدید در نصب قبلی هم انتخاب می‌شود و خروجی نسخهٔ واقعی بررسی شده است.
+            - بازآرایی صفحهٔ اتصال و هماهنگ‌سازی فرم‌ها، گزارش‌ها، تنظیمات، رنگ‌ها و آیکون‌ها با تم روشن و تیره.
+            - تکمیل ترجمهٔ فارسی و کنترل خودکار پوشش کلیدها و پارامترهای فارسی/انگلیسی.
+            - Android: هم‌زمانی محدود و بهینه، حفظ پروفایل‌ها در آزمون موقعیت/تحریم و دریافت موازی دو منبع اشتراک با مسیر جایگزین پراکسی.
+            - چهار APK امضاشده: arm64-v8a، armeabi-v7a، x86 و x86_64.
+            - دسکتاپ بر پایهٔ PattN 7.25.5-P31؛ Xray v26.10.7، sing-box v1.14.2 و Mihomo v1.19.32 داخل همهٔ بسته‌ها، با بررسی SHA-256 و نسخهٔ اجرایی.
+            - Android بر پایهٔ PattNG 2.3.10-P60 و libv2ray v26.10.4.
+            - بازطراحی صفحهٔ دانلود: https://mcodersir.github.io/dicodePing/
 
-            این نسخه پیش‌انتشار است. آزمون امنیت، بررسی تنظیمات TLS پیکربندی است و نتیجهٔ تحریم، دسترسی شبکه به سرویس‌های انتخاب‌شده را نشان می‌دهد.
-            برای اندروید فایل universal.apk یا فایل متناسب با معماری دستگاه را نصب کنید.
+            آزمون امنیت، بررسی تنظیمات رمزنگاری پیکربندی است؛ آزمون تحریم دسترسی شبکه را نشان می‌دهد.
+            در اندروید APK متناسب با معماری دستگاه را نصب کنید. بیشتر گوشی‌های جدید از arm64-v8a استفاده می‌کنند.
           files: artifacts/*
+
+  website:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - name: Publish download page
+        id: deployment
+        uses: actions/deploy-pages@v4

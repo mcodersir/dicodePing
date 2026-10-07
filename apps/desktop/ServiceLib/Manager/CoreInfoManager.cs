@@ -339,7 +339,7 @@ public sealed class CoreInfoManager
 
     private static List<string>? GetMihomoCoreExes()
     {
-        var names = new List<string>();
+        var names = new List<string> { "mihomo" };
 
         if (Utils.IsWindows())
         {
@@ -364,7 +364,7 @@ public sealed class CoreInfoManager
         }
 
         names.Add("clash");
-        names.Add("mihomo");
+
 
         return names;
     }

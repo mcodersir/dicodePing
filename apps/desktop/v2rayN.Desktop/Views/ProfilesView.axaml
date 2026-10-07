@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:local="clr-namespace:v2rayN.Desktop.Views"
+    xmlns:dto="clr-namespace:ServiceLib.Models.Dto;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:Name="Root"
     d:DesignHeight="450"
@@ -116,25 +117,18 @@
 
             </WrapPanel>
             </Border>
-            <DataGrid
-                x:Name="lstProfiles"
-                Margin="0,0,0,0"
-                AutoGenerateColumns="False"
-                BorderThickness="0"
-                RowHeight="52"
-                CanUserReorderColumns="True"
-                CanUserResizeColumns="True"
-                Classes.InsetContent="True"
-                FlowDirection="LeftToRight"
-                GridLinesVisibility="Horizontal"
-                HeadersVisibility="Column"
-                IsReadOnly="True"
-                ItemsSource="{Binding ProfileItems}">
-                <DataGrid.KeyBindings>
+<Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+ <WrapPanel>
+ <Button Click="SortByLatency" Classes="DicodeQuietButton" Content="{x:Static resx:ResUI.DicodeSortLatency}" Margin="0,0,8,0" />
+ <Button Click="SortBySpeed" Classes="DicodeQuietButton" Content="{x:Static resx:ResUI.DicodeSortSpeed}" />
+ <TextBlock Text="{x:Static resx:ResUI.DicodeListHint}" VerticalAlignment="Center" Margin="16,0" Opacity="0.65" />
+ </WrapPanel>
+ <ListBox x:Name="lstProfiles" Grid.Row="1" SelectionMode="Multiple,Toggle" ItemsSource="{Binding ProfileItems}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                 <ListBox.KeyBindings>
                     <KeyBinding Command="{Binding Export2ShareUrlCmd}" Gesture="Ctrl+C" />
                     <KeyBinding Command="{Binding SetDefaultServerCmd}" Gesture="Enter" />
-                </DataGrid.KeyBindings>
-                <DataGrid.ContextMenu>
+                </ListBox.KeyBindings>
+                 <ListBox.ContextMenu>
                     <ContextMenu>
                         <MenuItem
                             x:Name="menuSetDefaultServer"
@@ -224,153 +218,50 @@
                             <MenuItem x:Name="menuGenGroupRegionServer" Header="{x:Static resx:ResUI.menuGenRegionGroup}" />
                         </MenuItem>
                     </ContextMenu>
-                </DataGrid.ContextMenu>
-
-                <DataGrid.Columns>
-                    <DataGridTextColumn
-                        Width="*"
-                        Binding="{Binding ConfigType}"
-                        Header="{x:Static resx:ResUI.LvServiceType}"
-                        Tag="ConfigType" />
-
-                    <DataGridTemplateColumn Width="2*" SortMemberPath="Remarks" Tag="Remarks">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock Text="{x:Static resx:ResUI.LvRemarks}" />
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="{StaticResource MarginLr8}" Orientation="Horizontal">
-                                    <Label
-                                        Margin="{StaticResource MarginLr4}"
-                                        Classes="Solid Red"
-                                        Content="{x:Static resx:ResUI.TipActiveServer}"
-                                        IsVisible="{Binding IsActive}"
-                                        Theme="{DynamicResource TagLabel}" />
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Text="{Binding Remarks}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-
-                    <DataGridTextColumn
-                        Width="2*"
-                        Binding="{Binding Address}"
-                        Header="{x:Static resx:ResUI.LvAddress}"
-                        IsVisible="False"
-                        Tag="Address" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding Port}"
-                        Header="{x:Static resx:ResUI.LvPort}"
-                        IsVisible="False"
-                        Tag="Port" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding Network}"
-                        Header="{x:Static resx:ResUI.LvTransportProtocol}"
-                        IsVisible="False"
-                        Tag="Network" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding StreamSecurity}"
-                        Header="{x:Static resx:ResUI.LvTLS}"
-                        IsVisible="False"
-                        Tag="StreamSecurity" />
-                    <DataGridTemplateColumn Width="1.4*" Tag="SubRemarks">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock Text="{x:Static resx:ResUI.LvSubscription}" />
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="6,2">
-                                    <TextBlock Text="{Binding SubRemarks}" TextTrimming="CharacterEllipsis" />
-                                    <Border
-                                        Margin="0,3,0,0"
-                                        Padding="6,2"
-                                        Background="{DynamicResource DicodeSurfaceElevated}"
-                                        CornerRadius="6"
-                                        IsVisible="{Binding HasSubscriptionUsage}">
-                                        <TextBlock FontSize="11" Text="{Binding SubscriptionUsage}" />
-                                    </Border>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Width="1*" SortMemberPath="Delay" Tag="DelayVal">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock Text="{x:Static resx:ResUI.LvTestDelay}" />
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock
-                                    Margin="{StaticResource MarginLr8}"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center"
-                                    Classes.isLoading="{Binding IsTesting, Mode=OneWay}"
-                                    Foreground="{Binding Delay, Converter={StaticResource DelayColorConverter}}"
-                                    Text="{Binding Path=DelayVal, Mode=OneWay}" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding SpeedVal}"
-                        Header="{x:Static resx:ResUI.LvTestSpeed}"
-                        Tag="SpeedVal" />
-
-                    <DataGridTemplateColumn Width="2*" SortMemberPath="IpInfo" Tag="IpInfo">
-                        <DataGridTemplateColumn.Header>
-                            <TextBlock Text="{x:Static resx:ResUI.LvTestIpInfo}" />
-                        </DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="8,0" Orientation="Horizontal" Spacing="7">
-                                    <local:CountryFlagIcon Width="25" Height="17" VerticalAlignment="Center" SourceText="{Binding IpInfo}" />
-                                    <SelectableTextBlock VerticalAlignment="Center" Text="{Binding Path=IpInfo, Mode=OneWay}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Width="2*" Binding="{Binding SecurityInfo}" Header="{x:Static resx:ResUI.DicodeSecurityBeta}" Tag="SecurityInfo" />
-                    <DataGridTemplateColumn Width="1.3*" SortMemberPath="SanctionsInfo" Tag="SanctionsInfo">
-                        <DataGridTemplateColumn.Header><TextBlock Text="{x:Static resx:ResUI.DicodeSanctionsBeta}" /></DataGridTemplateColumn.Header>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="8,0" Orientation="Horizontal" Spacing="5">
-                                    <PathIcon Width="14" Height="14" Data="{StaticResource google_g}" Foreground="{Binding SanctionsInfo, Converter={StaticResource SanctionsStatusBrushConverter}}" />
-                                    <TextBlock Text="{Binding SanctionsInfo}" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding TodayUp}"
-                        Header="{x:Static resx:ResUI.LvTodayUploadDataAmount}"
-                        Tag="TodayUp" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding TodayDown}"
-                        Header="{x:Static resx:ResUI.LvTodayDownloadDataAmount}"
-                        Tag="TodayDown" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding TotalUp}"
-                        Header="{x:Static resx:ResUI.LvTotalUploadDataAmount}"
-                        IsVisible="False"
-                        Tag="TotalUp" />
-                    <DataGridTextColumn
-                        Width="1*"
-                        Binding="{Binding TotalDown}"
-                        Header="{x:Static resx:ResUI.LvTotalDownloadDataAmount}"
-                        IsVisible="False"
-                        Tag="TotalDown" />
-                </DataGrid.Columns>
-            </DataGrid>
+                </ListBox.ContextMenu>
+ <ListBox.Styles>
+  <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0" /><Setter Property="Margin" Value="0,0,0,10" /><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="CornerRadius" Value="16" /></Style>
+ </ListBox.Styles>
+ <ListBox.ItemTemplate>
+ <DataTemplate x:DataType="dto:ProfileItemModel">
+ <Border Classes="DicodeProfileCard" Classes.activeProfile="{Binding IsActive}" Padding="18,14">
+ <StackPanel Spacing="8">
+ <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+ <StackPanel Spacing="6">
+ <WrapPanel><TextBlock Text="{Binding Remarks}" FontSize="16" FontWeight="SemiBold" MaxWidth="540" TextTrimming="CharacterEllipsis" /><Border Background="{DynamicResource DicodeSelection}" CornerRadius="5" Padding="6,2" Margin="10,0"><TextBlock Text="{Binding ConfigType}" FontSize="10" Foreground="{DynamicResource DicodeAccent}" /></Border><TextBlock Text="{x:Static resx:ResUI.DicodeActiveProfile}" IsVisible="{Binding IsActive}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource DicodeAccent}" /></WrapPanel>
+ <TextBlock Classes="DicodeCaption" Text="{Binding Address}" FlowDirection="LeftToRight" TextTrimming="CharacterEllipsis" />
+ </StackPanel>
+ <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"><Button Click="ConnectProfile" Classes="DicodeQuietButton" ToolTip.Tip="{x:Static resx:ResUI.menuSetDefaultServer}"><PathIcon Data="{StaticResource SemiIconBolt}" /></Button><Button Click="EditProfile" Classes="DicodeQuietButton" ToolTip.Tip="{x:Static resx:ResUI.menuEditServer}"><PathIcon Data="{StaticResource SemiIconEdit}" /></Button></StackPanel>
+ </Grid>
+ <WrapPanel><StackPanel MinWidth="126" MaxWidth="260" Margin="0,6,16,4" Spacing="6">
+ <TextBlock Classes="DicodeCaption" Text="{x:Static resx:ResUI.DicodeMetricLatency}" />
+ <Border Classes="DicodeSkeleton" Width="96" Height="13" HorizontalAlignment="Left" IsVisible="{Binding IsLatencyTesting}" />
+ <TextBlock Text="{Binding DelayVal}" IsVisible="{Binding !IsLatencyTesting}" MinHeight="18" MaxWidth="250" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DelayVal}" />
+ </StackPanel><StackPanel MinWidth="126" MaxWidth="260" Margin="0,6,16,4" Spacing="6">
+ <TextBlock Classes="DicodeCaption" Text="{x:Static resx:ResUI.DicodeMetricSpeed}" />
+ <Border Classes="DicodeSkeleton" Width="96" Height="13" HorizontalAlignment="Left" IsVisible="{Binding IsSpeedTesting}" />
+ <TextBlock Text="{Binding SpeedVal}" IsVisible="{Binding !IsSpeedTesting}" MinHeight="18" MaxWidth="250" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SpeedVal}" />
+ </StackPanel><StackPanel MinWidth="126" MaxWidth="260" Margin="0,6,16,4" Spacing="6">
+ <TextBlock Classes="DicodeCaption" Text="{x:Static resx:ResUI.DicodeProbeLocation}" />
+ <Border Classes="DicodeSkeleton" Width="96" Height="13" HorizontalAlignment="Left" IsVisible="{Binding IsLocationTesting}" />
+ <TextBlock Text="{Binding IpInfo}" IsVisible="{Binding !IsLocationTesting}" MinHeight="18" MaxWidth="250" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding IpInfo}" />
+ </StackPanel><StackPanel MinWidth="126" MaxWidth="260" Margin="0,6,16,4" Spacing="6">
+ <TextBlock Classes="DicodeCaption" Text="{x:Static resx:ResUI.DicodeProbeSecurity}" />
+ <Border Classes="DicodeSkeleton" Width="96" Height="13" HorizontalAlignment="Left" IsVisible="{Binding IsSecurityTesting}" />
+ <TextBlock Text="{Binding SecurityInfo}" IsVisible="{Binding !IsSecurityTesting}" MinHeight="18" MaxWidth="250" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SecurityInfo}" />
+ </StackPanel><StackPanel MinWidth="126" MaxWidth="260" Margin="0,6,16,4" Spacing="6">
+ <TextBlock Classes="DicodeCaption" Text="{x:Static resx:ResUI.DicodeProbeSanctions}" />
+ <Border Classes="DicodeSkeleton" Width="96" Height="13" HorizontalAlignment="Left" IsVisible="{Binding IsSanctionsTesting}" />
+ <TextBlock Text="{Binding SanctionsInfo}" IsVisible="{Binding !IsSanctionsTesting}" MinHeight="18" MaxWidth="250" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SanctionsInfo}" />
+ </StackPanel></WrapPanel>
+ </StackPanel>
+ </Border>
+ </DataTemplate>
+ </ListBox.ItemTemplate>
+ </ListBox>
+ <Border Grid.Row="1" IsVisible="{Binding !HasProfiles}" Classes="DicodeCard" Padding="32" VerticalAlignment="Center"><StackPanel Spacing="12"><TextBlock Text="{x:Static resx:ResUI.DicodeEmptyProfilesTitle}" FontSize="20" FontWeight="SemiBold" /><TextBlock Text="{x:Static resx:ResUI.DicodeEmptyProfilesHint}" TextWrapping="Wrap" Opacity="0.7" /></StackPanel></Border>
+ <Grid Grid.Row="2" ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding ProfileItems.Count}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProfilesCount}" Opacity="0.65" /></StackPanel><Button Grid.Column="1" Click="StopDiagnostics" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" Classes="DicodeQuietButton" /></Grid>
+ </Grid>
         </DockPanel>
     </Grid>
 </UserControl>

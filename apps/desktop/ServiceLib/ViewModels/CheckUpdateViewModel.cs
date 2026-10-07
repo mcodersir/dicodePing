@@ -378,6 +378,11 @@ public partial class CheckUpdateViewModel : MyReactiveObject
             else
             {
                 FileUtils.ZipExtractToFile(fileName, toPath, "geo");
+                if (item.CoreType == ECoreType.mihomo)
+                {
+                    var entry = FileUtils.GetFilesFromZip(fileName)?.Select(Path.GetFileName).FirstOrDefault(x => x != null && x.StartsWith("mihomo", StringComparison.OrdinalIgnoreCase) && x.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                    if (entry is not null) File.Copy(Path.Combine(toPath, entry), Path.Combine(toPath, "mihomo.exe"), true);
+                }
             }
 
             if (Utils.IsNonWindows())

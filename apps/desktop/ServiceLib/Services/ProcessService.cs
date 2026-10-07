@@ -11,6 +11,7 @@ public class ProcessService : IDisposable
     public int Id => _process.Id;
     public IntPtr Handle => _process.Handle;
     public bool HasExited => _process.HasExited;
+    public string? TemporaryConfigPath { get; set; }
     public bool StopRequested { get; private set; }
     public event Action<int>? Exited;
 
@@ -216,6 +217,10 @@ public class ProcessService : IDisposable
             _updateFunc?.Invoke(true, ex.Message);
         }
 
+        if (TemporaryConfigPath is not null)
+        {
+            try { File.Delete(TemporaryConfigPath); } catch (Exception ex) { Logging.SaveLog("Temporary probe cleanup", ex); }
+        }
         _isDisposed = true;
         GC.SuppressFinalize(this);
     }

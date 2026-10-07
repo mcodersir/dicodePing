@@ -109,7 +109,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                     break;
 
                 case ESpeedActionType.Speedtest:
-                    await RunMixedTestAsync(lstSelected, completedIds, 1, true, ct);
+                    await RunMixedTestAsync(lstSelected, completedIds, Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 2, 4), true, ct, false);
                     break;
 
                 case ESpeedActionType.Mixedtest:
@@ -167,7 +167,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         }
 
         //clear test result
-        await SetTestResultAsync(lstSelected, actionType, ResUI.Speedtesting).ConfigureAwait(false);
+        // Pending state is applied once by the caller; avoid thousands of redundant UI dispatches.
 
         if (lstSelected.Count > 1 && (actionType == ESpeedActionType.Speedtest || actionType == ESpeedActionType.Mixedtest))
         {
@@ -216,42 +216,42 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             try
             {
                 process = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
-                if (process is null) continue;
-                await Task.Delay(1000, ct);
+                if (process is null) { await SetTestResultAsync(batch, ESpeedActionType.Location, ResUI.FailedToRunCore); continue; }
+                ct.ThrowIfCancellationRequested();
                 await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct }, async (item, token) =>
                 {
                     if (!item.AllowTest) { await UpdateIpInfoFunc(item.IndexId, ResUI.SpeedtestingSkip); return; }
                     var ip = await ConnectionHandler.GetIPInfo(new WebProxy($"socks5://{Global.Loopback}:{item.Port}"), token);
-                    var text = ip?.ToString() ?? Global.None;
-                    if (ip is not null) ProfileExManager.Instance.SetTestIpInfo(item.IndexId, text);
+                    var text = ip?.ToString() ?? "—";
+                    ProfileExManager.Instance.SetTestIpInfo(item.IndexId, text);
                     await UpdateIpInfoFunc(item.IndexId, text);
                     completedIds.TryAdd(item.IndexId, 0);
                 });
             }
-            finally { if (process is not null) await process.StopAsync(); }
+            finally { if (process is not null) { await process.StopAsync(); process.Dispose(); } }
         }
     }
 
     private async Task RunSanctionsBatchAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct)
     {
-        foreach (var batch in GetTestBatchItem(selecteds, Math.Max(1, Math.Min(4, _speedTestPageSize))))
+        foreach (var batch in GetTestBatchItem(selecteds, Math.Max(1, Math.Min(8, _speedTestPageSize))))
         {
             ct.ThrowIfCancellationRequested();
             ProcessService? process = null;
             try
             {
                 process = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
-                if (process is null) continue;
-                await Task.Delay(1000, ct);
-                await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (item, token) =>
+                if (process is null) { await SetTestResultAsync(batch, ESpeedActionType.Sanctions, ResUI.FailedToRunCore); continue; }
+                ct.ThrowIfCancellationRequested();
+                await Parallel.ForEachAsync(batch, new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct }, async (item, token) =>
                 {
                     if (!item.AllowTest) { await UpdateSanctionsFunc(item.IndexId, ResUI.SpeedtestingSkip); return; }
                     await DoSanctionsTest(item, token);
                     completedIds.TryAdd(item.IndexId, 0);
                 });
             }
-            finally { if (process is not null) await process.StopAsync(); }
+            finally { if (process is not null) { await process.StopAsync(); process.Dispose(); } }
         }
     }
 
@@ -346,7 +346,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             }
             else
             {
-                await RunMixedTestAsync(lstSelected, completedIds, _config.SpeedTestItem.MixedConcurrencyCount, false, ct);
+                await RunMixedTestAsync(lstFailed, completedIds, _config.SpeedTestItem.MixedConcurrencyCount, false, ct);
             }
         }
     }
@@ -362,7 +362,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             {
                 return false;
             }
-            await Task.Delay(1000, ct);
+            ct.ThrowIfCancellationRequested();
 
             var parallelOptions = new ParallelOptions
             {
@@ -405,7 +405,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         {
             if (processService != null)
             {
-                await processService?.StopAsync();
+                await processService.StopAsync();
+                processService.Dispose();
             }
         }
         return true;
@@ -453,7 +454,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             {
                 return false;
             }
-            await Task.Delay(1000, ct);
+            ct.ThrowIfCancellationRequested();
 
             var parallelOptions = new ParallelOptions
             {
@@ -496,7 +497,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         {
             if (processService != null)
             {
-                await processService?.StopAsync();
+                await processService.StopAsync();
+                processService.Dispose();
             }
         }
         return true;
@@ -504,9 +506,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task RunMixedTestAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, int concurrencyCount, bool blSpeedTest,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool updateDelay = true)
     {
-        var downloadHandle = new DownloadService();
+        // Each transfer owns its downloader and cannot cancel another server.
+
 
         var parallelOptions = new ParallelOptions
         {
@@ -528,14 +531,14 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                     return;
                 }
 
-                await Task.Delay(1000, innerCt);
+                innerCt.ThrowIfCancellationRequested();
 
-                var delay = await DoRealPing(it, completedIds, innerCt);
+                var delay = await DoRealPing(it, completedIds, innerCt, updateDelay);
                 if (blSpeedTest)
                 {
                     if (delay > 0)
                     {
-                        await DoSpeedTest(downloadHandle, it, completedIds, innerCt);
+                        await DoSpeedTest(it, completedIds, innerCt);
                     }
                     else
                     {
@@ -556,45 +559,61 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 if (processService != null)
                 {
                     await processService.StopAsync();
+                    processService.Dispose();
                 }
             }
         });
     }
 
     private async Task<int> DoRealPing(ServerTestItem it,
-        ConcurrentDictionary<string, byte> completedIds, CancellationToken ct = default)
+        ConcurrentDictionary<string, byte> completedIds, CancellationToken ct = default, bool updateDelay = true)
     {
         var webProxy = new WebProxy($"socks5://{Global.Loopback}:{it.Port}");
         var responseTime = await ConnectionHandler.GetRealPingTime(webProxy, ct);
 
-        if (responseTime > 0) ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
-        await UpdateFunc(it.IndexId, responseTime.ToString());
+        if (updateDelay)
+        {
+            ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);
+            await UpdateFunc(it.IndexId, responseTime.ToString());
+        }
 
         completedIds.TryAdd(it.IndexId, 0);
         return responseTime;
     }
 
-    private async Task DoSpeedTest(DownloadService downloadHandle, ServerTestItem it,
+    private async Task DoSpeedTest(ServerTestItem item,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct = default)
     {
-        await UpdateFunc(it.IndexId, "", ResUI.Speedtesting);
-
-        var webProxy = new WebProxy($"socks5://{Global.Loopback}:{it.Port}");
-        var url = _config.SpeedTestItem.SpeedTestUrl;
-        var timeout = _config.SpeedTestItem.SpeedTestTimeout;
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-        var linkedCt = linkedCts.Token;
-        await downloadHandle.DownloadDataAsync(url, webProxy, async (success, msg) =>
+        var proxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
+        using var handler = new HttpClientHandler { Proxy = proxy, UseProxy = true };
+        using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(_config.SpeedTestItem.SpeedTestTimeout, 3, 20)));
+        long bytes = 0;
+        var timer = new Stopwatch();
+        try
         {
-            decimal.TryParse(msg, out var dec);
-            if (dec > 0)
+            using var response = await client.GetAsync(_config.SpeedTestItem.SpeedTestUrl, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            response.EnsureSuccessStatusCode();
+            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+            var buffer = new byte[64 * 1024];
+            timer.Start();
+            while (true)
             {
-                ProfileExManager.Instance.SetTestSpeed(it.IndexId, dec);
+                var count = await stream.ReadAsync(buffer, timeout.Token);
+                if (count == 0) break;
+                bytes += count;
             }
-            await UpdateFunc(it.IndexId, "", msg);
-        }, linkedCt);
-        completedIds.TryAdd(it.IndexId, 0);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { /* A timed sample is complete. */ }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { Logging.SaveLog(_tag, ex); }
+        finally { timer.Stop(); }
+        ct.ThrowIfCancellationRequested();
+        var speed = timer.Elapsed.TotalSeconds > 0 ? Math.Round((decimal)(bytes / timer.Elapsed.TotalSeconds / 1_000_000), 2) : 0;
+        ProfileExManager.Instance.SetTestSpeed(item.IndexId, speed);
+        await UpdateFunc(item.IndexId, "", speed > 0 ? speed.ToString("0.00") : ResUI.SpeedtestingSkip);
+        completedIds.TryAdd(item.IndexId, 0);
     }
 
     private async Task<int> DoUdpTest(ServerTestItem it,
@@ -609,41 +628,21 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         return responseTime;
     }
 
-    private async Task<int> GetTcpingTime(string? url, int port, CancellationToken ct = default)
+    private async Task<int> GetTcpingTime(string? host, int port, CancellationToken ct = default)
     {
-        var responseTime = -1;
-
-        if (url.IsNullOrEmpty() || port <= 0)
-        {
-            return responseTime;
-        }
-
-        if (!IPAddress.TryParse(url, out var ipAddress))
-        {
-            var ipHostInfo = await Dns.GetHostEntryAsync(url, ct);
-            ipAddress = ipHostInfo.AddressList.First();
-        }
-
-        IPEndPoint endPoint = new(ipAddress, port);
-        using Socket clientSocket = new(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
+        if (host.IsNullOrEmpty() || port <= 0) return -1;
+        using var client = new TcpClient();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(3));
         var timer = Stopwatch.StartNew();
         try
         {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-            await clientSocket.ConnectAsync(endPoint, linkedCts.Token).ConfigureAwait(false);
-            responseTime = (int)timer.ElapsedMilliseconds;
+            // Connect by host so both IPv4 and IPv6 addresses can be tried.
+            await client.ConnectAsync(host, port, timeout.Token);
+            return Math.Max(1, (int)timer.ElapsedMilliseconds);
         }
-        catch
-        {
-            // Ignore
-        }
-        finally
-        {
-            timer.Stop();
-        }
-        return responseTime;
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return -1; }
     }
 
     private List<List<ServerTestItem>> GetTestBatchItem(List<ServerTestItem> lstSelected, int pageSize)
@@ -669,6 +668,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         await _updateFunc?.Invoke(new() { IndexId = indexId, Delay = delay, Speed = speed });
         if (indexId.IsNotEmpty() && speed.IsNotEmpty())
         {
+            if (speed != ResUI.Speedtesting && speed != ResUI.SpeedtestingSkip && !decimal.TryParse(speed, out _)) ProfileExManager.Instance.SetTestSpeed(indexId, 0);
             ProfileExManager.Instance.SetTestMessage(indexId, speed);
         }
     }

@@ -40,15 +40,11 @@ public class DownloaderHelper
         };
 
         await using var downloader = new Downloader.DownloadService(downloadOpt);
-        downloader.DownloadFileCompleted += (sender, value) =>
-        {
-            if (value.Error != null)
-            {
-                throw value.Error;
-            }
-        };
+        Exception? downloadError = null;
+        downloader.DownloadFileCompleted += (_, value) => downloadError = value.Error;
 
         await using var stream = await downloader.DownloadFileTaskAsync(address: url, cancellationToken);
+        if (downloadError is not null) throw downloadError;
         using StreamReader reader = new(stream);
 
         return await reader.ReadToEndAsync(cancellationToken);

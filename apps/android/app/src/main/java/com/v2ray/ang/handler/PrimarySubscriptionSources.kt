@@ -21,29 +21,28 @@ object PrimarySubscriptionSources {
     private val LINK_REGEX = Regex("(?:vmess|vless|trojan|ss|ssr|hysteria2?|hy2|tuic)://[^\\s\"'<>\\\\]+")
 
     fun aggregate(): String {
-        val collected = LinkedHashSet<String>()
-        for (source in DEFAULT_SOURCES) {
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
+        return try {
+            val requests = DEFAULT_SOURCES.map { source -> executor.submit<List<String>> { fetch(source) } }
+            val collected = LinkedHashSet<String>()
+            // Fetch concurrently, merge in the requested priority order.
+            requests.forEach { request -> collected.addAll(request.get()) }
+            collected.joinToString("\n")
+        } finally { executor.shutdownNow() }
+    }
+
+    private fun fetch(source: Source): List<String> {
+        for (port in listOf(0, SettingsManager.getHttpPort())) {
             try {
-                val response = HttpUtil.getUrlContentResponseWithUserAgent(
-                    UrlContentRequest(
-                        url = source.url,
-                        userAgent = "",
-                        requestHeaders = null,
-                        timeout = 12000,
-                        httpPort = 0,
-                        proxyUsername = "",
-                        proxyPassword = "",
-                    )
-                )
-                val body = response.content ?: continue
-                for (link in extractLinks(body)) {
-                            collected.add(link)
-                }
-            } catch (_: Exception) {
-                // Best effort: a failed source is skipped.
-            }
+                val response = HttpUtil.getUrlContentResponseWithUserAgent(UrlContentRequest(
+                    url = source.url, userAgent = "", requestHeaders = null, timeout = 12000,
+                    httpPort = port, proxyUsername = "", proxyPassword = ""))
+                val links = extractLinks(response.content.orEmpty())
+                if (links.isNotEmpty()) return links
+            } catch (interrupted: InterruptedException) { Thread.currentThread().interrupt(); return emptyList() }
+            catch (_: Exception) { /* Retry through the local proxy. */ }
         }
-        return collected.joinToString("\n")
+        return emptyList()
     }
 
     internal fun extractLinks(body: String): List<String> {

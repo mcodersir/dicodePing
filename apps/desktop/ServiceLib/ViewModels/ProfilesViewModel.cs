@@ -19,10 +19,11 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     private string _serverFilter = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
-    private SpeedtestService? _speedtestService;
+    private readonly ConcurrentDictionary<string, ProfileItemModel> _profileLookup = new();
+    private readonly ConcurrentDictionary<ESpeedActionType, SpeedtestService> _probeServices = new();
     private string? _pendingSelectIndexId;
     private readonly Timer _connectionStateTimer;
-    private readonly SemaphoreSlim _speedtestLock = new(1, 1);
+    private readonly ConcurrentDictionary<ESpeedActionType, SemaphoreSlim> _probeLocks = new();
 
     #endregion private prop
 
@@ -48,6 +49,9 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     [Reactive]
     public partial bool IsConnected { get; set; }
+
+    [Reactive]
+    public partial bool HasProfiles { get; set; }
 
     [Reactive]
     public partial string ConnectionStatusText { get; set; }
@@ -126,6 +130,8 @@ public partial class ProfilesViewModel : MyReactiveObject
             .SubscribeAsync(async _ => await MoveToGroup());
 
         this.WhenAnyValue(x => x.ServerFilter)
+            .Throttle(TimeSpan.FromMilliseconds(250), RxSchedulers.MainThreadScheduler)
+            .DistinctUntilChanged()
             .Where(y => y != null && _serverFilter != y)
             .SubscribeAsync(async _ => await ServerFilterChanged());
 
@@ -209,7 +215,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         });
         MixedTestServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            await ServerSpeedtest(ESpeedActionType.Mixedtest);
+            await ServerSpeedtest(ESpeedActionType.Speedtest);
         });
         TcpingServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -229,9 +235,13 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             foreach (var model in ProfileItems)
             {
+                model.IsSecurityTesting = true;
+            }
+            foreach (var model in ProfileItems)
+            {
                 var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
-                if (profile is null) continue;
-                model.SecurityInfo = ConfigurationSecurityAudit.Describe(profile);
+                try { model.SecurityInfo = profile is null ? "—" : ConfigurationSecurityAudit.Describe(profile); }
+                finally { model.IsSecurityTesting = false; }
             }
             NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
         });
@@ -324,64 +334,58 @@ public partial class ProfilesViewModel : MyReactiveObject
         ReloadRequested.Publish();
     }
 
-    public async Task SetSpeedTestResult(SpeedTestResult result)
+    public Task SetSpeedTestResult(SpeedTestResult result) => ApplyProbeResult(result, ESpeedActionType.Mixedtest);
+
+    private Task ApplyProbeResult(SpeedTestResult result, ESpeedActionType action)
     {
         if (result.IndexId.IsNullOrEmpty())
         {
-            NoticeManager.Instance.SendMessageEx(result.Delay);
-            NoticeManager.Instance.Enqueue(result.Delay);
             if (result.Delay == ResUI.SpeedtestingCompleted)
             {
-                // Every successful row is already updated and persisted live.
-                // Rebuilding the collection here caused the whole grid to flash.
-                await ProfileExManager.Instance.SaveTo();
-
-                // End the shimmer on every row; rows that never produced a
-                // numeric result fall back to the neutral placeholder.
-                foreach (var pending in ProfileItems.Where(t => t.IsTesting))
-                {
-                    pending.IsTesting = false;
-                    if (pending.DelayVal == ResUI.DicodeChecking)
-                    {
-                        pending.DelayVal = "--";
-                    }
-                }
+                foreach (var row in ProfileItems) SetMetricBusy(row, action, false);
             }
-            return;
+            else if (result.Delay.IsNotEmpty()) NoticeManager.Instance.SendMessageEx(result.Delay);
+            return Task.CompletedTask;
         }
-        var item = ProfileItems.FirstOrDefault(it => it.IndexId == result.IndexId);
-        if (item == null)
+        var item = _profileLookup.GetValueOrDefault(result.IndexId) ?? ProfileItems.FirstOrDefault(x => x.IndexId == result.IndexId);
+        if (item is null) return Task.CompletedTask;
+        static bool IsPending(string? value) => value == ResUI.Speedtesting || value == ResUI.DicodeChecking;
+        if (result.Delay.IsNotEmpty() && action is not ESpeedActionType.Speedtest && !IsPending(result.Delay))
         {
-            return;
+            item.Delay = int.TryParse(result.Delay, out var delay) ? delay : -1;
+            item.DelayVal = item.Delay > 0 ? result.Delay! : "—";
+            item.IsLatencyTesting = false;
         }
+        if (result.Speed.IsNotEmpty() && !IsPending(result.Speed))
+        {
+            item.SpeedVal = result.Speed!;
+            if (decimal.TryParse(result.Speed, out var speed)) item.Speed = speed;
+            item.IsSpeedTesting = false;
+        }
+        if (result.IpInfo.IsNotEmpty() && !IsPending(result.IpInfo))
+        {
+            item.IpInfo = result.IpInfo!;
+            item.IsLocationTesting = false;
+        }
+        if (result.SanctionsInfo.IsNotEmpty() && !IsPending(result.SanctionsInfo))
+        {
+            item.SanctionsInfo = result.SanctionsInfo!;
+            item.IsSanctionsTesting = false;
+        }
+        return Task.CompletedTask;
+    }
 
-        // Progress messages such as "testing" must not overwrite the last
-        // measured value. Keep the previous real ping visible until a numeric
-        // result arrives, and persist every completed result immediately.
-        if (result.Delay.IsNotEmpty() && int.TryParse(result.Delay, out var parsedDelay) && parsedDelay > 0)
+    private static void SetMetricBusy(ProfileItemModel item, ESpeedActionType action, bool busy)
+    {
+        switch (action)
         {
-            item.Delay = parsedDelay;
-            item.DelayVal = result.Delay ?? string.Empty;
-            item.IsTesting = false;
+            case ESpeedActionType.Location: item.IsLocationTesting = busy; break;
+            case ESpeedActionType.Sanctions: item.IsSanctionsTesting = busy; break;
+            case ESpeedActionType.Speedtest: item.IsSpeedTesting = busy; break;
+            case ESpeedActionType.Mixedtest: item.IsSpeedTesting = busy; item.IsLatencyTesting = busy; break;
+            default: item.IsLatencyTesting = busy; break;
         }
-        if (result.Speed.IsNotEmpty()
-            && decimal.TryParse(result.Speed, out var parsedSpeed)
-            && parsedSpeed > 0)
-        {
-            item.SpeedVal = result.Speed ?? string.Empty;
-        }
-        if (result.IpInfo.IsNotEmpty()
-            && result.IpInfo != ResUI.Speedtesting
-            && result.IpInfo != ResUI.SpeedtestingSkip
-            && result.IpInfo != Global.None)
-        {
-            item.IpInfo = result.IpInfo ?? string.Empty;
-        }
-        if (result.SanctionsInfo.IsNotEmpty() && result.SanctionsInfo != ResUI.DicodeChecking)
-        {
-            item.SanctionsInfo = result.SanctionsInfo ?? string.Empty;
-        }
-        // The test service owns the durable flush at the end of each batch.
+        item.IsTesting = item.IsLatencyTesting || item.IsSpeedTesting || item.IsLocationTesting || item.IsSanctionsTesting;
     }
 
     public async Task UpdateStatistics(ServerSpeedItem update)
@@ -459,16 +463,9 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 continue;
             }
-            if (next.Delay <= 0 && previous.Delay > 0)
-            {
-                next.Delay = previous.Delay;
-                next.DelayVal = previous.DelayVal;
-            }
-            if (next.Speed <= 0 && previous.Speed > 0)
-            {
-                next.Speed = previous.Speed;
-                next.SpeedVal = previous.SpeedVal;
-            }
+            next.SecurityInfo = previous.SecurityInfo;
+            next.IsLatencyTesting = previous.IsLatencyTesting; next.IsSpeedTesting = previous.IsSpeedTesting;
+            next.IsLocationTesting = previous.IsLocationTesting; next.IsSanctionsTesting = previous.IsSanctionsTesting;
             if (next.IpInfo.IsNullOrEmpty() && previous.IpInfo.IsNotEmpty())
             {
                 next.IpInfo = previous.IpInfo;
@@ -479,6 +476,9 @@ public partial class ProfilesViewModel : MyReactiveObject
             }
         }
         ProfileItems.ReplaceAll(lstModel ?? []);
+        HasProfiles = ProfileItems.Count > 0;
+        _profileLookup.Clear();
+        foreach (var item in ProfileItems) _profileLookup[item.IndexId] = item;
         if (lstModel?.Count > 0)
         {
             ProfileItemModel? selected = null;
@@ -521,6 +521,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         var lstServerStat = (_config.GuiItem.EnableStatistics ? StatisticsManager.Instance.ServerStat : null) ?? [];
         var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
+        var auditMap = await AppManager.Instance.GetProfileItemsByIndexIdsAsMap(lstModel.Select(x => x.IndexId).ToList());
         var subscriptionMap = (await AppManager.Instance.SubItems()).ToDictionary(x => x.Id);
         lstModel = (from t in lstModel
                     join t2 in lstServerStat on t.IndexId equals t2.IndexId into t2b
@@ -548,12 +549,12 @@ public partial class ProfilesViewModel : MyReactiveObject
                         SpeedVal = t33?.Speed > 0 ? $"{t33?.Speed}" : t33?.Message ?? string.Empty,
                         IpInfo = t33?.IpInfo ?? string.Empty,
                         SanctionsInfo = t33?.SanctionsInfo ?? string.Empty,
+                        SecurityInfo = auditMap.TryGetValue(t.IndexId, out var audited) ? ConfigurationSecurityAudit.Describe(audited) : "—",
                         TodayDown = t22 == null ? "" : Utils.HumanFy(t22.TodayDown),
                         TodayUp = t22 == null ? "" : Utils.HumanFy(t22.TodayUp),
                         TotalDown = t22 == null ? "" : Utils.HumanFy(t22.TotalDown),
                         TotalUp = t22 == null ? "" : Utils.HumanFy(t22.TotalUp)
-                    }).OrderBy(t => t.Delay <= 0 ? int.MaxValue : t.Delay)
-                      .ThenBy(t => t.Sort)
+                    }).OrderBy(t => t.Sort)
                       .ToList();
 
         return lstModel;
@@ -868,7 +869,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             return;
         }
 
-        _dicHeaderSort.TryAdd(colName, true);
+        _dicHeaderSort.TryAdd(colName, colName != nameof(EServerColName.SpeedVal));
         _dicHeaderSort.TryGetValue(colName, out var asc);
         if (await ConfigHandler.SortServers(_config, _config.SubIndexId, colName, asc) != 0)
         {
@@ -933,114 +934,61 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
     {
-        if (!await _speedtestLock.WaitAsync(0))
+        var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Speedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
+        if (actionType == ESpeedActionType.FastRealping) actionType = ESpeedActionType.Realping;
+        if (actionType == ESpeedActionType.Mixedtest) actionType = ESpeedActionType.Speedtest;
+        var lane = actionType is ESpeedActionType.Tcping or ESpeedActionType.Realping or ESpeedActionType.UdpTest ? ESpeedActionType.Realping
+            : actionType == ESpeedActionType.Mixedtest ? ESpeedActionType.Speedtest : actionType;
+        var gate = _probeLocks.GetOrAdd(lane, _ => new SemaphoreSlim(1, 1));
+        if (!await gate.WaitAsync(0))
         {
-            // A previous test is still running: supersede it instead of refusing
-            // the user's action. The stale loop exits and this new test takes over.
-            ServerSpeedtestStop();
-            if (!await _speedtestLock.WaitAsync(TimeSpan.FromSeconds(30)))
+            if (_probeServices.TryGetValue(lane, out var previous)) previous.ExitLoop();
+            await gate.WaitAsync();
+        }
+        try
+        {
+            List<ProfileItem>? selected;
+            // Hold the mutation lock only while taking a DB snapshot. Test processes
+            // use independent ports and can run while other diagnostics are active.
+            await ProfileOperationCoordinator.Gate.WaitAsync();
+            try
             {
-                NoticeManager.Instance.Enqueue(ResUI.DicodeTestAlreadyRunning);
-                return;
+                selected = targetProfiles is not null
+                    ? JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(targetProfiles))
+                    : testAll ? JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems.OrderBy(x => x.Sort)))
+                    : await GetProfileItems(false);
+            }
+            finally { ProfileOperationCoordinator.Gate.Release(); }
+            if (selected is not { Count: > 0 }) return;
+            var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
+            foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, true);
+            var service = new SpeedtestService(_config, result => OnUiAsync(() => ApplyProbeResult(result, actionType)));
+            _probeServices[lane] = service;
+            try { await service.RunLoop(actionType, selected); }
+            finally
+            {
+                _probeServices.TryRemove(lane, out _);
+                await OnUiAsync(() => { foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, false); return Task.CompletedTask; });
             }
         }
-
-        try
-        {
-        await ProfileOperationCoordinator.Gate.WaitAsync();
-        try
-        {
-        List<ProfileItem>? lstSelected;
-        var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
-        if (actionType == ESpeedActionType.FastRealping)
-        {
-            actionType = ESpeedActionType.Realping;
-        }
-        if (targetProfiles is not null)
-        {
-            // Startup checks must be scoped to the official subscription regardless of the
-            // tab the user last viewed. Cloning prevents test preparation from mutating DB rows.
-            lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(targetProfiles));
-        }
-        else if (testAll)
-        {
-            lstSelected = JsonUtils.Deserialize<List<ProfileItem>>(JsonUtils.Serialize(ProfileItems?.OrderBy(t => t.Sort)));
-        }
-        else
-        {
-            lstSelected = await GetProfileItems(false);
-        }
-
-        if (lstSelected is null || lstSelected.Count <= 0)
-        {
-            return;
-        }
-
-        // Wipe stale measurements and switch affected rows to the shimmer
-        // placeholder, so the grid always reflects the freshly started test.
-        await ResetTestVisualStateAsync(lstSelected, actionType);
-
-        _speedtestService ??= new SpeedtestService(_config, async (SpeedTestResult result) =>
-        {
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            RxSchedulers.MainThreadScheduler.Schedule(async () =>
-            {
-                try
-                {
-                    await SetSpeedTestResult(result);
-                    completion.TrySetResult();
-                }
-                catch (Exception ex)
-                {
-                    completion.TrySetException(ex);
-                }
-            });
-            await completion.Task;
-        });
-        await _speedtestService.RunLoop(actionType, lstSelected);
-        }
-        finally
-        {
-            ProfileOperationCoordinator.Gate.Release();
-        }
-        }
-        finally
-        {
-            _speedtestLock.Release();
-        }
+        catch (Exception ex) { Logging.SaveLog("Profile diagnostics", ex); NoticeManager.Instance.Enqueue(ResUI.FailedToRunCore); }
+        finally { gate.Release(); }
     }
 
-    private async Task ResetTestVisualStateAsync(List<ProfileItem> selected, ESpeedActionType actionType)
+    private static Task OnUiAsync(Func<Task> action)
     {
-        var selectedIds = selected
-            .Where(t => t.IndexId.IsNotEmpty())
-            .Select(t => t.IndexId)
-            .ToHashSet(StringComparer.Ordinal);
-
-        RxSchedulers.MainThreadScheduler.Schedule(() =>
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        RxSchedulers.MainThreadScheduler.Schedule(async () =>
         {
-            foreach (var item in ProfileItems.Where(t => selectedIds.Contains(t.IndexId)))
-            {
-                item.IsTesting = true;
-                switch (actionType)
-                {
-                    case ESpeedActionType.Location: item.IpInfo = ResUI.DicodeChecking; break;
-                    case ESpeedActionType.Sanctions: item.SanctionsInfo = ResUI.DicodeChecking; break;
-                    case ESpeedActionType.Speedtest: item.SpeedVal = ResUI.DicodeChecking; break;
-                    case ESpeedActionType.Mixedtest:
-                        item.DelayVal = ResUI.DicodeChecking;
-                        item.SpeedVal = ResUI.DicodeChecking;
-                        break;
-                    default: item.DelayVal = ResUI.DicodeChecking; break;
-                }
-            }
+            try { await action(); completion.TrySetResult(); }
+            catch (Exception ex) { completion.TrySetException(ex); }
         });
-        await Task.CompletedTask;
+        return completion.Task;
     }
 
     public void ServerSpeedtestStop()
     {
-        _speedtestService?.ExitLoop();
+        foreach (var service in _probeServices.Values) service.ExitLoop();
     }
 
     private async Task Export2ClientConfigAsync(bool blClipboard)

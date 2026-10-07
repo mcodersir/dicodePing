@@ -61,20 +61,7 @@
                                 <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeServerPool}" />
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding ProfilesViewModel.ConnectBestCmd}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path
-                                    Width="16"
-                                    Height="16"
-                                    Data="{StaticResource DicodeIconZap}"
-                                    Stretch="Uniform"
-                                    Stroke="{DynamicResource DicodeTextSecondary}"
-                                    StrokeLineCap="Round"
-                                    StrokeJoin="Round"
-                                    StrokeThickness="1.5" />
-                                <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeSmartConnect}" />
-                            </StackPanel>
-                        </Button>
+
                         <Button Command="{Binding ReloadCmd}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path
@@ -297,11 +284,11 @@
                     </Panel>
 
                     <Panel x:Name="pageAbout" Classes="DicodePage" IsVisible="False">
-                        <Border Padding="22" Classes="DicodeCard" VerticalAlignment="Top">
+                        <Border Padding="24" Classes="DicodeCard" VerticalAlignment="Top">
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
                                 <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="Version 4.0.5 pre-release" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="4.2.0" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button Click="OpenTelegramChannel" Classes="DicodeTelegramButton">
                                         <StackPanel Orientation="Horizontal" Spacing="8">

@@ -1156,7 +1156,7 @@ public static class ConfigHandler
         {
             case EServerColName.DelayVal:
                 {
-                    var maxSort = lstProfile.Max(t => t.Sort) + 10;
+                    var maxSort = lstProfile.Select(t => t.Sort).DefaultIfEmpty(0).Max() + 10;
                     foreach (var item in lstProfile.Where(item => item.Delay <= 0))
                     {
                         ProfileExManager.Instance.SetSort(item.IndexId, maxSort);
@@ -1166,7 +1166,7 @@ public static class ConfigHandler
                 }
             case EServerColName.SpeedVal:
                 {
-                    var maxSort = lstProfile.Max(t => t.Sort) + 10;
+                    var maxSort = lstProfile.Select(t => t.Sort).DefaultIfEmpty(0).Max() + 10;
                     foreach (var item in lstProfile.Where(item => item.Speed <= 0))
                     {
                         ProfileExManager.Instance.SetSort(item.IndexId, maxSort);

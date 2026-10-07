@@ -90,6 +90,7 @@ class RealPingWorkerService(
         val jobs = guids.map { guid ->
             totalCount.incrementAndGet()
             scope.launch {
+                job.ensureActive()
                 runningCount.incrementAndGet()
                 try {
                     val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
@@ -103,8 +104,10 @@ class RealPingWorkerService(
                             sanctions?.first, sanctions?.second ?: 0, SANCTIONS_SERVICES.size
                         ))
                     }
-                } catch (_: Throwable) {
-                    // ignore
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // A failed profile does not cancel other measurements.
                 } finally {
                     val count = totalCount.decrementAndGet()
                     val left = runningCount.decrementAndGet()

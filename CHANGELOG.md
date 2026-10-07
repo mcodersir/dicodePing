@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.2.0 (stable)
+
+- Virtualized profile cards, independent metric skeletons and concurrent diagnostic lanes.
+- Serialized temporary-core allocation and readiness checks prevent port collisions.
+- AppData bundle migration and canonical Mihomo selection repair upgrades on existing installs.
+- Complete Persian resource coverage, format-parameter checks and consistent desktop forms.
+- Android bounded concurrency, concurrent subscription fetches and diagnostic-safe cleanup.
+- Four signed Android APK architectures; refreshed bilingual responsive download page.
+- Validate exact bundled core versions and include runtime-versions.json in desktop packages.
+
+
 ## 4.1.1-pre.1
 
 - PattN 7.25.5-P31 desktop core integration with cancellable probes and independent metrics.

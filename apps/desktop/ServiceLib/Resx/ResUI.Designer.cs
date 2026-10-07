@@ -6746,5 +6746,15 @@ namespace ServiceLib.Resx {
         public static string DicodeProbeLocation => ResourceManager.GetString("DicodeProbeLocation", resourceCulture);
         public static string DicodeProbeSecurity => ResourceManager.GetString("DicodeProbeSecurity", resourceCulture);
         public static string DicodeProbeSanctions => ResourceManager.GetString("DicodeProbeSanctions", resourceCulture);
+        public static string DicodeSortLatency => ResourceManager.GetString("DicodeSortLatency", resourceCulture)!;
+        public static string DicodeSortSpeed => ResourceManager.GetString("DicodeSortSpeed", resourceCulture)!;
+        public static string DicodeListHint => ResourceManager.GetString("DicodeListHint", resourceCulture)!;
+        public static string DicodeActiveProfile => ResourceManager.GetString("DicodeActiveProfile", resourceCulture)!;
+        public static string DicodeEmptyProfilesTitle => ResourceManager.GetString("DicodeEmptyProfilesTitle", resourceCulture)!;
+        public static string DicodeEmptyProfilesHint => ResourceManager.GetString("DicodeEmptyProfilesHint", resourceCulture)!;
+        public static string DicodeProfilesCount => ResourceManager.GetString("DicodeProfilesCount", resourceCulture)!;
+        public static string DicodeStopDiagnostics => ResourceManager.GetString("DicodeStopDiagnostics", resourceCulture)!;
+        public static string DicodeMetricLatency => ResourceManager.GetString("DicodeMetricLatency", resourceCulture)!;
+        public static string DicodeMetricSpeed => ResourceManager.GetString("DicodeMetricSpeed", resourceCulture)!;
     }
 }

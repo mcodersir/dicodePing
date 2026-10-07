@@ -1117,7 +1117,7 @@ public class Utils
             var result = await cmd.ExecuteBufferedAsync(cancellationToken);
             if (result.IsSuccess)
             {
-                return result.StandardOutput ?? "";
+                return $"{result.StandardOutput}\n{result.StandardError}";
             }
 
             Logging.SaveLog(result.ToString() ?? "");

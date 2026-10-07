@@ -72,7 +72,7 @@ public sealed class ServerPoolWindow : Window
         {
             _testing = update.Stage.Equals("Test", StringComparison.OrdinalIgnoreCase);
             var changed = stage.Text != update.Stage;
-            stage.Text = update.Stage; status.Text = update.Message;
+            stage.Text = StageDisplay(update.Stage); status.Text = update.Message;
             if (changed) { bar.IsIndeterminate = update.Total == 0 && _stop != null; counts.Text = ResUI.DicodePoolRunning; }
             if (update.Total > 0) {
                 bar.IsIndeterminate = false;

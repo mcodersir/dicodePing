@@ -18,6 +18,7 @@ public class CoreManager
     private int _intentionalStopDepth;
     private bool _linuxSudo = false;
     private Func<bool, string, Task>? _updateFunc;
+    private readonly SemaphoreSlim _probeLaunchLock = new(1, 1);
     private const string _tag = "CoreHandler";
 
     public bool IsRunning => _processService is { HasExited: false };
@@ -35,7 +36,7 @@ public class CoreManager
             var toPath = Utils.GetBinPath("");
             if (fromPath != toPath)
             {
-                FileUtils.CopyDirectory(fromPath, toPath, true, false);
+                await BundledRuntimeInstaller.InstallAsync(fromPath, toPath, Utils.GetVersionInfo());
             }
         }
 
@@ -119,6 +120,46 @@ public class CoreManager
 
     public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
     {
+        await _probeLaunchLock.WaitAsync();
+        try { return await ReadyProbe(await StartProbeBatch(selecteds), selecteds.Where(x => x.AllowTest).Select(x => x.Port)); }
+        finally { _probeLaunchLock.Release(); }
+    }
+
+    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem item)
+    {
+        await _probeLaunchLock.WaitAsync();
+        try { return await ReadyProbe(await StartProbeItem(item), [item.Port]); }
+        finally { _probeLaunchLock.Release(); }
+    }
+
+    private static async Task<ProcessService?> ReadyProbe(ProcessService? process, IEnumerable<int> ports)
+    {
+        if (process is null) return null;
+        var portList = ports.ToList();
+        try
+        {
+            foreach (var port in portList)
+            {
+                var ready = false;
+                for (var attempt = 0; attempt < 40 && !process.HasExited; attempt++)
+                {
+                    try
+                    {
+                        using var client = new TcpClient();
+                        await client.ConnectAsync(Global.Loopback, port).WaitAsync(TimeSpan.FromMilliseconds(150));
+                        ready = true; break;
+                    }
+                    catch { await Task.Delay(50); }
+                }
+                if (!ready) { await process.StopAsync(); process.Dispose(); return null; }
+            }
+            return process;
+        }
+        catch { await process.StopAsync(); process.Dispose(); throw; }
+    }
+
+    private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
+    {
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
@@ -133,10 +174,13 @@ public class CoreManager
         await UpdateFunc(false, configPath);
 
         var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
+        var process = await RunProcess(coreInfo, fileName, true, false);
+        if (process is not null) process.TemporaryConfigPath = configPath;
+        else if (File.Exists(configPath)) File.Delete(configPath);
+        return process;
     }
 
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem testItem)
+    private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem)
     {
         var node = await AppManager.Instance.GetProfileItem(testItem.IndexId);
         if (node is null)
@@ -155,7 +199,10 @@ public class CoreManager
 
         var coreType = context.RunCoreType;
         var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
+        var process = await RunProcess(coreInfo, fileName, true, false);
+        if (process is not null) process.TemporaryConfigPath = configPath;
+        else if (File.Exists(configPath)) File.Delete(configPath);
+        return process;
     }
 
     public async Task CoreStop()
@@ -385,9 +432,11 @@ public class CoreManager
                 {
                     var source = Utils.GetBinPath(geo);
                     var target = Path.Combine(coreDir, geo);
-                    if (File.Exists(source) && !File.Exists(target))
+                    if (File.Exists(source) && Path.GetFullPath(source) != Path.GetFullPath(target)
+                        && (!File.Exists(target) || new FileInfo(source).Length != new FileInfo(target).Length
+                            || File.GetLastWriteTimeUtc(source) > File.GetLastWriteTimeUtc(target)))
                     {
-                        File.Copy(source, target);
+                        File.Copy(source, target, true);
                     }
                 }
             }
@@ -416,6 +465,7 @@ public class CoreManager
         if (procService is null or { HasExited: true })
         {
             var recent = procService?.RecentOutput;
+            procService?.Dispose();
             throw new Exception(ResUI.FailedToRunCore + (recent.IsNullOrEmpty() ? string.Empty : Environment.NewLine + recent));
         }
         AddProcessJob(procService.Handle);
