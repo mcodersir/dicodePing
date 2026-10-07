@@ -288,7 +288,7 @@
                             <StackPanel Spacing="12">
                                 <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeAboutTitle}" />
                                 <TextBlock FontSize="14" Opacity="0.78" Text="{x:Static resx:ResUI.DicodeAboutText}" TextWrapping="Wrap" />
-                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="4.2.0" />
+                                <TextBlock x:Name="txtAboutVersion" Opacity="0.72" Text="" />
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button Click="OpenTelegramChannel" Classes="DicodeTelegramButton">
                                         <StackPanel Orientation="Horizontal" Spacing="8">

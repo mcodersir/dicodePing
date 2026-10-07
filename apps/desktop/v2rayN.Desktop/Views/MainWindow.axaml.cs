@@ -24,6 +24,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     public MainWindow()
     {
         InitializeComponent();
+        txtAboutVersion.Text = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
 
         // Sidebar navigation: IsCheckedChanged switches pages, Click also re-shows the
         // active page so a misclick can never leave the window unresponsive.
