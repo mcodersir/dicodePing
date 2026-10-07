@@ -33,6 +33,7 @@ public static class ConfigHandler
             }
         }
 
+        var isNewConfig = config == null;
         config ??= new Config();
 
         config.CoreBasicItem ??= new()
@@ -98,7 +99,7 @@ public static class ConfigHandler
             EnableTun = true,
             Mtu = 9000,
             IcmpRouting = Global.TunIcmpRoutingPolicies.First(),
-            EnableLegacyProtect = true,
+            EnableLegacyProtect = false,
         };
         // DicodePing is deliberately a TUN-only client. Existing installations are migrated
         // on first launch as well, so no non-TUN traffic mode can be selected afterwards.
@@ -172,10 +173,7 @@ public static class ConfigHandler
         {
             config.SpeedTestItem.SpeedPingTestUrl = Global.SpeedPingTestUrls.First();
         }
-        if (config.SpeedTestItem.MixedConcurrencyCount < 1)
-        {
-            config.SpeedTestItem.MixedConcurrencyCount = 5;
-        }
+        config.SpeedTestItem.MixedConcurrencyCount = Math.Max(config.SpeedTestItem.MixedConcurrencyCount, Global.SpeedTestConcurrencyCountMin);
         if (config.SpeedTestItem.UdpTestTarget.IsNullOrEmpty())
         {
             config.SpeedTestItem.UdpTestTarget = Global.UdpTestTargets.First();
@@ -303,6 +301,9 @@ public static class ConfigHandler
             item.AllowInsecure = profileItem.AllowInsecure;
             item.Fingerprint = profileItem.Fingerprint;
             item.Alpn = profileItem.Alpn;
+            item.CipherSuites = profileItem.CipherSuites;
+            item.DialMode = profileItem.DialMode;
+            item.TargetStrategy = profileItem.TargetStrategy;
 
             item.PublicKey = profileItem.PublicKey;
             item.ShortId = profileItem.ShortId;
@@ -312,6 +313,7 @@ public static class ConfigHandler
             item.Cert = profileItem.Cert;
             item.CertSha = profileItem.CertSha;
             item.EchConfigList = profileItem.EchConfigList;
+            item.EchOutbound = profileItem.EchOutbound;
             item.VerifyPeerCertByName = profileItem.VerifyPeerCertByName;
             item.Finalmask = profileItem.Finalmask;
             item.ProtoExtra = profileItem.ProtoExtra;
@@ -331,6 +333,7 @@ public static class ConfigHandler
             EConfigType.WireGuard => await AddWireguardServer(config, item),
             EConfigType.Anytls => await AddAnytlsServer(config, item),
             EConfigType.Naive => await AddNaiveServer(config, item),
+            EConfigType.MASQUE => await AddMasqueServer(config, item),
             _ => -1,
         };
         return ret;
@@ -507,12 +510,12 @@ public static class ConfigHandler
     /// Supports moving to top, up, down, bottom or specific position
     /// </summary>
     /// <param name="config">Current configuration</param>
-    /// <param name="lstProfile">List of server profiles</param>
+    /// <param name="lstProfile">List of server profile index ids</param>
     /// <param name="index">Index of the server to move</param>
     /// <param name="eMove">Direction to move the server</param>
     /// <param name="pos">Target position when using EMove.Position</param>
     /// <returns>0 if successful, -1 if failed</returns>
-    public static async Task<int> MoveServer(Config config, List<ProfileItem> lstProfile, int index, EMove eMove, int pos = -1)
+    public static async Task<int> MoveServer(Config config, List<string> lstProfile, int index, EMove eMove, int pos = -1)
     {
         var count = lstProfile.Count;
         if (index < 0 || index > lstProfile.Count - 1)
@@ -522,7 +525,7 @@ public static class ConfigHandler
 
         for (var i = 0; i < lstProfile.Count; i++)
         {
-            ProfileExManager.Instance.SetSort(lstProfile[i].IndexId, (i + 1) * 10);
+            ProfileExManager.Instance.SetSort(lstProfile[i], (i + 1) * 10);
         }
 
         var sort = 0;
@@ -534,7 +537,7 @@ public static class ConfigHandler
                     {
                         return 0;
                     }
-                    sort = ProfileExManager.Instance.GetSort(lstProfile.First().IndexId) - 1;
+                    sort = ProfileExManager.Instance.GetSort(lstProfile.First()) - 1;
 
                     break;
                 }
@@ -544,7 +547,7 @@ public static class ConfigHandler
                     {
                         return 0;
                     }
-                    sort = ProfileExManager.Instance.GetSort(lstProfile[index - 1].IndexId) - 1;
+                    sort = ProfileExManager.Instance.GetSort(lstProfile[index - 1]) - 1;
 
                     break;
                 }
@@ -555,7 +558,7 @@ public static class ConfigHandler
                     {
                         return 0;
                     }
-                    sort = ProfileExManager.Instance.GetSort(lstProfile[index + 1].IndexId) + 1;
+                    sort = ProfileExManager.Instance.GetSort(lstProfile[index + 1]) + 1;
 
                     break;
                 }
@@ -565,7 +568,7 @@ public static class ConfigHandler
                     {
                         return 0;
                     }
-                    sort = ProfileExManager.Instance.GetSort(lstProfile[^1].IndexId) + 1;
+                    sort = ProfileExManager.Instance.GetSort(lstProfile[^1]) + 1;
 
                     break;
                 }
@@ -574,7 +577,7 @@ public static class ConfigHandler
                 break;
         }
 
-        ProfileExManager.Instance.SetSort(lstProfile[index].IndexId, sort);
+        ProfileExManager.Instance.SetSort(lstProfile[index], sort);
         return await Task.FromResult(0);
     }
 
@@ -814,6 +817,7 @@ public static class ConfigHandler
         profileItem.Fingerprint = string.Empty;
         profileItem.Alpn = string.Empty;
         //profileItem.Alpn = "h3";
+        profileItem.CipherSuites = string.Empty;
         profileItem.Network = string.Empty;
 
         if (profileItem.StreamSecurity.IsNullOrEmpty())
@@ -958,6 +962,7 @@ public static class ConfigHandler
             WgInterfaceAddress = profileItem.GetProtocolExtra().WgInterfaceAddress?.TrimEx(),
             WgReserved = wgReserved,
             WgMtu = profileItem.GetProtocolExtra().WgMtu is null or <= 0 ? Global.TunMtus.First() : profileItem.GetProtocolExtra().WgMtu,
+            WgDns = profileItem.GetProtocolExtra().WgDns?.TrimEx(),
         });
 
         if (profileItem.Password.IsNullOrEmpty())
@@ -1016,6 +1021,31 @@ public static class ConfigHandler
         profileItem.Password = profileItem.Password.TrimEx();
         profileItem.Fingerprint = string.Empty;
         profileItem.Alpn = string.Empty;
+        profileItem.CipherSuites = string.Empty;
+        profileItem.Network = string.Empty;
+        profileItem.AllowInsecure = string.Empty;
+        if (profileItem.StreamSecurity.IsNullOrEmpty())
+        {
+            profileItem.StreamSecurity = Global.StreamSecurity;
+        }
+        if (profileItem.Password.IsNullOrEmpty())
+        {
+            return -1;
+        }
+        await AddServerCommon(config, profileItem, toFile);
+        return 0;
+    }
+
+    public static async Task<int> AddMasqueServer(Config config, ProfileItem profileItem, bool toFile = true)
+    {
+        profileItem.ConfigType = EConfigType.MASQUE;
+
+        profileItem.Address = profileItem.Address.TrimEx();
+        profileItem.Username = profileItem.Username.TrimEx();
+        profileItem.Password = profileItem.Password.TrimEx();
+        profileItem.Fingerprint = string.Empty;
+        profileItem.Alpn = string.Empty;
+        profileItem.CipherSuites = string.Empty;
         profileItem.Network = string.Empty;
         profileItem.AllowInsecure = string.Empty;
         if (profileItem.StreamSecurity.IsNullOrEmpty())
@@ -1333,6 +1363,7 @@ public static class ConfigHandler
                && AreEqual(o.PublicKey, n.PublicKey)
                && AreEqual(o.ShortId, n.ShortId)
                && AreEqual(o.Finalmask, n.Finalmask)
+               && AreEqual(o.EchOutbound, n.EchOutbound)
                && (!remarks || o.Remarks == n.Remarks);
 
         static bool AreEqual(string? a, string? b)
@@ -1563,7 +1594,7 @@ public static class ConfigHandler
                     p != null &&
                     p.IsValid() &&
                     (!p.ConfigType.IsComplexType() || p.ConfigType == EConfigType.Outbound) &&
-                    (extraItem.Filter.IsNullOrEmpty() || Regex.IsMatch(p.Remarks, extraItem.Filter))
+                    Utils.IsRegexMatch(p.Remarks, extraItem.Filter)
                 )
                 .ToList() ?? [];
             if (matchedChildProfiles.Count == 0)
@@ -1669,11 +1700,8 @@ public static class ConfigHandler
             return -1;
         }
 
-        var subFilter = string.Empty;
-        if (isSub && subid.IsNotEmpty())
-        {
-            subFilter = (await AppManager.Instance.GetSubItem(subid))?.Filter ?? "";
-        }
+        var subItem = await GetSubItemForImport(subid, isSub);
+        var subFilter = subItem?.Filter ?? "";
 
         var countServers = 0;
         List<ProfileItem> lstAdd = [];
@@ -1702,13 +1730,14 @@ public static class ConfigHandler
             //exist sub items //filter
             if (isSub && subid.IsNotEmpty() && subFilter.IsNotEmpty())
             {
-                if (!Regex.IsMatch(profileItem.Remarks, subFilter))
+                if (!Utils.IsRegexMatch(profileItem.Remarks, subFilter))
                 {
                     continue;
                 }
             }
             profileItem.Subid = subid;
             profileItem.IsSub = isSub;
+            ApplySubOverrides(profileItem, subItem);
 
             var addStatus = profileItem.ConfigType switch
             {
@@ -1722,6 +1751,7 @@ public static class ConfigHandler
                 EConfigType.WireGuard => await AddWireguardServer(config, profileItem, false),
                 EConfigType.Anytls => await AddAnytlsServer(config, profileItem, false),
                 EConfigType.Naive => await AddNaiveServer(config, profileItem, false),
+                EConfigType.MASQUE => await AddMasqueServer(config, profileItem, false),
                 _ => -1,
             };
 
@@ -1789,15 +1819,13 @@ public static class ConfigHandler
         {
             lstProfiles = SingboxFmt.ResolveToCustomOutbound(strData, subRemarks);
         }
-        if (lstProfiles.Count == 0)
+        if (lstProfiles.Count > 0)
         {
-            return -1;
-        }
-
-        var count = await AddBatchCustomServers(config, lstProfiles, subid, isSub);
-        if (count > 0)
-        {
-            return count;
+            var count = await AddBatchCustomServers(config, lstProfiles, subid, isSub, subItem);
+            if (count > 0)
+            {
+                return count;
+            }
         }
 
         if (HtmlPageFmt.IsHtmlPage(strData))
@@ -1844,7 +1872,7 @@ public static class ConfigHandler
                 return -1;
             }
 
-            var count = await AddBatchCustomServers(config, lstProfiles, subid, isSub);
+            var count = await AddBatchCustomServers(config, lstProfiles, subid, isSub, subItem);
             if (count > 0)
             {
                 return count;
@@ -1858,7 +1886,8 @@ public static class ConfigHandler
         Config config,
         List<ProfileItem> lstProfiles,
         string subid,
-        bool isSub)
+        bool isSub,
+        SubItem? subItem)
     {
         var count = 0;
         foreach (var it in lstProfiles)
@@ -1868,6 +1897,7 @@ public static class ConfigHandler
 
             if (it.ConfigType == EConfigType.Custom)
             {
+                it.PreSocksPort = subItem?.PreSocksPort;
                 if (await AddCustomServer(config, it, true) == 0)
                 {
                     count++;
@@ -1972,11 +2002,13 @@ public static class ConfigHandler
         var lstSsServer = ShadowsocksFmt.ResolveSip008(strData);
         if (lstSsServer?.Count > 0)
         {
+            var subItem = await GetSubItemForImport(subid, isSub);
             var counter = 0;
             foreach (var ssItem in lstSsServer)
             {
                 ssItem.Subid = subid;
                 ssItem.IsSub = isSub;
+                ApplySubOverrides(ssItem, subItem);
                 if (await AddShadowsocksServer(config, ssItem) == 0)
                 {
                     counter++;
@@ -2003,11 +2035,13 @@ public static class ConfigHandler
         var lstServer = WireguardFmt.ResolveConfig(strData);
         if (lstServer?.Count > 0)
         {
+            var subItem = await GetSubItemForImport(subid, isSub);
             var counter = 0;
             foreach (var item in lstServer)
             {
                 item.Subid = subid;
                 item.IsSub = isSub;
+                ApplySubOverrides(item, subItem);
                 if (await AddWireguardServer(config, item) == 0)
                 {
                     counter++;
@@ -2029,12 +2063,17 @@ public static class ConfigHandler
         var lstServer = InnerFmt.Resolve(strData, subid);
         if (lstServer?.Count > 0)
         {
+            var subItem = await GetSubItemForImport(subid, isSub);
             var counter = 0;
             List<ProfileItem> lstAdd = [];
             foreach (var profileItem in lstServer)
             {
                 profileItem.Subid = subid;
                 profileItem.IsSub = isSub;
+                if (!profileItem.ConfigType.IsComplexType())
+                {
+                    ApplySubOverrides(profileItem, subItem);
+                }
 
                 var addStatus = profileItem.ConfigType switch
                 {
@@ -2068,6 +2107,40 @@ public static class ConfigHandler
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// Get the subscription an import belongs to, or null when the import is not a subscription update
+    /// </summary>
+    private static async Task<SubItem?> GetSubItemForImport(string subid, bool isSub)
+    {
+        if (!isSub || subid.IsNullOrEmpty())
+        {
+            return null;
+        }
+        return await AppManager.Instance.GetSubItem(subid);
+    }
+
+    /// <summary>
+    /// Replace the address and/or port of a profile imported from a subscription with the
+    /// override values configured on that subscription. Empty override values leave the profile unchanged.
+    /// </summary>
+    /// <param name="profileItem">Profile imported from the subscription</param>
+    /// <param name="subItem">Subscription the profile belongs to, or null</param>
+    public static void ApplySubOverrides(ProfileItem profileItem, SubItem? subItem)
+    {
+        if (subItem is null)
+        {
+            return;
+        }
+        if (subItem.OverrideAddress.IsNotEmpty())
+        {
+            profileItem.Address = subItem.OverrideAddress!.Trim();
+        }
+        if (subItem.OverridePort is > 0 and <= 65535)
+        {
+            profileItem.Port = subItem.OverridePort.Value;
+        }
     }
 
     /// <summary>
@@ -2248,6 +2321,7 @@ public static class ConfigHandler
             item.Enabled = subItem.Enabled;
             item.AutoUpdateInterval = subItem.AutoUpdateInterval;
             item.UserAgent = subItem.UserAgent;
+            item.RequestHeaders = subItem.RequestHeaders;
             item.Sort = subItem.Sort;
             item.Filter = subItem.Filter;
             item.UpdateTime = subItem.UpdateTime;
@@ -2257,6 +2331,8 @@ public static class ConfigHandler
             item.PreSocksPort = subItem.PreSocksPort;
             item.Memo = subItem.Memo;
             item.CustomCoreType = subItem.CustomCoreType;
+            item.OverrideAddress = subItem.OverrideAddress;
+            item.OverridePort = subItem.OverridePort;
             item.UploadBytes = subItem.UploadBytes;
             item.DownloadBytes = subItem.DownloadBytes;
             item.TotalBytes = subItem.TotalBytes;
@@ -2629,6 +2705,14 @@ public static class ConfigHandler
             item.Sort = ++maxSort;
             item.Url = string.Empty;
 
+            //PattN: the Iran template still ships what PattN removed from its Iran direct rule-set; clean it before storing
+            if (item.Remarks == IranDirectRoutingRemarks)
+            {
+                item.RuleSet = ruleSetsString;
+                CleanIranDirectRouting(item);
+                ruleSetsString = item.RuleSet;
+            }
+
             await AddBatchRoutingRules(item, ruleSetsString);
 
             //first rule as default at first startup
@@ -2639,6 +2723,119 @@ public static class ConfigHandler
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// PattN: rewrite the Iran direct-domain rule from "geosite:ir" (Chocolate4U only) to
+    /// "domain:ir" + "geosite:category-ir" (present in every geosite source), as custom_routing_white_iran has now
+    /// </summary>
+    /// <param name="rules">Rules of the stored Iran routing</param>
+    /// <returns>true when a rule was changed</returns>
+    public static bool MigrateIranDirectDomains(List<RulesItem> rules)
+    {
+        var changed = false;
+        foreach (var rule in rules)
+        {
+            if (rule.Domain is null || rule.OutboundTag != Global.DirectTag)
+            {
+                continue;
+            }
+            var index = rule.Domain.FindIndex(t => string.Equals(t, "geosite:ir", StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                continue;
+            }
+            rule.Domain.RemoveAt(index);
+            if (!rule.Domain.Contains("geosite:category-ir", StringComparer.OrdinalIgnoreCase))
+            {
+                rule.Domain.Insert(index, "geosite:category-ir");
+            }
+            if (!rule.Domain.Contains("domain:ir", StringComparer.OrdinalIgnoreCase))
+            {
+                rule.Domain.Insert(index, "domain:ir");
+            }
+            changed = true;
+        }
+        return changed;
+    }
+
+    /// <summary>
+    /// PattN: remove the "port 0-65535 -> proxy" rule that custom_routing_white_iran used to end with. It matched every
+    /// connection by its port before an IPIfNonMatch domain strategy could resolve the domain, so the Iran IP rule never
+    /// applied to domains. What no rule matches still goes to the proxy without it: the first outbound, or the final
+    /// balancer rule. A rule that was edited since is left alone.
+    /// </summary>
+    /// <param name="rules">Rules of the stored Iran routing</param>
+    /// <returns>The number of rules removed</returns>
+    public static int RemoveIranProxyCatchAll(List<RulesItem> rules)
+    {
+        return rules.RemoveAll(t => t.Remarks == "سایر موارد - پراکسی"
+            && t.OutboundTag == Global.ProxyTag
+            && t.Port == "0-65535"
+            && string.IsNullOrEmpty(t.Network)
+            && t.InboundTag is null or []
+            && t.Ip is null or []
+            && t.Domain is null or []
+            && t.Protocol is null or []
+            && t.Process is null or []);
+    }
+
+    /// <summary>
+    /// PattN: name of the Iran direct rule-set, which the Iran template (Chocolate4U) imports under the same name
+    /// </summary>
+    public const string IranDirectRoutingRemarks = "IR-ایران مستقیم، بقیه پراکسی";
+
+    /// <summary>
+    /// PattN: clean an Iran direct rule-set of what custom_routing_white_iran no longer has and the Iran template
+    /// (Chocolate4U) still ships:
+    /// the IPOnDemand domain strategy, which 7.24.8-P5 stored too, so that the default (AsIs) applies;
+    /// the "8.8.8.8 -> direct" rule for domestic DNS, which the direct-dns routing rule covers now;
+    /// "geosite:ir" (Chocolate4U only), which releases up to 7.25.1-P24 shipped too (see MigrateIranDirectDomains);
+    /// and the "port 0-65535 -> proxy" rule, which releases up to 7.25.2-P28 ended with too (see RemoveIranProxyCatchAll)
+    /// </summary>
+    /// <param name="item">An Iran direct rule-set, stored or being imported</param>
+    /// <returns>true when the rule-set changed</returns>
+    public static bool CleanIranDirectRouting(RoutingItem item)
+    {
+        var changed = false;
+        if (item.DomainStrategy == Global.IPOnDemand)
+        {
+            item.DomainStrategy = string.Empty;
+            changed = true;
+        }
+
+        var rules = JsonUtils.Deserialize<List<RulesItem>>(item.RuleSet) ?? [];
+        var removedCount = rules.RemoveAll(t => t.Remarks == "تبدیل نام دامنه های ایران - مستقیم"
+            && t.OutboundTag == Global.DirectTag
+            && t.Ip is ["8.8.8.8"]);
+        removedCount += RemoveIranProxyCatchAll(rules);
+        var domainsMigrated = MigrateIranDirectDomains(rules);
+        if (removedCount > 0 || domainsMigrated)
+        {
+            item.RuleNum = rules.Count;
+            item.RuleSet = JsonUtils.Serialize(rules, false);
+            changed = true;
+        }
+        return changed;
+    }
+
+    /// <summary>
+    /// PattN: clean every Iran direct rule-set of items (see CleanIranDirectRouting), not only the first one: "Import Rules"
+    /// adds the one of the Iran template under the same name next to PattN's own
+    /// </summary>
+    /// <param name="items">Stored routing rule-sets</param>
+    /// <returns>The rule-sets that changed, to be saved</returns>
+    public static List<RoutingItem> CleanIranDirectRoutings(IEnumerable<RoutingItem> items)
+    {
+        var changed = new List<RoutingItem>();
+        foreach (var item in items.Where(t => t.Remarks == IranDirectRoutingRemarks))
+        {
+            if (CleanIranDirectRouting(item))
+            {
+                changed.Add(item);
+            }
+        }
+        return changed;
     }
 
     /// <summary>
@@ -2661,7 +2858,14 @@ public static class ConfigHandler
             items = await AppManager.Instance.RoutingItems();
         }
 
-        if (!blImportAdvancedRules && items.Count(u => u.Remarks.StartsWith(ver)) > 0)
+        //PattN TODO Temporary code to be removed later: clean every Iran direct rule-set that an older release stored,
+        //or that "Import Rules" took from the Iran template before it was cleaned on import (see CleanIranDirectRouting)
+        foreach (var iranDirectItem in CleanIranDirectRoutings(items ?? []))
+        {
+            await SQLiteHelper.Instance.UpdateAsync(iranDirectItem);
+        }
+
+        if (!blImportAdvancedRules && items.Count() > 0) // items.Count(u => u.Remarks.StartsWith(ver)) > 0)
         {
             //migrate
             //TODO Temporary code to be removed later
@@ -2706,9 +2910,27 @@ public static class ConfigHandler
         };
         await AddBatchRoutingRules(item1, EmbedUtils.GetEmbedText(Global.CustomRoutingFileName + "global"));
 
+        //PattN: Iran direct (Chocolate4U), see https://github.com/Chocolate4U/Iran-v2ray-rules
+        var item4 = new RoutingItem()
+        {
+            Remarks = IranDirectRoutingRemarks,
+            Url = string.Empty,
+            Sort = maxSort + 4,
+        };
+        await AddBatchRoutingRules(item4, EmbedUtils.GetEmbedText(Global.CustomRoutingFileName + "white_iran"));
+
+        //PattN: Iran global proxy
+        var item5 = new RoutingItem()
+        {
+            Remarks = "IR-پراکسی سراسری",
+            Url = string.Empty,
+            Sort = maxSort + 5,
+        };
+        await AddBatchRoutingRules(item5, EmbedUtils.GetEmbedText(Global.CustomRoutingFileName + "global_iran"));
+
         if (!blImportAdvancedRules)
         {
-            await SetDefaultRouting(config, item2);
+            await SetDefaultRouting(config, item4);
         }
         return 0;
     }
@@ -2856,7 +3078,8 @@ public static class ConfigHandler
         {
             UseSystemHosts = false,
             AddCommonHosts = true,
-            FakeIP = false,
+            // PattN: FakeIP is on by default
+            FakeIP = true,
             GlobalFakeIp = true,
             BlockBindingQuery = true,
             DirectDNS = Global.DomainDirectDNSAddress.FirstOrDefault(),
@@ -2938,71 +3161,55 @@ public static class ConfigHandler
 
     /// <summary>
     /// Apply regional presets for geo-specific configurations
-    /// Sets up geo files, routing rules, and DNS for specific regions
+    /// Sets up geo files and routing rules for specific regions
     /// </summary>
     /// <param name="config">Current configuration</param>
-    /// <param name="type">Type of preset (Default, Russia, Iran)</param>
+    /// <param name="type">Type of preset (Default, China, Russia, Iran)</param>
     /// <returns>True if successful</returns>
     public static async Task<bool> ApplyRegionalPreset(Config config, EPresetType type)
     {
+        //PattN: a preset leaves the DNS settings as they are. Default and China used to reset them to the built-in ones,
+        //and Russia and Iran to replace them with the region's DNS templates, or, when the simple DNS template could not
+        //be downloaded, to enable custom DNS in both the Xray and the sing-box settings
         switch (type)
         {
             case EPresetType.Default:
                 config.ConstItem.GeoSourceUrl = "";
                 config.ConstItem.SrsSourceUrl = "";
                 config.ConstItem.RouteRulesTemplateSourceUrl = "";
+                break;
 
-                await SQLiteHelper.Instance.DeleteAllAsync<DNSItem>();
-                await InitBuiltinDNS(config);
-
-                config.SimpleDNSItem = InitBuiltinSimpleDNS();
+            case EPresetType.China:
+                config.ConstItem.GeoSourceUrl = Global.GeoFilesSources[3];
+                config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[3];
+                config.ConstItem.RouteRulesTemplateSourceUrl = "";
                 break;
 
             case EPresetType.Russia:
                 config.ConstItem.GeoSourceUrl = Global.GeoFilesSources[1];
                 config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[1];
                 config.ConstItem.RouteRulesTemplateSourceUrl = Global.RoutingRulesSources[1];
-
-                var xrayDnsRussia = await GetExternalDNSItem(ECoreType.Xray, Global.DNSTemplateSources[1] + "v2ray.json");
-                var singboxDnsRussia = await GetExternalDNSItem(ECoreType.sing_box, Global.DNSTemplateSources[1] + "sing_box.json");
-                var simpleDnsRussia = await GetExternalSimpleDNSItem(Global.DNSTemplateSources[1] + "simple_dns.json");
-
-                if (simpleDnsRussia == null)
-                {
-                    xrayDnsRussia.Enabled = true;
-                    singboxDnsRussia.Enabled = true;
-                    config.SimpleDNSItem = InitBuiltinSimpleDNS();
-                }
-                else
-                {
-                    config.SimpleDNSItem = simpleDnsRussia;
-                }
-                await SaveDNSItems(config, xrayDnsRussia);
-                await SaveDNSItems(config, singboxDnsRussia);
                 break;
 
             case EPresetType.Iran:
                 config.ConstItem.GeoSourceUrl = Global.GeoFilesSources[2];
                 config.ConstItem.SrsSourceUrl = Global.SingboxRulesetSources[2];
                 config.ConstItem.RouteRulesTemplateSourceUrl = Global.RoutingRulesSources[2];
-
-                var xrayDnsIran = await GetExternalDNSItem(ECoreType.Xray, Global.DNSTemplateSources[2] + "v2ray.json");
-                var singboxDnsIran = await GetExternalDNSItem(ECoreType.sing_box, Global.DNSTemplateSources[2] + "sing_box.json");
-                var simpleDnsIran = await GetExternalSimpleDNSItem(Global.DNSTemplateSources[2] + "simple_dns.json");
-
-                if (simpleDnsIran == null)
-                {
-                    xrayDnsIran.Enabled = true;
-                    singboxDnsIran.Enabled = true;
-                    config.SimpleDNSItem = InitBuiltinSimpleDNS();
-                }
-                else
-                {
-                    config.SimpleDNSItem = simpleDnsIran;
-                }
-                await SaveDNSItems(config, xrayDnsIran);
-                await SaveDNSItems(config, singboxDnsIran);
                 break;
+        }
+
+        // Activate a routing that matches the preset's geo data.
+        // The IR rule-sets need geosite "category-ir" and geoip "ir", and geosite:gfw only exists on Loyalsoldier/runetfreedom;
+        // an active routing with categories missing from the new dats would stop the core from starting.
+        // Derived from the effective geo source so the mapping follows whatever the built-in default is.
+        var effectiveGeoUrl = config.ConstItem.GeoSourceUrl.IsNullOrEmpty() ? Global.GeoUrl : config.ConstItem.GeoSourceUrl;
+        var routingPrefix = effectiveGeoUrl.Contains("Chocolate4U", StringComparison.OrdinalIgnoreCase) ? "IR-"
+            : effectiveGeoUrl.Contains("russia", StringComparison.OrdinalIgnoreCase) ? "RU"
+            : "V4-";
+        var presetRouting = (await AppManager.Instance.RoutingItems())?.FirstOrDefault(t => t.Remarks.StartsWith(routingPrefix));
+        if (presetRouting != null)
+        {
+            await SetDefaultRouting(config, presetRouting);
         }
 
         return true;

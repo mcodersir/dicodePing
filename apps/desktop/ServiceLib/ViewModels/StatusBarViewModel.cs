@@ -348,12 +348,12 @@ public partial class StatusBarViewModel : MyReactiveObject
         SetDefaultServerRequested.Publish(SelectedServer.ID);
     }
 
-    public async Task TestServerAvailability()
+    public async Task<AvailabilityCheckResult?> TestServerAvailability()
     {
         var item = await ConfigHandler.GetDefaultServer(_config);
         if (item == null)
         {
-            return;
+            return null;
         }
 
         await TestServerAvailabilitySub(ResUI.Speedtesting);
@@ -366,6 +366,7 @@ public partial class StatusBarViewModel : MyReactiveObject
         var msg = $"{PingDisplay} · {LocationDisplay}";
         NoticeManager.Instance.SendMessageEx(msg);
         await TestServerAvailabilitySub(string.Empty);
+        return new AvailabilityCheckResult(result.Delay, result.Location?.ToString());
     }
 
     private async Task TestServerAvailabilitySub(string msg)

@@ -19,12 +19,10 @@ public class TaskManager
     {
         Logging.SaveLog("Setup Scheduled Tasks");
 
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
         var numOfExecuted = 1;
-        while (true)
+        while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
         {
-            //1 minute
-            await Task.Delay(1000 * 60);
-
             //Execute once 1 minute
             try
             {
@@ -57,8 +55,8 @@ public class TaskManager
                 //Logging.SaveLog("Execute delete expired files");
 
                 FileUtils.DeleteExpiredFiles(Utils.GetBinConfigPath(), DateTime.Now.AddHours(-1), "Test");
-                FileUtils.DeleteExpiredFiles(Utils.GetLogPath(), DateTime.Now.AddMonths(-1));
-                FileUtils.DeleteExpiredFiles(Utils.GetTempPath(), DateTime.Now.AddMonths(-1));
+                FileUtils.DeleteExpiredFiles(Utils.GetLogPath(), DateTime.Now.AddDays(-7));
+                FileUtils.DeleteExpiredFiles(Utils.GetTempPath(), DateTime.Now.AddDays(-7));
 
                 try
                 {

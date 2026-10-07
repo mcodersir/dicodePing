@@ -15,3 +15,9 @@ coverage/
 # Local build caches and workspace tooling
 .gradle/
 .workbuddy-ai/
+
+# Generated build outputs
+/apps/desktop/**/bin/
+/apps/desktop/**/obj/
+/apps/android/**/build/
+/apps/android/.gradle/

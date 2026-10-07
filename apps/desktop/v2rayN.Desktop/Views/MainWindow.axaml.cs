@@ -41,9 +41,16 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         navAbout.Click += Nav_Click;
 
         // Settings page embeds the sanctions editor; give it its own view model.
+        embeddedOptionSetting.Applied += ApplyEmbeddedSettings;
+        embeddedDNSSetting.Applied += ApplyEmbeddedSettings;
+        embeddedDomainFilterSetting.Applied += ApplyEmbeddedSettings;
+        embeddedUpdates.ViewModel = new CheckUpdateViewModel();
+        embeddedBackup.ViewModel = new BackupAndRestoreViewModel();
         sanctionsSettingsView.DataContext ??= new SanctionsServicesViewModel();
-        spoSourcesView.DataContext ??= new SpoSourcesViewModel();
 
+        menuOptionSetting.Click += (_, _) => OpenSettingsTab(0);
+        menuRoutingSetting.Click += (_, _) => OpenSettingsTab(1);
+        menuDNSSetting.Click += (_, _) => OpenSettingsTab(3);
         _config = AppManager.Instance.Config;
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
@@ -84,10 +91,6 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             this.BindCommand(ViewModel, vm => vm.SubUpdateCmd, v => v.menuSubUpdate).DisposeWith(disposables);
 
             //setting
-            this.BindCommand(ViewModel, vm => vm.OptionSettingCmd, v => v.menuOptionSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.RoutingSettingCmd, v => v.menuRoutingSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.DomainFilterSettingCmd, v => v.menuDomainFilterSetting).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.DNSSettingCmd, v => v.menuDNSSetting).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.FullConfigTemplateCmd, v => v.menuFullConfigTemplate).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.GlobalHotkeySettingCmd, v => v.menuGlobalHotkeySetting).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.RebootAsAdminCmd, v => v.menuRebootAsAdmin).DisposeWith(disposables);
@@ -546,4 +549,15 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     }
 
     #endregion UI
+    private void OpenSettingsTab(int index)
+    {
+        navSettings.IsChecked = true;
+        settingsTabs.SelectedIndex = index;
+    }
+
+    private async void ApplyEmbeddedSettings(object? sender, EventArgs args)
+    {
+        try { if (ViewModel != null) await ViewModel.Reload(); }
+        catch (Exception error) { Logging.SaveLog("ApplyEmbeddedSettings", error); NoticeManager.Instance.Enqueue(error.Message); }
+    }
 }

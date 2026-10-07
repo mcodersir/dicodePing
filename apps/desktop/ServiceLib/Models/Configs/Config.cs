@@ -36,7 +36,6 @@ public class Config
     public SimpleDNSItem SimpleDNSItem { get; set; }
     public HappyEyeballs4RayItem HappyEyeballs4RayItem { get; set; }
     public SanctionsItem SanctionsItem { get; set; } = new();
-    public SpoSourcesItem SpoSourcesItem { get; set; } = new();
 
     #endregion other entities
 }

@@ -1,4 +1,4 @@
-name: Release v4
+name: Release 4.1.1 Preview
 
 on:
   push:
@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.1.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.1.1-pre.1
       - name: Run desktop regression tests on isolated Windows
         if: runner.os == 'Windows'
         env:
@@ -80,7 +80,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.1.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.1.1-pre.1 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -106,8 +106,8 @@ jobs:
           }
           # Replace the archive defaults with the newest verified routing
           # database release so both the bundled runtime and Geo updater agree.
-          $geoRelease = '202610042206'
-          $geoHashes = @{ 'geoip.dat' = '391b522361c52804e486a98b53d97f3d9c1d3e4e4217bb34954774a0b456b9fd'; 'geosite.dat' = 'd4e197147c1017129a906a7f155050ccde0b291cf376f787071af3e805cc7d2c' }
+          $geoRelease = '202610062207'
+          $geoHashes = @{ 'geoip.dat' = '391b522361c52804e486a98b53d97f3d9c1d3e4e4217bb34954774a0b456b9fd'; 'geosite.dat' = '282b6613f2a09e2c5b2ba357808abb7bb697f7f5c6cc957d8e5dc92bdc27fbbf' }
           foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
             $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
             Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
@@ -164,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.1.0-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.1.1-pre.1-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -173,7 +173,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.1.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.1.1-pre.1-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -234,7 +234,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.1.0
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.1.1-pre.1
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -264,35 +264,21 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.1.0 — Stable
-          prerelease: false
+          name: DicodePing 4.1.1 — Preview 1
+          prerelease: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.1.0 — نسخه پایدار (Stable)
+            ## DicodePing 4.1.1 — پیش‌انتشار ۱
 
-            اولین نسخه پایدار سری 4.x با تمرکز بر اتصال پایدار TUN، شفافیت کامل گزارش‌ها، بررسی دقیق تحریم و قابلیت جدید ساب منابع DicodeSpo.
+            - همگام‌سازی هستهٔ اتصال و تولید پیکربندی دسکتاپ با **PattN 7.25.5-P31** (08da2e96c00e44709ad09c3faa1ea183cb07eea3)، با حفظ برند و سیاست‌های اتصال DicodePing.
+            - بازنویسی آزمون‌های پینگ، سرعت و UDP بر مبنای موتور قابل‌لغو P31؛ توقف مستقل هر اجرا و پاک‌سازی پردازه‌های موقت.
+            - آزمون مستقل لوکیشن و تحریم؛ شروع هر آزمون فقط فیلد مربوط به همان آزمون را تغییر می‌دهد.
+            - بازطراحی فضای پروفایل با عنوان، ابزارهای خوانا، ردیف‌های خلوت و پالت هماهنگ با تم.
+            - تنظیمات عمومی، مسیریابی، DNS، فیلتر دامنه، به‌روزرسانی و پشتیبان‌گیری داخل تب‌های همان صفحه؛ ذخیره بدون بستن فرم.
+            - حذف کامل اشتراک و مدیریت منابع DicodeSpo؛ گروه **Dicode Config Checker** از هر دو لینک رسمی Config Checker و Patterniha Free-Configs پر می‌شود. نصب قبلی به‌صورت خودکار مهاجرت می‌کند.
+            - Android: حفظ پایهٔ **PattNG 2.3.10-P60** و libv2ray v26.10.4، اضافه‌شدن لغو بومی دستهٔ آزمون‌ها و ادغام دو منبع در یک اشتراک.
+            - هسته‌های بسته‌بندی‌شده: Xray v26.9.30، sing-box v1.14.2، mihomo v1.19.32؛ داده‌های geo نسخهٔ 202610062207 با بررسی SHA-256.
 
-            ## قابلیت‌های جدید
-            - **ساب منابع DicodeSpo**: اولین ساب برنامه که کانفیگ‌های رایگان را از منابع معتبر (Patterniha Free-Configs در اولویت اول، 0xRadikal Top100، roosterkid، ermaozi، MatinGhanbari، barry-far و…) جمع و بدون تکرار وارد می‌کند؛ سبک است و بعد از پرشدن سقف (۵۰۰ کانفیگ) متوقف می‌شود. در اندروید هم همین ساب اولین ساب است.
-            - مدیریت منابع از تنظیمات دسکتاپ: تب «DicodeSpo sources» — فعال/غیرفعال کردن کل منبع یا تک‌تک لینک‌ها، جستجو، افزودن، حذف و بازگردانی پیش‌فرض‌ها.
-            - استخر سرورها: اگر قبل از جمع‌آوری وصل نبود، بعد از ساب Config Checker حالا ساب منابع DicodeSpo را هم آزمایش می‌کند.
-            - بررسی تحریم با ۲۲ سرویس، نتایج دقیق با نام سرویس‌های مسدودشده و مدیریت کامل از تنظیمات.
-            - دکمه عضویت در کانال تلگرام در صفحه درباره (t.me/dicodeping).
-
-            ## رفع اشکالات
-            - «Core اجرا نشد»: فایل‌های geo کنار هر هسته کپی می‌شوند و خروجی کامل هسته همیشه در لاگ و صفحه گزارش‌ها ثبت می‌شود.
-            - اتصال TUN: قانون DNS منسوخ hosts (ip_accept_any) که sing-box 1.14 آن را رد می‌کرد بازنویسی شد — با sing-box check تأیید شد.
-            - صفحه گزارش‌ها حالا واقعاً پر می‌شود با نشان رنگی سطح لاگ و فیلتر زنده.
-            - پینگ/سرعت/لوکیشن/تحریم/امنیت: پاک شدن آنی اعداد قبلی و نمایش «در حال بررسی» با شیمر، سپس نتایج لحظه‌ای.
-            - خطای ERR_QUIC_PROTOCOL_ERROR با مسدود کردن QUIC در TUN.
-            - فیلتر دامنه در حالت TUN، تراز متن فارسی ترکیبی، رنگ دکمه‌ها هماهنگ با تم، توست‌های تم‌دار.
-            - رفع minSdk اندروید برای libv2ray جدید و targetSdk پایدار 36.
-
-            ## به‌روزرسانی هسته‌ها
-            - Xray v26.9.30 · sing-box v1.14.2 · mihomo v1.19.32 · PattNG 2.3.10-P60 · AndroidLibXrayLite v26.10.4 · geo 202610042206
-
-            English summary:
-            - 4.1.0 is the first stable release of the 4.x series: reliable TUN connections (sing-box 1.14 DNS schema fixed and verified with sing-box check), fully recorded Reports page, instant test resets with live results, accurate 22-service sanctions check with settings management, and the new DicodeSpo sources subscription (priority-ordered free-config aggregation, per-source management, pool fallback).
-            - Bundled cores: Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32, PattNG 2.3.10-P60, libv2ray v26.10.4, geo 202610042206.
-            - Android versionCode 401000. For installation pick DicodePing-4.1.0-universal.apk (or arm64-v8a).
+            این نسخه پیش‌انتشار است. آزمون امنیت، بررسی تنظیمات TLS پیکربندی است و نتیجهٔ تحریم، دسترسی شبکه به سرویس‌های انتخاب‌شده را نشان می‌دهد.
+            برای اندروید فایل universal.apk یا فایل متناسب با معماری دستگاه را نصب کنید.
           files: artifacts/*

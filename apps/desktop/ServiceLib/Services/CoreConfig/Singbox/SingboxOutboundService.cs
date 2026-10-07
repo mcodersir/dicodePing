@@ -77,7 +77,7 @@ public partial class CoreConfigSingboxService
                 }
             }
 
-            if (_node.ConfigType == EConfigType.WireGuard)
+            if (_node.ConfigType is EConfigType.WireGuard or EConfigType.MASQUE)
             {
                 var endpoint = JsonUtils.Deserialize<Endpoints4Sbox>(txtOutbound);
                 FillEndpoint(endpoint);
@@ -350,13 +350,13 @@ public partial class CoreConfigSingboxService
         {
             var protocolExtra = _node.GetProtocolExtra();
 
-            endpoint.address = Utils.String2List(protocolExtra.WgInterfaceAddress)?.Select(s => s.Trim()).ToList() ?? ["172.16.0.2/32"];
             endpoint.type = Global.ProtocolTypes[_node.ConfigType];
 
             switch (_node.ConfigType)
             {
                 case EConfigType.WireGuard:
                     {
+                        endpoint.address = Utils.String2List(protocolExtra.WgInterfaceAddress)?.Select(s => s.Trim()).ToList() ?? ["172.16.0.2/32"];
                         var peer = new Peer4Sbox
                         {
                             public_key = protocolExtra.WgPublicKey ?? string.Empty,
@@ -369,6 +369,28 @@ public partial class CoreConfigSingboxService
                         endpoint.private_key = _node.Password;
                         endpoint.mtu = protocolExtra.WgMtu > 0 ? protocolExtra.WgMtu : Global.TunMtus.First();
                         endpoint.peers = [peer];
+                        break;
+                    }
+                case EConfigType.MASQUE:
+                    {
+                        endpoint.type = "masque-client";
+                        endpoint.server = _node.Address;
+                        endpoint.server_port = _node.Port;
+                        endpoint.username = _node.Username;
+                        endpoint.password = _node.Password;
+                        endpoint.path = protocolExtra?.MasquePath.NullIfEmpty();
+                        if (!string.IsNullOrEmpty(protocolExtra?.MasqueHeaders))
+                        {
+                            var headers = Utils.ParseHeaders(protocolExtra.MasqueHeaders)
+                                .GroupBy(x => x.Item1, StringComparer.OrdinalIgnoreCase)
+                                .ToDictionary(
+                                    g => g.Key,
+                                    g => g.Select(x => x.Item2).ToList(),
+                                    StringComparer.OrdinalIgnoreCase
+                                );
+                            endpoint.headers = headers.Count > 0 ? headers : null;
+                        }
+                        FillOutboundTls(endpoint);
                         break;
                     }
             }
@@ -402,7 +424,7 @@ public partial class CoreConfigSingboxService
         }
     }
 
-    private void FillOutboundTls(Outbound4Sbox outbound)
+    private void FillOutboundTls(BaseServer4Sbox server)
     {
         try
         {
@@ -444,7 +466,8 @@ public partial class CoreConfigSingboxService
                 tls.fragment = true;
                 tls.record_fragment = true;
             }
-            if (_node.Fingerprint.IsNotEmpty())
+            // "unsafe" is an Xray-only fingerprint; sing-box's uTLS rejects it, so fall back to plain TLS
+            if (_node.Fingerprint.IsNotEmpty() && _node.Fingerprint != "unsafe")
             {
                 tls.utls = new Utls4Sbox()
                 {
@@ -454,6 +477,15 @@ public partial class CoreConfigSingboxService
             }
             if (_node.StreamSecurity == Global.StreamSecurity)
             {
+                if (_node.CipherSuites.IsNotEmpty())
+                {
+                    // Xray stores cipher suites as a colon-separated string; sing-box wants a list of the same Go TLS names
+                    tls.cipher_suites = _node.CipherSuites
+                        .Split([':', ','], StringSplitOptions.RemoveEmptyEntries)
+                        .Select(c => c.Trim())
+                        .Where(c => c.IsNotEmpty())
+                        .ToList();
+                }
                 var certs = CertPemManager.ParsePemChain(_node.Cert);
                 if (certs.Count > 0)
                 {
@@ -476,7 +508,7 @@ public partial class CoreConfigSingboxService
             {
                 tls.ech = ech;
             }
-            outbound.tls = tls;
+            server.tls = tls;
         }
         catch (Exception ex)
         {

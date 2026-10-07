@@ -23,6 +23,8 @@ object AppConfig {
 
     // DicodeSpo: the "sources" subscription. Never fetched; its content is
     // aggregated from the free-config sources at update time.
+    const val DICODE_SECONDARY_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt"
+    // Kept only to migrate previous installations.
     const val DICODE_SPO_SUBSCRIPTION_ID = "DicodeSpoSub"
     const val DICODE_SPO_SUBSCRIPTION_URL = "https://dicodeping.local/dicode-spo/sources"
 

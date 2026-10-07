@@ -29,6 +29,90 @@ public class NodeValidator
         return v.ToResult();
     }
 
+    // PattN: the ECH outbound is parsed strictly, because every read of a parsed object that repeats
+    // a key throws; comments are allowed, as in the other JSON fields
+    private static readonly JsonDocumentOptions EchOutboundDocumentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowDuplicateProperties = false,
+    };
+
+    /// <summary>
+    ///     PattN: the ECH outbound applies where the editor shows it: TLS on the protocols Xray runs,
+    ///     apart from WireGuard, which has no TLS settings. Anywhere else it is kept, but neither
+    ///     checked nor used.
+    /// </summary>
+    public static bool EchOutboundApplies(ProfileItem item)
+    {
+        return item.StreamSecurity == Global.StreamSecurity
+            && item.ConfigType != EConfigType.WireGuard
+            && Global.XraySupportConfigType.Contains(item.ConfigType);
+    }
+
+    /// <summary>
+    ///     PattN: the ECH outbound is a whole Xray outbound that the ECH config query is sent through
+    ///     (tlsSettings.echSockopt.dialerProxy), so it has to be a JSON object with a tag of its own,
+    ///     and it only applies together with EchConfigList.
+    /// </summary>
+    /// <returns>The error message, or null when the ECH outbound is empty, does not apply, or is valid.</returns>
+    public static string? ValidateEchOutbound(ProfileItem item)
+    {
+        return ValidateEchOutbound(item, out _);
+    }
+
+    /// <summary>
+    ///     PattN: <see cref="ValidateEchOutbound(ProfileItem)" />, also giving the parsed ECH outbound
+    ///     when it is set, applies, and is valid.
+    /// </summary>
+    public static string? ValidateEchOutbound(ProfileItem item, out JsonObject? echOutbound)
+    {
+        echOutbound = null;
+        if (item.EchOutbound.IsNullOrEmpty() || !EchOutboundApplies(item))
+        {
+            return null;
+        }
+        JsonObject? outbound;
+        try
+        {
+            outbound = JsonNode.Parse(item.EchOutbound, nodeOptions: null, EchOutboundDocumentOptions) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            outbound = null;
+        }
+        if (outbound == null)
+        {
+            return string.Format(ResUI.MsgInvalidProperty, ResUI.TbEchOutbound);
+        }
+        if (item.EchConfigList.IsNullOrEmpty())
+        {
+            return ResUI.MsgEchOutboundNeedsEchConfigList;
+        }
+        // direct and block are the config's own outbounds; balancers pick their members by the
+        // "proxy" tag prefix, so an ECH outbound starting with it would carry the proxied traffic
+        var tag = GetOutboundTag(outbound);
+        if (tag.IsNullOrEmpty()
+            || tag is Global.DirectTag or Global.BlockTag
+            || tag.StartsWith(Global.ProxyTag, StringComparison.Ordinal))
+        {
+            return ResUI.MsgEchOutboundInvalidTag;
+        }
+        echOutbound = outbound;
+        return null;
+    }
+
+    /// <summary>
+    ///     PattN: the tag of an outbound written as JSON, read the way Xray reads it, where the last of
+    ///     repeated keys wins. Reading a member of a parsed object that repeats a key would throw.
+    /// </summary>
+    public static string? GetOutboundTag(JsonObject outbound)
+    {
+        return JsonSerializer.SerializeToElement(outbound).TryGetProperty("tag", out var tag)
+            && tag.ValueKind == JsonValueKind.String
+                ? tag.GetString()
+                : null;
+    }
+
     private static void ValidateNodeAndCoreSupport(ProfileItem item, ECoreType coreType, ValidationContext v)
     {
         if (item.ConfigType is EConfigType.Custom)
@@ -173,6 +257,13 @@ public class NodeValidator
             {
                 v.Warning(string.Format(ResUI.MsgInvalidProperty, ResUI.TbFinalmask));
             }
+        }
+
+        // PattN: the checks made when an ECH outbound is saved, made again for imported profiles
+        var echOutboundError = ValidateEchOutbound(item);
+        if (echOutboundError != null)
+        {
+            v.Error(echOutboundError);
         }
     }
 

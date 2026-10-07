@@ -258,24 +258,27 @@
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
-                            <TabControl Grid.Row="1" TabStripPlacement="Top">
-                                <TabItem Header="{x:Static resx:ResUI.DicodeSettingsTabGeneral}">
-                                    <ScrollViewer>
-                                        <WrapPanel Margin="4" Orientation="Horizontal">
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuOptionSetting}" Command="{Binding OptionSettingCmd}" />
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuRoutingSetting}" Command="{Binding RoutingSettingCmd}" />
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeDomainFilter}" Command="{Binding DomainFilterSettingCmd}" />
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuDNSSetting}" Command="{Binding DNSSettingCmd}" />
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.DicodeCheckUpdates}" Click="MenuCheckUpdate_Click" />
-                                            <Button Margin="0,0,10,10" Content="{x:Static resx:ResUI.menuBackupAndRestore}" Click="MenuBackupAndRestore_Click" />
-                                        </WrapPanel>
-                                    </ScrollViewer>
+                            <TabControl x:Name="settingsTabs" Grid.Row="1" TabStripPlacement="Left">
+                                <TabItem Header="{x:Static resx:ResUI.menuOptionSetting}">
+                                    <views:OptionSettingView x:Name="embeddedOptionSetting" />
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.menuRoutingSetting}">
+                                    <views:RoutingSettingView />
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.DicodeDomainFilter}">
+                                    <views:DomainFilterSettingView x:Name="embeddedDomainFilterSetting" />
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.menuDNSSetting}">
+                                    <views:DNSSettingView x:Name="embeddedDNSSetting" />
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.DicodeCheckUpdates}">
+                                    <views:CheckUpdateView x:Name="embeddedUpdates" />
+                                </TabItem>
+                                <TabItem Header="{x:Static resx:ResUI.menuBackupAndRestore}">
+                                    <views:BackupAndRestoreView x:Name="embeddedBackup" />
                                 </TabItem>
                                 <TabItem Header="{x:Static resx:ResUI.DicodeSettingsTabSanctions}">
                                     <views:SanctionsServicesView x:Name="sanctionsSettingsView" Margin="4" />
-                                </TabItem>
-                                <TabItem Header="{x:Static resx:ResUI.DicodeSpoSources}">
-                                    <views:SpoSourcesView x:Name="spoSourcesView" Margin="4" />
                                 </TabItem>
                             </TabControl>
                         </Grid>

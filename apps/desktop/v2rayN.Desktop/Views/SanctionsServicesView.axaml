@@ -56,12 +56,12 @@
                                         Grid.Column="1"
                                         VerticalContentAlignment="Center"
                                         Text="{Binding Name}"
-                                        Watermark="YouTube" />
+                                        PlaceholderText="YouTube" />
                                     <TextBox
                                         Grid.Column="2"
                                         VerticalContentAlignment="Center"
                                         Text="{Binding Url}"
-                                        Watermark="https://www.youtube.com/" />
+                                        PlaceholderText="https://www.youtube.com/" />
                                     <CheckBox
                                         Grid.Column="3"
                                         MinWidth="0"

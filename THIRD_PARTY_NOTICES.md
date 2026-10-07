@@ -22,9 +22,9 @@ Pinned at commit `941c758101385d145c66210ac88991daaf27d4b6`. Licensed under MIT.
 
 Behavioral reference and default public subscription source. Licensed under MIT. Source: https://github.com/mcodersir/DicodeConfigChecker
 
-## v2rayN desktop
+## PattN / v2rayN desktop
 
-The desktop client is derived from v2rayN and tracks upstream desktop behavior through the 7.25.x line, including the 7.25.5 prerelease review for DicodePing 4.0.1. It remains licensed under GNU GPL v3. DicodePing changes the branding, startup subscription, TUN-only policy, elevation policy and visual styling. Source: https://github.com/2dust/v2rayN
+The desktop connection, configuration, ping, speed and UDP engines integrate PattN `7.25.5-P31`, commit `08da2e96c00e44709ad09c3faa1ea183cb07eea3`, with DicodePing-specific adapters. Source: https://github.com/patterniha/PattN. It remains licensed under GNU GPL v3. DicodePing changes the branding, startup subscription, TUN-only policy, elevation policy and visual styling. Source: https://github.com/2dust/v2rayN
 
 ## Vazirmatn
 
@@ -33,3 +33,7 @@ Vazirmatn `v33.003`, Copyright Saber Rastikerdar and contributors, is bundled fo
 ## PattNG P60 native stack
 
 Android integrates PattNG `2.3.10-P60`, AndroidLibXrayLite `v26.10.4`, and the hev-socks5-tunnel revision pinned by P60. Sources: https://github.com/patterniha/PattNG and https://github.com/patterniha/AndroidLibXrayLite. Exact revisions and verification hashes are recorded in `docs/SERVER_POOL.md` and the release workflow.
+
+## sing-box and mihomo
+
+sing-box `v1.14.2` (GPL-3.0) and mihomo `v1.19.32` (GPL-3.0) run as separate bundled runtimes. Sources: https://github.com/SagerNet/sing-box and https://github.com/MetaCubeX/mihomo.

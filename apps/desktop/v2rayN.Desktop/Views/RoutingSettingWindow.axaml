@@ -82,7 +82,7 @@
                 Margin="{StaticResource Margin4}"
                 AcceptsReturn="True"
                 TextWrapping="Wrap"
-                Watermark="{x:Static resx:ResUI.DicodeDomainFilterWatermark}" />
+                PlaceholderText="{x:Static resx:ResUI.DicodeDomainFilterWatermark}" />
         </Grid>
 
         <TabControl x:Name="tabAdvanced">

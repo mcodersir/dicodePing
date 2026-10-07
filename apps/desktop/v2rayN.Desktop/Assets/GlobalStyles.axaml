@@ -309,4 +309,23 @@
     </Style>
 
 
+    <Style Selector="Button.DicodeProbeButton">
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="MinHeight" Value="42" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Transitions">
+            <Transitions><BrushTransition Property="Background" Duration="0:0:0.16" /></Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="MinHeight" Value="42" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" />
+    </Style>
+    <Style Selector="TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+    </Style>
 </Styles>

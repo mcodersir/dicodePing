@@ -24,7 +24,7 @@ public class CoreConfigV2rayServiceTests
 
         result.Success.Should().BeTrue();
         var cfg = JsonUtils.Deserialize<V2rayConfig>(result.Data!.ToString())!;
-        cfg.routing.rules.First().domain.Should().Contain("domain:gemini.google.com");
+        cfg.routing.rules.Any(rule => rule.domain?.Contains("domain:gemini.google.com") == true).Should().BeTrue();
         var tun = cfg.inbounds.First(inbound => inbound.protocol == "tun");
         tun.sniffing.enabled.Should().BeTrue();
         tun.sniffing.routeOnly.Should().BeTrue();
@@ -71,15 +71,15 @@ public class CoreConfigV2rayServiceTests
         outbound.settings.port.Should().Be(8080);
         outbound.settings.user.Should().Be("user");
         outbound.settings.pass.Should().Be("pass");
-        outbound.settings.level.Should().Be(1);
+        outbound.settings.email.Should().Be(Global.UserEMail);
         outbound.settings.headers.Should().NotBeNull();
         var headers = JsonUtils.ParseJson(outbound.settings.headers.ToString());
         headers["User-Agent"]!.GetValue<string>().Should().Be("v2rayN");
         headers["Set-Cookie"]!.AsArray()
             .Select(item => item!.GetValue<string>())
             .Should().Equal("a=1", "b=2");
-        outbound.settings.servers.Should().BeNull();
-        outbound.settings.vnext.Should().BeNull();
+        JsonUtils.Serialize(outbound.settings).Should().NotContain("\"servers\"");
+        JsonUtils.Serialize(outbound.settings).Should().NotContain("\"vnext\"");
     }
  
     [Fact]
@@ -695,6 +695,6 @@ public class CoreConfigV2rayServiceTests
         var proxyOutbound = cfg!.outbounds.FirstOrDefault(o => o.tag == Global.ProxyTag);
         proxyOutbound.Should().NotBeNull();
         proxyOutbound!.protocol.Should().Be("shadowsocks");
-        proxyOutbound.settings.servers.Should().NotBeNull();
+        proxyOutbound.settings.ExtraSettings!["servers"][0].GetProperty("address").GetString().Should().Be("1.2.3.4");
     }
 }

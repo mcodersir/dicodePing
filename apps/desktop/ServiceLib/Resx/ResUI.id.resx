@@ -585,6 +585,15 @@
   <data name="TbAlterId" xml:space="preserve">
     <value>Alter ID</value>
   </data>
+  <data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+  <data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+  <data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
   <data name="TbFingerprint" xml:space="preserve">
     <value>Sidik jari</value>
   </data>
@@ -715,7 +724,7 @@
     <value>Aktifkan Mux Multiplexing</value>
   </data>
   <data name="TbSettingsN" xml:space="preserve">
-    <value>Pengaturan v2rayN</value>
+    <value>Pengaturan PattN</value>
   </data>
   <data name="TbSettingsPass" xml:space="preserve">
     <value>Kata sandi autentikasi</value>
@@ -890,6 +899,18 @@
   </data>
   <data name="LvFilter" xml:space="preserve">
     <value>Filter keterangan (regex)</value>
+  </data>
+  <data name="LvOverrideAddress" xml:space="preserve">
+    <value>Timpa alamat</value>
+  </data>
+  <data name="LvOverridePort" xml:space="preserve">
+    <value>Timpa port</value>
+  </data>
+  <data name="TipOverrideAddress" xml:space="preserve">
+    <value>Kosongkan untuk mempertahankan alamat dari langganan</value>
+  </data>
+  <data name="TipOverridePort" xml:space="preserve">
+    <value>Kosongkan untuk mempertahankan port dari langganan</value>
   </data>
   <data name="TbDisplayLog" xml:space="preserve">
     <value>Tampilkan log</value>
@@ -1215,7 +1236,7 @@
   <data name="menuModeRule" xml:space="preserve">
     <value>Aturan</value>
   </data>
-  <data name="menuProxiesDelaytest" xml:space="preserve">
+  <data name="menuDelaytest" xml:space="preserve">
     <value>Uji latensi</value>
   </data>
   <data name="menuProxiesDelaytestPart" xml:space="preserve">
@@ -1756,7 +1777,7 @@ Tindakan "Ambil sertifikat" mungkin gagal jika sertifikat self-signed digunakan 
     <value>PreSharedKey</value>
   </data>
   <data name="menuExport2InnerUri" xml:space="preserve">
-    <value>Ekspor tautan berbagi internal v2rayN ke papan klip</value>
+    <value>Ekspor tautan berbagi internal PattN ke papan klip</value>
   </data>
   <data name="MsgCheckUpdateHasNewVersion" xml:space="preserve">
     <value>{0} memiliki versi baru: {1}</value>
@@ -1793,5 +1814,17 @@ Tindakan "Ambil sertifikat" mungkin gagal jika sertifikat self-signed digunakan 
   </data>
   <data name="TbEnableFinalFragmentTip" xml:space="preserve">
     <value>Memecah bagian akhir paket menjadi fragmen yang lebih kecil. Hal ini dapat memengaruhi throughput dan latensi.</value>
+  </data>
+  <data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+  <data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>EchOutbound memerlukan EchConfigList</value>
+  </data>
+  <data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>EchOutbound harus memiliki "tag" yang tidak kosong, bukan direct atau block, dan tidak diawali proxy</value>
+  </data>
+  <data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>Tag "{0}" pada EchOutbound sudah digunakan oleh outbound lain</value>
   </data>
 </root>

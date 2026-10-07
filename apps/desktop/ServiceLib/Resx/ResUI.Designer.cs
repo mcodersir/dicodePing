@@ -6713,5 +6713,38 @@ namespace ServiceLib.Resx {
                 return ResourceManager.GetString("DicodeSpoAddSource", resourceCulture);
             }
         }
-            }
+                public static string LvOverrideAddress => ResourceManager.GetString("LvOverrideAddress", resourceCulture);
+        public static string LvOverridePort => ResourceManager.GetString("LvOverridePort", resourceCulture);
+        public static string LvRequestHeaders => ResourceManager.GetString("LvRequestHeaders", resourceCulture);
+        public static string menuAddMasqueServer => ResourceManager.GetString("menuAddMasqueServer", resourceCulture);
+        public static string menuCheckAndUpdate => ResourceManager.GetString("menuCheckAndUpdate", resourceCulture);
+        public static string menuDelaytest => ResourceManager.GetString("menuDelaytest", resourceCulture);
+        public static string menuRegionalPresetsChina => ResourceManager.GetString("menuRegionalPresetsChina", resourceCulture);
+        public static string MsgEchOutboundInvalidTag => ResourceManager.GetString("MsgEchOutboundInvalidTag", resourceCulture);
+        public static string MsgEchOutboundNeedsEchConfigList => ResourceManager.GetString("MsgEchOutboundNeedsEchConfigList", resourceCulture);
+        public static string MsgEchOutboundTagConflict => ResourceManager.GetString("MsgEchOutboundTagConflict", resourceCulture);
+        public static string SubRequestHeadersInvalid => ResourceManager.GetString("SubRequestHeadersInvalid", resourceCulture);
+        public static string SubRequestHeadersTips => ResourceManager.GetString("SubRequestHeadersTips", resourceCulture);
+        public static string TbBlockAAAAQueries => ResourceManager.GetString("TbBlockAAAAQueries", resourceCulture);
+        public static string TbBlockAAAAQueriesTips => ResourceManager.GetString("TbBlockAAAAQueriesTips", resourceCulture);
+        public static string TbCipherSuites => ResourceManager.GetString("TbCipherSuites", resourceCulture);
+        public static string TbDialMode => ResourceManager.GetString("TbDialMode", resourceCulture);
+        public static string TbDNS => ResourceManager.GetString("TbDNS", resourceCulture);
+        public static string TbEchOutbound => ResourceManager.GetString("TbEchOutbound", resourceCulture);
+        public static string TbSettingsEnableUpdateViaProxy => ResourceManager.GetString("TbSettingsEnableUpdateViaProxy", resourceCulture);
+        public static string TbSettingsMux4Ray => ResourceManager.GetString("TbSettingsMux4Ray", resourceCulture);
+        public static string TbSettingsMux4RayConcurrency => ResourceManager.GetString("TbSettingsMux4RayConcurrency", resourceCulture);
+        public static string TbSettingsMux4RayXudpConcurrency => ResourceManager.GetString("TbSettingsMux4RayXudpConcurrency", resourceCulture);
+        public static string TbSettingsMux4RayXudpProxyUDP443 => ResourceManager.GetString("TbSettingsMux4RayXudpProxyUDP443", resourceCulture);
+        public static string TbSortingProcess => ResourceManager.GetString("TbSortingProcess", resourceCulture);
+        public static string TbTargetStrategy => ResourceManager.GetString("TbTargetStrategy", resourceCulture);
+        public static string TbXrayOnly => ResourceManager.GetString("TbXrayOnly", resourceCulture);
+        public static string TipOverrideAddress => ResourceManager.GetString("TipOverrideAddress", resourceCulture);
+        public static string TipOverridePort => ResourceManager.GetString("TipOverridePort", resourceCulture);
+        public static string DicodeProbeLatency => ResourceManager.GetString("DicodeProbeLatency", resourceCulture);
+        public static string DicodeProbeSpeed => ResourceManager.GetString("DicodeProbeSpeed", resourceCulture);
+        public static string DicodeProbeLocation => ResourceManager.GetString("DicodeProbeLocation", resourceCulture);
+        public static string DicodeProbeSecurity => ResourceManager.GetString("DicodeProbeSecurity", resourceCulture);
+        public static string DicodeProbeSanctions => ResourceManager.GetString("DicodeProbeSanctions", resourceCulture);
+    }
 }

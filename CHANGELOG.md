@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.1-pre.1
+
+- PattN 7.25.5-P31 desktop core integration with cancellable probes and independent metrics.
+- Embedded settings tabs and redesigned profiles workspace.
+- Retired DicodeSpo and merged the two official feeds under Dicode Config Checker on desktop and Android.
+- PattNG P60 native batch cancellation and refreshed verified geo data.
+
+
 ## 4.1.0 (stable)
 
 First stable release of the 4.x series. Highlights of everything included since 4.0.0:

@@ -226,38 +226,7 @@ public sealed class ServerPoolService
                 var initial = await ProbeAsync(initialProfiles, 1, initialProfiles.Count, false, progress,
                     preparationToken, CancellationToken.None);
                 var best = initial.OrderBy(x => x.Delay).FirstOrDefault();
-                if (best.Profile == null)
-                {
-                    // The Config Checker cache had nothing healthy: try the DicodeSpo
-                    // sources subscription before giving up.
-                    progress.Report(new(ResUI.DicodePoolStageDefaultSub, ResUI.DicodePoolSpoTrying));
-                    try
-                    {
-                        await DicodePingBootstrap.EnsureDefaultsAsync(config);
-                        var spoSub = (await AppManager.Instance.SubItems())!
-                            .FirstOrDefault(x => x.Url == DicodePingBootstrap.SpoSourcesSubUrl);
-                        if (spoSub != null)
-                        {
-                            await SubscriptionHandler.UpdateProcess(config, spoSub.Id, false, (_, _) => Task.CompletedTask);
-                            var spoProfiles = await AppManager.Instance.ProfileItems(spoSub.Id) ?? [];
-                            if (spoProfiles.Count > 0)
-                            {
-                                var spoInitial = await ProbeAsync(spoProfiles, 1, spoProfiles.Count, false, progress,
-                                    preparationToken, CancellationToken.None);
-                                var spoBest = spoInitial.OrderBy(x => x.Delay).FirstOrDefault();
-                                if (spoBest.Profile != null)
-                                {
-                                    best = spoBest;
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception error)
-                    {
-                        progress.Report(new(ResUI.DicodePoolStageDefaultSub, PoolNetwork.Describe(error)));
-                    }
-                    if (best.Profile == null) throw new InvalidOperationException(ResUI.DicodePoolNoHealthyConfig);
-                }
+                if (best.Profile == null) throw new InvalidOperationException(ResUI.DicodePoolNoHealthyConfig);
                 progress.Report(new(ResUI.DicodePoolStageConnection, string.Format(ResUI.DicodePoolFallbackStarting, best.Delay)));
                 await connect(best.Profile, preparationToken);
                 preparationToken.ThrowIfCancellationRequested();
@@ -397,7 +366,7 @@ public sealed class ServerPoolService
                             if (!ready) { samples.Add(-1); continue; }
                             // Use the exact same SOCKS/HTTP real-latency engine as the main
                             // Real Ping action (including its two-request stabilization).
-                            var delay = await ConnectionHandler.GetRealPingTime(webProxy, strict ? 4 : 8);
+                            var delay = await ConnectionHandler.GetRealPingTime(webProxy, ct);
                             ct.ThrowIfCancellationRequested();
                             samples.Add(delay);
                             progress.Report(new(strict ? "Test" : "Default subscription",

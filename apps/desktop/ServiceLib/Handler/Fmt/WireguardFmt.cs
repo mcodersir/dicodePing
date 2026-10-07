@@ -24,6 +24,24 @@ public class WireguardFmt : BaseFmt
 
         var query = Utils.ParseQueryString(url.Query);
 
+        var finalmaskDecoded = GetQueryDecoded(query, "fm");
+        if (finalmaskDecoded.IsNotEmpty())
+        {
+            var node = JsonUtils.ParseJson(finalmaskDecoded);
+            item.Finalmask = node != null
+                ? JsonUtils.Serialize(node, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                })
+                : finalmaskDecoded;
+        }
+        else
+        {
+            item.Finalmask = string.Empty;
+        }
+
         item.SetProtocolExtra(item.GetProtocolExtra() with
         {
             WgPublicKey = GetQueryDecoded(query, "publickey"),
@@ -31,7 +49,11 @@ public class WireguardFmt : BaseFmt
             WgReserved = GetQueryDecoded(query, "reserved"),
             WgInterfaceAddress = GetQueryDecoded(query, "address"),
             WgMtu = int.TryParse(GetQueryDecoded(query, "mtu"), out var mtuVal) ? mtuVal : null,
+            WgDns = GetQueryDecoded(query, "dns"),
         });
+
+        // PattN: WireGuard reads its query by hand, so dialMode is not inherited from BaseFmt.ResolveUriQuery
+        item.DialMode = GetQueryDecoded(query, "dialMode");
 
         return item;
     }
@@ -51,6 +73,11 @@ public class WireguardFmt : BaseFmt
 
         var protoExtra = item.GetProtocolExtra();
         var dicQuery = new Dictionary<string, string>();
+        // PattN: WireGuard builds its query by hand, so dialMode is not inherited from BaseFmt.ToUriQuery
+        if (item.DialMode.IsNotEmpty())
+        {
+            dicQuery.Add("dialMode", Utils.UrlEncode(item.DialMode));
+        }
         if (!protoExtra.WgPublicKey.IsNullOrEmpty())
         {
             dicQuery.Add("publickey", Utils.UrlEncode(protoExtra.WgPublicKey));
@@ -70,6 +97,23 @@ public class WireguardFmt : BaseFmt
         if (protoExtra.WgMtu > 0)
         {
             dicQuery.Add("mtu", protoExtra.WgMtu.ToString());
+        }
+        if (!protoExtra.WgDns.IsNullOrEmpty())
+        {
+            dicQuery.Add("dns", Utils.UrlEncode(protoExtra.WgDns));
+        }
+        if (item.Finalmask.IsNotEmpty())
+        {
+            var node = JsonUtils.ParseJson(item.Finalmask);
+            var finalmask = node != null
+                ? JsonUtils.Serialize(node, new JsonSerializerOptions
+                {
+                    WriteIndented = false,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+                    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                })
+                : item.Finalmask;
+            dicQuery.Add("fm", Utils.UrlEncode(finalmask));
         }
         return ToUri(EConfigType.WireGuard, item.Address, item.Port, item.Password, dicQuery, remark);
     }
@@ -133,6 +177,7 @@ public class WireguardFmt : BaseFmt
 
         var wgMtu = interfaceDic.TryGetValue("MTU", out var mtuStr) && int.TryParse(mtuStr, out var mtuVal) ? mtuVal : 0;
         var wgInterfaceAddress = interfaceDic.TryGetValue("Address", out var interfaceAddress) ? interfaceAddress : string.Empty;
+        var wgDns = interfaceDic.TryGetValue("DNS", out var dns) ? dns : string.Empty;
 
         var index = 0;
         var resultList = new List<ProfileItem>();
@@ -156,6 +201,7 @@ public class WireguardFmt : BaseFmt
                 WgInterfaceAddress = wgInterfaceAddress,
                 WgReserved = (peerDic.TryGetValue("Reserved", out var reserved) ? reserved : string.Empty).NullIfEmpty(),
                 WgMtu = wgMtu > 0 ? wgMtu : null,
+                WgDns = wgDns,
             };
 
             var item = new ProfileItem

@@ -40,7 +40,7 @@ internal object RealPingExecutionLimiter {
 
 /** The single real-latency path shared by the main list and the server pool. */
 internal object RealPingProbe {
-    suspend fun measure(context: Context, guid: String): Long {
+    suspend fun measure(context: Context, guid: String, batch: String = java.util.UUID.randomUUID().toString()): Long {
         val failure = -1L
         val config = MmkvManager.decodeServerConfig(guid) ?: return failure
 
@@ -59,7 +59,7 @@ internal object RealPingProbe {
         val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
         if (!configResult.status) return failure
         return RealPingExecutionLimiter.run(config.configType) {
-            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl())
+            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
         }
     }
 }
@@ -76,6 +76,7 @@ class RealPingWorkerService(
     private val sanctionsOnly: Boolean = false,
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
+    private val batch = java.util.UUID.randomUUID().toString()
     private val job = SupervisorJob()
     private val concurrency = SettingsManager.getRealPingConcurrency()
     private val dispatcher = Executors.newFixedThreadPool(if (onlyTcp) concurrency * 2 else concurrency).asCoroutineDispatcher()
@@ -129,6 +130,7 @@ class RealPingWorkerService(
 
     fun cancel() {
         job.cancel()
+        kotlin.concurrent.thread(name = "DicodePingCancel") { CoreNativeManager.cancelOutboundDelays(batch) }
     }
 
     private fun close() {
@@ -139,7 +141,7 @@ class RealPingWorkerService(
         }
     }
 
-    private suspend fun startRealPing(guid: String): Long = RealPingProbe.measure(context, guid)
+    private suspend fun startRealPing(guid: String): Long = RealPingProbe.measure(context, guid, batch)
 
     private suspend fun startSanctionsCheck(guid: String): Triple<Boolean, Int, Int> {
         val config = MmkvManager.decodeServerConfig(guid) ?: return Triple(false, 0, 0)
@@ -149,7 +151,7 @@ class RealPingWorkerService(
         var strictFailed = false
         RealPingExecutionLimiter.run(config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
-                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url)
+                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
                 if (delay >= 0L) {
                     passed++
                 } else if (service.strict) {

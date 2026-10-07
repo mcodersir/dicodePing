@@ -488,9 +488,9 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(skipCount = 1)
             }
 
-            // DicodeSpo aggregates the free-config sources instead of fetching a URL.
-            if (it.subscription.url == AppConfig.DICODE_SPO_SUBSCRIPTION_URL) {
-                val spoText = SpoSourcesAggregator.aggregate()
+            // One built-in group combines both independent subscription feeds.
+            if (it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) {
+                val spoText = PrimarySubscriptionSources.aggregate()
                 if (spoText.isBlank()) {
                     return SubscriptionUpdateResult(failureCount = 1)
                 }

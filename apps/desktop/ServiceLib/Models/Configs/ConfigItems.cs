@@ -29,7 +29,8 @@ public class InItem
     public string Protocol { get; set; }
     public bool UdpEnabled { get; set; }
     public bool SniffingEnabled { get; set; } = true;
-    public List<string>? DestOverride { get; set; } = ["http", "tls"];
+    // PattN: quic sniffing is on by default
+    public List<string>? DestOverride { get; set; } = ["http", "tls", "quic"];
     public bool RouteOnly { get; set; }
     public bool AllowLANConn { get; set; }
     public bool NewPort4LAN { get; set; }
@@ -147,7 +148,8 @@ public class TunModeItem
     public int Mtu { get; set; }
     public bool EnableIPv6Address { get; set; }
     public string IcmpRouting { get; set; }
-    public bool EnableLegacyProtect { get; set; } = true;
+    // PattN: default to Xray's native TUN inbound; sing-box legacy protect is opt-in
+    public bool EnableLegacyProtect { get; set; }
     public List<string>? RouteExcludeAddress { get; set; }
     public string IPv4Address { get; set; }
     public string IPv6Address { get; set; }
@@ -211,12 +213,11 @@ public class HysteriaItem
 [Serializable]
 public class ClashUIItem
 {
-    public ERuleMode RuleMode { get; set; }
     public bool EnableIPv6 { get; set; }
     public bool EnableMixinContent { get; set; }
     public int ProxiesSorting { get; set; }
     public bool ProxiesAutoRefresh { get; set; }
-    public int ProxiesAutoDelayTestInterval { get; set; } = 10;
+    public int ProxiesRefreshInterval { get; set; } = 2;
     public bool ConnectionsAutoRefresh { get; set; }
     public int ConnectionsRefreshInterval { get; set; } = 2;
     public List<ColumnItem> ConnectionsColumnItem { get; set; }
@@ -246,8 +247,10 @@ public class WebDavItem
 public class CheckUpdateItem
 {
     // DicodePing is currently published through its own prerelease channel.
+    public bool UpdateViaProxy { get; set; } = true;
     public bool CheckPreReleaseUpdate { get; set; } = true;
     public List<string>? SelectedCoreTypes { get; set; }
+    public List<string>? CheckPreReleaseCoreTypes { get; set; }
 }
 
 [Serializable]
@@ -279,8 +282,9 @@ public class SimpleDNSItem
     public bool? UseSystemHosts { get; set; }
     public bool? AddCommonHosts { get; set; }
     public bool? FakeIP { get; set; }
-    public bool? GlobalFakeIp { get; set; }
     public string? FakeIPRange { get; set; }
+    public bool? BlockAAAAQuery { get; set; }
+    public bool? GlobalFakeIp { get; set; }
     public bool? BlockBindingQuery { get; set; }
     public string? DirectDNS { get; set; }
     public string? RemoteDNS { get; set; }
@@ -326,25 +330,5 @@ public class SanctionServiceItem
     /// <summary>Strict services weigh the verdict double and gate the accessible verdict.</summary>
     public bool Strict { get; set; }
 
-    public bool Enabled { get; set; } = true;
-}
-
-/// <summary>
-///     Sources aggregated by the DicodeSpo subscription ("sources sub"). An empty
-///     list falls back to the built-in defaults. The aggregator walks the sources
-///     in order and stops once MaxConfigs unique configs are collected, so heavy
-///     sources at the end of the list only fill whatever space remains.
-/// </summary>
-public class SpoSourcesItem
-{
-    public List<SpoSourceItem>? Sources { get; set; }
-
-    public int MaxConfigs { get; set; } = 500;
-}
-
-public class SpoSourceItem
-{
-    public string Name { get; set; } = string.Empty;
-    public string Url { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
 }
