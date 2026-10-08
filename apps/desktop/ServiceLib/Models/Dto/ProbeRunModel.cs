@@ -17,5 +17,5 @@ public partial class ProbeRunModel : ReactiveObject
         Percent = Total == 0 ? 0 : 100d * Completed / Total;
         UpdateSummary(ResUI.DicodeProbeRunning);
     }
-    public void UpdateSummary(string state) => Summary = $"{Name} · {Completed} / {Total} · {state}";
+    public void UpdateSummary(string state) => Summary = $"{Name} · \u2066{Completed} / {Total}\u2069 · {state}";
 }
