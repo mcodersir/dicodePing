@@ -90,7 +90,7 @@ public sealed class ServerPoolWindow : Window
                 .Select(p => $"{p.Remarks} · {delays.GetValueOrDefault(p.IndexId)} ms").ToList();
         }
         Opened += async (_, _) => {
-            try { await ServerPoolService.EnsureSubscriptionAsync(); await main.ProfilesViewModel.RefreshSubscriptions(); await Refresh(); }
+            try { await main.ProfilesViewModel.RefreshSubscriptions(); await Refresh(); }
             catch (Exception ex) { Update(new(ResUI.DicodePoolError, ex.Message)); }
         };
         copy.Click += async (_, _) => { if (Clipboard != null) await Clipboard.SetTextAsync(string.Join(Environment.NewLine, history)); };

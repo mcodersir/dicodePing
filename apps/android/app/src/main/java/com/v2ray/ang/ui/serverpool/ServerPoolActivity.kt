@@ -46,7 +46,7 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     private val sequence = AtomicLong()
     private val stopRequested = AtomicBoolean(false)
     private var job: Job? = null
-    init { ServerPoolManager.ensureSubscription(); refresh() }
+    init { refresh() }
     private fun refresh() {
         val rows = MmkvManager.decodeServerList(ServerPoolManager.POOL_ID).mapNotNull { guid ->
             MmkvManager.decodeServerConfig(guid)?.let {

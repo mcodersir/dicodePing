@@ -681,6 +681,7 @@ object MmkvManager {
      * @param subid The subscription ID.
      */
     fun removeSubscription(subid: String) {
+        if (subid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) encodeSettings("dicode-primary-deleted", true)
         subStorage.remove(subid)
         val subsList = decodeSubsList()
         subsList.remove(subid)

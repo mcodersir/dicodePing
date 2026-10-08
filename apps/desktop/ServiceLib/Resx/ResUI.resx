@@ -2396,4 +2396,12 @@ https://t.me/dicodeping</value>
   <data name="DicodeMetricSpeed" xml:space="preserve">
     <value>Speed · MB/s</value>
   </data>
+<data name="DicodeRefreshRunning" xml:space="preserve"><value>Refreshing subscriptions…</value></data>
+<data name="DicodeRefreshFinished" xml:space="preserve"><value>Refresh finished</value></data>
+<data name="DicodeRefreshFailed" xml:space="preserve"><value>Refresh failed; see Reports</value></data>
+<data name="DicodeProbeRunning" xml:space="preserve"><value>Running</value></data>
+<data name="DicodeProbeStopping" xml:space="preserve"><value>Stopping…</value></data>
+<data name="DicodeTestScope" xml:space="preserve"><value>Diagnostics run on the visible subscription. Results arrive progressively.</value></data>
+<data name="DicodeSources" xml:space="preserve"><value>Subscription</value></data>
+<data name="DicodeHomeHint" xml:space="preserve"><value>Choose a route from Profiles, or connect to the best tested route.</value></data>
 </root>

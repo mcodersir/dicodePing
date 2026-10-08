@@ -31,7 +31,7 @@ public partial class MsgViewModel : MyReactiveObject
     {
         _config = AppManager.Instance.Config;
         MsgFilter = _config.MsgUIItem.MainMsgFilter ?? string.Empty;
-        AutoRefresh = _config.MsgUIItem.AutoRefresh ?? true;
+        AutoRefresh = true;
 
         this.WhenAnyValue(x => x.MsgFilter)
             .Subscribe(_ =>
@@ -42,7 +42,7 @@ public partial class MsgViewModel : MyReactiveObject
             });
 
         this.WhenAnyValue(x => x.AutoRefresh, y => y == true)
-            .Subscribe(c => _config.MsgUIItem.AutoRefresh = AutoRefresh);
+            .Subscribe(c => { _config.MsgUIItem.AutoRefresh = AutoRefresh; if (AutoRefresh) RebuildFiltered(); });
 
         AppEvents.SendMsgViewRequested
          .AsObservable()
@@ -76,9 +76,15 @@ public partial class MsgViewModel : MyReactiveObject
         }
     }
 
+    public void Clear()
+    {
+        lock (_allEntries) _allEntries.Clear();
+        LogItems.Clear();
+    }
+
     private void AppendContent(string content)
     {
-        if (content.IsNullOrEmpty() || AutoRefresh == false)
+        if (content.IsNullOrEmpty())
         {
             return;
         }
@@ -98,7 +104,7 @@ public partial class MsgViewModel : MyReactiveObject
             }
         }
 
-        RxSchedulers.MainThreadScheduler.Schedule(() => InsertParsed(parsed));
+        if (AutoRefresh) RxSchedulers.MainThreadScheduler.Schedule(() => InsertParsed(parsed));
     }
 
     private void InsertParsed(List<LogItemModel> parsed)

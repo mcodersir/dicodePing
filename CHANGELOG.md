@@ -1,3 +1,12 @@
+## 4.3.0 — Refresh, diagnostics and subscription reliability
+
+- Desktop refresh downloads the selected subscription (or all subscriptions), shows status, cancels diagnostics before profile replacement, and preserves the active connection.
+- Compact responsive server rows, a dedicated subscription selector, and completed/total progress for latency, speed, location, security and reachability with cancellation.
+- Deleted built-in subscriptions remain absent on existing installations; opening the pool does not recreate its group. Android preserves an empty list after deleting the final subscription.
+- Merged subscriptions deduplicate connection identities while preserving distinct credentials and TLS settings.
+- Desktop Reports receives persistent log events and retains paused events. Android loads logs on opening and correctly selects app/core tags across its processes.
+- Desktop Xray 26.10.8 and Android libv2ray 26.10.9, pinned with SHA-256. Updated 4.3.0 downloads and release highlights.
+
 ## 4.2.2 — Desktop interface redesign
 
 - Compact, bounded profile workspace with numbered rows, country icons, aligned diagnostics and consistent line icons.

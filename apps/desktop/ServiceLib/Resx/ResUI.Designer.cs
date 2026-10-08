@@ -6756,5 +6756,13 @@ namespace ServiceLib.Resx {
         public static string DicodeStopDiagnostics => ResourceManager.GetString("DicodeStopDiagnostics", resourceCulture)!;
         public static string DicodeMetricLatency => ResourceManager.GetString("DicodeMetricLatency", resourceCulture)!;
         public static string DicodeMetricSpeed => ResourceManager.GetString("DicodeMetricSpeed", resourceCulture)!;
+        public static string DicodeRefreshRunning => ResourceManager.GetString("DicodeRefreshRunning", resourceCulture);
+        public static string DicodeRefreshFinished => ResourceManager.GetString("DicodeRefreshFinished", resourceCulture);
+        public static string DicodeRefreshFailed => ResourceManager.GetString("DicodeRefreshFailed", resourceCulture);
+        public static string DicodeProbeRunning => ResourceManager.GetString("DicodeProbeRunning", resourceCulture);
+        public static string DicodeProbeStopping => ResourceManager.GetString("DicodeProbeStopping", resourceCulture);
+        public static string DicodeTestScope => ResourceManager.GetString("DicodeTestScope", resourceCulture);
+        public static string DicodeSources => ResourceManager.GetString("DicodeSources", resourceCulture);
+        public static string DicodeHomeHint => ResourceManager.GetString("DicodeHomeHint", resourceCulture);
     }
 }

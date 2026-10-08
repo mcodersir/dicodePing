@@ -11,6 +11,9 @@ import com.v2ray.ang.util.HttpUtil
  */
 object PrimarySubscriptionSources {
 
+    internal fun shouldProvisionPrimary(hasPrimary: Boolean, deleted: Boolean, existingSettings: Boolean): Boolean =
+        !hasPrimary && !deleted && !existingSettings
+
     data class Source(val name: String, val url: String)
 
     val DEFAULT_SOURCES = listOf(
@@ -24,10 +27,10 @@ object PrimarySubscriptionSources {
         val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
         return try {
             val requests = DEFAULT_SOURCES.map { source -> executor.submit<List<String>> { fetch(source) } }
-            val collected = LinkedHashSet<String>()
+            val collected = LinkedHashMap<String, String>()
             // Fetch concurrently, merge in the requested priority order.
-            requests.forEach { request -> collected.addAll(request.get()) }
-            collected.joinToString("\n")
+            requests.forEach { request -> request.get().forEach { link -> collected.putIfAbsent(link.substringBefore("#"), link) } }
+            collected.values.joinToString("\n")
         } finally { executor.shutdownNow() }
     }
 

@@ -205,7 +205,8 @@ public sealed class ServerPoolService
             {
                 progress.Report(new(ResUI.DicodePoolStageDefaultSub, ResUI.DicodePoolNoTelegramRoute));
                 await DicodePingBootstrap.EnsureDefaultsAsync(config);
-                var primary = (await AppManager.Instance.SubItems())!.First(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
+                var primary = (await AppManager.Instance.SubItems())!.FirstOrDefault(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl)
+                    ?? throw new InvalidOperationException(ResUI.MsgNoValidSubscription);
                 var subscriptionUpdated = false;
                 try
                 {

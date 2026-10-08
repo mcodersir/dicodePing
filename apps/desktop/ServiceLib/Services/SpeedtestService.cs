@@ -128,6 +128,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         {
             Logging.SaveLog(_tag, ex);
             _ = UpdateFunc("", ex.Message);
+            await SetTestResultAsync(lstSelected.Where(it => !completedIds.ContainsKey(it.IndexId)).ToList(), actionType, ResUI.FailedToRunCore);
         }
     }
 
@@ -348,6 +349,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             {
                 await RunMixedTestAsync(lstFailed, completedIds, _config.SpeedTestItem.MixedConcurrencyCount, false, ct);
             }
+        }
+        else if (lstFailed.Count > 0)
+        {
+            await SetTestResultAsync(lstFailed, ESpeedActionType.Realping, ResUI.FailedToRunCore);
         }
     }
 

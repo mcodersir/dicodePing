@@ -232,24 +232,15 @@ object SettingsManager {
 
     /**
      * Removes the subscription.
-     * If there are no remaining subscriptions,
-     * it creates a new default subscription to ensure that ungroup
+     * An empty subscription list is preserved after explicit deletion.
      **/
     fun removeSubscriptionWithDefault(subid: String) {
         SubscriptionUpdater.cancelOne(subId = subid)
         // Remove the subscription
         removeSubscription(subid)
 
-        // After removal, check if there are any subscriptions left. If not, create a default subscription.
-        val subsList2 = decodeSubsList()
-        if (subsList2.isNotEmpty()) {
-            return
-        }
-
-        val defaultSub = SubscriptionItem(
-            remarks = "Local configs",
-        )
-        encodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub)
+        // Deleting the last subscription is a valid empty state. Local imports
+        // can create their destination later; do not undo an explicit deletion.
     }
 
     /**

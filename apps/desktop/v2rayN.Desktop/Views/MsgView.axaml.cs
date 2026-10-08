@@ -41,7 +41,7 @@ public partial class MsgView : ReactiveUserControl<MsgViewModel>
 
     public void ClearMsg()
     {
-        ViewModel?.LogItems.Clear();
+        ViewModel?.Clear();
     }
 
     private async void menuMsgViewCopyAll_Click(object? sender, RoutedEventArgs e)

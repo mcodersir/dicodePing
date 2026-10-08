@@ -6,15 +6,15 @@
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:DataType="vms:StatusBarViewModel">
-  <Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1000" VerticalAlignment="Top" HorizontalAlignment="Stretch">
-    <Border Padding="24" Classes="DicodeCard">
-      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="1.2*,1*" RowSpacing="18" ColumnSpacing="20">
+  <Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1040" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+    <Border Padding="32" Classes="DicodeCard">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="220,*" RowSpacing="18" ColumnSpacing="20">
         <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
           <Button
               x:Name="btnToggleConnection"
               Classes.DicodePower="True"
-              Width="140"
-              Height="140"
+              Width="132"
+              Height="132"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
               Background="{DynamicResource DicodeSurfaceElevated}"
@@ -81,6 +81,7 @@
           </Border>
         </StackPanel>
 
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Static resx:ResUI.DicodeHomeHint}" Opacity="0.65" TextWrapping="Wrap" />
         <TextBlock x:Name="txtSpeedProxyDisplay" Grid.Row="1" IsVisible="False" />
         <TextBlock x:Name="txtSpeedDirectDisplay" Grid.Row="1" IsVisible="False" />
         <ToggleSwitch x:Name="togEnableTun" Grid.Row="1" IsVisible="False" />

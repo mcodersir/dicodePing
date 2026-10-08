@@ -38,7 +38,7 @@
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
             <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
                         <StackPanel Spacing="0">
@@ -62,7 +62,7 @@
                             </StackPanel>
                         </Button>
 
-                        <Button Command="{Binding ReloadCmd}">
+                        <Button Command="{Binding ReloadCmd}" IsEnabled="{Binding !IsRefreshing}" ToolTip.Tip="{Binding RefreshStatus}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path
                                     Width="16"
@@ -78,6 +78,7 @@
                         </Button>
                     </StackPanel>
 
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" IsVisible="{Binding IsRefreshing}" />
                     <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
                         <Button
                             x:Name="btnNewUpdate"
@@ -203,7 +204,7 @@
                 <Panel Grid.Column="1" Margin="14,0,0,0">
                     <Panel x:Name="pageHome" Classes="DicodePage">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard">
+                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
@@ -215,7 +216,7 @@
 
                     <Panel x:Name="pageProfiles" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard">
+                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProfilesTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProfilesSubtitle}" TextWrapping="Wrap" />
@@ -227,7 +228,7 @@
 
                     <Panel x:Name="pageProxies" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard">
+                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProxiesTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProxiesSubtitle}" TextWrapping="Wrap" />
@@ -239,7 +240,7 @@
 
                     <Panel x:Name="pageSettings" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard">
+                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSettingsTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSettingsSubtitle}" TextWrapping="Wrap" />
@@ -273,7 +274,7 @@
 
                     <Panel x:Name="pageReports" Classes="DicodePage" IsVisible="False">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard">
+                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
                                 <StackPanel Spacing="6">
                                     <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeReportsTitle}" />
                                     <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeReportsSubtitle}" TextWrapping="Wrap" />

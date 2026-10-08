@@ -1221,6 +1221,14 @@ public static class ConfigHandler
     /// <param name="config">Current configuration</param>
     /// <param name="subId">Subscription ID to deduplicate</param>
     /// <returns>Tuple with total count and remaining count after deduplication</returns>
+    public static string ConnectionIdentity(ProfileItem profile)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(JsonUtils.Serialize(profile))!.AsObject();
+        foreach (var key in new[] { "IndexId", "Subid", "IsSub", "Remarks", "DisplayLog", "ConfigVersion" })
+            node.Remove(key);
+        return node.ToJsonString();
+    }
+
     public static async Task<Tuple<int, int>> DedupServerList(Config config, string subId)
     {
         var lstProfile = await AppManager.Instance.ProfileItems(subId);
@@ -1231,6 +1239,7 @@ public static class ConfigHandler
 
         List<ProfileItem> lstKeep = [];
         List<ProfileItem> lstRemove = [];
+        var identities = new HashSet<string>(StringComparer.Ordinal);
         if (!config.GuiItem.KeepOlderDedupl)
         {
             lstProfile.Reverse();
@@ -1244,9 +1253,14 @@ public static class ConfigHandler
                 continue;
             }
 
-            if (lstKeep.Exists(i => CompareProfileItem(i, item, false)))
+            if (!identities.Add(ConnectionIdentity(item)))
             {
-                lstRemove.Add(item);
+                if (item.IndexId == config.IndexId)
+                {
+                    var previous = lstKeep.First(x => ConnectionIdentity(x) == ConnectionIdentity(item));
+                    lstKeep.Remove(previous); lstRemove.Add(previous); lstKeep.Add(item);
+                }
+                else lstRemove.Add(item);
             }
             else
             {

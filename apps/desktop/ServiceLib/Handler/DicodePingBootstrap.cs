@@ -7,7 +7,7 @@ public static class DicodePingBootstrap
     public const string SecondarySubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt";
     public const string LegacySourcesUrl = "https://dicodeping.local/dicode-spo/sources";
 
-    public static async Task EnsureDefaultsAsync(Config config)
+    public static async Task EnsureDefaultsAsync(Config config, bool freshInstall = false)
     {
         var subscriptions = await AppManager.Instance.SubItems() ?? [];
         foreach (var item in subscriptions.Where(item =>
@@ -16,8 +16,9 @@ public static class DicodePingBootstrap
             await ConfigHandler.DeleteSubItem(config, item.Id);
 
         subscriptions = await AppManager.Instance.SubItems() ?? [];
-        var checker = subscriptions.FirstOrDefault(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase))
-            ?? new SubItem { Id = string.Empty, Enabled = true, AutoUpdateInterval = 1 };
+        var checker = subscriptions.FirstOrDefault(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
+        if (checker is null && !freshInstall) return;
+        checker ??= new SubItem { Id = string.Empty, Enabled = true, AutoUpdateInterval = 1 };
         ConfigurePrimarySubscription(checker);
         await ConfigHandler.AddSubItem(config, checker);
     }

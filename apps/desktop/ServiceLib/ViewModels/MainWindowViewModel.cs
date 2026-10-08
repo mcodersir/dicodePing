@@ -251,7 +251,7 @@ public partial class MainWindowViewModel : MyReactiveObject
 
         ReloadCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            await Reload();
+            await RefreshSubscriptionsNow();
         });
 
         RegionalPresetDefaultCmd = ReactiveCommand.CreateFromTask(async () =>
@@ -408,6 +408,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     private async Task UpdateTaskHandler(bool success, string msg)
     {
         NoticeManager.Instance.SendMessageEx(msg);
+        if (IsRefreshing && msg.IsNotEmpty())
+            RxSchedulers.MainThreadScheduler.Schedule(() => RefreshStatus = msg);
         if (success)
         {
             var indexIdOld = _config.IndexId;
@@ -625,8 +627,42 @@ public partial class MainWindowViewModel : MyReactiveObject
         }
     }
 
+    [Reactive] public partial bool IsRefreshing { get; set; }
+    [Reactive] public partial string RefreshStatus { get; set; }
+
+    private async Task RefreshSubscriptionsNow()
+    {
+        if (IsRefreshing) return;
+        IsRefreshing = true;
+        ProfilesViewModel.IsRefreshing = true;
+        RefreshStatus = ResUI.DicodeRefreshRunning;
+        try
+        {
+            await ProfilesViewModel.StopDiagnosticsAsync();
+            var anySuccess = false;
+            await Task.Run(async () => await SubscriptionHandler.UpdateProcess(_config, _config.SubIndexId ?? "", false, async (success, message) => {
+                anySuccess |= success; await UpdateTaskHandler(success, message);
+            }));
+            await ProfilesViewModel.RefreshSubscriptions();
+            await RefreshServersDispatcherAsync();
+            RefreshStatus = anySuccess ? ResUI.DicodeRefreshFinished : ResUI.DicodeRefreshFailed;
+            NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Subscription refresh", ex);
+            RefreshStatus = ResUI.DicodeRefreshFailed;
+        }
+        finally { ProfilesViewModel.IsRefreshing = false; IsRefreshing = false; }
+    }
+
     public async Task UpdateSubscriptionProcess(string subId, bool blProxy)
     {
+        if (IsRefreshing || ProfilesViewModel.ProbeRuns.Any(x => x.IsRunning))
+        {
+            NoticeManager.Instance.Enqueue(ResUI.DicodeProbeRunning);
+            return;
+        }
         await Task.Run(async () => await SubscriptionHandler.UpdateProcess(_config, subId, blProxy, UpdateTaskHandler));
     }
 

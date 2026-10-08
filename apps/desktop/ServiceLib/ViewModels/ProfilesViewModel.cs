@@ -24,6 +24,7 @@ public partial class ProfilesViewModel : MyReactiveObject
     private string? _pendingSelectIndexId;
     private readonly Timer _connectionStateTimer;
     private readonly ConcurrentDictionary<ESpeedActionType, SemaphoreSlim> _probeLocks = new();
+    private CancellationTokenSource? _securityCts;
 
     #endregion private prop
 
@@ -32,6 +33,9 @@ public partial class ProfilesViewModel : MyReactiveObject
     public BulkObservableCollection<ProfileItemModel> ProfileItems { get; } = [];
 
     public BulkObservableCollection<SubItem> SubItems { get; } = [];
+    public ObservableCollection<ProbeRunModel> ProbeRuns { get; } = [];
+    [Reactive] public partial bool IsRefreshing { get; set; }
+    private readonly Dictionary<ESpeedActionType, ProbeRunModel> _probeRuns = new();
 
     [Reactive]
     public partial ProfileItemModel SelectedProfile { get; set; }
@@ -233,17 +237,31 @@ public partial class ProfilesViewModel : MyReactiveObject
         });
         SecurityTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            foreach (var model in ProfileItems)
+            using var cancellation = new CancellationTokenSource();
+            _securityCts = cancellation;
+            var rows = ProfileItems.ToList();
+            foreach (var previous in ProbeRuns.Where(x => x.Name == ResUI.DicodeProbeSecurity && !x.IsRunning).ToList()) ProbeRuns.Remove(previous);
+            var run = new ProbeRunModel { Name = ResUI.DicodeProbeSecurity, Total = rows.Count };
+            ProbeRuns.Add(run); run.UpdateSummary(ResUI.DicodeProbeRunning);
+            try
             {
-                model.IsSecurityTesting = true;
+                var profiles = await AppManager.Instance.GetProfileItemsByIndexIdsAsMap(rows.Select(x => x.IndexId).ToList());
+                foreach (var model in rows)
+                {
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    model.IsSecurityTesting = true;
+                    try
+                    {
+                        if (profiles.TryGetValue(model.IndexId, out var profile))
+                            model.SecurityInfo = await Task.Run(() => ConfigurationSecurityAudit.Describe(profile));
+                        run.Complete(model.IndexId);
+                    }
+                    finally { model.IsSecurityTesting = false; }
+                }
+                run.UpdateSummary(ResUI.SpeedtestingCompleted);
             }
-            foreach (var model in ProfileItems)
-            {
-                var profile = await AppManager.Instance.GetProfileItem(model.IndexId);
-                try { model.SecurityInfo = profile is null ? "—" : ConfigurationSecurityAudit.Describe(profile); }
-                finally { model.IsSecurityTesting = false; }
-            }
-            NoticeManager.Instance.Enqueue(ResUI.DicodeSecurityDone);
+            catch (OperationCanceledException) { run.UpdateSummary(ResUI.SpeedtestingStop); }
+            finally { run.IsRunning = false; _securityCts = null; }
         });
         SanctionsTestCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -525,7 +543,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         var lstServerStat = (_config.GuiItem.EnableStatistics ? StatisticsManager.Instance.ServerStat : null) ?? [];
         var lstProfileExs = await ProfileExManager.Instance.GetProfileExs();
         var auditMap = await AppManager.Instance.GetProfileItemsByIndexIdsAsMap(lstModel.Select(x => x.IndexId).ToList());
-        var subscriptionMap = (await AppManager.Instance.SubItems()).ToDictionary(x => x.Id);
+        var subscriptionMap = (await AppManager.Instance.SubItems()).DistinctBy(x => x.Id).ToDictionary(x => x.Id);
         lstModel = (from t in lstModel
                     join t2 in lstServerStat on t.IndexId equals t2.IndexId into t2b
                     from t22 in t2b.DefaultIfEmpty()
@@ -937,6 +955,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
     {
+        if (IsRefreshing) return;
         var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Speedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
         if (actionType == ESpeedActionType.FastRealping) actionType = ESpeedActionType.Realping;
         if (actionType == ESpeedActionType.Mixedtest) actionType = ESpeedActionType.Speedtest;
@@ -950,6 +969,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         try
         {
+            if (IsRefreshing) return;
             List<ProfileItem>? selected;
             // Hold the mutation lock only while taking a DB snapshot. Test processes
             // use independent ports and can run while other diagnostics are active.
@@ -962,16 +982,42 @@ public partial class ProfilesViewModel : MyReactiveObject
                     : await GetProfileItems(false);
             }
             finally { ProfileOperationCoordinator.Gate.Release(); }
+            selected = selected?.Where(x => x.ConfigType != EConfigType.Custom && (x.ConfigType.IsComplexType() || x.Port > 0))
+                .DistinctBy(x => x.IndexId).ToList();
             if (selected is not { Count: > 0 }) return;
+            var run = new ProbeRunModel { Total = selected.Count, Name = actionType switch {
+                ESpeedActionType.Location => ResUI.DicodeProbeLocation,
+                ESpeedActionType.Sanctions => ResUI.DicodeProbeSanctions,
+                ESpeedActionType.Speedtest => ResUI.DicodeProbeSpeed,
+                _ => ResUI.DicodeProbeLatency } };
+            await OnUiAsync(() => {
+                if (_probeRuns.TryGetValue(lane, out var old)) ProbeRuns.Remove(old);
+                _probeRuns[lane] = run;
+                ProbeRuns.Add(run);
+                run.UpdateSummary(ResUI.DicodeProbeRunning);
+                return Task.CompletedTask;
+            });
             var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
             foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, true);
-            var service = new SpeedtestService(_config, result => OnUiAsync(() => ApplyProbeResult(result, actionType)));
+            var service = new SpeedtestService(_config, result => OnUiAsync(async () => {
+                await ApplyProbeResult(result, actionType);
+                var terminal = actionType switch {
+                    ESpeedActionType.Location => result.IpInfo,
+                    ESpeedActionType.Sanctions => result.SanctionsInfo,
+                    ESpeedActionType.Speedtest => result.Speed,
+                    _ => result.Delay };
+                if (ids.Contains(result.IndexId ?? "") && terminal.IsNotEmpty()
+                    && terminal != ResUI.Speedtesting && terminal != ResUI.DicodeChecking && !run.StopRequested)
+                    run.Complete(result.IndexId!);
+            }));
             _probeServices[lane] = service;
             try { await service.RunLoop(actionType, selected); }
             finally
             {
                 _probeServices.TryRemove(lane, out _);
-                await OnUiAsync(() => { foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, false); return Task.CompletedTask; });
+                await OnUiAsync(() => { foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, false);
+                    run.IsRunning = false;
+                    run.UpdateSummary(run.StopRequested ? ResUI.SpeedtestingStop : ResUI.SpeedtestingCompleted); return Task.CompletedTask; });
             }
         }
         catch (Exception ex) { Logging.SaveLog("Profile diagnostics", ex); NoticeManager.Instance.Enqueue(ResUI.FailedToRunCore); }
@@ -989,8 +1035,20 @@ public partial class ProfilesViewModel : MyReactiveObject
         return completion.Task;
     }
 
+    public async Task StopDiagnosticsAsync()
+    {
+        ServerSpeedtestStop();
+        foreach (var gate in _probeLocks.Values)
+        {
+            await gate.WaitAsync();
+            gate.Release();
+        }
+    }
+
     public void ServerSpeedtestStop()
     {
+        foreach (var run in _probeRuns.Values.Where(x => x.IsRunning)) { run.StopRequested = true; run.UpdateSummary(ResUI.DicodeProbeStopping); }
+        _securityCts?.Cancel();
         foreach (var service in _probeServices.Values) service.ExitLoop();
     }
 

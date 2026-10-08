@@ -2396,4 +2396,12 @@ https://t.me/dicodeping‏</value>
   <data name="DicodeMetricSpeed" xml:space="preserve">
     <value>سرعت · MB/s</value>
   </data>
+<data name="DicodeRefreshRunning" xml:space="preserve"><value>در حال دریافت ساب‌ها…</value></data>
+<data name="DicodeRefreshFinished" xml:space="preserve"><value>تازه‌سازی تمام شد</value></data>
+<data name="DicodeRefreshFailed" xml:space="preserve"><value>تازه‌سازی ناموفق؛ گزارش‌ها را بررسی کنید</value></data>
+<data name="DicodeProbeRunning" xml:space="preserve"><value>در حال اجرا</value></data>
+<data name="DicodeProbeStopping" xml:space="preserve"><value>در حال توقف…</value></data>
+<data name="DicodeTestScope" xml:space="preserve"><value>آزمون‌ها روی ساب نمایش‌داده‌شده اجرا می‌شوند؛ نتیجه‌ها تدریجی نمایش داده می‌شوند.</value></data>
+<data name="DicodeSources" xml:space="preserve"><value>اشتراک سرورها</value></data>
+<data name="DicodeHomeHint" xml:space="preserve"><value>مسیر را از پروفایل‌ها انتخاب کنید یا به بهترین مسیر آزمایش‌شده وصل شوید.</value></data>
 </root>

@@ -45,7 +45,10 @@ class AngApplication : Application() {
                 it.subscription.remarks.startsWith("DicodeSpo", ignoreCase = true)
         }.forEach { MmkvManager.removeSubscription(it.guid) }
 
-        if (MmkvManager.decodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) == null) {
+        if (com.v2ray.ang.handler.PrimarySubscriptionSources.shouldProvisionPrimary(
+                MmkvManager.decodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) != null,
+                MmkvManager.decodeSettingsBool("dicode-primary-deleted", false),
+                !MmkvManager.decodeSettingsString(AppConfig.PREF_MODE).isNullOrEmpty())) {
             MmkvManager.encodeSubscription(
                 AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID,
                 SubscriptionItem(
@@ -66,7 +69,7 @@ class AngApplication : Application() {
         }
         val subscriptionOrder = MmkvManager.decodeSubsList()
         subscriptionOrder.remove(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
-        subscriptionOrder.add(0, AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
+        if (primary != null) subscriptionOrder.add(0, AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
         MmkvManager.encodeSubsList(subscriptionOrder)
 
         AppLocaleManager.initialize(this)

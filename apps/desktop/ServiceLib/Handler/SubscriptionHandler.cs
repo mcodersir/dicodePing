@@ -241,6 +241,7 @@ public static class SubscriptionHandler
 
         // Add servers to configuration
         var ret = await ConfigHandler.AddBatchServers(config, result, id, true);
+        if (ret > 0) await ConfigHandler.DedupServerList(config, id);
         if (ret <= 0)
         {
             Logging.SaveLog("FailedImportSubscription");

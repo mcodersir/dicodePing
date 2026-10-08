@@ -265,7 +265,7 @@ object AngConfigManager {
                 }
 
             val v2raynConfigs = V2rayNFmt.parse(v2raynLines, subid)
-            val allConfigs = v2raynConfigs + configs
+            val allConfigs = (v2raynConfigs + configs).distinctBy { it.duplicateIdentity() }
 
             if (allConfigs.isNotEmpty()) {
                 commitProfiles(

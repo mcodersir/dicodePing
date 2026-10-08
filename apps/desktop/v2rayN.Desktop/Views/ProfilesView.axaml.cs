@@ -9,6 +9,25 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     private static Config _config;
     private static readonly string _tag = "ProfilesView";
 
+    private void ProfileRowSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (sender is not Grid row) return;
+        var narrow = e.NewSize.Width < 640;
+        if (row.Tag is bool previous && previous == narrow) return;
+        row.Tag = narrow;
+        row.ColumnDefinitions = new ColumnDefinitions(narrow ? "36,*,76" : "36,2*,3*,76");
+        foreach (var control in row.Children)
+        {
+            if (control.Classes.Contains("ProfileActions")) Grid.SetColumn(control, narrow ? 2 : 3);
+            if (control.Classes.Contains("MetricRow"))
+            {
+                Grid.SetRow(control, narrow ? 1 : 0);
+                Grid.SetColumn(control, narrow ? 0 : 2);
+                Grid.SetColumnSpan(control, narrow ? 3 : 1);
+            }
+        }
+    }
+
     public ProfilesView()
     {
         InitializeComponent();

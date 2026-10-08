@@ -61,6 +61,7 @@ class LogcatActivity : BaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.loadLogcat()
     }
 
     @Composable
