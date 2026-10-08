@@ -78,7 +78,7 @@
                         </Button>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="1" Grid.ColumnSpan="3" Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" IsVisible="{Binding IsRefreshing}" />
+                    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsRefreshing}"><StackPanel Spacing="6"><TextBlock Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" /><ProgressBar IsIndeterminate="True" Height="3" /></StackPanel><Button Grid.Column="1" Command="{Binding CancelRefreshCmd}" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" /></Grid>
                     <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
                         <Button
                             x:Name="btnNewUpdate"

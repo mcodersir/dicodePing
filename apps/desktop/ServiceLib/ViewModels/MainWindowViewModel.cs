@@ -71,6 +71,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> RegionalPresetChinaCmd { get; }
 
     public ReactiveCommand<RxVoid, RxVoid> ReloadCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> CancelRefreshCmd { get; }
+    private CancellationTokenSource? _refreshCts;
 
     [Reactive]
     public partial bool BlReloadEnabled { get; set; }
@@ -249,6 +251,7 @@ public partial class MainWindowViewModel : MyReactiveObject
             await OpenTheFileLocation();
         });
 
+        CancelRefreshCmd = ReactiveCommand.Create(() => _refreshCts?.Cancel());
         ReloadCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await RefreshSubscriptionsNow();
@@ -633,19 +636,26 @@ public partial class MainWindowViewModel : MyReactiveObject
     private async Task RefreshSubscriptionsNow()
     {
         if (IsRefreshing) return;
+        using var cancellation = new CancellationTokenSource();
+        _refreshCts = cancellation;
         IsRefreshing = true;
         ProfilesViewModel.IsRefreshing = true;
         RefreshStatus = ResUI.DicodeRefreshRunning;
         try
         {
-            await ProfilesViewModel.StopDiagnosticsAsync();
+            await ProfilesViewModel.StopDiagnosticsAsync(cancellation.Token);
             var anySuccess = false;
             await Task.Run(async () => await SubscriptionHandler.UpdateProcess(_config, _config.SubIndexId ?? "", false, async (success, message) => {
                 anySuccess |= success; await UpdateTaskHandler(success, message);
-            }));
+            }, cancellation.Token));
             await ProfilesViewModel.RefreshSubscriptions();
             await RefreshServersDispatcherAsync();
             RefreshStatus = anySuccess ? ResUI.DicodeRefreshFinished : ResUI.DicodeRefreshFailed;
+            NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            RefreshStatus = ResUI.SpeedtestingStop;
             NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
         }
         catch (Exception ex)
@@ -653,7 +663,7 @@ public partial class MainWindowViewModel : MyReactiveObject
             Logging.SaveLog("Subscription refresh", ex);
             RefreshStatus = ResUI.DicodeRefreshFailed;
         }
-        finally { ProfilesViewModel.IsRefreshing = false; IsRefreshing = false; }
+        finally { _refreshCts = null; ProfilesViewModel.IsRefreshing = false; IsRefreshing = false; }
     }
 
     public async Task UpdateSubscriptionProcess(string subId, bool blProxy)

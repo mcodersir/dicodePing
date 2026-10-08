@@ -2,9 +2,9 @@ namespace ServiceLib.Handler;
 
 public static class SubscriptionHandler
 {
-    public static async Task UpdateProcess(Config config, string subId, bool blProxy, Func<bool, string, Task> updateFunc)
+    public static async Task UpdateProcess(Config config, string subId, bool blProxy, Func<bool, string, Task> updateFunc, CancellationToken cancellationToken = default)
     {
-        await ProfileOperationCoordinator.Gate.WaitAsync();
+        await ProfileOperationCoordinator.Gate.WaitAsync(cancellationToken);
         try
         {
         await updateFunc?.Invoke(false, ResUI.MsgUpdateSubscriptionStart);
@@ -19,6 +19,7 @@ public static class SubscriptionHandler
         var successCount = 0;
         foreach (var item in subItem)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 if (!IsValidSubscription(item, subId))
@@ -38,9 +39,10 @@ public static class SubscriptionHandler
                 await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgStartGettingSubscriptions}");
 
                 // Get all subscription content (main subscription + additional subscriptions)
-                var result = await DownloadAllSubscriptions(config, item, blProxy, downloadHandle);
+                var result = await DownloadAllSubscriptions(config, item, blProxy, downloadHandle, cancellationToken);
 
                 // Process download result
+                cancellationToken.ThrowIfCancellationRequested();
                 if (await ProcessDownloadResult(config, item.Id, result, hashCode, updateFunc))
                 {
                     successCount++;
@@ -48,6 +50,7 @@ public static class SubscriptionHandler
 
                 await updateFunc?.Invoke(false, "-------------------------------------------------------");
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 var hashCode = $"{item.Remarks}->";
@@ -107,34 +110,34 @@ public static class SubscriptionHandler
         return downloadHandle;
     }
 
-    private static async Task<string> DownloadSubscriptionContent(DownloadService downloadHandle, string url, bool blProxy, string userAgent)
+    private static async Task<string> DownloadSubscriptionContent(DownloadService downloadHandle, string url, bool blProxy, string userAgent, CancellationToken cancellationToken)
     {
-        var result = await downloadHandle.TryDownloadString(url, blProxy, userAgent);
+        var result = await downloadHandle.TryDownloadString(url, blProxy, userAgent, cancellationToken);
 
         // If download with proxy fails, try direct connection
         if (blProxy && result.IsNullOrEmpty())
         {
-            result = await downloadHandle.TryDownloadString(url, false, userAgent);
+            result = await downloadHandle.TryDownloadString(url, false, userAgent, cancellationToken);
         }
 
         return result ?? string.Empty;
     }
 
-    private static async Task<string> DownloadAllSubscriptions(Config config, SubItem item, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadAllSubscriptions(Config config, SubItem item, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         // Download main subscription content
-        var result = await DownloadMainSubscription(config, item, blProxy, downloadHandle);
+        var result = await DownloadMainSubscription(config, item, blProxy, downloadHandle, cancellationToken);
 
         // Process additional subscription links (if any)
         if (item.ConvertTarget.IsNullOrEmpty() && item.MoreUrl.TrimEx().IsNotEmpty())
         {
-            result = await DownloadAdditionalSubscriptions(item, result, blProxy, downloadHandle);
+            result = await DownloadAdditionalSubscriptions(item, result, blProxy, downloadHandle, cancellationToken);
         }
 
         return result;
     }
 
-    private static async Task<string> DownloadMainSubscription(Config config, SubItem item, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadMainSubscription(Config config, SubItem item, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         // Prepare subscription URL and download directly
         var url = Utils.GetPunycode(item.Url.TrimEx());
@@ -160,7 +163,7 @@ public static class SubscriptionHandler
         }
 
         // Download and return result directly
-        var content = await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent);
+        var content = await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent, cancellationToken);
         if (item.ConvertTarget.IsNullOrEmpty()
             && downloadHandle.LastResponseHeaders.TryGetValue("subscription-userinfo", out var userInfo))
         {
@@ -182,7 +185,7 @@ public static class SubscriptionHandler
         item.ExpireUnix = values.GetValueOrDefault("expire");
     }
 
-    private static async Task<string> DownloadAdditionalSubscriptions(SubItem item, string mainResult, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadAdditionalSubscriptions(SubItem item, string mainResult, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         var result = mainResult;
 
@@ -202,7 +205,7 @@ public static class SubscriptionHandler
                 continue;
             }
 
-            var additionalResult = await DownloadSubscriptionContent(downloadHandle, url2, blProxy, item.UserAgent);
+            var additionalResult = await DownloadSubscriptionContent(downloadHandle, url2, blProxy, item.UserAgent, cancellationToken);
 
             if (additionalResult.IsNotEmpty())
             {

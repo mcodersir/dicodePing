@@ -1035,12 +1035,12 @@ public partial class ProfilesViewModel : MyReactiveObject
         return completion.Task;
     }
 
-    public async Task StopDiagnosticsAsync()
+    public async Task StopDiagnosticsAsync(CancellationToken cancellationToken = default)
     {
         ServerSpeedtestStop();
         foreach (var gate in _probeLocks.Values)
         {
-            await gate.WaitAsync();
+            await gate.WaitAsync(cancellationToken);
             gate.Release();
         }
     }

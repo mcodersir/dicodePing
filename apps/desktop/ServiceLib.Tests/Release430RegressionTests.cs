@@ -5,6 +5,16 @@ namespace ServiceLib.Tests;
 public class Release430RegressionTests
 {
     [Fact]
+    public async Task CancelledSubscriptionRefreshDoesNotAcquireOrLeakMutationGate()
+    {
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => SubscriptionHandler.UpdateProcess(
+            new Config(), "", false, (_, _) => Task.CompletedTask, cancelled.Token));
+        Assert.Equal(1, ProfileOperationCoordinator.Gate.CurrentCount);
+    }
+
+    [Fact]
     public void LargeRunCountsUniqueResultsAndKeepsPartialCountWhenStopped()
     {
         var run = new ProbeRunModel { Total = 163, Name = "Latency" };
