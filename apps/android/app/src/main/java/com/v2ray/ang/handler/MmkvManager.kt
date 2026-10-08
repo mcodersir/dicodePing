@@ -1,5 +1,7 @@
 package com.v2ray.ang.handler
 
+import com.v2ray.ang.AppConfig
+
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
