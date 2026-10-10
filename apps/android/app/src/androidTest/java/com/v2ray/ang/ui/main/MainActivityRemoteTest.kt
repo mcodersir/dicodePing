@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -38,7 +39,8 @@ class MainActivityRemoteTest {
                 compose.onNodeWithContentDescription(menu).performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithContentDescription(menu).assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
                 compose.onNodeWithText(settings).assertIsDisplayed()
-                compose.onRoot().performKeyInput { pressKey(Key.Back) }
+                // BACK is dispatched by Android to OnBackPressedDispatcher, outside Compose key input.
+                Espresso.pressBack()
                 compose.onNodeWithText("Remote test server two").assertIsDisplayed()
                 assertEquals(second, MmkvManager.getSelectServer())
             }
