@@ -25,20 +25,21 @@ public sealed class EntryHopWindow : Window
         var port = new TextBox { Text = item.Port.ToString(), PlaceholderText = "61080" };
         var status = new TextBlock { Text = item.LastTransport, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         var save = new Button { Content = ResUI.TbConfirm, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var scan = new Button { Content = ResUI.DicodeEntryRescan, HorizontalAlignment = HorizontalAlignment.Stretch };
         var discover = new Button { Content = ResUI.DicodeDiscoverMask, HorizontalAlignment = HorizontalAlignment.Stretch };
         discover.Click += async (_, _) => {
+            if (scanCancellation is not null) return;
             var selected = main.ProfilesViewModel.SelectedProfile?.IndexId ?? config.IndexId;
             var profile = await AppManager.Instance.GetProfileItem(selected);
             if (profile is null) { status.Text = ResUI.PleaseSelectServer; return; }
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90)); scanCancellation = cts;
-            discover.IsEnabled = false;
+            discover.IsEnabled = false; scan.IsEnabled = false; save.IsEnabled = false;
             try { await main.ProfilesViewModel.StopDiagnosticsAsync();
                 var delay = await FinalMaskDiscovery.DiscoverAsync(config, profile, text => { Avalonia.Threading.Dispatcher.UIThread.Post(() => status.Text = text); return Task.CompletedTask; }, cts.Token);
                 status.Text = ResUI.DicodeEntryReady + " · " + delay + " ms"; await main.ProfilesViewModel.RefreshServersBiz();
             } catch (Exception ex) { Logging.SaveLog("FinalMask discovery", ex); status.Text = ex.Message; }
-            finally { scanCancellation = null; discover.IsEnabled = true; }
+            finally { scanCancellation = null; discover.IsEnabled = true; scan.IsEnabled = true; save.IsEnabled = true; }
         };
-        var scan = new Button { Content = ResUI.DicodeEntryRescan, HorizontalAlignment = HorizontalAlignment.Stretch };
         bool Save()
         {
             if (!int.TryParse(port.Text, out var parsed) || parsed is < 1024 or > 65535) { status.Text = ResUI.DicodeEntryPortBusy; return false; }
@@ -54,8 +55,9 @@ public sealed class EntryHopWindow : Window
         save.Click += async (_, _) => { if (!Save()) return; await ConfigHandler.SaveConfig(config); Close(); };
         scan.Click += async (_, _) =>
         {
-            if (!Save()) return;
-            scan.IsEnabled = false; save.IsEnabled = false;
+            if (scanCancellation is not null || !Save()) return;
+            var reconnect = CoreManager.Instance.IsRunning;
+            scan.IsEnabled = false; save.IsEnabled = false; discover.IsEnabled = false;
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
             scanCancellation = cts;
             try
@@ -65,9 +67,11 @@ public sealed class EntryHopWindow : Window
                 status.Text = ResUI.DicodeProbeRunning;
                 await Task.Run(() => EntryHopService.EnsureReadyAsync(config, true, cts.Token));
                 status.Text = ResUI.DicodeEntryReady + " · " + item.LastTransport;
+                if (!item.Enabled) await EntryHopService.StopAsync();
+                if (reconnect && !cts.IsCancellationRequested) await main.ProfilesViewModel.ConnectSelectedAsync();
             }
             catch (Exception ex) { Logging.SaveLog("Entry-hop scan", ex); status.Text = ResUI.DicodeEntryFailed; }
-            finally { scanCancellation = null; scan.IsEnabled = true; save.IsEnabled = true; }
+            finally { scanCancellation = null; scan.IsEnabled = true; save.IsEnabled = true; discover.IsEnabled = true; }
         };
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(24), Spacing = 14, Children = {
             new TextBlock { Text = ResUI.DicodeEntryTitle, FontSize = 24 },
