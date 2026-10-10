@@ -781,6 +781,7 @@ public partial class MainWindowViewModel : MyReactiveObject
 
     private bool _hasNextReloadJob = false;
     private bool _connectionDesired;
+    public bool IsConnectionRequested => _connectionDesired;
     private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
     private int _unexpectedExitRecovery;

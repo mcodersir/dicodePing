@@ -68,7 +68,7 @@ public sealed class EntryHopWindow : Window
                 await Task.Run(() => EntryHopService.EnsureReadyAsync(config, true, cts.Token));
                 status.Text = ResUI.DicodeEntryReady + " · " + item.LastTransport;
                 if (!item.Enabled) await EntryHopService.StopAsync();
-                if (reconnect && !cts.IsCancellationRequested) await main.ProfilesViewModel.ConnectSelectedAsync();
+                if (reconnect && main.IsConnectionRequested && !cts.IsCancellationRequested) await main.ProfilesViewModel.ConnectSelectedAsync();
             }
             catch (Exception ex) { Logging.SaveLog("Entry-hop scan", ex); status.Text = ResUI.DicodeEntryFailed; }
             finally { scanCancellation = null; scan.IsEnabled = true; save.IsEnabled = true; discover.IsEnabled = true; }
