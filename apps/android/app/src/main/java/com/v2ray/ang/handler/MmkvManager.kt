@@ -805,6 +805,19 @@ object MmkvManager {
      * logged. Refused, the subscription is as it was: a new one leaves nothing behind, and one stored before is put
      * back as it was stored, which, refused too, is logged.
      */
+    /** Compatibility entry points retain the checked P63 storage transactions. */
+    fun encodeSubscription(guid: String, subItem: SubscriptionItem, listFirst: Boolean = false): String =
+        checkNotNull(tryEncodeSubscription(guid, subItem, listFirst)) { "Could not persist subscription" }
+
+    fun removeSubscription(subid: String) { check(tryRemoveSubscription(subid)) { "Could not remove subscription" } }
+
+    fun removeServerViaSubid(subid: String) = withProfileIndexLock {
+        val guids = decodeServerList(subid).toList()
+        check(persistServerList(emptyList(), subid)) { "Could not clear profile group" }
+        if (getSelectServer() in guids) mainStorage.remove(KEY_SELECTED_SERVER)
+        removeProfilePayloads(guids)
+    }
+
     fun tryEncodeSubscription(guid: String, subItem: SubscriptionItem, listFirst: Boolean = false): String? {
         val key = guid.ifBlank { Utils.getUuid() }
         return withProfileIndexLock {

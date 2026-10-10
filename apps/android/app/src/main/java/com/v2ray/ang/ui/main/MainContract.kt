@@ -53,6 +53,7 @@ sealed interface MainAction {
     data object TestAllServers : MainAction
     data object TestRealAllServers : MainAction
     data object TestAllLocations : MainAction
+    data object RescanAether : MainAction
     data object DiscoverFinalMask : MainAction
     data object TestAllSecurity : MainAction
     data object TestAllSanctions : MainAction

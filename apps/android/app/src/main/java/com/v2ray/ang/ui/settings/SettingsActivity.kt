@@ -149,6 +149,8 @@ fun SettingsScreen(
     var socksEnableUdp by rememberMmkvBool(AppConfig.PREF_SOCKS_ENABLE_UDP, AppConfig.DEFAULT_SOCKS_ENABLE_UDP)
     var proxySharing by rememberMmkvBool(AppConfig.PREF_PROXY_SHARING, false)
 
+    var aetherAuto by rememberMmkvBool(AppConfig.PREF_DICODE_AETHER_AUTO, false)
+    var aetherBest by rememberMmkvBool(AppConfig.PREF_DICODE_AETHER_BEST, false)
     var defaultAutoTest by rememberMmkvBool(AppConfig.PREF_DICODE_AUTO_TEST, true)
     var sniBypass by rememberMmkvBool(AppConfig.PREF_DICODE_SNI_BYPASS, false)
     var confirmRemove by rememberMmkvBool(AppConfig.PREF_CONFIRM_REMOVE, false)
@@ -239,6 +241,8 @@ fun SettingsScreen(
                 onExpandedChange = { uiSettingsExpanded = it }
             )
             if (uiSettingsExpanded) {
+                SettingsSwitchItem(title = stringResource(R.string.dicode_aether_auto), checked = aetherAuto, onCheckedChange = { aetherAuto = it })
+                SettingsSwitchItem(title = stringResource(R.string.dicode_aether_best), checked = aetherBest, onCheckedChange = { aetherBest = it })
                 SettingsSwitchItem(title = stringResource(R.string.dicode_auto_prepare), checked = defaultAutoTest, onCheckedChange = { defaultAutoTest = it })
                 SettingsSwitchItem(title = stringResource(R.string.dicode_sni_bypass), checked = sniBypass, onCheckedChange = { sniBypass = it })
                 SettingsSwitchItem(

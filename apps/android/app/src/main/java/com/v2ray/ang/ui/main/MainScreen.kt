@@ -222,6 +222,7 @@ fun MainScreen(
                             MainMoreMenuAction.TestAll -> onAction(MainAction.TestAllServers)
                             MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
                             MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestAllLocations)
+                            MainMoreMenuAction.RescanAether -> onAction(MainAction.RescanAether)
                             MainMoreMenuAction.DiscoverFinalMask -> onAction(MainAction.DiscoverFinalMask)
                             MainMoreMenuAction.TestSecurityBeta -> onAction(MainAction.TestAllSecurity)
                             MainMoreMenuAction.TestSanctionsBeta -> onAction(MainAction.TestAllSanctions)

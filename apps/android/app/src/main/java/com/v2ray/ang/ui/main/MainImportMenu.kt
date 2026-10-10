@@ -40,6 +40,7 @@ enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
     TestLocationBeta(R.string.fab_location_beta),
     TestSecurityBeta(R.string.security_test_beta),
     DiscoverFinalMask(R.string.dicode_discover_finalmask),
+    RescanAether(R.string.dicode_rescan_aether),
     TestSanctionsBeta(R.string.sanctions_test_beta),
     UpdateSubscriptions(R.string.title_sub_update)
 }

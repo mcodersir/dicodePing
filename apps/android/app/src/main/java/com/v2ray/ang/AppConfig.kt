@@ -2,6 +2,8 @@ package com.v2ray.ang
 
 
 object AppConfig {
+    const val PREF_DICODE_AETHER_AUTO = "dicode-aether-auto-scan"
+    const val PREF_DICODE_AETHER_BEST = "dicode-aether-best-scan"
     const val PREF_DICODE_AUTO_TEST = "dicode-auto-test-default"
     const val PREF_DICODE_SNI_BYPASS = "dicode-sni-bypass"
 

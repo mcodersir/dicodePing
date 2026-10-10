@@ -153,9 +153,9 @@ class CoreTestService : Service() {
             }
 
             is RealPingEvent.Result -> {
-                locationOnly = message.locationOnly,
-                sanctionsOnly = message.sanctionsOnly,
-                MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
+                if (message.locationOnly) MmkvManager.encodeServerLocation(event.guid, event.countryCode, event.ipAddress)
+                else if (message.sanctionsOnly) event.sanctionsAccessible?.let { MmkvManager.encodeServerSanctions(event.guid, it, event.sanctionsPassed, event.sanctionsTotal) }
+                else MmkvManager.encodeServerTestDelayMillis(event.guid, event.delayMillis)
                 MessageHelper.sendMsg2UI(
                     this,
                     AppConfig.MSG_MEASURE_CONFIG_SUCCESS,

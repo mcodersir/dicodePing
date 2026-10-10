@@ -337,6 +337,7 @@ class MainViewModel(
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
             MainAction.TestAllLocations -> testAllLocations()
+            MainAction.RescanAether -> rescanAether()
             MainAction.DiscoverFinalMask -> discoverFinalMask()
             MainAction.TestAllSecurity -> testAllSecurity()
             MainAction.TestAllSanctions -> testAllSanctions()
@@ -655,6 +656,34 @@ class MainViewModel(
                     toastError(R.string.toast_failure)
                 }
             }
+        }
+    }
+
+    fun prepareAetherConnection(onReady: () -> Unit) {
+        val guid = uiState.value.selectedGuid ?: return
+        launchLoading {
+            try {
+                cancelAllPing()
+                if (dataSource.decodeServerConfig(guid)?.configType == com.v2ray.ang.enums.EConfigType.AETHER && com.v2ray.ang.handler.MmkvManager.decodeSettingsBool(AppConfig.PREF_DICODE_AETHER_AUTO, false)) {
+                    withContext(ioDispatcher) { com.v2ray.ang.core.AetherTransportDiscovery.prepare(getApplication<Application>(), guid) { progress -> viewModelScope.launch { toast(progress) } } }
+                }
+                onReady()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { LogUtil.e(AppConfig.TAG, "Entry-hop discovery failed", error); toast(error.message.orEmpty()) }
+        }
+    }
+
+    private fun rescanAether() {
+        val guid = uiState.value.selectedGuid ?: return
+        if (uiState.value.isRunning) { toast(R.string.acc_stop); return }
+        launchLoading {
+            try {
+                cancelAllPing()
+                val delay = withContext(ioDispatcher) { com.v2ray.ang.core.AetherTransportDiscovery.prepare(getApplication<Application>(), guid, true) { progress -> viewModelScope.launch { toast(progress) } } }
+                toast("Aether · $delay ms")
+                cacheMutex.withLock { groupDataCache.clear() }; setupGroupTab(forceRefresh = true)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { LogUtil.e(AppConfig.TAG, "Entry-hop scan failed", error); toast(error.message.orEmpty()) }
         }
     }
 

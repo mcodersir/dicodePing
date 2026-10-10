@@ -801,4 +801,7 @@
 <string name="security_risky">اعتبارسنجی گواهی غیرفعال</string>
 <string name="security_medium">لایه TLS تنظیم نشده</string>
     <string name="dicode_discover_finalmask">یافتن FinalMask برای سرور انتخاب‌شده</string>
+    <string name="dicode_rescan_aether">اسکن دوباره مسیرهای Aether/Psiphon انتخاب‌شده</string>
+    <string name="dicode_aether_auto">اسکن خودکار مسیرهای پروفایل Aether پیش از اتصال</string>
+    <string name="dicode_aether_best">تست همهٔ مسیرها و انتخاب سریع‌ترین نتیجهٔ موفق</string>
 </resources>

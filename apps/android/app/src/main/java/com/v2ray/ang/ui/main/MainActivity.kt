@@ -247,7 +247,8 @@ class MainActivity : HelperBaseComponentActivity() {
         ) {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
-        LauncherManager.startService(this)
+        if (mainViewModel.isLoading.value) return
+        mainViewModel.prepareAetherConnection { LauncherManager.startService(this) }
     }
 
     private fun importManually(createConfigType: Int) {
