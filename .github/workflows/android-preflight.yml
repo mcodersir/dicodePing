@@ -54,3 +54,12 @@ jobs:
         chmod +x gradlew
 
         ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.4.0'
+
+    - name: Test D-pad traversal and activation on Android emulator
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 35
+        arch: x86_64
+        disable-animations: true
+        working-directory: apps/android
+        script: ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.RemoteNavigationTest

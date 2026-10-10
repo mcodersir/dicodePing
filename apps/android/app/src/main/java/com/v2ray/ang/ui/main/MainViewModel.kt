@@ -205,7 +205,7 @@ class MainViewModel(
 
             is MainServiceEvent.MeasureConfigSuccess -> {
                 val request = testRequests.bulk?.takeIf { it.id == event.requestId } ?: return
-                queueTestResult(event.result, request)
+                if (diagnosticMode == null) queueTestResult(event.result, request)
             }
 
             is MainServiceEvent.MeasureConfigNotify -> {
@@ -337,6 +337,7 @@ class MainViewModel(
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
             MainAction.TestAllLocations -> testAllLocations()
+            MainAction.DiscoverFinalMask -> discoverFinalMask()
             MainAction.TestAllSecurity -> testAllSecurity()
             MainAction.TestAllSanctions -> testAllSanctions()
             MainAction.CancelTesting -> cancelAllPing()
@@ -657,6 +658,24 @@ class MainViewModel(
         }
     }
 
+    private fun discoverFinalMask() {
+        val guid = uiState.value.selectedGuid ?: return
+        launchLoading {
+            try {
+                cancelAllPing()
+                val delay = withContext(ioDispatcher) {
+                    com.v2ray.ang.core.FinalMaskDiscovery.discover(getApplication<Application>(), guid) { progress ->
+                        viewModelScope.launch { toast(progress) }
+                    }
+                }
+                toast("FinalMask · $delay ms")
+                cacheMutex.withLock { groupDataCache.clear() }
+                setupGroupTab(forceRefresh = true)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { LogUtil.e(AppConfig.TAG, "FinalMask discovery failed", error); toast(error.message.orEmpty()) }
+        }
+    }
+
     private fun importConfigViaSub() {
         val subId = uiState.value.selectedGroupId
         launchLoading {
@@ -685,8 +704,15 @@ class MainViewModel(
                             toast(dataSource.getString(R.string.title_update_subscription_result, result.configCount, result.successCount, result.failureCount, result.skipCount))
                     }
                     if (result.configCount > 0) {
-                        setupGroupTab(forceRefresh = true)
+                        setupGroupTab(forceRefresh = true).join()
                         refreshSelectedGuid()
+                        val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
+                        if (primary?.subscription?.enabled == true && dataSource.isDefaultAutoTestEnabled()
+                            && (subId.isEmpty() || subId == primary.guid)) {
+                            dataSource.setSelectedSubscriptionId(primary.guid)
+                            setupGroupTab(forceRefresh = true).join()
+                            withContext(Dispatchers.Main) { testAllRealPing() }
+                        }
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled

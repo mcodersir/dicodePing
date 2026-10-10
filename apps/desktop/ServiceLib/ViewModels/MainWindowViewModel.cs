@@ -655,6 +655,17 @@ public partial class MainWindowViewModel : MyReactiveObject
             }, cancellation.Token));
             await ProfilesViewModel.RefreshSubscriptions();
             await RefreshServersDispatcherAsync();
+            if (anySuccess)
+            {
+                var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
+                if (DicodePingBootstrap.ShouldPrepare(_config, primary) && (string.IsNullOrEmpty(_config.SubIndexId) || _config.SubIndexId == primary!.Id))
+                {
+                    ProfilesViewModel.IsRefreshing = false;
+                    await ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, await AppManager.Instance.ProfileItems(primary!.Id) ?? [], cancellation.Token);
+                    await ConfigHandler.SortServers(_config, primary.Id, nameof(EServerColName.DelayVal), true);
+                    await RefreshServersDispatcherAsync();
+                }
+            }
             RefreshStatus = anySuccess ? ResUI.DicodeRefreshFinished : ResUI.DicodeRefreshFailed;
             NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
         }

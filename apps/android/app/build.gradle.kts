@@ -185,6 +185,8 @@ dependencies {
     // Compose Libraries
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)

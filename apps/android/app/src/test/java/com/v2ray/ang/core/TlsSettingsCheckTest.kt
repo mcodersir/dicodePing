@@ -10,6 +10,16 @@ import org.junit.jupiter.api.Test
 
 /** The TLS settings the editor refuses to save, as the Xray-core fork would not apply them or would not connect. */
 class TlsSettingsCheckTest {
+    @Test
+    fun sniPresetPreservesVerificationAndUserMask() {
+        val p = profile().apply { insecure = false; finalMask = "existing"; cipherSuites = "custom" }
+        TlsSettingsCheck.applySniPreset(p)
+        assertEquals(false, p.insecure)
+        assertEquals("unsafe", p.fingerPrint)
+        assertEquals("existing", p.finalMask)
+        assertEquals("custom", p.cipherSuites)
+    }
+
 
     private fun profile(
         fingerprint: String? = null,

@@ -39,6 +39,7 @@ enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
     TestAllRealPing(R.string.title_real_ping_all_server),
     TestLocationBeta(R.string.fab_location_beta),
     TestSecurityBeta(R.string.security_test_beta),
+    DiscoverFinalMask(R.string.dicode_discover_finalmask),
     TestSanctionsBeta(R.string.sanctions_test_beta),
     UpdateSubscriptions(R.string.title_sub_update)
 }

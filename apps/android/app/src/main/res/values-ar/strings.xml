@@ -785,4 +785,5 @@
 <string name="security_safe">TLS configured</string>
 <string name="security_risky">Unsafe certificate verification</string>
 <string name="security_medium">No TLS layer configured</string>
+    <string name="dicode_discover_finalmask">Find FinalMask for selected server</string>
 </resources>
