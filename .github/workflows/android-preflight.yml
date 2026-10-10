@@ -62,4 +62,4 @@ jobs:
         arch: x86_64
         disable-animations: true
         working-directory: apps/android
-        script: ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.RemoteNavigationTest
+        script: ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.RemoteNavigationTest,com.v2ray.ang.ui.main.MainActivityRemoteTest

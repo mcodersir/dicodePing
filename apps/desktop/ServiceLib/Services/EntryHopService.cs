@@ -120,6 +120,9 @@ public static class EntryHopService
     {
         var directory = Utils.GetBinPath("", "aether");
         var binary = Path.Combine(directory, Utils.GetExeName("aether"));
+        if (!OperatingSystem.IsWindows())
+            foreach (var helper in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                .Where(path => Path.GetFileName(path) is "aether" or "lyrebird" or "psiphon-tunnel-core")) Utils.SetUnixFileMode(helper);
         if (!File.Exists(binary)) throw new FileNotFoundException(ResUI.DicodeEntryFailed, binary);
         var listener = item.Kind == "psiphon" ? "--bind" : item.Kind == "aether-tor" ? "--tor-bind" : "--bind";
         var args = item.Kind == "psiphon" ? "--psiphon-only" : transport switch

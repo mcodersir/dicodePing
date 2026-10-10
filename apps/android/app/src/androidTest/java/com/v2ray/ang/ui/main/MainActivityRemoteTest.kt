@@ -1,0 +1,46 @@
+package com.v2ray.ang.ui.main
+
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.test.core.app.ActivityScenario
+import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
+import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.enums.EConfigType
+import com.v2ray.ang.handler.MmkvManager
+import org.junit.Rule
+import org.junit.Test
+import org.junit.Assert.assertEquals
+
+/** Exercises the actual main screen's merged focus semantics and drawer using remote keys. */
+class MainActivityRemoteTest {
+    @get:Rule val compose = createEmptyComposeRule()
+    @Test fun mainScreenRowsConnectionControlAndDrawerAreReachable() {
+        MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
+        val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
+        val second = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server two"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                var menu = ""; var settings = ""; var connect = ""
+                scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_settings); connect = it.getString(R.string.fab_manual_connect) }
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes().isNotEmpty() }
+                compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
+                compose.onNodeWithText("Remote test server one").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.waitUntil(3_000) { MmkvManager.getSelectServer() == first }
+                compose.onNodeWithText("Remote test server two").performSemanticsAction(SemanticsActions.RequestFocus)
+                compose.onNodeWithText("Remote test server two").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }
+                compose.onNodeWithContentDescription(connect).performSemanticsAction(SemanticsActions.RequestFocus)
+                compose.onNodeWithContentDescription(connect).assertIsFocused().assertHasClickAction()
+                compose.onNodeWithContentDescription(menu).performSemanticsAction(SemanticsActions.RequestFocus)
+                compose.onNodeWithContentDescription(menu).assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.onNodeWithText(settings).assertIsDisplayed()
+                compose.onRoot().performKeyInput { pressKey(Key.Back) }
+                compose.onNodeWithText("Remote test server two").assertIsDisplayed()
+                assertEquals(second, MmkvManager.getSelectServer())
+            }
+        } finally { MmkvManager.tryRemoveServer(first); MmkvManager.tryRemoveServer(second) }
+    }
+}
