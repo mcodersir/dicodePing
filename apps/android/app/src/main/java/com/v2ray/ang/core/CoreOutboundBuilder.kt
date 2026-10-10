@@ -1,8 +1,7 @@
 package com.v2ray.ang.core
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.dto.ByName
 import com.v2ray.ang.dto.V2rayConfig.OutboundBean
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
@@ -32,11 +31,15 @@ object CoreOutboundBuilder {
             EConfigType.WIREGUARD -> toOutboundWireguard(profileItem)
             EConfigType.HYSTERIA2 -> toOutboundHysteria2(profileItem)
             EConfigType.HTTP -> toOutboundHttp(profileItem)
+            EConfigType.AETHER -> toOutboundAether(profileItem)
             else -> null
         }
 
         outbound ?: return null
-        applyDialMode(outbound, profileItem)
+        // PattNG: an Aether profile's outbound only reaches its core on the loopback address; its dialMode is
+        // that of the exit-node its traffic leaves Xray by, see toOutboundAetherExit.
+        if (profileItem.configType != EConfigType.AETHER) applyDialMode(outbound, profileItem)
+        applyTargetStrategy(outbound, profileItem)
         val ret = updateOutboundWithGlobalSettings(outbound)
         if (!ret) return null
         return outbound
@@ -48,8 +51,11 @@ object CoreOutboundBuilder {
      * Only the dialMode field is written, so sockopt options set elsewhere
      * (dialerProxy, domainStrategy, happyEyeballs, ...) are kept.
      */
-    internal fun applyDialMode(outbound: OutboundBean, profileItem: ProfileItem) {
-        val dialMode = profileItem.dialMode.nullIfBlank() ?: return
+    internal fun applyDialMode(outbound: OutboundBean, profileItem: ProfileItem) = applyDialMode(outbound, profileItem.dialMode)
+
+    /** [applyDialMode] with the dialMode itself, as the exit-node of an Aether core takes its profile's. */
+    internal fun applyDialMode(outbound: OutboundBean, mode: String?) {
+        val dialMode = mode.nullIfBlank() ?: return
         if (outbound.streamSettings == null) {
             // wireguard outbounds are built without streamSettings, but Xray still dials
             // their endpoint through the system dialer with streamSettings.sockopt.
@@ -58,6 +64,55 @@ object CoreOutboundBuilder {
         }
         outbound.ensureSockopt().dialMode = dialMode
     }
+
+    /**
+     * Copies the profile targetStrategy onto the outbound, or the profile's default when it stores none, see
+     * [defaultTargetStrategy]. AsIs, Xray's default, leaves the field out.
+     */
+    internal fun applyTargetStrategy(outbound: OutboundBean, profileItem: ProfileItem) {
+        val strategy = profileItem.targetStrategy?.trim()?.takeIf { it.isNotEmpty() }
+            ?: defaultTargetStrategy(profileItem)
+        outbound.targetStrategy = strategy.takeUnless { it.equals(AppConfig.TARGET_STRATEGY_AS_IS, ignoreCase = true) }
+    }
+
+    /**
+     * PattNG: the targetStrategy of [profile] when it stores none. An Aether profile whose traffic leaves its core
+     * through WARP gets ForceIPv4v6: the core looks names up inside the tunnel with no cache, once for every UDP
+     * datagram, so Xray's DNS, with its cache, looks them up first, IPv4 before IPv6, and a name it cannot look up is
+     * not sent at all. Every other profile passes names on as they are (AsIs, Xray's own): an Aether one whose traffic
+     * leaves through Tor or Psiphon, which look names up at their exit; a WireGuard one, whose tunnel looks names up
+     * with the profile's own DNS and keeps the answers; and one of any other type, whose server looks them up. Where an
+     * outbound carries something else than your traffic, see [applyChainTargetStrategies] and [toOutboundAetherExit].
+     */
+    fun defaultTargetStrategy(profile: ProfileItem): String =
+        if (profile.configType == EConfigType.AETHER && AetherCore.leavesThroughWarp(profile)) {
+            AppConfig.TARGET_STRATEGY_FORCE_IPV4V6
+        } else {
+            AppConfig.TARGET_STRATEGY_AS_IS
+        }
+
+    /**
+     * PattNG: the targetStrategy of the outbounds of a proxy chain, [hops] its profiles beside their outbounds, tagged,
+     * the first carrying your traffic. A hop after the first carries the connection of the hop before it to that
+     * hop's server, whose name a lookup by Xray would ask of the DNS that reaches out through this same chain: it
+     * passes names on as they are unless its profile sets a targetStrategy. The exit-node of an Aether hop passes every
+     * name on, see [toOutboundAetherExit].
+     */
+    internal fun applyChainTargetStrategies(hops: List<Pair<ProfileItem, OutboundBean>>) {
+        hops.forEachIndexed { index, (profile, outbound) ->
+            when {
+                outbound.tag == AppConfig.TAG_EXIT_NODE -> outbound.targetStrategy = null
+                index > 0 && profile.targetStrategy.isNullOrBlank() -> outbound.targetStrategy = null
+            }
+        }
+    }
+
+    /**
+     * PattNG: a mux concurrency setting, [text], as Xray takes it: the whole number written, or [default] when the field,
+     * which takes any text, holds none. A blank field left the outbound unbuilt, and the profile's traffic went out
+     * directly while the app showed it connected.
+     */
+    internal fun muxConcurrency(text: String?, default: Int): Int = Utils.parseInt(text?.trim(), default)
 
     /** Applies global outbound options (mux, protocol-specific tweaks, etc.). */
     private fun updateOutboundWithGlobalSettings(outbound: OutboundBean): Boolean {
@@ -79,8 +134,11 @@ object CoreOutboundBuilder {
 
             if (muxEnabled) {
                 outbound.mux?.enabled = true
-                outbound.mux?.concurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_CONCURRENCY, "8").orEmpty().toInt()
-                outbound.mux?.xudpConcurrency = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY).orEmpty().toInt()
+                outbound.mux?.concurrency = muxConcurrency(MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_CONCURRENCY, "8"), 8)
+                outbound.mux?.xudpConcurrency = muxConcurrency(
+                    MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY),
+                    AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY.toInt(),
+                )
                 outbound.mux?.xudpProxyUDP443 = MmkvManager.decodeSettingsString(AppConfig.PREF_MUX_XUDP_QUIC, "reject")
                 if (protocol.equals(EConfigType.VLESS.name, true) && outbound.settings?.flow?.isNotEmpty() == true) {
                     outbound.mux?.concurrency = -1
@@ -232,6 +290,21 @@ object CoreOutboundBuilder {
         return outboundBean
     }
 
+    /**
+     * A SOCKS outbound to the Aether core, on the port the app dials the core of the profile on. The
+     * core itself is named at the top of the configuration, as aetherCommand, once the configuration is built.
+     */
+    private fun toOutboundAether(profileItem: ProfileItem): OutboundBean? {
+        val outboundBean = createInitOutbound(EConfigType.SOCKS)
+
+        outboundBean?.settings?.let { settings ->
+            settings.address = AppConfig.LOOPBACK
+            settings.port = AetherCore.of(profileItem).port
+        }
+
+        return outboundBean
+    }
+
     private fun toOutboundHttp(profileItem: ProfileItem): OutboundBean? {
         val outboundBean = createInitOutbound(EConfigType.HTTP)
 
@@ -246,6 +319,99 @@ object CoreOutboundBuilder {
 
         return outboundBean
     }
+
+    /**
+     * PattNG: the remote DNS servers of a WireGuard outbound, and the entries of [remoteDNS] left out. The core parses
+     * each server with Go's netip.ParseAddr and stops the whole process on anything it refuses, as a host name, an
+     * address with a port, or "local", which it takes no more; so only what it takes goes, see [isNetipAddress], an
+     * IPv6 address without its brackets, the IPv4 ones alone when IPv6 is off, each its own entry; and when none is
+     * left, the default ones, see [AppConfig.WIREGUARD_LOCAL_REMOTE_DNS], split as well.
+     */
+    internal fun wireguardRemoteDns(remoteDNS: String?, ipv6Enabled: Boolean): Pair<List<String>, List<String>> {
+        fun entries(list: String?) = list?.split(",").orEmpty().map { it.trim() }.filter { it.isNotEmpty() }
+        fun address(entry: String): String? {
+            val bare = if (entry.startsWith("[") && entry.endsWith("]")) entry.substring(1, entry.length - 1) else entry
+            return bare.takeIf(::isNetipAddress)
+        }
+
+        val read = entries(remoteDNS).map { entry -> entry to address(entry) }
+        val leftOut = read.filter { it.second == null }.map { it.first }
+        val usable = read.mapNotNull { it.second }.filter { ipv6Enabled || !it.contains(":") }
+        val servers = usable.ifEmpty { entries(AppConfig.WIREGUARD_LOCAL_REMOTE_DNS).filter { ipv6Enabled || !it.contains(":") } }
+        return servers to leftOut
+    }
+
+    /**
+     * PattNG: whether Go's netip.ParseAddr takes [text], as the core reads a WireGuard remoteDNS server, see
+     * [wireguardRemoteDns]: IPv4 in four decimal fields without leading zeros, or IPv6 with one :: at most, standing for
+     * one field or more, and a dotted IPv4 tail and a zone allowed; no brackets. Follows net/netip's ParseAddr,
+     * parseIPv4Fields and parseIPv6 step by step.
+     */
+    internal fun isNetipAddress(text: String): Boolean {
+        for (c in text) {
+            when (c) {
+                '.' -> return isNetipIpv4(text)
+                ':' -> return isNetipIpv6(text)
+                '%' -> return false
+            }
+        }
+        return false
+    }
+
+    private fun isNetipIpv4(text: String): Boolean {
+        val fields = text.split('.')
+        return fields.size == 4 && fields.all { field ->
+            field.isNotEmpty() && field.length <= 3 && field.all { it in '0'..'9' } &&
+                (field.length == 1 || field[0] != '0') && field.toInt() <= 255
+        }
+    }
+
+    private fun isNetipIpv6(text: String): Boolean {
+        var s = text
+        val zoneAt = s.indexOf('%')
+        if (zoneAt >= 0) {
+            if (zoneAt == s.length - 1) return false
+            s = s.substring(0, zoneAt)
+        }
+        var ellipsis = -1
+        if (s.startsWith("::")) {
+            ellipsis = 0
+            s = s.substring(2)
+            if (s.isEmpty()) return true
+        }
+        var i = 0
+        while (i < 16) {
+            var off = 0
+            while (off < s.length && isHexDigit(s[off])) {
+                if (off > 3) return false
+                off++
+            }
+            if (off == 0) return false
+            if (off < s.length && s[off] == '.') {
+                if (ellipsis < 0 && i != 12) return false
+                if (i + 4 > 16) return false
+                if (!isNetipIpv4(s)) return false
+                s = ""
+                i += 4
+                break
+            }
+            i += 2
+            s = s.substring(off)
+            if (s.isEmpty()) break
+            if (s[0] != ':' || s.length == 1) return false
+            s = s.substring(1)
+            if (s[0] == ':') {
+                if (ellipsis >= 0) return false
+                ellipsis = i
+                s = s.substring(1)
+                if (s.isEmpty()) break
+            }
+        }
+        if (s.isNotEmpty()) return false
+        return if (i < 16) ellipsis >= 0 else ellipsis < 0
+    }
+
+    private fun isHexDigit(c: Char): Boolean = c in '0'..'9' || c in 'a'..'f' || c in 'A'..'F'
 
     private fun toOutboundWireguard(profileItem: ProfileItem): OutboundBean? {
         val outboundBean = createInitOutbound(EConfigType.WIREGUARD)
@@ -264,15 +430,29 @@ object CoreOutboundBuilder {
             ipv4Addresses.ifEmpty { listOf(AppConfig.WIREGUARD_LOCAL_ADDRESS_V4) }
         }
 
+        val (remotes, leftOut) = wireguardRemoteDns(
+            profileItem.remoteDNS,
+            ipv6Enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true,
+        )
+        if (leftOut.isNotEmpty()) {
+            // The entries themselves stay out of the log: one may be a DNS URL with an account in it.
+            LogUtil.w(
+                AppConfig.TAG,
+                "CoreOutboundBuilder: WireGuard profile '${profileItem.remarks}': ${leftOut.size} remoteDNS entries left out, not IP addresses"
+            )
+        }
+
         outboundBean?.settings?.let { wireguard ->
             wireguard.secretKey = profileItem.secretKey
             wireguard.address = addresses
+            wireguard.port = null
             wireguard.peers?.firstOrNull()?.let { peer ->
                 peer.publicKey = profileItem.publicKey.orEmpty()
                 peer.preSharedKey = profileItem.preSharedKey?.nullIfBlank()
                 peer.endpoint = Utils.getIpv6Address(profileItem.server) + ":${profileItem.serverPort}"
             }
             wireguard.mtu = profileItem.mtu
+            wireguard.remoteDNS = remotes
             wireguard.reserved = profileItem.reserved?.takeIf { it.isNotBlank() }?.split(",")?.filter { it.isNotBlank() }?.map { it.trim().toInt() }
         }
 
@@ -540,6 +720,10 @@ object CoreOutboundBuilder {
         return sni
     }
 
+    /** PattNG: the protocols [alpn] names, comma-separated, as the TLS settings of an outbound offer them; empty for none. */
+    internal fun alpnProtocols(alpn: String?): List<String> =
+        alpn?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+
     /**
      * Configures TLS or REALITY security settings for an outbound connection.
      *
@@ -568,7 +752,7 @@ object CoreOutboundBuilder {
             allowInsecure = allowInsecure,
             serverName = sni.nullIfBlank(),
             fingerprint = profileItem.fingerPrint.nullIfBlank(),
-            alpn = profileItem.alpn?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.takeIf { !it.isNullOrEmpty() },
+            alpn = alpnProtocols(profileItem.alpn).takeIf { it.isNotEmpty() },
             cipherSuites = profileItem.cipherSuites.nullIfBlank(),
             echConfigList = profileItem.echConfigList.nullIfBlank(),
             verifyPeerCertByName = profileItem.verifyPeerCertByName.nullIfBlank(),
@@ -581,97 +765,13 @@ object CoreOutboundBuilder {
         if (streamSettings.security == AppConfig.TLS) {
             streamSettings.tlsSettings = tlsSetting
             streamSettings.realitySettings = null
+            // PattNG: the ECH config query goes through the profile's ECH outbound, which
+            // EchOutbound.serialize checks, points echSockopt at and appends after every other outbound
+            tlsSetting.echOutbound = profileItem.echOutbound.nullIfBlank()
         } else if (streamSettings.security == AppConfig.REALITY) {
             streamSettings.tlsSettings = null
             streamSettings.realitySettings = tlsSetting
         }
-
-        if (profileItem.finalMask.isNullOrEmpty()) {
-            updateOutboundFragment(streamSettings)
-        }
-    }
-
-    /**
-     * Updates the outbound with fragment settings for traffic optimization.
-     *
-     * Configures packet fragmentation for TLS and REALITY protocols if enabled.
-     *
-     * @param streamSettings The streamSettings object to be modified
-     * @return true if fragment configuration was successful, false otherwise
-     */
-    private fun updateOutboundFragment(streamSettings: OutboundBean.StreamSettingsBean): Boolean {
-        try {
-            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_FRAGMENT_ENABLED, false) == false) {
-                return true
-            }
-            if (streamSettings.security != AppConfig.TLS
-                && streamSettings.security != AppConfig.REALITY
-            ) {
-                return true
-            }
-            if (streamSettings.sockopt?.dialerProxy.isNotNullEmpty()) {
-                return true
-            }
-
-            var packets =
-                MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_PACKETS) ?: "tlshello"
-            if (streamSettings.security == AppConfig.REALITY
-                && packets == "tlshello"
-            ) {
-                packets = "1-3"
-            }
-
-            val fragmentMask = OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean(
-                type = "fragment",
-                settings = OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean.MaskSettingsBean(
-                    packets = packets,
-                    length = MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_LENGTH)
-                        ?: "50-100",
-                    delay = MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_INTERVAL)
-                        ?: "10-20",
-                    maxSplit = MmkvManager.decodeSettingsString(AppConfig.PREF_FRAGMENT_MAXSPLIT)
-                        ?: "10"
-                )
-            )
-            val noiseMask = OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean(
-                type = "noise",
-                settings = OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean.MaskSettingsBean(
-                    noise = listOf(
-                        OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean.MaskSettingsBean.NoiseMaskBean(
-                            rand = "10-20",
-                            delay = "10-16",
-                        )
-                    )
-                )
-            )
-
-            val finalMaskObj = streamSettings.finalmask?.let { existingFinalMask ->
-                JsonUtil.parseString(JsonUtil.toJson(existingFinalMask))
-            } ?: JsonObject()
-
-            fun appendMask(scope: String, mask: OutboundBean.StreamSettingsBean.FinalMaskBean.MaskBean) {
-                val current = finalMaskObj.get(scope)
-                if (current != null && current.isJsonArray && current.asJsonArray.size() > 0) {
-                    return
-                }
-
-                val newArray = JsonArray()
-                newArray.add(JsonUtil.parseString(JsonUtil.toJson(mask)))
-
-                if (current != null && current.isJsonArray) {
-                    current.asJsonArray.forEach { newArray.add(it) }
-                }
-                finalMaskObj.add(scope, newArray)
-            }
-
-            appendMask("tcp", fragmentMask)
-            appendMask("udp", noiseMask)
-            streamSettings.finalmask = finalMaskObj
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to update outbound fragment", e)
-            return false
-        }
-        return true
     }
 
     private fun getServerAddress(profileItem: ProfileItem): String {
@@ -691,15 +791,89 @@ object CoreOutboundBuilder {
         return resolvedIps.first()
     }
 
-    fun updateOutboundFinalMask(streamSettings: OutboundBean.StreamSettingsBean, profileItem: ProfileItem) {
-        val finalMask = profileItem.finalMask
+    fun updateOutboundFinalMask(streamSettings: OutboundBean.StreamSettingsBean, profileItem: ProfileItem) =
+        updateOutboundFinalMask(streamSettings, profileItem.finalMask)
+
+    /** [updateOutboundFinalMask] with the finalMask JSON itself, as the exit-node of an Aether core takes its profile's. */
+    fun updateOutboundFinalMask(streamSettings: OutboundBean.StreamSettingsBean, finalMask: String?) {
         finalMask?.let {
-            val parsedFinalMask = JsonUtil.parseString(profileItem.finalMask)
+            val parsedFinalMask = JsonUtil.parseString(finalMask)
             if (parsedFinalMask != null) {
                 streamSettings.finalmask = parsedFinalMask
             } else {
                 LogUtil.w("V2rayConfigManager", "Invalid finalMask JSON, keeping previously generated finalmask")
             }
         }
+    }
+
+    /**
+     * PattNG: the exit-node of an Aether core, the outbound that what the core dials out through leaves Xray
+     * by: the outbound of the profile [exit] names as its node, which [nodeOutbound] gives, as a proxy chain
+     * builds its hop, changed in its tag, and passing every name the core sends on as it is, whatever its
+     * profile sets: a name Xray looked up for it would be asked of the DNS that reaches out through the core
+     * itself, which is not up yet when it needs the name, or, where the configuration has no DNS, of the
+     * phone's own resolver, outside the tunnel; or else a freedom outbound with the finalMask and the
+     * dialMode of [exit] set as an ordinary profile sets them on its own outbound. Null when the node gives
+     * none, see [ExitNodeOutbound.Problem]: the core would reach the internet without it. The session's
+     * configuration carries it, and a core of its own dials out through it as well, see
+     * [AetherCoreManager.withProcess].
+     */
+    fun toOutboundAetherExit(exit: AetherExit, nodeOutbound: (String) -> ExitNodeOutbound = ::toOutboundOfNode): OutboundBean? {
+        exit.node?.let { name ->
+            return (nodeOutbound(name) as? ExitNodeOutbound.Built)?.outbound?.apply {
+                tag = AppConfig.TAG_EXIT_NODE
+                targetStrategy = null
+            }
+        }
+        val outbound = OutboundBean(tag = AppConfig.TAG_EXIT_NODE, protocol = "freedom", mux = null)
+        if (!exit.finalMask.isNullOrBlank()) {
+            // A freedom outbound has no transport; the stream settings carry the mask alone.
+            outbound.streamSettings = OutboundBean.StreamSettingsBean(network = null)
+            updateOutboundFinalMask(outbound.streamSettings!!, exit.finalMask)
+        }
+        applyDialMode(outbound, exit.dialMode)
+        return outbound
+    }
+
+    /**
+     * PattNG: the outbound of the profile named [name], built as for a hop of a proxy chain, or why there is
+     * none: no profile that can be an exit-node has the name any more, several have it, or the one that has
+     * it gives no outbound, or one whose ECH outbound cannot go beside it, see [nodeOutboundOf]. See
+     * [AetherExit.node].
+     */
+    fun toOutboundOfNode(name: String): ExitNodeOutbound = when (val found = AetherExit.nodeProfile(name)) {
+        is ByName.One -> try {
+            nodeOf(found.value, ::convert)
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failed to build the outbound of the Aether exit-node profile", e)
+            ExitNodeOutbound.NoOutbound
+        }
+
+        ByName.None -> ExitNodeOutbound.NotFound
+        ByName.Several -> ExitNodeOutbound.SameName
+    }
+
+    /**
+     * PattNG: what [profile], the exit-node, gives with its outbound, which [build] makes, see [nodeOutboundOf], and the
+     * digest of the profile as stored, as a test takes it: taken first, since building the outbound writes into the
+     * profile, as a Hysteria2 one's does.
+     */
+    internal fun nodeOf(profile: ProfileItem, build: (ProfileItem) -> OutboundBean?): ExitNodeOutbound {
+        val content = AetherExit.contentOf(profile)
+        return when (val built = nodeOutboundOf(build(profile))) {
+            is ExitNodeOutbound.Built -> built.copy(content = content)
+            else -> built
+        }
+    }
+
+    /**
+     * PattNG: what the [outbound] a node's profile gives makes of it as the exit-node, see [toOutboundOfNode]: none, or
+     * one whose ECH outbound the configuration the exit of a core of its own opens with would refuse, where it goes
+     * beside the exit-node alone, see [AetherCoreManager.exitConfiguration], leaves it unusable.
+     */
+    internal fun nodeOutboundOf(outbound: OutboundBean?): ExitNodeOutbound = when {
+        outbound == null -> ExitNodeOutbound.NoOutbound
+        !EchOutbound.takes(outbound, setOf(AppConfig.TAG_EXIT_NODE)) -> ExitNodeOutbound.EchUnusable
+        else -> ExitNodeOutbound.Built(outbound)
     }
 }

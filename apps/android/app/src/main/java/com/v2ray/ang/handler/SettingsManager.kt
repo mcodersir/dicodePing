@@ -2,7 +2,6 @@ package com.v2ray.ang.handler
 
 import android.content.Context
 import android.content.res.AssetManager
-import android.os.Build
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.AppConfig.ANG_PACKAGE
@@ -11,6 +10,9 @@ import com.v2ray.ang.AppConfig.GEOIP_PRIVATE
 import com.v2ray.ang.AppConfig.GEOSITE_PRIVATE
 import com.v2ray.ang.AppConfig.TAG_DIRECT
 import com.v2ray.ang.AppConfig.VPN
+import com.v2ray.ang.core.AetherCoreManager
+import com.v2ray.ang.core.PsiphonServerList
+import com.v2ray.ang.dto.ByName
 import com.v2ray.ang.dto.V2rayConfig
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.RulesetItem
@@ -18,18 +20,16 @@ import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.RoutingType
 import com.v2ray.ang.enums.VpnInterfaceAddressConfig
-import com.v2ray.ang.extension.moveItem
 import com.v2ray.ang.handler.MmkvManager.decodeAllServerList
 import com.v2ray.ang.handler.MmkvManager.decodeServerConfig
 import com.v2ray.ang.handler.MmkvManager.decodeSubsList
 import com.v2ray.ang.handler.MmkvManager.decodeSubscription
-import com.v2ray.ang.handler.MmkvManager.encodeSubscription
-import com.v2ray.ang.handler.MmkvManager.removeSubscription
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 import kotlin.random.Random
 
 object SettingsManager {
@@ -50,10 +50,13 @@ object SettingsManager {
      * @param context The application context.
      */
     private fun initRoutingRulesets(context: Context) {
-        val exist = MmkvManager.decodeRoutingRulesets()
-        if (exist.isNullOrEmpty()) {
-            val rulesetList = getPresetRoutingRulesets(context, RoutingType.WHITE_IRAN)
-            MmkvManager.encodeRoutingRulesets(rulesetList)
+        // PattNG: one change of the stored rules at a time, see changeRoutingRulesets.
+        changeRoutingRulesets {
+            val exist = MmkvManager.decodeRoutingRulesets()
+            if (exist.isNullOrEmpty()) {
+                val rulesetList = getPresetRoutingRulesets(context, RoutingType.WHITE_IRAN)
+                MmkvManager.encodeRoutingRulesets(rulesetList)
+            }
         }
     }
 
@@ -77,9 +80,9 @@ object SettingsManager {
      * @param context The application context.
      * @param type The routing preset type.
      */
-    fun resetRoutingRulesetsFromPresets(context: Context, type: RoutingType) {
-        val rulesetList = getPresetRoutingRulesets(context, type) ?: return
-        resetRoutingRulesetsCommon(rulesetList)
+    fun resetRoutingRulesetsFromPresets(context: Context, type: RoutingType): Boolean {
+        val rulesetList = getPresetRoutingRulesets(context, type) ?: return false
+        return resetRoutingRulesetsCommon(rulesetList)
     }
 
     /**
@@ -98,8 +101,7 @@ object SettingsManager {
                 return false
             }
 
-            resetRoutingRulesetsCommon(rulesetList)
-            return true
+            return resetRoutingRulesetsCommon(rulesetList)
         } catch (e: Exception) {
             LogUtil.e(ANG_PACKAGE, "Failed to reset routing rulesets", e)
             return false
@@ -109,18 +111,78 @@ object SettingsManager {
     /**
      * Common method to reset routing rulesets.
      * @param rulesetList The list of rulesets.
+     * @return PattNG: whether the storage took them; a refusal is logged.
      */
-    private fun resetRoutingRulesetsCommon(rulesetList: MutableList<RulesetItem>) {
-        val rulesetNew: MutableList<RulesetItem> = mutableListOf()
-        MmkvManager.decodeRoutingRulesets()?.forEach { key ->
-            if (key.locked == true) {
-                rulesetNew.add(key)
+    private fun resetRoutingRulesetsCommon(rulesetList: MutableList<RulesetItem>): Boolean {
+        val stored = changeRoutingRulesets {
+            MmkvManager.encodeRoutingRulesets(rulesetsAfterImport(MmkvManager.decodeRoutingRulesets(), rulesetList))
+        }
+        if (!stored) LogUtil.e(AppConfig.TAG, "SettingsManager: the storage refused the imported routing rulesets")
+        return stored
+    }
+
+    /** PattNG: what every read, change and write of the stored routing rulesets holds, see [changeRoutingRulesets]. */
+    private val routingRulesetsLock = Any()
+
+    /**
+     * PattNG: runs [change], a read of the stored routing rulesets, its change and its write, while no other runs, so
+     * that none writes back a list another changed meanwhile: an import, the routing list, the editor of a rule.
+     */
+    internal fun <T> changeRoutingRulesets(change: () -> T): T = synchronized(routingRulesetsLock) { change() }
+
+    /**
+     * The rulesets an import of [imported] leaves: the locked ones of [stored] first, kept as they are, then [imported].
+     * PattNG: but for the copy of a locked one, which an export of it brings back with its id: the routing list tells its
+     * rules apart by their ids, and two with one id would make it fail to show. Each gets an id of its own besides, see
+     * [rulesetsWithOwnIds], a locked one without an id as well.
+     */
+    internal fun rulesetsAfterImport(
+        stored: List<RulesetItem>?,
+        imported: List<RulesetItem>,
+        newId: () -> String = ::newRulesetId,
+    ): MutableList<RulesetItem> {
+        val locked = stored.orEmpty().filter { it.locked == true }
+        val lockedIds = locked.map { it.id }.filterTo(HashSet()) { it.isNotEmpty() }
+        val rulesets = locked + imported.filter { it.id !in lockedIds }
+        return rulesetsWithOwnIds(rulesets, newId) ?: rulesets.toMutableList()
+    }
+
+    /**
+     * PattNG: [rulesets] with an id of their own each, which the routing list tells them apart by: one that repeats whole
+     * a ruleset before it, the id it came with included, goes, as the copies of a locked one an import stored before it
+     * was left out; one with the id of a ruleset before it and other content gets a new id from [newId], as does one
+     * without an id. Null when each has its own already.
+     */
+    internal fun rulesetsWithOwnIds(
+        rulesets: List<RulesetItem>,
+        newId: () -> String = ::newRulesetId,
+    ): MutableList<RulesetItem>? {
+        // The rulesets kept so far of each id they came with, as they came.
+        val keptWithId = HashMap<String, MutableList<RulesetItem>>()
+        val result = ArrayList<RulesetItem>(rulesets.size)
+        var changed = false
+        for (ruleset in rulesets) {
+            val kept = keptWithId.getOrPut(ruleset.id) { mutableListOf() }
+            when {
+                ruleset in kept -> changed = true
+
+                ruleset.id.isEmpty() || kept.isNotEmpty() -> {
+                    kept += ruleset
+                    result += ruleset.copy(id = newId())
+                    changed = true
+                }
+
+                else -> {
+                    kept += ruleset
+                    result += ruleset
+                }
             }
         }
-
-        rulesetNew.addAll(rulesetList)
-        MmkvManager.encodeRoutingRulesets(rulesetNew)
+        return result.takeIf { changed }
     }
+
+    /** PattNG: a new id for a routing ruleset, as the routing editor gives one. */
+    private fun newRulesetId(): String = UUID.randomUUID().toString()
 
     /**
      * Get a routing ruleset by index.
@@ -217,6 +279,14 @@ object SettingsManager {
     }
 
     /**
+     * PattNG: what [remarks] finds among the profiles [takes] accepts, see [ByName]. Unlike [getServerViaRemarks],
+     * which takes the first profile of any kind, it tells a name no profile has from one several have, as the hops
+     * of a proxy chain and the exit-node of an Aether core are named.
+     */
+    fun findServerViaRemarks(remarks: String?, takes: (ProfileItem) -> Boolean): ByName<ProfileItem> =
+        ByName.find(remarks, decodeAllServerList().asSequence().mapNotNull { decodeServerConfig(it) }.filter(takes)) { it.remarks }
+
+    /**
      * Collects non-empty profile remarks while excluding specific config types.
      */
     fun getProfileRemarks(excludeConfigTypes: Set<EConfigType> = setOf(EConfigType.CUSTOM)): List<String> {
@@ -231,16 +301,18 @@ object SettingsManager {
     }
 
     /**
-     * Removes the subscription.
-     * An empty subscription list is preserved after explicit deletion.
-     **/
-    fun removeSubscriptionWithDefault(subid: String) {
+     * PattNG: removes the subscription [subid] names with its profiles, its updates stopped first, and, when none is
+     * left, creates the default subscription, which keeps the profiles of no subscription. Tells whether the storage took
+     * it, see [MmkvManager.tryRemoveSubscription]: refused, the subscription stays as it was, its updates scheduled again.
+     * A default subscription the storage refused is logged.
+     */
+    fun tryRemoveSubscriptionWithDefault(subid: String): Boolean {
         SubscriptionUpdater.cancelOne(subId = subid)
-        // Remove the subscription
-        removeSubscription(subid)
-
-        // Deleting the last subscription is a valid empty state. Local imports
-        // can create their destination later; do not undo an explicit deletion.
+        if (!MmkvManager.tryRemoveSubscription(subid)) {
+            SubscriptionUpdater.syncOne(subId = subid)
+            return false
+        }
+        return true
     }
 
     /**
@@ -285,6 +357,24 @@ object SettingsManager {
         return getSocksPort() + if (Utils.isXray()) 0 else 1
     }
 
+    /**
+     * The loopback ports the local proxy is set to listen on, which nothing else the app starts can
+     * share. Empty while the SOCKS port is picked at random on every start: no port is known before
+     * the service runs then, and asking for one here would pick one for this process only.
+     */
+    fun getLocalProxyPorts(): Set<Int> {
+        return if (IsDynamicSocksPort()) emptySet() else setOf(getSocksPort(), getHttpPort())
+    }
+
+    /**
+     * PattNG: the loopback port every Aether core listens on, whatever its profile, as every profile
+     * shares the local proxy port; the app runs one core at a time. The three ports after it go to
+     * Tor and Psiphon and to the inbound the core dials out through. A value that is no such port
+     * gives way to the default, see AetherCoreManager.listenPortOf.
+     */
+    fun getAetherListenPort(): Int =
+        AetherCoreManager.listenPortOf(MmkvManager.decodeSettingsString(AppConfig.PREF_AETHER_LISTEN_PORT))
+
     private fun IsDynamicSocksPort(): Boolean {
         return MmkvManager.decodeSettingsBool(AppConfig.PREF_DYNAMIC_SOCKS_PORT, false)
     }
@@ -303,9 +393,20 @@ object SettingsManager {
 
         try {
             val geo = arrayOf(AppConfig.GEOSITE_DAT, AppConfig.GEOIP_DAT, AppConfig.GEOIP_ONLY_CN_PRIVATE_DAT)
+            // The bundled Psiphon list is the newest the build could fetch. It goes over the copy only when it
+            // was published after the copy was made, never over a file the user picked, and the copy takes the
+            // list's publication time so that the next build is compared with the list, not with the copy.
+            val publishedAt = PsiphonServerList.publishedAt(
+                runCatching { assets.open(AppConfig.PSIPHON_SERVERS_STAMP).use { it.bufferedReader().readText() } }.getOrNull()
+            )
+            // "file" is the address the Asset files screen saves for a file the user picked.
+            val keptByUser = MmkvManager.decodeAssetUrls().any { it.assetUrl.remarks == AppConfig.PSIPHON_SERVERS_DAT && it.assetUrl.url == "file" }
             assets.list("")
-                ?.filter { geo.contains(it) }
-                ?.filter { !File(extFolder, it).exists() }
+                ?.filter { geo.contains(it) || it == AppConfig.PSIPHON_SERVERS_DAT }
+                ?.filter { name ->
+                    val copy = File(extFolder, name)
+                    if (name == AppConfig.PSIPHON_SERVERS_DAT) PsiphonServerList.bundledListGoesOver(copy, publishedAt, keptByUser) else !copy.exists()
+                }
                 ?.forEach {
                     val target = File(extFolder, it)
                     assets.open(it).use { input ->
@@ -313,6 +414,7 @@ object SettingsManager {
                             input.copyTo(output)
                         }
                     }
+                    if (it == AppConfig.PSIPHON_SERVERS_DAT && publishedAt > 0) target.setLastModified(publishedAt)
                     LogUtil.i(AppConfig.TAG, "Copied from apk assets folder to ${target.absolutePath}")
                 }
         } catch (e: Exception) {
@@ -428,11 +530,6 @@ object SettingsManager {
      *  Check if process routing can be used.
      */
     fun canUseProcessRouting(): Boolean {
-        // Android 10+
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return false
-        }
-
         // Must xray tun
         if (isUsingHevTun()) {
             return false
@@ -455,6 +552,7 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN)
         ensureDefaultValue(AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString())
         ensureDefaultValue(AppConfig.PREF_SOCKS_PORT, AppConfig.PORT_SOCKS)
+        ensureDefaultValue(AppConfig.PREF_AETHER_LISTEN_PORT, AppConfig.PORT_AETHER_SOCKS)
         ensureDefaultValue(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY)
         ensureDefaultValue(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT)
         ensureDefaultValue(AppConfig.PREF_DELAY_TEST_URL, AppConfig.DELAY_TEST_URL)
@@ -462,9 +560,6 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_HEV_TUNNEL_RW_TIMEOUT, AppConfig.HEVTUN_RW_TIMEOUT)
         ensureDefaultValue(AppConfig.PREF_MUX_CONCURRENCY, "8")
         ensureDefaultValue(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY)
-        ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
-        ensureDefaultValue(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
-        ensureDefaultValue(AppConfig.PREF_FRAGMENT_MAXSPLIT, "10")
         ensureDefaultValue(AppConfig.PREF_OBSERVATORY_LEAST_PING_INTERVAL, AppConfig.OBSERVATORY_LEAST_PING_INTERVAL)
         ensureDefaultValue(AppConfig.PREF_OBSERVATORY_LEAST_LOAD_INTERVAL, AppConfig.OBSERVATORY_LEAST_LOAD_INTERVAL)
         ensureDefaultValue(AppConfig.PREF_OBSERVATORY_LEAST_LOAD_METHOD, AppConfig.OBSERVATORY_LEAST_LOAD_METHOD)
@@ -563,13 +658,8 @@ object SettingsManager {
             val defaultSub = SubscriptionItem(
                 remarks = "Local configs",
             )
-            encodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub)
-
-            // Move to the top
-            val subsList = decodeSubsList()
-            if (subsList.moveItem(subsList.lastIndex, 0)) {
-                MmkvManager.encodeSubsList(subsList)
-            }
+            // PattNG: stored and listed first in one hold of the profile index lock, checked; a refusal is logged there.
+            MmkvManager.tryEncodeSubscription(DEFAULT_SUBSCRIPTION_ID, defaultSub, listFirst = true)
         }
     }
 

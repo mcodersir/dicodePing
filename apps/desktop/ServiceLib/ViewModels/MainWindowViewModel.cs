@@ -83,6 +83,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     [Reactive]
     public partial int TabMainSelectedIndex { get; set; }
 
+    [Reactive] public partial bool IsPreparing { get; set; }
+    [Reactive] public partial string PreparationStatus { get; set; } = "";
     [Reactive] public partial bool BlIsWindows { get; set; }
 
     [Reactive] public partial bool BlNewUpdate { get; set; }
@@ -298,6 +300,8 @@ public partial class MainWindowViewModel : MyReactiveObject
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .SubscribeAsync(async _ => await RefreshServersDispatcherAsync());
 
+        ProfilesViewModel.StartConnection = StartConnectionAsync;
+        ProfilesViewModel.StopConnection = StopConnectionAsync;
         ProfilesViewModel.ConnectionStartRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await StartConnectionAsync());
@@ -379,6 +383,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         await ProfileExManager.Instance.Init();
         await CoreManager.Instance.Init(_config, UpdateHandler);
         CoreManager.Instance.UnexpectedExit += RecoverUnexpectedCoreExitAsync;
+        EntryHopService.Failed += async () => { await CoreManager.Instance.CoreStop(); await RecoverUnexpectedCoreExitAsync(-1); };
         await CertPemManager.Instance.Init(_config);
         TaskManager.Instance.RegUpdateTask(_config, UpdateTaskHandler);
 

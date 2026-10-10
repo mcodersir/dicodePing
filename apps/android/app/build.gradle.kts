@@ -15,8 +15,8 @@ android {
         // Target the latest STABLE Android (16, API 36). Targeting a preview
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
-        versionCode = 403000
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.3.0"
+        versionCode = 404000
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.4.0"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -33,7 +33,7 @@ android {
                         "x86"
                     )
                 }
-                isUniversalApk = false
+                isUniversalApk = true
             }
         }
 
@@ -161,6 +161,17 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+            // Treat Jupiter discovery warnings as failures: JUnit 4 failed on an invalid @Test
+            // method, such as one that returns a value, while Jupiter only warns and skips it.
+            // The key is @API(status = EXPERIMENTAL) in JUnit 6; after a JUnit upgrade, check
+            // that a temporary `@Test fun probe() = 1` still fails the unit test task.
+            it.systemProperty("junit.platform.discovery.issue.severity.critical", "WARNING")
+        }
+    }
+
 }
 
 dependencies {
@@ -213,10 +224,13 @@ dependencies {
     implementation(libs.reorderable)
 
     // Testing Libraries
-    testImplementation(libs.junit)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    testImplementation(libs.org.mockito.mockito.inline)
+    testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.test)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }

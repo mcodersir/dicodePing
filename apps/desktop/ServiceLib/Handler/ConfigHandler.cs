@@ -1752,6 +1752,7 @@ public static class ConfigHandler
             profileItem.Subid = subid;
             profileItem.IsSub = isSub;
             ApplySubOverrides(profileItem, subItem);
+            if (config.CoreBasicItem.SniBlockBypass) SniBlockPreset.Apply(profileItem);
 
             var addStatus = profileItem.ConfigType switch
             {

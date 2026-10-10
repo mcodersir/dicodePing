@@ -2,12 +2,12 @@ package com.v2ray.ang.fmt
 
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 /**
  * Unit tests for VlessFmt, covering the dialMode share-link parameter.
@@ -29,7 +29,7 @@ class VlessFmtTest {
     fun test_toUri_includesDialModeQueryParameter() {
         val uri = VlessFmt.toUri(createConfig("code-1"))
 
-        assertTrue("uri should carry dialMode: $uri", uri.contains("dialMode=code-1"))
+        assertTrue(uri.contains("dialMode=code-1"), "uri should carry dialMode: $uri")
     }
 
     @Test
@@ -53,6 +53,33 @@ class VlessFmtTest {
 
         assertNotNull(result)
         assertNull(result?.dialMode)
+    }
+
+    @Test
+    fun test_toUriAndParse_roundTripPreservesEchOutbound() {
+        val json = """{"tag": "ech-out", "protocol": "freedom"}"""
+        val config = createConfig(null).apply {
+            echConfigList = "cloudflare-ech.com+https://1.1.1.1/dns-query"
+            echOutbound = json
+        }
+
+        val uri = VlessFmt.toUri(config)
+        assertTrue(uri.contains("echOutbound="), "uri should carry echOutbound: $uri")
+
+        val reparsed = VlessFmt.parse("vless://$uri")
+
+        assertNotNull(reparsed)
+        assertEquals(json, reparsed?.echOutbound)
+        assertEquals(config.echConfigList, reparsed?.echConfigList)
+    }
+
+    @Test
+    fun test_echOutboundIsLeftOutWhenAbsent() {
+        val result = VlessFmt.parse("vless://uuid@example.com:443?encryption=none&type=tcp#Plain")
+
+        assertNotNull(result)
+        assertNull(result?.echOutbound)
+        assertFalse(VlessFmt.toUri(createConfig(null)).contains("echOutbound"))
     }
 
     @Test

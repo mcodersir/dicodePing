@@ -15,6 +15,7 @@ public class CoreBasicItem
 
     public string? BindInterface { get; set; }
 
+    public bool SniBlockBypass { get; set; }
     public bool EnableFragment { get; set; }
 
     public bool EnableFinalFragment { get; set; }
@@ -75,6 +76,7 @@ public class GUIItem
     public int TrayMenuServersLimit { get; set; } = 20;
     public bool EnableHWA { get; set; } = false;
     public bool EnableLog { get; set; } = true;
+    public bool AutoTestDefaultSubscription { get; set; } = true;
     public string? RootCertProvider { get; set; }
 }
 
@@ -105,6 +107,7 @@ public class UIItem
     public List<ColumnItem> MainColumnItem { get; set; }
     public List<WindowSizeItem> WindowSizeItem { get; set; }
     public bool HideColumnIpInfo { get; set; }
+    public string DesktopPage { get; set; } = "home";
 }
 
 [Serializable]

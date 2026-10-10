@@ -14,6 +14,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +50,12 @@ fun MainTopBar(
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit
 ) {
+    val initialFocus = remember { FocusRequester() }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val television = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        if (television && !showSearch) initialFocus.requestFocus()
+    }
     var showImportMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val importMenuScrollState = rememberScrollState()
@@ -62,18 +75,18 @@ fun MainTopBar(
         searchPlaceholder = stringResource(R.string.menu_item_search),
         navigationIcon = {
             if (showSearch) {
-                IconButton(onClick = onSearchClose) {
+                IconButton(onClick = onSearchClose, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_arrow_back_24dp), contentDescription = stringResource(R.string.acc_back))
                 }
             } else {
-                IconButton(onClick = onMenuClick) {
+                IconButton(onClick = onMenuClick, modifier = Modifier.remoteFocus().focusRequester(initialFocus)) {
                     Icon(painterResource(R.drawable.ic_menu_24dp), contentDescription = stringResource(R.string.acc_open_menu))
                 }
             }
         },
         actions = {
             if (!showSearch) {
-                IconButton(onClick = { onSearchToggle(true) }) {
+                IconButton(onClick = { onSearchToggle(true) }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
                 }
                 IconButton(onClick = onSmartConnect, enabled = !isAutoConnecting) {
@@ -106,7 +119,7 @@ fun MainTopBar(
                 }
             }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_more_vert_24dp), contentDescription = stringResource(R.string.acc_more))
                 }
                 DropdownMenu(

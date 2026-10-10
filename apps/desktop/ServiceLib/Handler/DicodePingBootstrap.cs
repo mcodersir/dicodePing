@@ -23,6 +23,9 @@ public static class DicodePingBootstrap
         await ConfigHandler.AddSubItem(config, checker);
     }
 
+    public static bool ShouldPrepare(Config config, SubItem? primary) =>
+        config.GuiItem.AutoTestDefaultSubscription && primary?.Enabled == true;
+
     public static void ConfigurePrimarySubscription(SubItem checker)
     {
         checker.Remarks = "Dicode Config Checker";

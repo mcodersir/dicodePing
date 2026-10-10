@@ -42,6 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.RulesetItem
@@ -86,7 +88,11 @@ private enum class RoutingPreset(val type: RoutingType, @StringRes val labelRes:
 }
 
 class RoutingSettingActivity : HelperBaseComponentActivity() {
-    private val viewModel: RoutingSettingsViewModel by viewModels()
+    private val viewModel: RoutingSettingsViewModel by viewModels {
+        viewModelFactory {
+            initializer { RoutingSettingsViewModel(application, RoutingEditRepository()) }
+        }
+    }
     private val domainStrategyState = MutableStateFlow("")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,8 +107,9 @@ class RoutingSettingActivity : HelperBaseComponentActivity() {
             domainStrategyState = domainStrategyState,
             onBackClick = { finish() },
             onAddRule = { startActivity(Intent(this, RoutingEditActivity::class.java)) },
-            onEditRule = { position ->
-                startActivity(Intent(this, RoutingEditActivity::class.java).putExtra("position", position))
+            onEditRule = { position, id ->
+                // PattNG: with the rule's id, by which the editor finds it, the list's order having maybe changed since.
+                startActivity(Intent(this, RoutingEditActivity::class.java).putExtra("position", position).putExtra(EXTRA_RULE_ID, id))
             },
             onDomainStrategySelected = { value ->
                 MmkvManager.encodeSettings(AppConfig.PREF_ROUTING_DOMAIN_STRATEGY, value)
@@ -128,10 +135,11 @@ class RoutingSettingActivity : HelperBaseComponentActivity() {
     private fun importPredefined(type: RoutingType) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                SettingsManager.resetRoutingRulesetsFromPresets(this@RoutingSettingActivity, type)
+                val stored = SettingsManager.resetRoutingRulesetsFromPresets(this@RoutingSettingActivity, type)
                 launch(Dispatchers.Main) {
                     viewModel.reload()
-                    toastSuccess(R.string.toast_success)
+                    // PattNG: a preset the storage refused is told.
+                    if (stored) toastSuccess(R.string.toast_success) else toastError(R.string.toast_failure)
                 }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to import predefined ruleset", e)
@@ -178,12 +186,15 @@ class RoutingSettingActivity : HelperBaseComponentActivity() {
     }
 
     private fun export2Clipboard() {
-        val rulesetList = MmkvManager.decodeRoutingRulesets()
-        if (rulesetList.isNullOrEmpty()) {
-            toastError(R.string.toast_failure)
-        } else {
-            Utils.setClipboard(this, JsonUtil.toJson(rulesetList))
-            toastSuccess(R.string.toast_success)
+        // PattNG: the rules as stored, read off the main thread once the changes the list asked for are stored.
+        lifecycleScope.launch {
+            val rulesetList = viewModel.storedRules()
+            if (rulesetList.isEmpty()) {
+                toastError(R.string.toast_failure)
+            } else {
+                Utils.setClipboard(this@RoutingSettingActivity, JsonUtil.toJson(rulesetList))
+                toastSuccess(R.string.toast_success)
+            }
         }
     }
 }
@@ -194,7 +205,7 @@ fun RoutingSettingScreen(
     domainStrategyState: MutableStateFlow<String>,
     onBackClick: () -> Unit,
     onAddRule: () -> Unit,
-    onEditRule: (Int) -> Unit,
+    onEditRule: (position: Int, id: String) -> Unit,
     onDomainStrategySelected: (String) -> Unit,
     onImportPredefined: (RoutingType) -> Unit,
     onImportClipboard: () -> Unit,
@@ -210,9 +221,8 @@ fun RoutingSettingScreen(
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         // Lazy list indices include the preceding non-rule content, so resolve the stable rule keys.
-        val fromIndex = rulesets.indexOfFirst { it.id == from.key }
-        val toIndex = rulesets.indexOfFirst { it.id == to.key }
-        viewModel.move(fromIndex, toIndex)
+        // PattNG: by the ids, which the view model finds in the list it holds.
+        viewModel.move(from.key as? String ?: return@rememberReorderableLazyListState, to.key as? String ?: return@rememberReorderableLazyListState)
     }
 
     Scaffold(
@@ -291,10 +301,9 @@ fun RoutingSettingScreen(
                     ) {
                         RoutingRulesetItem(
                             ruleset = ruleset,
-                            onEdit = { onEditRule(index) },
+                            onEdit = { onEditRule(index, ruleset.id) },
                             onEnabledChange = { checked ->
-                                val updated = ruleset.copy(enabled = checked)
-                                viewModel.update(index, updated)
+                                viewModel.update(ruleset.copy(enabled = checked))
                             }
                         )
                     }

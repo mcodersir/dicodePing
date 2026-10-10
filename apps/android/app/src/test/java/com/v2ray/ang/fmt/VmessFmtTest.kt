@@ -7,12 +7,12 @@ import com.v2ray.ang.dto.VmessQRCode
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.util.JsonUtil
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.mockStatic
@@ -27,7 +27,7 @@ class VmessFmtTest {
     private lateinit var mockLog: MockedStatic<Log>
     private lateinit var mockTextUtils: MockedStatic<TextUtils>
 
-    @Before
+    @BeforeEach
     fun setUp() {
         mockLog = mockStatic(Log::class.java, Mockito.RETURNS_DEFAULTS)
 
@@ -68,7 +68,7 @@ class VmessFmtTest {
         }
     }
 
-    @After
+    @AfterEach
     fun tearDown() {
         mockBase64.close()
         mockTextUtils.close()

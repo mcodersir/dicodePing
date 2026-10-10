@@ -33,6 +33,7 @@ public static class CoreConfigHandler
         {
             return result;
         }
+        if (result.Data is string content) result.Data = EntryHopConfiguration.Apply(content, context);
         if (fileName.IsNotEmpty() && result.Data != null)
         {
             await File.WriteAllTextAsync(fileName, result.Data.ToString());
@@ -201,6 +202,7 @@ public static class CoreConfigHandler
             return result;
         }
 
+        result.Data = EntryHopConfiguration.Apply(result.Data.ToString(), context);
         await File.WriteAllTextAsync(fileName, result.Data.ToString());
         return result;
     }

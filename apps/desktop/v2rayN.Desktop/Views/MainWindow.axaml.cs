@@ -8,6 +8,11 @@ namespace v2rayN.Desktop.Views;
 
 public partial class MainWindow : WindowBase<MainWindowViewModel>
 {
+    private async void OpenEntryHop(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel != null) await new EntryHopWindow(ViewModel).ShowDialog(this);
+    }
+
     private async void OpenServerPool(object? sender, RoutedEventArgs e)
     {
         if (ViewModel != null) await new ServerPoolWindow(ViewModel).ShowDialog(this);
@@ -20,6 +25,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     private BackupAndRestoreView? _backupAndRestoreView;
     private bool _blCloseByUser = false;
     private bool _dicodePingStartupScheduled;
+    private CancellationTokenSource? _startupCts;
 
     public MainWindow()
     {
@@ -56,7 +62,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         _manager = new WindowNotificationManager(TopLevel.GetTopLevel(this)) { MaxItems = 3, Position = NotificationPosition.TopRight };
 
         KeyDown += MainWindow_KeyDown;
-        Opened += async (_, _) => await ShowTelegramChannelPromptAsync();
+        Closed += (_, _) => _startupCts?.Cancel();
         menuSettingsSetUWP.Click += MenuSettingsSetUWP_Click;
         menuCheckUpdate.Click += MenuCheckUpdate_Click;
         btnNewUpdate.Click += MenuCheckUpdate_Click;
@@ -208,6 +214,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
     private void ShowPage(string page)
     {
+        if (_config is not null) _config.UiItem.DesktopPage = page;
         var target = page switch
         {
             "profiles" => pageProfiles,
@@ -468,66 +475,63 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         }
     }
 
+    private void SkipPreparation(object? sender, RoutedEventArgs e) => _startupCts?.Cancel();
+
     private async Task RunDicodePingStartupAsync()
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+        _startupCts = cts;
         try
         {
-            // Paint cached/current profiles immediately. The network refresh runs after the
-            // first frame, so a slow route cannot leave the desktop looking empty.
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            await ViewModel.StatusBarViewModel.RefreshServersBiz();
-            await DicodePingBootstrap.EnsureDefaultsAsync(_config);
             var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(item =>
                 string.Equals(item.Url, DicodePingBootstrap.DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
-            if (primary is null)
-            {
-                Logging.SaveLog("DicodePingStartup: official subscription was not provisioned.");
-                return;
-            }
-
-            // Refresh only the authoritative source. Updating every user subscription here made
-            // startup unbounded and could race manual tests or a newly opened pool window.
-            try
-            {
-                await Task.Run(async () => await SubscriptionHandler.UpdateProcess(
-                    _config, primary.Id, false, (_, _) => Task.CompletedTask));
-            }
-            catch (Exception ex)
-            {
-                // Cached official profiles are still useful when GitHub is temporarily blocked.
-                Logging.SaveLog("DicodePingStartup.Subscription", ex);
-            }
-
+            if (!DicodePingBootstrap.ShouldPrepare(_config, primary)) return;
+            ViewModel.IsPreparing = true;
+            ViewModel.PreparationStatus = ResUI.DicodeRefreshRunning;
+            await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, primary!.Id, false,
+                (_, message) => { Dispatcher.UIThread.Post(() => ViewModel.PreparationStatus = message); return Task.CompletedTask; }, cts.Token));
+            cts.Token.ThrowIfCancellationRequested();
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            var officialProfiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
-            if (officialProfiles.Count == 0) return;
-
-            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, officialProfiles);
-            var reachableIds = (await ProfileExManager.Instance.GetProfileExs())
-                .Where(item => item.Delay > 0)
-                .Select(item => item.IndexId)
-                .ToHashSet(StringComparer.Ordinal);
-            var reachableProfiles = officialProfiles.Where(item => reachableIds.Contains(item.IndexId)).ToList();
-            if (reachableProfiles.Count > 0)
+            var profiles = await AppManager.Instance.ProfileItems(primary!.Id) ?? [];
+            if (profiles.Count == 0) return;
+            ViewModel.PreparationStatus = ResUI.DicodeProbeLatency;
+            await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, profiles, cts.Token);
+            cts.Token.ThrowIfCancellationRequested();
+            await ConfigHandler.SortServers(_config, primary.Id, nameof(EServerColName.DelayVal), true);
+            var delays = (await ProfileExManager.Instance.GetProfileExs()).ToDictionary(x => x.IndexId, x => x.Delay);
+            var reachable = profiles.Where(x => delays.GetValueOrDefault(x.IndexId) > 0).ToList();
+            if (reachable.Count > 0)
             {
-                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.Location, reachableProfiles);
+                ViewModel.PreparationStatus = ResUI.DicodeProbeLocation;
+                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.Location, reachable, cts.Token);
             }
+            await ViewModel.ProfilesViewModel.RefreshServersBiz();
+            var best = ViewModel.ProfilesViewModel.ProfileItems.Where(x => x.Subid == primary.Id && x.Delay > 0).OrderBy(x => x.Delay).FirstOrDefault();
+            if (best is not null && !CoreManager.Instance.IsRunning)
+                await ViewModel.ProfilesViewModel.SetDefaultServer(best.IndexId);
+            await ViewModel.StatusBarViewModel.RefreshServersBiz();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { await ViewModel.ProfilesViewModel.StopDiagnosticsAsync(); }
+        catch (Exception ex) { Logging.SaveLog("DicodePingStartup", ex); }
+        finally
         {
-            Logging.SaveLog("DicodePingStartup", ex);
+            ViewModel.IsPreparing = false;
+            _startupCts = null;
         }
     }
 
     private void RestoreUI()
     {
+        ShowPage(_config.UiItem.DesktopPage);
     }
 
     private void StorageUI()
     {
         ConfigHandler.SaveWindowSizeItem(_config, GetType().Name, Width, Height);
+        _ = ConfigHandler.SaveConfig(_config);
 
     }
 

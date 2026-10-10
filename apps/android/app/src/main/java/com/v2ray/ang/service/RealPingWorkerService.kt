@@ -1,6 +1,8 @@
 package com.v2ray.ang.service
 
 import android.content.Context
+import com.v2ray.ang.core.AetherDelayTester
+import com.v2ray.ang.core.CoreConfigContextBuilder
 import com.v2ray.ang.core.CoreConfigManager
 import com.v2ray.ang.core.CoreNativeManager
 import com.v2ray.ang.dto.RealPingEvent
@@ -15,14 +17,16 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 
 internal object RealPingExecutionLimiter {
     private val customConfigMutex = Mutex()
@@ -39,32 +43,6 @@ internal object RealPingExecutionLimiter {
     }
 }
 
-/** The single real-latency path shared by the main list and the server pool. */
-internal object RealPingProbe {
-    suspend fun measure(context: Context, guid: String, batch: String = java.util.UUID.randomUUID().toString()): Long {
-        val failure = -1L
-        val config = MmkvManager.decodeServerConfig(guid) ?: return failure
-
-        // Keep the same fast reachability gate used by the main Real Ping action.
-        if (!config.configType.isComplexType()
-            && config.configType != EConfigType.HYSTERIA2
-            && config.configType != EConfigType.WIREGUARD
-            && config.alpn?.startsWith("h3") != true
-            && config.server.isNotNullEmpty()
-            && config.serverPort?.toIntOrNull() != null
-        ) {
-            val tcpTime = SpeedtestManager.socketConnectTime(config.server.orEmpty(), config.serverPort.orEmpty().toInt(), 1000)
-            if (tcpTime <= -1L) return failure
-        }
-
-        val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
-        if (!configResult.status) return failure
-        return RealPingExecutionLimiter.run(config.configType) {
-            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
-        }
-    }
-}
-
 /**
  * Worker that runs a batch of real-ping tests independently.
  * Each batch owns its own CoroutineScope/dispatcher and can be cancelled separately.
@@ -77,42 +55,40 @@ class RealPingWorkerService(
     private val sanctionsOnly: Boolean = false,
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
-    private val batch = java.util.UUID.randomUUID().toString()
     private val job = SupervisorJob()
     private val concurrency = SettingsManager.getRealPingConcurrency()
     private val dispatcher = Executors.newFixedThreadPool(if (onlyTcp) concurrency * 2 else concurrency).asCoroutineDispatcher()
     private val scope = CoroutineScope(job + dispatcher + CoroutineName("RealPingBatchWorker"))
 
+    // Names the measurements of this batch in the native core, so that cancel() ends them and no other batch's
+    private val batch = UUID.randomUUID().toString()
+
     private val runningCount = AtomicInteger(0)
     private val totalCount = AtomicInteger(0)
+    private val completedCount = AtomicInteger(0)
 
     fun start() {
         val jobs = guids.map { guid ->
             totalCount.incrementAndGet()
             scope.launch {
-                job.ensureActive()
                 runningCount.incrementAndGet()
                 try {
                     val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
-                    val result = if (sanctionsOnly || locationOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
-                    val location = if (locationOnly) {
-                        SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server)
-                    } else null
+                    val result = if (locationOnly || sanctionsOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
+                    val location = if (locationOnly) SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server) else null
                     if (scope.isActive) {
-                        onEvent(RealPingEvent.Result(
-                            guid, result, location?.country, location?.ipAddress,
-                            sanctions?.first, sanctions?.second ?: 0, SANCTIONS_SERVICES.size
-                        ))
+                        onEvent(RealPingEvent.Result(guid, result, location?.country, location?.ipAddress, sanctions?.first, sanctions?.second ?: 0, sanctions?.third ?: 0))
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
-                } catch (_: Exception) {
-                    // A failed profile does not cancel other measurements.
+                } catch (error: Exception) {
+                    com.v2ray.ang.util.LogUtil.e(com.v2ray.ang.AppConfig.TAG, "Profile probe failed", error)
+                    if (scope.isActive) onEvent(RealPingEvent.Result(guid, -1))
                 } finally {
-                    val count = totalCount.decrementAndGet()
-                    val left = runningCount.decrementAndGet()
+                    val count = completedCount.incrementAndGet()
+                    runningCount.decrementAndGet()
                     if (scope.isActive) {
-                        onEvent(RealPingEvent.Progress("$left / $count"))
+                        onEvent(RealPingEvent.Progress("\u2066$count / ${guids.size}\u2069"))
                     }
                 }
             }
@@ -134,8 +110,12 @@ class RealPingWorkerService(
 
     fun cancel() {
         job.cancel()
-        kotlin.concurrent.thread(name = "DicodePingCancel") { CoreNativeManager.cancelOutboundDelays(batch) }
+        // A measurement blocks its thread in the native core, where a cancelled coroutine does not reach it. The
+        // native call runs on a thread of its own: cancel() is often called on the main thread of a service.
+        thread(name = "RealPingCancel") { CoreNativeManager.cancelOutboundDelays(batch) }
     }
+
+    internal fun disposeProbe() = close()
 
     private fun close() {
         try {
@@ -145,7 +125,51 @@ class RealPingWorkerService(
         }
     }
 
-    private suspend fun startRealPing(guid: String): Long = RealPingProbe.measure(context, guid, batch)
+    internal suspend fun startRealPing(guid: String): Long {
+        val retFailure = -1L
+
+        val config = MmkvManager.decodeServerConfig(guid) ?: return retFailure
+        // An Aether profile is measured through its core alone, unless its subscription chains it with
+        // other hops: then it is measured as the chain it runs in, as every chained profile is.
+        if (config.configType == EConfigType.AETHER && !CoreConfigContextBuilder.isChained(config)) {
+            return AetherDelayTester.measure(context, guid, config, SettingsManager.getDelayTestUrl())
+        }
+
+        val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
+        if (!configResult.status) {
+            return retFailure
+        }
+        val aether = configResult.aetherCore
+        if (aether != null) {
+            // The configuration reaches the internet through an Aether outbound, so it is measured behind
+            // that core: the live session, or a test tunnel on the same port, which its Aether outbounds
+            // dial either way, and which dials out through a hop of the chain, as the session's would.
+            // Its own server is not probed: it is only reachable through that core.
+            return AetherDelayTester.measureVia(context, guid, aether, configResult.content) { _, _ ->
+                RealPingExecutionLimiter.run(config.configType) {
+                    CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
+                }
+            }
+        }
+        if (!config.configType.isComplexType()
+            && config.configType != EConfigType.HYSTERIA2
+            && config.configType != EConfigType.WIREGUARD
+            && config.alpn?.startsWith("h3") != true
+            && config.server.isNotNullEmpty()
+            && config.serverPort?.toIntOrNull() != null
+        ) {
+            val url = config.server.orEmpty()
+            val port = config.serverPort.orEmpty().toInt()
+            val tcpTime = SpeedtestManager.socketConnectTime(url, port, 1000)
+            if (tcpTime <= -1L) {
+                return retFailure
+            }
+        }
+
+        return RealPingExecutionLimiter.run(config.configType) {
+            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
+        }
+    }
 
     private suspend fun startSanctionsCheck(guid: String): Triple<Boolean, Int, Int> {
         val config = MmkvManager.decodeServerConfig(guid) ?: return Triple(false, 0, 0)
@@ -200,6 +224,9 @@ class RealPingWorkerService(
         val retFailure = -1L
 
         val config = MmkvManager.decodeServerConfig(guid) ?: return retFailure
+        if (config.configType == EConfigType.AETHER) {
+            return AetherDelayTester.reachability(config)
+        }
         if (!config.configType.isComplexType()
             && config.configType != EConfigType.HYSTERIA2
             && config.configType != EConfigType.WIREGUARD
@@ -216,4 +243,10 @@ class RealPingWorkerService(
 
         return retFailure
     }
+}
+
+/** Pool and main-list probes share the same chain-aware implementation. */
+internal object RealPingProbe {
+    suspend fun measure(context: Context, guid: String, batch: String = java.util.UUID.randomUUID().toString()): Long =
+        RealPingWorkerService(context, emptyList()).let { worker -> try { worker.startRealPing(guid) } finally { worker.cancel(); worker.disposeProbe() } }
 }

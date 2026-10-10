@@ -77,6 +77,15 @@ public partial class CoreConfigV2rayService
                     }
                 }
                 AddDomainFilterRules();
+                var processDirect = (JsonUtils.Deserialize<List<RulesItem>>(context.RoutingItem?.RuleSet ?? "[]") ?? [])
+                    .Where(x => x.Enabled && x.OutboundTag == Global.DirectTag && x.Process?.Count > 0)
+                    .Select(x => {
+                        var rule = JsonUtils.Deserialize<RulesItem4Ray>(JsonUtils.Serialize(x));
+                        rule.type = "field"; rule.domain = null; rule.ip = null;
+                        rule.process = ProcessRoutingPolicy.Normalize(x.Process!);
+                        return rule;
+                    }).ToList();
+                _coreConfig.routing.rules.InsertRange(0, processDirect);
                 var balancerTagList = _coreConfig.routing.balancers
                     ?.Select(p => p.tag)
                     .ToList() ?? [];
@@ -301,7 +310,7 @@ public partial class CoreConfigV2rayService
 
     private List<string> BuildRoutingDirectExe()
     {
-        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "aether", "psiphon-tunnel-core", "lyrebird", "tor" };
 
         var allCoreInfo = CoreInfoManager.Instance.GetCoreInfo();
 

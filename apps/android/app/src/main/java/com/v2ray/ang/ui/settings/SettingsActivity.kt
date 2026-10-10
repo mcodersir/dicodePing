@@ -105,11 +105,11 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
+    val aetherListenPort by viewModel.aetherListenPort.collectAsStateWithLifecycle()
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var coreSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var muxSettingsExpanded by rememberSaveable { mutableStateOf(false) }
-    var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -127,11 +127,6 @@ fun SettingsScreen(
     var muxXudpConcurrency by rememberMmkvString(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY)
     var muxXudpQuic by rememberMmkvString(AppConfig.PREF_MUX_XUDP_QUIC, "reject")
 
-    var fragment by rememberMmkvBool(AppConfig.PREF_FRAGMENT_ENABLED, false)
-    var fragmentPackets by rememberMmkvString(AppConfig.PREF_FRAGMENT_PACKETS, "tlshello")
-    var fragmentLength by rememberMmkvString(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
-    var fragmentInterval by rememberMmkvString(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
-    var fragmentMaxSplit by rememberMmkvString(AppConfig.PREF_FRAGMENT_MAXSPLIT, "10")
     var observatoryLeastPingInterval by rememberMmkvString(AppConfig.PREF_OBSERVATORY_LEAST_PING_INTERVAL, AppConfig.OBSERVATORY_LEAST_PING_INTERVAL)
     var observatoryLeastLoadInterval by rememberMmkvString(AppConfig.PREF_OBSERVATORY_LEAST_LOAD_INTERVAL, AppConfig.OBSERVATORY_LEAST_LOAD_INTERVAL)
     var observatoryLeastLoadMethod by rememberMmkvString(AppConfig.PREF_OBSERVATORY_LEAST_LOAD_METHOD, AppConfig.OBSERVATORY_LEAST_LOAD_METHOD)
@@ -154,6 +149,8 @@ fun SettingsScreen(
     var socksEnableUdp by rememberMmkvBool(AppConfig.PREF_SOCKS_ENABLE_UDP, AppConfig.DEFAULT_SOCKS_ENABLE_UDP)
     var proxySharing by rememberMmkvBool(AppConfig.PREF_PROXY_SHARING, false)
 
+    var defaultAutoTest by rememberMmkvBool(AppConfig.PREF_DICODE_AUTO_TEST, true)
+    var sniBypass by rememberMmkvBool(AppConfig.PREF_DICODE_SNI_BYPASS, false)
     var confirmRemove by rememberMmkvBool(AppConfig.PREF_CONFIRM_REMOVE, false)
     var doubleColumnDisplay by rememberMmkvBool(AppConfig.PREF_DOUBLE_COLUMN_DISPLAY, false)
     var groupAllDisplay by rememberMmkvBool(AppConfig.PREF_GROUP_ALL_DISPLAY, true)
@@ -212,8 +209,6 @@ fun SettingsScreen(
     val outboundResolveValues = stringArrayResource(R.array.outbound_domain_resolve_method_value).toList()
     val xudpQuicEntries = stringArrayResource(R.array.mux_xudp_quic_entries).toList()
     val xudpQuicValues = stringArrayResource(R.array.mux_xudp_quic_value).toList()
-    val fragmentPacketsEntries = stringArrayResource(R.array.fragment_packets).toList()
-    val fragmentPacketsValues = stringArrayResource(R.array.fragment_packets).toList()
     val observatoryLeastLoadMethodEntries = stringArrayResource(R.array.observatory_least_load_method).toList()
     val observatoryLeastLoadMethodValues = stringArrayResource(R.array.observatory_least_load_method).toList()
     val modeEntries = stringArrayResource(R.array.mode_entries).toList()
@@ -244,6 +239,8 @@ fun SettingsScreen(
                 onExpandedChange = { uiSettingsExpanded = it }
             )
             if (uiSettingsExpanded) {
+                SettingsSwitchItem(title = stringResource(R.string.dicode_auto_prepare), checked = defaultAutoTest, onCheckedChange = { defaultAutoTest = it })
+                SettingsSwitchItem(title = stringResource(R.string.dicode_sni_bypass), checked = sniBypass, onCheckedChange = { sniBypass = it })
                 SettingsSwitchItem(
                     title = stringResource(R.string.title_pref_confirm_remove),
                     summary = stringResource(R.string.summary_pref_confirm_remove),
@@ -470,6 +467,13 @@ fun SettingsScreen(
                     enabled = effectiveLocalProxy,
                     onCheckedChange = { socksEnableUdp = it }
                 )
+                // PattNG: the port every Aether core listens on, the three after it taken as well; it is there with or without the local proxy.
+                SettingsEditItem(
+                    title = stringResource(R.string.title_pref_aether_listen_port),
+                    value = aetherListenPort,
+                    keyboardNumber = true,
+                    onValueChanged = viewModel::setAetherListenPort
+                )
                 SettingsEditItem(
                     title = stringResource(R.string.title_pref_remote_dns),
                     value = remoteDns,
@@ -534,46 +538,6 @@ fun SettingsScreen(
                     selectedValue = muxXudpQuic,
                     enabled = mux && muxXudpConcurrencyInt >= 0,
                     onSelected = { muxXudpQuic = it }
-                )
-            }
-
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_fragment_settings),
-                expanded = fragmentSettingsExpanded,
-                onExpandedChange = { fragmentSettingsExpanded = it }
-            )
-            if (fragmentSettingsExpanded) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.title_pref_fragment_enabled),
-                    checked = fragment,
-                    onCheckedChange = { fragment = it }
-                )
-                SettingsListItem(
-                    title = stringResource(R.string.title_pref_fragment_packets),
-                    entries = fragmentPacketsEntries,
-                    values = fragmentPacketsValues,
-                    selectedValue = fragmentPackets,
-                    enabled = fragment,
-                    onSelected = { fragmentPackets = it }
-                )
-                SettingsEditItem(
-                    title = stringResource(R.string.title_pref_fragment_length),
-                    value = fragmentLength,
-                    enabled = fragment,
-                    onValueChanged = { fragmentLength = it }
-                )
-                SettingsEditItem(
-                    title = stringResource(R.string.title_pref_fragment_interval),
-                    value = fragmentInterval,
-                    enabled = fragment,
-                    onValueChanged = { fragmentInterval = it }
-                )
-                SettingsEditItem(
-                    title = stringResource(R.string.title_pref_fragment_maxsplit),
-                    value = fragmentMaxSplit,
-                    enabled = fragment,
-                    keyboardNumber = true,
-                    onValueChanged = { fragmentMaxSplit = it }
                 )
             }
 

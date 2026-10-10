@@ -96,7 +96,8 @@ public class CoreManager
         await UpdateFunc(false, $"{node.GetSummary()}");
         await UpdateFunc(false, $"{Utils.GetRuntimeInfo()}");
         await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
-        await CoreStop();
+        await CoreStop(keepEntryHop: true);
+        await EntryHopService.EnsureReadyAsync(mainContext);
         await Task.Delay(250);
 
         if (Utils.IsWindows() && (mainContext?.IsTunEnabled == true || preContext?.IsTunEnabled == true))
@@ -160,6 +161,7 @@ public class CoreManager
 
     private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
     {
+        if (selecteds.Any(x => _config.EntryHopItem.Applies(x.Profile))) return null;
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
@@ -191,6 +193,7 @@ public class CoreManager
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
         var (context, _) = await CoreConfigContextBuilder.Build(_config, node);
+        await EntryHopService.EnsureReadyAsync(context);
         var result = await CoreConfigHandler.GenerateClientSpeedtestConfig(_config, context, testItem, configPath);
         if (result.Success != true)
         {
@@ -205,8 +208,9 @@ public class CoreManager
         return process;
     }
 
-    public async Task CoreStop()
+    public async Task CoreStop(bool keepEntryHop = false)
     {
+        if (!keepEntryHop) await EntryHopService.StopAsync();
         Interlocked.Increment(ref _intentionalStopDepth);
         try
         {

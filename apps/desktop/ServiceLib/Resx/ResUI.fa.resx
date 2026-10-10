@@ -2404,4 +2404,27 @@ https://t.me/dicodeping‏</value>
 <data name="DicodeTestScope" xml:space="preserve"><value>آزمون‌ها روی ساب نمایش‌داده‌شده اجرا می‌شوند؛ نتیجه‌ها تدریجی نمایش داده می‌شوند.</value></data>
 <data name="DicodeSources" xml:space="preserve"><value>اشتراک سرورها</value></data>
 <data name="DicodeHomeHint" xml:space="preserve"><value>مسیر را از پروفایل‌ها انتخاب کنید یا به بهترین مسیر آزمایش‌شده وصل شوید.</value></data>
+<data name="DicodeAutoPrepare" xml:space="preserve"><value>تست و مرتب‌سازی خودکار ساب پیش‌فرض فعال</value></data>
+<data name="DicodePreparing" xml:space="preserve"><value>آماده‌سازی سریع‌ترین مسیرها</value></data>
+<data name="DicodePreparationHint" xml:space="preserve"><value>پینگ واقعی و لوکیشن پیش از ورود به خانه بررسی می‌شود. با رد کردن، نتیجه‌های تکمیل‌شده حفظ می‌شوند.</value></data>
+<data name="DicodeSkipPreparation" xml:space="preserve"><value>رد کردن و ورود به خانه</value></data>
+<data name="DicodeNoReachable" xml:space="preserve"><value>هیچ سرور قابل‌دسترسی در تست پیدا نشد. تازه‌سازی یا تست را دوباره اجرا کنید.</value></data>
+<data name="DicodeEntryTitle" xml:space="preserve"><value>مسیر ورودی</value></data>
+<data name="DicodeEntryEnable" xml:space="preserve"><value>فعال‌سازی مسیر ورودی</value></data>
+<data name="DicodeEntryExternal" xml:space="preserve"><value>پروکسی SOCKS محلی آماده</value></data>
+<data name="DicodeEntryProfile" xml:space="preserve"><value>پروفایل انتخاب‌شده</value></data>
+<data name="DicodeEntrySubscription" xml:space="preserve"><value>ساب انتخاب‌شده</value></data>
+<data name="DicodeEntryAll" xml:space="preserve"><value>همه پروفایل‌ها</value></data>
+<data name="DicodeEntryFirst" xml:space="preserve"><value>اولین روش قابل‌دسترسی</value></data>
+<data name="DicodeEntryBest" xml:space="preserve"><value>بهترین روش قابل‌دسترسی</value></data>
+<data name="DicodeEntryRescan" xml:space="preserve"><value>اسکن مجدد روش‌های اتصال</value></data>
+<data name="DicodeEntryReady" xml:space="preserve"><value>ترافیک واقعی تأیید شد</value></data>
+<data name="DicodeEntryPort" xml:space="preserve"><value>پورت SOCKS محلی</value></data>
+<data name="DicodeEntryHint" xml:space="preserve"><value>Aether یا Psiphon پیش از کانفیگ شما قرار می‌گیرد. روش‌های HTTP/3 و HTTP/2 و WireGuard با ترافیک واقعی و زمان محدود بررسی می‌شوند؛ روش موفق برای شبکه ذخیره می‌شود. Tor به نصب کلاینت Tor نیاز دارد. پشتیبانی UDP به مسیر بستگی دارد. لاگ‌ها در گزارش‌ها هستند.</value></data>
+<data name="DicodeEntryFailed" xml:space="preserve"><value>مسیر ورودی ناموفق بود؛ گزارش‌ها را بررسی کنید. مسیر مستقیم جایگزین نمی‌شود.</value></data>
+<data name="DicodeEntryPortBusy" xml:space="preserve"><value>یک پورت محلی آزاد بین ۱۰۲۴ و ۶۵۵۳۵ انتخاب کنید.</value></data>
+<data name="DicodeEntryCustomUnsupported" xml:space="preserve"><value>برای JSON سفارشی، مسیر ورودی SOCKS را داخل کانفیگ تنظیم کنید.</value></data>
+<data name="DicodeSniPreset" xml:space="preserve"><value>پیش‌تنظیم SNI برای کانفیگ‌های TLS واردشده (اختیاری)</value></data>
+<data name="DicodeDiscoverMask" xml:space="preserve"><value>یافتن FinalMask مناسب</value></data>
+<data name="DicodeDiscoverFailed" xml:space="preserve"><value>هیچ پیش‌تنظیم موفق نبود؛ تنظیمات اصلی حفظ شد.</value></data>
 </root>

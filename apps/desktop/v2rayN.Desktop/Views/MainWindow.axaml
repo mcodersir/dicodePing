@@ -40,6 +40,7 @@
             <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
                 <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Button Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
                         <StackPanel Spacing="0">
                             <TextBlock FontSize="18" FontWeight="SemiBold" Text="DicodePing" />
@@ -366,6 +367,21 @@
                 <MenuItem x:Name="menuReload" Header="{x:Static resx:ResUI.menuReload}" />
                 <MenuItem x:Name="menuClose" Header="{x:Static resx:ResUI.menuExit}" />
             </Menu>
+            <Border Grid.RowSpan="2" ZIndex="100" Background="{DynamicResource DicodePageBackground}" IsVisible="{Binding IsPreparing}">
+                <Border Classes="DicodeCard" MaxWidth="600" Margin="24" Padding="32" VerticalAlignment="Center">
+                    <StackPanel Spacing="18">
+                        <Image Width="64" Height="64" Source="/Assets/DicodePing.ico" />
+                        <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodePreparing}" TextWrapping="Wrap" TextAlignment="Center" />
+                        <TextBlock Text="{x:Static resx:ResUI.DicodePreparationHint}" TextWrapping="Wrap" Opacity="0.75" />
+                        <TextBlock Text="{Binding PreparationStatus}" TextWrapping="Wrap" />
+                        <ProgressBar IsIndeterminate="True" Height="4" />
+                        <ItemsControl ItemsSource="{Binding ProfilesViewModel.ProbeRuns}">
+                            <ItemsControl.ItemTemplate><DataTemplate><StackPanel Spacing="6" Margin="0,4"><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" /><ProgressBar Value="{Binding Percent}" Height="4" /></StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button HorizontalAlignment="Center" Content="{x:Static resx:ResUI.DicodeSkipPreparation}" Click="SkipPreparation" />
+                    </StackPanel>
+                </Border>
+            </Border>
         </Grid>
     </dialogHost:DialogHost>
 </Window>

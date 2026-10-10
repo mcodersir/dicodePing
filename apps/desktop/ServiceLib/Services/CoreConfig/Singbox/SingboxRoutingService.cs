@@ -36,6 +36,7 @@ public partial class CoreConfigSingboxService
 
             if (context.IsTunEnabled)
             {
+                _coreConfig.route.rules.Add(new() { process_name = [Utils.GetExeName("aether"), Utils.GetExeName("psiphon-tunnel-core"), Utils.GetExeName("lyrebird"), Utils.GetExeName("tor")], outbound = Global.DirectTag });
                 _coreConfig.route.auto_detect_interface = true;
 
                 var tunRules = JsonUtils.Deserialize<List<Rule4Sbox>>(EmbedUtils.GetEmbedText(Global.TunSingboxRulesFileName));
@@ -249,6 +250,15 @@ public partial class CoreConfigSingboxService
 
             var domainStrategy = _config.RoutingBasicItem.DomainStrategy4Singbox.NullIfEmpty();
             var routing = context.RoutingItem;
+            foreach (var processRule in (JsonUtils.Deserialize<List<RulesItem>>(routing?.RuleSet ?? "[]") ?? [])
+                .Where(x => x.Enabled && x.OutboundTag == Global.DirectTag && x.Process?.Count > 0))
+            {
+                var normalized = ProcessRoutingPolicy.Normalize(processRule.Process!);
+                var names = normalized.Where(x => !x.Contains('/')).Select(Utils.GetExeName).ToList();
+                var paths = normalized.Where(x => x.Contains('/')).Select(x => context.IsWindows ? x.Replace('/', '\\') : x).ToList();
+                if (names.Count > 0) _coreConfig.route.rules.Insert(0, new() { process_name = names, outbound = Global.DirectTag });
+                if (paths.Count > 0) _coreConfig.route.rules.Insert(0, new() { process_path = paths, outbound = Global.DirectTag });
+            }
             if (routing.DomainStrategy4Singbox.IsNotEmpty())
             {
                 domainStrategy = routing.DomainStrategy4Singbox;

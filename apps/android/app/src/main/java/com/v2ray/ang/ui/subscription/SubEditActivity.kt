@@ -1,7 +1,7 @@
 package com.v2ray.ang.ui.subscription
 
-import android.os.Bundle
 import android.text.TextUtils
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -24,19 +24,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.SubscriptionItem
-import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.toLongEx
 import com.v2ray.ang.extension.toast
-import com.v2ray.ang.extension.toastSuccess
-import com.v2ray.ang.handler.MmkvManager
-import com.v2ray.ang.handler.SettingsChangeManager
-import com.v2ray.ang.handler.SettingsManager
-import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.EditorLoading
+import com.v2ray.ang.ui.base.EditorOutcomeEffect
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
 import com.v2ray.ang.ui.compose.FormDropdownField
@@ -45,80 +43,75 @@ import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.verticalScrollbar
 import com.v2ray.ang.util.Utils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class SubEditActivity : BaseComponentActivity() {
     private val editSubId by lazy { intent.getStringExtra("subId").orEmpty() }
-    private lateinit var suggestions: List<String>
-    private lateinit var subItem: SubscriptionItem
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        suggestions = SettingsManager.getProfileRemarks(
-            excludeConfigTypes = setOf(
-                EConfigType.CUSTOM,
-                EConfigType.POLICYGROUP,
-                EConfigType.PROXYCHAIN,
-            )
-        )
-        subItem = MmkvManager.decodeSubscription(editSubId) ?: SubscriptionItem()
+    /** PattNG: the save and the delete, which outlive this activity when it is recreated, see [SubEditViewModel]. */
+    private val viewModel: SubEditViewModel by viewModels {
+        viewModelFactory {
+            initializer { SubEditViewModel(application, SubEditRepository(), editSubId) }
+        }
     }
 
     @Composable
     override fun ScreenContent() {
+        val opened by viewModel.opened.collectAsStateWithLifecycle()
+        EditorOutcomeEffect(
+            viewModel = viewModel,
+            onSaved = { finish() },
+            onDeleted = { finish() }
+        )
+        // PattNG: the subscription, the names of the profiles and whether a delete is confirmed first are read off the
+        // main thread; until they are, the screen waits.
+        val subscription = opened
+        if (subscription == null) {
+            EditorLoading(stringResource(R.string.title_sub_setting)) { finish() }
+            return
+        }
         SubEditScreen(
             editSubId = editSubId,
-            initial = subItem,
-            profileSuggestions = suggestions,
+            initial = subscription.subscription,
+            profileSuggestions = subscription.profileNames,
+            confirmRemove = subscription.confirmRemove,
             onBackClick = { finish() },
             onSave = { saveServer(it) },
-            onDelete = { deleteServer() }
+            onDelete = { viewModel.delete() }
         )
     }
 
-    private fun saveServer(subItem: SubscriptionItem): Boolean {
-
-        if (TextUtils.isEmpty(subItem.remarks)) {
-            toast(R.string.sub_setting_remarks)
-            return false
-        }
-        if (subItem.url.isNotEmpty()) {
-            if (!Utils.isValidUrl(subItem.url)) {
-                toast(R.string.toast_invalid_url)
-                return false
-            }
-            if (!Utils.isValidSubUrl(subItem.url)) {
-                toast(R.string.toast_insecure_url_protocol)
-                if (!subItem.allowInsecureUrl) {
-                    return false
-                }
-            }
-        }
-
-        if (subItem.autoUpdate && subItem.updateInterval < AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES) {
-            toast(R.string.toast_invalid_update_interval)
-            return false
-        }
-
-        MmkvManager.encodeSubscription(editSubId, subItem)
-        SubscriptionUpdater.syncOne(subId = editSubId)
-        SettingsChangeManager.makeSetupGroupTab()
-        toastSuccess(R.string.toast_success)
-        finish()
-        return true
+    /**
+     * PattNG: the screen closes only once the save or the delete that runs has written, telling the screen it returns
+     * to what it did, see [com.v2ray.ang.ui.base.EditorViewModel.leaveScreen].
+     */
+    override fun finish() {
+        if (viewModel.leaveScreen()) super.finish()
     }
 
-    private fun deleteServer(): Boolean {
-        if (editSubId.isNotEmpty()) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                SettingsManager.removeSubscriptionWithDefault(editSubId)
-                SettingsChangeManager.makeSetupGroupTab()
-                launch(Dispatchers.Main) { finish() }
+    /**
+     * Saves the subscription with [applyEdits], the edits of the screen read at the tap, made on the subscription as
+     * stored when it is written: what a background update wrote meanwhile, as its update time, stays. PattNG: the
+     * view model looks up the profiles it names and writes it, see [SubEditViewModel.save].
+     */
+    private fun saveServer(applyEdits: (SubscriptionItem) -> Unit) {
+        val edited = SubscriptionItem().also(applyEdits)
+        if (TextUtils.isEmpty(edited.remarks)) {
+            return
+        }
+        if (edited.url.isNotEmpty()) {
+            if (!Utils.isValidUrl(edited.url)) {
+                return
+            }
+            if (!Utils.isValidSubUrl(edited.url) && !edited.allowInsecureUrl) {
+                return
             }
         }
-        return true
+
+        if (edited.autoUpdate && edited.updateInterval < AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES) {
+            return
+        }
+
+        viewModel.save(applyEdits)
     }
 }
 
@@ -127,13 +120,16 @@ fun SubEditScreen(
     editSubId: String,
     initial: SubscriptionItem,
     profileSuggestions: List<String>,
+    confirmRemove: Boolean,
     onBackClick: () -> Unit,
-    onSave: (SubscriptionItem) -> Boolean,
+    onSave: ((SubscriptionItem) -> Unit) -> Unit,
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
     var remarks by rememberSaveable { mutableStateOf(initial.remarks.orEmpty()) }
+    var isRemarksError by rememberSaveable { mutableStateOf(false) }
     var url by rememberSaveable { mutableStateOf(initial.url.orEmpty()) }
+    var isUrlError by rememberSaveable { mutableStateOf(false) }
     var userAgent by rememberSaveable { mutableStateOf(initial.userAgent.orEmpty()) }
     var requestHeaders by rememberSaveable { mutableStateOf(initial.requestHeaders.orEmpty()) }
     var filter by rememberSaveable { mutableStateOf(initial.filter ?: "") }
@@ -142,36 +138,51 @@ fun SubEditScreen(
     var enabled by rememberSaveable { mutableStateOf(initial.enabled) }
     var autoUpdate by rememberSaveable { mutableStateOf(initial.autoUpdate) }
     var updateInterval by rememberSaveable { mutableStateOf(initial.updateInterval.toString()) }
+    var isUpdateIntervalError by rememberSaveable { mutableStateOf(false) }
     var allowInsecureUrl by rememberSaveable { mutableStateOf(initial.allowInsecureUrl) }
     var prevProfile by rememberSaveable { mutableStateOf(initial.prevProfile ?: "") }
     var nextProfile by rememberSaveable { mutableStateOf(initial.nextProfile ?: "") }
 
     var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
-    val confirmRemove = MmkvManager.decodeSettingsBool(AppConfig.PREF_CONFIRM_REMOVE, false)
     val scrollState = rememberScrollState()
 
-    fun buildSubItem(): SubscriptionItem? {
+    // What this screen edits, read at the tap, as a change to make on a subscription; null, with the reason told, when
+    // a field cannot be saved. The save makes the change on the subscription as stored when it writes it, off the main
+    // thread, so the values are taken here rather than read from the screen's state then.
+    fun edits(): ((SubscriptionItem) -> Unit)? {
         val overridePortText = overridePort.trim()
         val overridePortValue = overridePortText.toIntOrNull()?.takeIf { it in 1..65535 }
         if (overridePortText.isNotEmpty() && overridePortValue == null) {
             context.toast(R.string.toast_invalid_override_port)
             return null
         }
-        val subItem = MmkvManager.decodeSubscription(editSubId) ?: SubscriptionItem()
-        subItem.remarks = remarks
-        subItem.url = url
-        subItem.userAgent = userAgent
-        subItem.requestHeaders = requestHeaders
-        subItem.filter = filter
-        subItem.enabled = enabled
-        subItem.autoUpdate = autoUpdate
-        subItem.updateInterval = updateInterval.toLongEx()
-        subItem.prevProfile = prevProfile
-        subItem.nextProfile = nextProfile
-        subItem.allowInsecureUrl = allowInsecureUrl
-        subItem.overrideAddress = overrideAddress.trim().ifEmpty { null }
-        subItem.overridePort = overridePortValue
-        return subItem
+        val newRemarks = remarks
+        val newUrl = url
+        val newUserAgent = userAgent
+        val newRequestHeaders = requestHeaders
+        val newFilter = filter
+        val newEnabled = enabled
+        val newAutoUpdate = autoUpdate
+        val newUpdateInterval = updateInterval.toLongEx()
+        val newPrevProfile = prevProfile
+        val newNextProfile = nextProfile
+        val newAllowInsecureUrl = allowInsecureUrl
+        val newOverrideAddress = overrideAddress.trim().ifEmpty { null }
+        return { subItem ->
+            subItem.remarks = newRemarks
+            subItem.url = newUrl
+            subItem.userAgent = newUserAgent
+            subItem.requestHeaders = newRequestHeaders
+            subItem.filter = newFilter
+            subItem.enabled = newEnabled
+            subItem.autoUpdate = newAutoUpdate
+            subItem.updateInterval = newUpdateInterval
+            subItem.prevProfile = newPrevProfile
+            subItem.nextProfile = newNextProfile
+            subItem.allowInsecureUrl = newAllowInsecureUrl
+            subItem.overrideAddress = newOverrideAddress
+            subItem.overridePort = overridePortValue
+        }
     }
 
     Scaffold(
@@ -188,7 +199,22 @@ fun SubEditScreen(
                             Icon(painterResource(R.drawable.ic_delete_24dp), contentDescription = stringResource(R.string.acc_delete))
                         }
                     }
-                    IconButton(onClick = { buildSubItem()?.let { onSave(it) } }) {
+                    IconButton(onClick = {
+                        val remarksErr = remarks.isBlank()
+                        val urlErr = url.isNotEmpty() && (
+                            !Utils.isValidUrl(url) || (!Utils.isValidSubUrl(url) && !allowInsecureUrl)
+                        )
+                        val intervalErr = autoUpdate && updateInterval.toLongEx() < AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES
+
+                        isRemarksError = remarksErr
+                        isUrlError = urlErr
+                        isUpdateIntervalError = intervalErr
+
+                        val hasError = remarksErr || urlErr || intervalErr
+                        if (!hasError) {
+                            edits()?.let(onSave)
+                        }
+                    }) {
                         Icon(painterResource(R.drawable.ic_fab_check), contentDescription = stringResource(R.string.acc_save))
                     }
                 }
@@ -206,8 +232,19 @@ fun SubEditScreen(
                 .padding(vertical = 8.dp)
                 .padding(bottom = 36.dp)
         ) {
-            FormTextField(stringResource(R.string.sub_setting_remarks), remarks, { remarks = it })
-            FormTextField(stringResource(R.string.sub_setting_url), url, { url = it })
+            FormTextField(
+                label = stringResource(R.string.sub_setting_remarks),
+                value = remarks,
+                onValueChange = { remarks = it },
+                isError = isRemarksError
+            )
+            FormTextField(
+                label = stringResource(R.string.sub_setting_url),
+                value = url,
+                onValueChange = { url = it },
+                isError = isUrlError,
+                supportingText = if (isUrlError) stringResource(R.string.toast_invalid_url) else null
+            )
             FormTextField(stringResource(R.string.sub_setting_user_agent), userAgent, { userAgent = it })
             FormTextField(stringResource(R.string.sub_setting_request_headers), requestHeaders, { requestHeaders = it })
             FormTextField(stringResource(R.string.sub_setting_filter), filter, { filter = it })
@@ -237,8 +274,12 @@ fun SubEditScreen(
             )
 
             FormTextField(
-                stringResource(R.string.title_pref_auto_update_interval),
-                updateInterval, { updateInterval = it }, keyboardType = KeyboardType.Number
+                label = stringResource(R.string.title_pref_auto_update_interval),
+                value = updateInterval,
+                onValueChange = { updateInterval = it },
+                keyboardType = KeyboardType.Number,
+                isError = isUpdateIntervalError,
+                supportingText = if (isUpdateIntervalError) stringResource(R.string.toast_invalid_update_interval) else null
             )
 
             SettingsSwitchItem(
@@ -271,6 +312,7 @@ fun SubEditScreen(
     if (showDeleteConfirm) {
         DeleteConfirmDialog(
             message = stringResource(R.string.confirm_delete_subscription_group),
+            itemName = initial.remarks,
             onConfirm = onDelete,
             onDismiss = { showDeleteConfirm = false }
         )

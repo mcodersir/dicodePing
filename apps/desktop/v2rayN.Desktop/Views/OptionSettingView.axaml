@@ -460,6 +460,7 @@
                         ColumnDefinitions="Auto,Auto,*"
                         RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
+                        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="4" Spacing="8"><ToggleSwitch Content="{x:Static resx:ResUI.DicodeAutoPrepare}" IsChecked="{Binding AutoTestDefaultSubscription}" /><ToggleSwitch Content="{x:Static resx:ResUI.DicodeSniPreset}" IsChecked="{Binding SniBlockBypass}" /></StackPanel>
                         <TextBlock
                             x:Name="tbAutoRun"
                             Grid.Row="1"

@@ -18,12 +18,17 @@ interface MainDataSource : Closeable {
     fun getSelectServer(): String?
     fun setSelectServer(guid: String)
 
+    fun isDefaultAutoTestEnabled(): Boolean = true
+
     fun getConfirmRemove(): Boolean
     fun getDoubleColumnDisplay(): Boolean
     fun isGroupAllDisplayEnabled(): Boolean
 
     fun getString(resId: Int): String
     fun getString(resId: Int, vararg formatArgs: Any): String
+
+    /** The items of the string array [resId], as the app's language has them. */
+    fun getStringArray(resId: Int): List<String>
 
     fun getSubscriptions(): List<SubscriptionCache>
     fun getSubscriptionItem(id: String): SubscriptionItem?
@@ -33,9 +38,14 @@ interface MainDataSource : Closeable {
     fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo?
     fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?)
 
-    fun encodeServerList(guids: List<String>, groupId: String)
+    /**
+     * PattNG: moves the profile [fromGuid] names to where the one [toGuid] names stands in the stored list of [groupId];
+     * false when the storage refused it, which leaves the list as it was.
+     */
+    fun moveServer(groupId: String, fromGuid: String, toGuid: String): Boolean
 
-    fun removeServer(guid: String)
+    /** PattNG: removes the profile [guid] names; false when the storage refused it, which leaves the profile as it was. */
+    fun removeServer(guid: String): Boolean
     fun removeAllServer(): Int
     fun removeInvalidServerByGuid(guid: String): Int
     fun removeInvalidServersInGroup(groupId: String): Int
@@ -58,9 +68,15 @@ interface MainDataSource : Closeable {
     fun share2Clipboard(guid: String): Boolean
 
     fun sendMsg2Service(msgId: Int, content: String)
-    fun sendMsg2TestService(msg: TestServiceMessage)
+
+    /**
+     * Asks the service for its state. A running service answers through [mainServiceEvent] itself;
+     * when nothing acknowledges the question, [MainServiceEvent.StateNotRunning] is emitted instead.
+     */
+    fun queryServiceState()
+    fun sendMsg2TestService(msg: TestServiceMessage, requestId: String? = null)
     fun cancelAllPing()
-    fun testCurrentServerRealPing()
+    fun testCurrentServerRealPing(requestId: String)
 
     fun syncSubscriptions()
     fun initAssets()

@@ -14,6 +14,9 @@ public partial class ProfilesViewModel : MyReactiveObject
     public EventChannel<RxVoid> ConnectionStartRequested { get; } = new();
     public EventChannel<RxVoid> ConnectionStopRequested { get; } = new();
     public EventChannel<RxVoid> RefreshServersRequested { get; } = new();
+    public Func<Task>? StartConnection { get; set; }
+    public Func<Task>? StopConnection { get; set; }
+    private readonly SemaphoreSlim _connectGate = new(1, 1);
 
     #region private prop
 
@@ -759,86 +762,59 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ConnectSelectedAsync()
     {
-        if (CoreManager.Instance.IsRunning)
-        {
-            ConnectionStopRequested.Publish();
-            return;
-        }
-
-        if (SelectedProfile is null || SelectedProfile.IndexId.IsNullOrEmpty())
-        {
-            NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer);
-            return;
-        }
-
-        _config.TunModeItem.EnableTun = true;
-        await ConfigHandler.SaveConfig(_config);
-        if (SelectedProfile.IndexId == _config.IndexId)
-        {
-            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
-        }
-        else
-        {
-            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
-            await SetDefaultServer(SelectedProfile.IndexId);
-        }
-        ConnectionStartRequested.Publish();
-        await WaitForConnectionAsync();
+        var selected = SelectedProfile?.IndexId;
+        if (selected.IsNullOrEmpty()) selected = _config.IndexId;
+        await ConnectProfileAsync(selected);
     }
 
     public async Task ConnectBestAsync()
     {
-        if (CoreManager.Instance.IsRunning)
-        {
-            ConnectionStopRequested.Publish();
-            return;
-        }
-
-        // The first smart-connect action must be useful on a fresh install too.  Wait for
-        // real-path measurements before selecting when no usable result has been recorded.
+        if (CoreManager.Instance.IsRunning) { await ConnectProfileAsync(_config.IndexId); return; }
+        if (IsRefreshing) return;
         if (!ProfileItems.Any(item => item.Delay > 0))
         {
             NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
             await ServerSpeedtest(ESpeedActionType.FastRealping);
             await RefreshServersBiz();
         }
-
-        var best = ProfileItems
-            .Where(item => item.Delay > 0)
-            .OrderBy(item => item.Delay)
-            .FirstOrDefault() ?? ProfileItems.FirstOrDefault();
-        if (best is null)
-        {
-            NoticeManager.Instance.Enqueue(ResUI.CheckServerSettings);
-            return;
-        }
-
+        // A failed or untested server is never presented as the best route.
+        var best = ProfileItems.Where(item => item.Delay > 0).OrderBy(item => item.Delay).FirstOrDefault();
+        if (best is null) { NoticeManager.Instance.Enqueue(ResUI.DicodeNoReachable); return; }
         SelectedProfile = best;
-        _config.TunModeItem.EnableTun = true;
-        await ConfigHandler.SaveConfig(_config);
-        if (best.IndexId == _config.IndexId)
-        {
-            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
-        }
-        else
-        {
-            NoticeManager.Instance.Enqueue(ResUI.DicodeBestRouteConnecting);
-            await SetDefaultServer(best.IndexId);
-        }
-        ConnectionStartRequested.Publish();
-        await WaitForConnectionAsync();
+        await ConnectProfileAsync(best.IndexId);
     }
 
-    private async Task WaitForConnectionAsync()
+    private async Task ConnectProfileAsync(string? indexId)
     {
-        for (var attempt = 0; attempt < 40 && !CoreManager.Instance.IsRunning; attempt++)
+        if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
+        try
         {
-            await Task.Delay(100);
+            if (CoreManager.Instance.IsRunning)
+            {
+                if (StopConnection is not null) await StopConnection();
+                else ConnectionStopRequested.Publish();
+                return;
+            }
+            if (indexId.IsNullOrEmpty() || await AppManager.Instance.GetProfileItem(indexId) is null)
+            { NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer); return; }
+            _config.TunModeItem.EnableTun = true;
+            if (await ConfigHandler.SetDefaultServerIndex(_config, indexId) != 0)
+            { NoticeManager.Instance.Enqueue(ResUI.CheckServerSettings); return; }
+            await ConfigHandler.SaveConfig(_config);
+            await StopDiagnosticsAsync();
+            NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
+            if (StartConnection is not null) await StartConnection();
+            else ConnectionStartRequested.Publish();
+            IsConnected = CoreManager.Instance.IsRunning;
+            NoticeManager.Instance.Enqueue(IsConnected ? ResUI.DicodeTunConnectedNotice : ResUI.DicodeTunFailedNotice);
+            await RefreshServers();
         }
-        IsConnected = CoreManager.Instance.IsRunning;
-        NoticeManager.Instance.Enqueue(IsConnected
-            ? ResUI.DicodeTunConnectedNotice
-            : ResUI.DicodeTunFailedNotice);
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Connect selected profile", ex);
+            NoticeManager.Instance.Enqueue(ResUI.DicodeTunFailedNotice);
+        }
+        finally { _connectGate.Release(); }
     }
 
     public async Task ShareServerAsync()
@@ -953,7 +929,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
     }
 
-    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null)
+    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null, CancellationToken cancellationToken = default)
     {
         if (IsRefreshing) return;
         var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Speedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
@@ -1011,7 +987,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                     run.Complete(result.IndexId!);
             }));
             _probeServices[lane] = service;
-            try { await service.RunLoop(actionType, selected); }
+            try { await service.RunLoop(actionType, selected, cancellationToken); }
             finally
             {
                 _probeServices.TryRemove(lane, out _);

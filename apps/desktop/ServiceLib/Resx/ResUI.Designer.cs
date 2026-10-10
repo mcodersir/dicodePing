@@ -6764,5 +6764,28 @@ namespace ServiceLib.Resx {
         public static string DicodeTestScope => ResourceManager.GetString("DicodeTestScope", resourceCulture);
         public static string DicodeSources => ResourceManager.GetString("DicodeSources", resourceCulture);
         public static string DicodeHomeHint => ResourceManager.GetString("DicodeHomeHint", resourceCulture);
+        public static string DicodeAutoPrepare => ResourceManager.GetString("DicodeAutoPrepare", resourceCulture);
+        public static string DicodePreparing => ResourceManager.GetString("DicodePreparing", resourceCulture);
+        public static string DicodePreparationHint => ResourceManager.GetString("DicodePreparationHint", resourceCulture);
+        public static string DicodeSkipPreparation => ResourceManager.GetString("DicodeSkipPreparation", resourceCulture);
+        public static string DicodeNoReachable => ResourceManager.GetString("DicodeNoReachable", resourceCulture);
+        public static string DicodeEntryTitle => ResourceManager.GetString("DicodeEntryTitle", resourceCulture);
+        public static string DicodeEntryEnable => ResourceManager.GetString("DicodeEntryEnable", resourceCulture);
+        public static string DicodeEntryExternal => ResourceManager.GetString("DicodeEntryExternal", resourceCulture);
+        public static string DicodeEntryProfile => ResourceManager.GetString("DicodeEntryProfile", resourceCulture);
+        public static string DicodeEntrySubscription => ResourceManager.GetString("DicodeEntrySubscription", resourceCulture);
+        public static string DicodeEntryAll => ResourceManager.GetString("DicodeEntryAll", resourceCulture);
+        public static string DicodeEntryFirst => ResourceManager.GetString("DicodeEntryFirst", resourceCulture);
+        public static string DicodeEntryBest => ResourceManager.GetString("DicodeEntryBest", resourceCulture);
+        public static string DicodeEntryRescan => ResourceManager.GetString("DicodeEntryRescan", resourceCulture);
+        public static string DicodeEntryReady => ResourceManager.GetString("DicodeEntryReady", resourceCulture);
+        public static string DicodeEntryPort => ResourceManager.GetString("DicodeEntryPort", resourceCulture);
+        public static string DicodeEntryHint => ResourceManager.GetString("DicodeEntryHint", resourceCulture);
+        public static string DicodeEntryFailed => ResourceManager.GetString("DicodeEntryFailed", resourceCulture);
+        public static string DicodeEntryPortBusy => ResourceManager.GetString("DicodeEntryPortBusy", resourceCulture);
+        public static string DicodeEntryCustomUnsupported => ResourceManager.GetString("DicodeEntryCustomUnsupported", resourceCulture);
+        public static string DicodeSniPreset => ResourceManager.GetString("DicodeSniPreset", resourceCulture);
+        public static string DicodeDiscoverMask => ResourceManager.GetString("DicodeDiscoverMask", resourceCulture);
+        public static string DicodeDiscoverFailed => ResourceManager.GetString("DicodeDiscoverFailed", resourceCulture);
     }
 }

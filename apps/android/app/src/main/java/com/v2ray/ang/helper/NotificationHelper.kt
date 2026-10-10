@@ -5,10 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
-import android.os.Build
+import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import com.v2ray.ang.R
 import com.v2ray.ang.enums.NotificationChannelType
+import com.v2ray.ang.handler.AppLocaleManager
 
 /**
  * Unified notification helper for different notification channels.
@@ -124,20 +125,41 @@ object NotificationHelper {
         return cachedNotificationManager!!
     }
 
-    private fun ensureChannelCreated(channelType: NotificationChannelType, context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    private fun ensureChannelCreated(channelType: NotificationChannelType, context: Context) =
+        ensureNotificationChannel(
+            context = context,
+            channelId = channelType.channelId,
+            channelNameRes = channelType.channelNameRes,
+            importance = NotificationManager.IMPORTANCE_LOW,
+        )
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (notificationManager.getNotificationChannel(channelType.channelId) != null) return
-
-        val channel = NotificationChannel(
-            channelType.channelId,
-            channelType.channelName,
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+    /**
+     * Creates a channel or updates only its localized name.
+     *
+     * Android lets apps rename an existing channel, while its behavior remains under user control.
+     */
+    internal fun ensureNotificationChannel(
+        context: Context,
+        channelId: String,
+        @StringRes channelNameRes: Int,
+        importance: Int,
+        configureNewChannel: NotificationChannel.() -> Unit = {},
+    ) {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val localizedName = AppLocaleManager.localizedContext(context).getString(channelNameRes)
+        val existingChannel = notificationManager.getNotificationChannel(channelId)
+        if (existingChannel == null) {
+            NotificationChannel(channelId, localizedName, importance)
+                .apply {
+                    lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+                    configureNewChannel()
+                }
+                .also(notificationManager::createNotificationChannel)
+        } else if (existingChannel.name.toString() != localizedName) {
+            existingChannel.name = localizedName
+            notificationManager.createNotificationChannel(existingChannel)
         }
-        notificationManager.createNotificationChannel(channel)
     }
 
     private fun buildNotificationBuilder(
@@ -147,11 +169,7 @@ object NotificationHelper {
         content: String,
         action: NotificationCompat.Action? = null
     ): NotificationCompat.Builder {
-        val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            channelType.channelId
-        } else {
-            ""
-        }
+        val channelId = channelType.channelId
 
         val displayTitle = title.ifEmpty { context.getString(R.string.app_name) }
         return NotificationCompat.Builder(context, channelId)

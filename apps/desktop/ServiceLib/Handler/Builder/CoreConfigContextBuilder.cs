@@ -40,6 +40,7 @@ public class CoreConfigContextBuilder
         var context = new CoreConfigContext
         {
             Node = node,
+            UseEntryHop = config.EntryHopItem.Applies(node),
             RunCoreType = runCoreType,
             AllProxiesMap = [],
             AppConfig = config,

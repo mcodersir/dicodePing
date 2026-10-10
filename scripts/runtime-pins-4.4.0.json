@@ -1,0 +1,24 @@
+{
+  "xray": "v26.10.9",
+  "singbox": "v1.14.3",
+  "android": "v26.10.10",
+  "aether": "v2.3.0",
+  "assets": {
+    "Xray-linux-64.zip": "29a63570a83262ad5b2e734704040f440b3133c39b56ecab94028e13c67a6ca3",
+    "Xray-macos-64.zip": "354fb9c662d403258f23b17da820bd90ef28d892a4c764475318b5f0d2d69cd0",
+    "Xray-macos-arm64-v8a.zip": "9ddb835f249cc0b4457e711fe23ec4e56d1e04cb1a58d12d5af4f405929c9d61",
+    "Xray-windows-64.zip": "2e7d8e0db9025a036509c882432a396442c21bb732c5bcdce931e1d901f6957b",
+    "sing-box-1.14.3-darwin-amd64.tar.gz": "6d002b74d03b478547349cc10af89e007868596e5aa931816d45da9f544715a9",
+    "sing-box-1.14.3-darwin-arm64.tar.gz": "0360ce634a04c26a6b4fd957517987bb4f6c8950f63435ce3c5af2fcae5860c5",
+    "sing-box-1.14.3-linux-amd64.tar.gz": "e2bdf179c15a3652955dc44867e33ca0965c9c9b91b34267dcc5a5d639a5feee",
+    "sing-box-1.14.3-windows-amd64.zip": "d8b86ef58936dba9230ec6a57ffa4243933f3c14ef4809828b6c553440ed1518",
+    "libv2ray.aar": "33a1dc21022ad4e2c31296a43876b857a9623131a92a60d56ae831690ffc8130",
+    "aether-android-arm64.tar.gz": "038748745244828ea41a808958f16a1c25053dc61db977c95ceb2d3a0b2f7970",
+    "aether-android-armv7.tar.gz": "9e9c59b188ff235053ae22b9f007f31de3e9bc71c8252ef73b0d626b85b64dae",
+    "aether-android-x86_64.tar.gz": "9acd35dc7bafd4bbf0f4bd8337cb26c4efe6ab0d84ec01d1a0a9fa68168b09c1",
+    "aether-linux-x86_64.tar.gz": "77c6ce41695a616660d834b55be235c17e7588a474dfd737b71ca80b685bdc8a",
+    "aether-macos-arm64.tar.gz": "e89cbb5b53848fee1a28510dac14ff358aa38ebecc7fd00eeeee5bd415d12b12",
+    "aether-macos-x86_64.tar.gz": "25d930bba78fbd09ba86b09e21afd4e1ed1e91685a34388dd067be130aa269b3",
+    "aether-windows-x86_64.zip": "0cc32dd2d7573f91d2e55d4f427bfe4c6f6252342494e1b410d61b12d1e4dc79"
+  }
+}

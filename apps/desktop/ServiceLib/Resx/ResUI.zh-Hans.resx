@@ -1961,4 +1961,27 @@
     <value>添加 [MASQUE]</value>
   </data>
 
+<data name="DicodeAutoPrepare" xml:space="preserve"><value>Automatically test and sort the enabled default subscription</value></data>
+<data name="DicodePreparing" xml:space="preserve"><value>Preparing your fastest routes</value></data>
+<data name="DicodePreparationHint" xml:space="preserve"><value>Real latency and location checks run before Home opens. You can skip; completed results are kept.</value></data>
+<data name="DicodeSkipPreparation" xml:space="preserve"><value>Skip and open Home</value></data>
+<data name="DicodeNoReachable" xml:space="preserve"><value>No reachable server was measured. Refresh or test again.</value></data>
+<data name="DicodeEntryTitle" xml:space="preserve"><value>Entry hop</value></data>
+<data name="DicodeEntryEnable" xml:space="preserve"><value>Enable entry hop</value></data>
+<data name="DicodeEntryExternal" xml:space="preserve"><value>Existing local SOCKS proxy</value></data>
+<data name="DicodeEntryProfile" xml:space="preserve"><value>Selected profile</value></data>
+<data name="DicodeEntrySubscription" xml:space="preserve"><value>Selected subscription</value></data>
+<data name="DicodeEntryAll" xml:space="preserve"><value>All profiles</value></data>
+<data name="DicodeEntryFirst" xml:space="preserve"><value>First reachable transport</value></data>
+<data name="DicodeEntryBest" xml:space="preserve"><value>Best available transport</value></data>
+<data name="DicodeEntryRescan" xml:space="preserve"><value>Rescan transports</value></data>
+<data name="DicodeEntryReady" xml:space="preserve"><value>Real traffic verified</value></data>
+<data name="DicodeEntryPort" xml:space="preserve"><value>Local SOCKS port</value></data>
+<data name="DicodeEntryHint" xml:space="preserve"><value>Aether/Psiphon is the first hop before your selected route. HTTP/3, HTTP/2 and WireGuard are tested through SOCKS with time limits. The winner is saved per network. Tor needs a locally installed Tor client. UDP support depends on the helper. Logs are in Reports.</value></data>
+<data name="DicodeEntryFailed" xml:space="preserve"><value>Entry hop failed. See Reports; no direct fallback is used.</value></data>
+<data name="DicodeEntryPortBusy" xml:space="preserve"><value>Choose an available local port between 1024 and 65535.</value></data>
+<data name="DicodeEntryCustomUnsupported" xml:space="preserve"><value>For custom JSON, configure the local SOCKS entry hop explicitly.</value></data>
+<data name="DicodeSniPreset" xml:space="preserve"><value>SNI-block preset for imported TLS profiles (opt-in)</value></data>
+<data name="DicodeDiscoverMask" xml:space="preserve"><value>Find a working FinalMask</value></data>
+<data name="DicodeDiscoverFailed" xml:space="preserve"><value>No tested preset worked; original settings kept.</value></data>
 </root>

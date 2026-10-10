@@ -1,7 +1,6 @@
 package com.v2ray.ang.ui.subscription
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
@@ -26,6 +25,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,11 +38,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.v2ray.ang.AppConfig
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.R
 import com.v2ray.ang.extension.toast
-import com.v2ray.ang.handler.MmkvManager
-import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
+import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
@@ -53,7 +53,6 @@ import com.v2ray.ang.ui.compose.ReorderableListItem
 import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.verticalScrollbar
-import com.v2ray.ang.util.QRCodeDecoder
 import com.v2ray.ang.util.Utils
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -63,8 +62,15 @@ private enum class SubscriptionShareAction(@StringRes val labelRes: Int) {
     Clipboard(R.string.share_subscription_clipboard)
 }
 
+private data class SubscriptionDeleteTarget(val guid: String, val name: String)
+
 class SubSettingActivity : BaseComponentActivity() {
-    private val viewModel: SubscriptionsViewModel by viewModels()
+    /** PattNG: the list, read and changed off the main thread, see [SubscriptionsViewModel]. */
+    private val viewModel: SubscriptionsViewModel by viewModels {
+        viewModelFactory {
+            initializer { SubscriptionsViewModel(application, SubEditRepository()) }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +79,16 @@ class SubSettingActivity : BaseComponentActivity() {
     @Composable
     override fun ScreenContent() {
         val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+        // PattNG: a change the storage refused is told once, each refusal by its number, so that one set again right
+        // after the last was told is told too; the list shows the subscriptions as stored.
+        val refusal = viewModel.refused.collectAsStateWithLifecycle().value
+        val failureText = stringResource(R.string.toast_failure)
+        LaunchedEffect(refusal) {
+            if (refusal != null) {
+                toastError(failureText)
+                viewModel.onRefusalShown(refusal)
+            }
+        }
         SubSettingScreen(
             viewModel = viewModel,
             isLoading = isLoading,
@@ -83,7 +99,7 @@ class SubSettingActivity : BaseComponentActivity() {
                 startActivity(Intent(this, SubEditActivity::class.java).putExtra("subId", subId))
             },
             onRemoveSub = { subId -> removeSub(subId) },
-            onShareQRCode = { url -> QRCodeDecoder.createQRCode(url) },
+            onShareQRCode = viewModel::shareQRCode,
             onShareClipboard = { url ->
                 Utils.setClipboard(this, url)
                 toast(getString(R.string.toast_success))
@@ -93,7 +109,18 @@ class SubSettingActivity : BaseComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.onScreenShown()
         viewModel.reload()
+    }
+
+    /**
+     * PattNG: what the list stores while out of sight is told to the main screen, see
+     * [SubscriptionsViewModel.onScreenHidden]: this runs before the main screen gets the list's result, whether the list
+     * finishes itself or the system closes it, as when the notification brings the main screen up.
+     */
+    override fun onPause() {
+        viewModel.onScreenHidden()
+        super.onPause()
     }
 
     private fun removeSub(subId: String) {
@@ -110,20 +137,24 @@ fun SubSettingScreen(
     onSubUpdate: () -> Unit,
     onEditSub: (String) -> Unit,
     onRemoveSub: (String) -> Unit,
-    onShareQRCode: (String) -> Bitmap?,
+    onShareQRCode: (String) -> Unit,
     onShareClipboard: (String) -> Unit
 ) {
     val subscriptions by viewModel.subsFlow.collectAsStateWithLifecycle()
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var removeTarget by remember { mutableStateOf<String?>(null) }
-    val confirmRemove = MmkvManager.decodeSettingsBool(AppConfig.PREF_CONFIRM_REMOVE, false)
+    // PattNG: read off the main thread when the dialog opens, see SubscriptionsViewModel.loadUpdateOptions.
+    val updateOptions by viewModel.updateOptions.collectAsStateWithLifecycle()
+    var removeTarget by remember { mutableStateOf<SubscriptionDeleteTarget?>(null) }
+    // PattNG: read off the main thread with the subscriptions, see SubscriptionsViewModel.reload.
+    val confirmRemove by viewModel.confirmRemove.collectAsStateWithLifecycle()
 
     var shareTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var showQRCodeBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    val qrCodeBitmap by viewModel.qrCode.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        viewModel.move(from.index, to.index)
+        // PattNG: by the keys of the subscriptions, which the rows are keyed by, not by their positions.
+        viewModel.move(from.key as? String ?: return@rememberReorderableLazyListState, to.key as? String ?: return@rememberReorderableLazyListState)
     }
 
     Scaffold(
@@ -137,7 +168,10 @@ fun SubSettingScreen(
                     IconButton(onClick = onAddClick) {
                         Icon(painterResource(R.drawable.ic_add_24dp), contentDescription = stringResource(R.string.acc_add_subscription))
                     }
-                    IconButton(onClick = { showUpdateDialog = true }) {
+                    IconButton(onClick = {
+                        viewModel.loadUpdateOptions()
+                        showUpdateDialog = true
+                    }) {
                         Icon(painterResource(R.drawable.ic_restore_24dp), contentDescription = stringResource(R.string.acc_update_subscriptions))
                     }
                 }
@@ -214,7 +248,7 @@ fun SubSettingScreen(
                                         )
                                     }
                                     IconButton(onClick = {
-                                        if (confirmRemove) removeTarget = subCache.guid
+                                        if (confirmRemove) removeTarget = SubscriptionDeleteTarget(subCache.guid, subCache.subscription.remarks)
                                         else onRemoveSub(subCache.guid)
                                     }) {
                                         Icon(
@@ -226,11 +260,7 @@ fun SubSettingScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Switch(
                                     checked = subCache.subscription.enabled,
-                                    onCheckedChange = { checked ->
-                                        val updated = subCache.subscription.copy()
-                                        updated.enabled = checked
-                                        viewModel.update(subCache.guid, updated)
-                                    },
+                                    onCheckedChange = { checked -> viewModel.setEnabled(subCache.guid, checked) },
                                     modifier = Modifier.scale(0.7f),
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = MaterialTheme.colorScheme.onSecondary,
@@ -254,7 +284,7 @@ fun SubSettingScreen(
             onSelected = { action ->
                 shareTarget = null
                 when (action) {
-                    SubscriptionShareAction.QRCode -> showQRCodeBitmap = onShareQRCode(url)
+                    SubscriptionShareAction.QRCode -> onShareQRCode(url)
                     SubscriptionShareAction.Clipboard -> onShareClipboard(url)
                 }
             },
@@ -263,59 +293,55 @@ fun SubSettingScreen(
     }
 
     // QR Code Dialog
-    if (showQRCodeBitmap != null) {
+    if (qrCodeBitmap != null) {
         QRCodeDialog(
-            bitmap = showQRCodeBitmap,
-            onDismiss = { showQRCodeBitmap = null }
+            bitmap = qrCodeBitmap,
+            onDismiss = viewModel::dismissQRCode
         )
     }
 
-    if (removeTarget != null) {
+    removeTarget?.let { target ->
         DeleteConfirmDialog(
             message = stringResource(R.string.confirm_delete_subscription_group),
+            itemName = target.name,
             onConfirm = {
-                onRemoveSub(removeTarget!!)
                 removeTarget = null
+                onRemoveSub(target.guid)
             },
             onDismiss = { removeTarget = null }
         )
     }
 
-    if (showUpdateDialog) {
-
-        var updateSubscription by rememberMmkvBool(AppConfig.PREF_UPDATE_SUBSCRIPTION, false)
-        var autoTestAfterUpdateSubscription by rememberMmkvBool(AppConfig.PREF_AUTO_TEST_AFTER_UPDATE_SUBSCRIPTION, false)
-        var autoRemoveInvalidAfterTest by rememberMmkvBool(AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST, false)
-        var autoSortAfterTest by rememberMmkvBool(AppConfig.PREF_AUTO_SORT_AFTER_TEST, false)
-
+    val options = updateOptions
+    if (showUpdateDialog && options != null) {
         AlertDialog(
             onDismissRequest = { showUpdateDialog = false },
             text = {
                 Column {
                     SettingsSwitchItem(
                         title = stringResource(R.string.title_sub_update),
-                        checked = updateSubscription,
-                        onCheckedChange = { updateSubscription = it }
+                        checked = options[SubscriptionUpdateOption.UPDATE],
+                        onCheckedChange = { viewModel.setUpdateOption(SubscriptionUpdateOption.UPDATE, it) }
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.title_pref_auto_test_after_update_subscription),
                         summary = stringResource(R.string.summary_pref_auto_test_after_update_subscription),
-                        checked = autoTestAfterUpdateSubscription,
-                        onCheckedChange = { autoTestAfterUpdateSubscription = it }
+                        checked = options[SubscriptionUpdateOption.TEST_AFTER],
+                        onCheckedChange = { viewModel.setUpdateOption(SubscriptionUpdateOption.TEST_AFTER, it) }
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.title_pref_auto_remove_invalid_after_test),
                         summary = stringResource(R.string.summary_pref_auto_remove_invalid_after_test),
-                        checked = autoRemoveInvalidAfterTest,
-                        enabled = autoTestAfterUpdateSubscription,
-                        onCheckedChange = { autoRemoveInvalidAfterTest = it }
+                        checked = options[SubscriptionUpdateOption.REMOVE_INVALID_AFTER_TEST],
+                        enabled = options[SubscriptionUpdateOption.TEST_AFTER],
+                        onCheckedChange = { viewModel.setUpdateOption(SubscriptionUpdateOption.REMOVE_INVALID_AFTER_TEST, it) }
                     )
                     SettingsSwitchItem(
                         title = stringResource(R.string.title_pref_auto_sort_after_test),
                         summary = stringResource(R.string.summary_pref_auto_sort_after_test),
-                        checked = autoSortAfterTest,
-                        enabled = autoTestAfterUpdateSubscription,
-                        onCheckedChange = { autoSortAfterTest = it }
+                        checked = options[SubscriptionUpdateOption.SORT_AFTER_TEST],
+                        enabled = options[SubscriptionUpdateOption.TEST_AFTER],
+                        onCheckedChange = { viewModel.setUpdateOption(SubscriptionUpdateOption.SORT_AFTER_TEST, it) }
                     )
                 }
             },

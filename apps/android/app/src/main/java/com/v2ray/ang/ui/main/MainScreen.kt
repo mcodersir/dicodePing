@@ -8,11 +8,12 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.v2ray.ang.extension.toTrafficString
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
@@ -25,21 +26,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.ui.compose.LocalDarkTheme
 import com.v2ray.ang.ui.compose.QRCodeDialog
-import com.v2ray.ang.ui.compose.colorFabActive
-import com.v2ray.ang.extension.delay
-import com.v2ray.ang.extension.toTrafficString
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -53,15 +53,35 @@ fun MainScreen(
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
-    val pingText = mainViewModel.formatPingStatus(uiState.status)
-    val locationText = mainViewModel.formatLocationStatus(uiState.status)
+    val displayText = mainViewModel.formatStatus(uiState.status)
+    val smartConnectServers by remember(mainViewModel, uiState.selectedGroupId) { mainViewModel.serversForGroup(uiState.selectedGroupId) }.collectAsStateWithLifecycle()
+    var autoConnectPending by rememberSaveable { mutableStateOf(false) }
+    var autoConnectStarted by remember { mutableStateOf(false) }
+    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
+        if (!autoConnectPending) return@LaunchedEffect
+        if (uiState.isTesting) { autoConnectStarted = true; return@LaunchedEffect }
+        if (!autoConnectStarted) return@LaunchedEffect
+        autoConnectPending = false
+        autoConnectStarted = false
+        val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+        if (best != null) { mainViewModel.selectForConnection(best.guid); onAction(MainAction.ToggleService) }
+    }
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
     val shareQRCodeBitmap = uiState.shareQRCodeBitmap
-    val smartConnectServers by remember(mainViewModel, uiState.selectedGroupId) {
-        mainViewModel.serversForGroup(uiState.selectedGroupId)
-    }.collectAsStateWithLifecycle()
+
+    // PattNG: a move of a profile the storage refused is told once, each refusal by its number, so that one set again
+    // right after the last was told is told too; the groups are shown anew, as stored.
+    val context = LocalContext.current
+    val failureText = stringResource(R.string.toast_failure)
+    val moveRefusal = uiState.moveRefusal
+    LaunchedEffect(moveRefusal) {
+        if (moveRefusal != null) {
+            context.toastError(failureText)
+            onAction(MainAction.MoveRefusalShown(moveRefusal))
+        }
+    }
 
     val isDarkTheme = LocalDarkTheme.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -71,33 +91,17 @@ fun MainScreen(
     var showDelAllConfirm by remember { mutableStateOf(false) }
     var showDelDuplicateConfirm by remember { mutableStateOf(false) }
     var showDelInvalidConfirm by remember { mutableStateOf(false) }
-    var showRemoveConfirm by remember { mutableStateOf<String?>(null) }
-    var autoConnectPending by remember { mutableStateOf(false) }
-    var autoConnectStarted by remember { mutableStateOf(false) }
-
-    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
-        if (!autoConnectPending) return@LaunchedEffect
-        if (uiState.isTesting) {
-            autoConnectStarted = true
-            return@LaunchedEffect
-        }
-        if (!autoConnectStarted) return@LaunchedEffect
-
-        val best = smartConnectServers
-            .filter { it.testDelayMillis > 0L }
-            .minByOrNull { it.testDelayMillis }
-        autoConnectPending = false
-        autoConnectStarted = false
-        if (best != null) {
-            onAction(MainAction.SelectServer(best.guid))
-            delay(120)
-            onAction(MainAction.ToggleService)
-        }
+    var showRemoveConfirm by rememberSaveable(stateSaver = ServerDeleteTarget.Saver) {
+        mutableStateOf<ServerDeleteTarget?>(null)
     }
 
     var shareTarget by remember { mutableStateOf<Triple<String, ProfileItem, Boolean>?>(null) }
-    val removeServer: (String) -> Unit = { guid ->
-        if (confirmRemove) showRemoveConfirm = guid else onAction(MainAction.RemoveServer(guid))
+    val removeServer: (String, String) -> Unit = { guid, profileName ->
+        if (confirmRemove) {
+            showRemoveConfirm = ServerDeleteTarget(guid, profileName)
+        } else {
+            onAction(MainAction.RemoveServer(guid))
+        }
     }
 
     val pagerState = rememberPagerState(
@@ -108,15 +112,11 @@ fun MainScreen(
     val lazyListStates = remember { mutableStateMapOf<String, LazyListState>() }
     val lazyGridStates = remember { mutableStateMapOf<String, LazyGridState>() }
 
-    var locateInProgress by remember { mutableStateOf(false) }
-
     LaunchedEffect(groups) {
         val validGroupIds = groups.map { it.id }.toSet()
         lazyListStates.keys.retainAll(validGroupIds)
         lazyGridStates.keys.retainAll(validGroupIds)
     }
-
-    val latestDoubleColumnDisplay by rememberUpdatedState(doubleColumnDisplay)
 
     LaunchedEffect(groups, uiState.selectedGroupId) {
         if (groups.isEmpty()) return@LaunchedEffect
@@ -128,66 +128,16 @@ fun MainScreen(
     }
 
     val latestGroups by rememberUpdatedState(groups)
-    val latestLocateInProgress by rememberUpdatedState(locateInProgress)
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
             .distinctUntilChanged()
             .collect { page ->
                 val currentGroups = latestGroups
-                if (!latestLocateInProgress && page in currentGroups.indices) {
+                if (page in currentGroups.indices) {
                     onAction(MainAction.SelectGroup(currentGroups[page].id))
                 }
             }
-    }
-
-    LaunchedEffect(uiState.locateTarget) {
-        val target = uiState.locateTarget ?: return@LaunchedEffect
-        if (target.groupIndex !in 0 until pagerState.pageCount) {
-            mainViewModel.onAction(MainAction.LocateHandled(target))
-            return@LaunchedEffect
-        }
-
-        locateInProgress = true
-        try {
-            if (pagerState.settledPage != target.groupIndex) {
-                pagerState.navigateToPageOptimized(
-                    targetPage = target.groupIndex,
-                    animateAdjacentPage = false
-                )
-            }
-            onAction(MainAction.SelectGroup(target.groupId))
-
-            repeat(10) {
-                val ready = if (latestDoubleColumnDisplay) {
-                    lazyGridStates[target.groupId] != null
-                } else {
-                    lazyListStates[target.groupId] != null
-                }
-                if (ready) return@repeat
-                delay(16)
-            }
-
-            if (latestDoubleColumnDisplay) {
-                lazyGridStates[target.groupId]?.let { gridState ->
-                    gridState.scrollToItem(
-                        index = target.itemPosition,
-                        scrollOffset = -gridState.layoutInfo.viewportSize.height / 3
-                    )
-                }
-            } else {
-                lazyListStates[target.groupId]?.let { listState ->
-                    listState.scrollToItem(
-                        index = target.itemPosition,
-                        scrollOffset = -listState.layoutInfo.viewportSize.height / 3
-                    )
-                }
-            }
-        } finally {
-            delay(32)
-            locateInProgress = false
-            mainViewModel.onAction(MainAction.LocateHandled(target))
-        }
     }
 
     MainDialogs(
@@ -252,17 +202,11 @@ fun MainScreen(
                     onMenuClick = { scope.launch { drawerState.open() } },
                     isAutoConnecting = autoConnectPending,
                     onSmartConnect = {
-                        if (!isRunning && !autoConnectPending) {
-                            val cachedBest = smartConnectServers.filter { it.testDelayMillis > 0L }
-                                .minByOrNull { it.testDelayMillis }
-                            if (cachedBest != null) {
-                                onAction(MainAction.SelectServer(cachedBest.guid))
-                                scope.launch { delay(120); onAction(MainAction.ToggleService) }
-                            } else {
-                                autoConnectPending = true
-                                autoConnectStarted = false
-                                onAction(MainAction.TestRealAllServers)
-                            }
+                        if (isRunning) onAction(MainAction.ToggleService)
+                        else {
+                            val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+                            if (best != null) { mainViewModel.selectForConnection(best.guid); onAction(MainAction.ToggleService) }
+                            else { autoConnectPending = true; autoConnectStarted = false; onAction(MainAction.TestRealAllServers) }
                         }
                     },
                     onAction = onAction,
@@ -287,28 +231,15 @@ fun MainScreen(
             },
             bottomBar = {
                 MainBottomBar(
-                    pingText = pingText,
-                    locationText = locationText,
-                    trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  •  ↓ ${uiState.trafficDownlink.toTrafficString()}",
+                    pingText = displayText,
+                    locationText = "",
+                    trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  ↓ ${uiState.trafficDownlink.toTrafficString()}",
                     onClick = { onAction(MainAction.TestCurrentServer) }
                 )
             },
-            // Persian is RTL: End maps to the visual left edge requested for
-            // the manual-connect control, while Scaffold keeps it above the bar.
-            floatingActionButtonPosition = FabPosition.End,
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { onAction(MainAction.ToggleService) },
-                    containerColor = if (isRunning) colorFabActive else MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(
-                        painter = if (isRunning) painterResource(R.drawable.ic_stop_24dp)
-                        else painterResource(R.drawable.ic_play_24dp),
-                        contentDescription = stringResource(
-                            if (isRunning) R.string.acc_stop else R.string.fab_manual_connect
-                        ),
-                    )
+                FloatingActionButton(onClick = { onAction(MainAction.ToggleService) }, modifier = Modifier.remoteFocus(), containerColor = MaterialTheme.colorScheme.primary) {
+                    Icon(painterResource(if (isRunning) R.drawable.ic_stop_24dp else R.drawable.ic_play_24dp), stringResource(if (isRunning) R.string.acc_stop else R.string.fab_manual_connect))
                 }
             },
         ) { innerPadding ->
@@ -349,8 +280,8 @@ fun MainScreen(
                             groupId = group.id,
                             mainViewModel = mainViewModel,
                             selectedGuid = selectedGuid,
+                            locateTarget = uiState.locateTarget,
                             doubleColumnDisplay = doubleColumnDisplay,
-                            confirmRemove = confirmRemove,
                             searchQuery = searchQuery,
                             lazyListStates = lazyListStates,
                             lazyGridStates = lazyGridStates,

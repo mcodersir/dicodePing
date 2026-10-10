@@ -1,4 +1,4 @@
-name: Release 4.3.0 Stable
+name: Release 4.4.0 Stable
 
 on:
   push:
@@ -19,50 +19,50 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             xray_asset: Xray-windows-64.zip
-            xray_sha256: 8e8f8e53847eeec6411aa5d49c1ad0430f79d16bbb148b818c4ef8cff5cf56f3
+            xray_sha256: 2e7d8e0db9025a036509c882432a396442c21bb732c5bcdce931e1d901f6957b
             xray_binary: xray.exe
             mihomo_asset: mihomo-windows-amd64-v1-v1.19.32.zip
             mihomo_binary: mihomo.exe
             mihomo_sha256: 00549b347d8e124600e46cac67d59293358454f465e9d86d2511567da56b7029
-            singbox_asset: sing-box-1.14.2-windows-amd64.zip
+            singbox_asset: sing-box-1.14.3-windows-amd64.zip
             singbox_binary: sing-box.exe
-            singbox_sha256: c2d8bfff918755808781dfdeeb8581b6c91eb3a243d9a7b55483cfc0c0684d32
+            singbox_sha256: d8b86ef58936dba9230ec6a57ffa4243933f3c14ef4809828b6c553440ed1518
             artifact: windows-x64
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
-            xray_sha256: decc61c28f359bc137792f524d0030afda7f690992c945fbbcc9cb44f45abf12
+            xray_sha256: 29a63570a83262ad5b2e734704040f440b3133c39b56ecab94028e13c67a6ca3
             xray_binary: xray
             mihomo_asset: mihomo-linux-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
             mihomo_sha256: 306f81e723e60ce6b828899a6fe83e1d00e9ecefb2dc8d4d849312a5bc00efdc
-            singbox_asset: sing-box-1.14.2-linux-amd64.tar.gz
+            singbox_asset: sing-box-1.14.3-linux-amd64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: a684484d7477d1437282ee411f4d131d0340aaad60a7868841ebd5d87dd8a0c6
+            singbox_sha256: e2bdf179c15a3652955dc44867e33ca0965c9c9b91b34267dcc5a5d639a5feee
             artifact: linux-x64
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
-            xray_sha256: 296be755343062d239151b5ee5382c9572e7dfe08843008f051b0846b8375fe5
+            xray_sha256: 354fb9c662d403258f23b17da820bd90ef28d892a4c764475318b5f0d2d69cd0
             xray_binary: xray
             mihomo_asset: mihomo-darwin-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
             mihomo_sha256: f6eef841308b682e48f9c3e4740af42f5644a53d2f18c4d4bf1ee6f8a7af7c8b
-            singbox_asset: sing-box-1.14.2-darwin-amd64.tar.gz
+            singbox_asset: sing-box-1.14.3-darwin-amd64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: b0bfb0dc70a5fc708710b9f5ea98b9ee76d40fa4169928d25d73edc4331df2fe
+            singbox_sha256: 6d002b74d03b478547349cc10af89e007868596e5aa931816d45da9f544715a9
             artifact: macos-x64
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
-            xray_sha256: 7a10330c5055a133f8c77a6ca79b956f501e8dee2e1267675f46950d0298c45e
+            xray_sha256: 9ddb835f249cc0b4457e711fe23ec4e56d1e04cb1a58d12d5af4f405929c9d61
             xray_binary: xray
             mihomo_asset: mihomo-darwin-arm64-v1.19.32.gz
             mihomo_binary: mihomo
             mihomo_sha256: 3312a6780652c622890fd4357c6a853bbf865464fd047ac7b7f52dab8de18652
-            singbox_asset: sing-box-1.14.2-darwin-arm64.tar.gz
+            singbox_asset: sing-box-1.14.3-darwin-arm64.tar.gz
             singbox_binary: sing-box
-            singbox_sha256: 925c5382eca8492b0150f868a6db20b18290a38700e621724b3703fd453e032d
+            singbox_sha256: 0360ce634a04c26a6b4fd957517987bb4f6c8950f63435ce3c5af2fcae5860c5
             artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -71,7 +71,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.3.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.4.0
       - name: Render desktop layout on Linux
         if: runner.os == 'Linux'
         run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -84,11 +84,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.3.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.4.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.8/${{ matrix.xray_asset }}"
+          $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.9/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           $expected = '${{ matrix.xray_sha256 }}'
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
@@ -138,7 +138,7 @@ jobs:
               } finally { $gzip.Dispose() }
             } finally { $input.Dispose() }
           }
-          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.14.2/${{ matrix.singbox_asset }}"
+          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/${{ matrix.singbox_asset }}"
           Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
           $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
           if ($singboxActual -ne '${{ matrix.singbox_sha256 }}') { throw "sing-box SHA-256 verification failed" }
@@ -155,13 +155,15 @@ jobs:
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
+      - name: Bundle verified Aether and Psiphon helpers
+        run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
       - name: Execute bundled cores in the ephemeral runner
         shell: pwsh
         run: |
           $versions = @{}
           $checks = @(
-            @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.8' },
-            @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.2' },
+            @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.9' },
+            @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
             @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = '1.19.32' }
           )
           foreach ($check in $checks) {
@@ -181,7 +183,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.3.0-${{ matrix.artifact }}-portable.zip"
+          $archive = "dist/DicodePing-4.4.0-${{ matrix.artifact }}-portable.zip"
           Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
           "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
       - name: Build Windows installer
@@ -190,7 +192,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.3.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.4.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -214,14 +216,14 @@ jobs:
         run: |
           git config --global http.version HTTP/1.1
           for attempt in 1 2 3 4; do
-            if git clone --branch 2.3.10-P60 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            if git clone --branch 2.3.10-P63 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
               break
             fi
             rm -rf native-upstream
             test "$attempt" -lt 4
             sleep $((attempt * 5))
           done
-          test "$(git -C native-upstream rev-parse HEAD)" = "7dbdf0cfc2971709b4d47f202a66e05e974ca1c9"
+          test "$(git -C native-upstream rev-parse HEAD)" = "d50168fbcb03daf12706096fb0391347b93d172d"
           for attempt in 1 2 3 4; do
             if git -C native-upstream submodule update --init --recursive --depth 1; then
               break
@@ -231,14 +233,19 @@ jobs:
           done
           bash native-upstream/compile-hevtun.sh
           cp -r native-upstream/libs apps/android/app/
+      - name: Bundle verified Android Aether and Psiphon helpers
+        run: |
+          python scripts/stage-aether.py --android --output apps/android/app/libs
+          bash native-upstream/fetch-psiphon-servers.sh
+          cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
       - name: Fetch the verified Android Xray runtime
         run: |
           mkdir -p apps/android/app/libs
-          CORE_TAG="v26.10.9"
-          test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "dc2d0b1388808fa10916fd212907befd6723e553"
+          CORE_TAG="v26.10.10"
+          test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "807361655e622aab42decd0cebc3b047f66cbee7"
           test -n "$CORE_TAG"
           curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
-          echo "6730adf6a2b8fd98ed2fe91ba8655ad532343e12feca31a3c6ed123a1d4f26bf  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
+          echo "33a1dc21022ad4e2c31296a43876b857a9623131a92a60d56ae831690ffc8130  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
       - name: Build signed installable APKs
         env:
           POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -251,7 +258,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.3.0
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.4.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -281,21 +288,21 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.3.0 — Stable
+          name: DicodePing 4.4.0 — Stable
           prerelease: false
           make_latest: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.3.0 — پایدار
+            ## DicodePing 4.4.0 — پایدار
 
             - تازه‌سازی واقعی ساب‌ها، نمایش وضعیت دریافت و حفظ اتصال فعال.
             - فهرست فشردهٔ دسکتاپ، انتخاب ساب ساده‌تر و پیشرفت انجام‌شده/کل آزمون‌ها.
             - جلوگیری از بازگشت ساب حذف‌شده و ساخت خودکار ساب استخر هنگام باز کردن صفحه، در هر دو پلتفرم.
             - حذف کانفیگ‌های تکراری بر اساس مشخصات اتصال، با حفظ رمز و تنظیمات متفاوت.
             - اصلاح نمایش گزارش‌ها در دسکتاپ و خواندن لاگ برنامه و هسته در اندروید.
-            - Xray دسکتاپ v26.10.8 و کتابخانهٔ اندروید v26.10.9 با بررسی SHA-256.
+            - Xray دسکتاپ v26.10.9 و کتابخانهٔ اندروید v26.10.9 با بررسی SHA-256.
 
-            sing-box v1.14.2 / Mihomo v1.19.32 همراه بسته‌های دسکتاپ.
+            sing-box v1.14.3 / Mihomo v1.19.32 همراه بسته‌های دسکتاپ.
             آزمون امنیت تنظیمات پیکربندی را بررسی می‌کند؛ آزمون تحریم دسترسی شبکه را می‌سنجد.
             دانلود: https://mcodersir.github.io/dicodePing/#download
           files: artifacts/*

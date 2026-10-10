@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.LocaleList
 import android.provider.Settings
 import android.util.Base64
@@ -446,15 +445,12 @@ object Utils {
     }
 
     /**
-     * Get the receiver flags based on the Android version.
+     * Flags for registering the app's own broadcast receivers. They are not exported, so only the
+     * app itself and the system can send to them: these receivers stop and restart the VPN.
      *
      * @return The receiver flags.
      */
-    fun receiverFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.RECEIVER_EXPORTED
-    } else {
-        ContextCompat.RECEIVER_NOT_EXPORTED
-    }
+    fun receiverFlags(): Int = ContextCompat.RECEIVER_NOT_EXPORTED
 
     /**
      * Check if the package is Xray.

@@ -1,6 +1,6 @@
 package com.v2ray.ang.ui.server
 
-import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -28,9 +28,14 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.AppConfig.REALITY
 import com.v2ray.ang.AppConfig.TLS
 import com.v2ray.ang.R
+import com.v2ray.ang.core.EchOutbound
+import com.v2ray.ang.core.TlsSettingsCheck
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.NetworkType
@@ -38,8 +43,9 @@ import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.CertificateFingerprintManager
-import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.EditorLoading
+import com.v2ray.ang.ui.base.EditorOutcomeEffect
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
 import com.v2ray.ang.ui.compose.FormDropdownField
@@ -58,19 +64,43 @@ abstract class BaseServerActivity : BaseComponentActivity() {
     protected abstract val serverConfigType: EConfigType
 
     protected val editGuid by lazy { intent.getStringExtra("guid").orEmpty() }
-    protected val isRunning by lazy {
-        intent.getBooleanExtra("isRunning", false)
-                && editGuid.isNotEmpty()
-                && editGuid == MmkvManager.getSelectServer()
-    }
     protected val subscriptionId by lazy { intent.getStringExtra("subscriptionId") }
 
-    protected lateinit var initialConfig: ProfileItem
+    /**
+     * The profile the screen opened on. PattNG: read off the main thread by the view model, see
+     * [ServerEditorViewModel.opened]; the screen shows its form, which reads this, only once it is.
+     */
+    protected val initialConfig: ProfileItem
+        get() = checkNotNull(editor.opened.value) { "the profile is read before the screen shows its form" }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val existingConfig = MmkvManager.decodeServerConfig(editGuid)
-        initialConfig = existingConfig ?: ProfileItem.create(serverConfigType)
+    /** PattNG: the save and the delete, which outlive this activity when it is recreated, see [ServerEditorViewModel]. */
+    private val editor: ServerEditorViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                ServerEditorViewModel(
+                    application, ProfileEditorRepository(), editGuid, subscriptionId, serverConfigType, intent.getBooleanExtra("isRunning", false)
+                )
+            }
+        }
+    }
+
+    /** PattNG: the form once the profile it opens on is read, see [initialConfig]; until then, that the screen waits. */
+    @Composable
+    final override fun ScreenContent() {
+        val opened by editor.opened.collectAsStateWithLifecycle()
+        if (opened == null) EditorLoading(serverConfigType.toString()) { finish() } else EditorContent()
+    }
+
+    /** PattNG: the screen's form, shown once the profile it opened on is read, see [initialConfig]. */
+    @Composable
+    protected abstract fun EditorContent()
+
+    /**
+     * PattNG: the screen closes only once the save or the delete that runs has written, telling the screen it returns
+     * to what it did, see [com.v2ray.ang.ui.base.EditorViewModel.leaveScreen].
+     */
+    override fun finish() {
+        if (editor.leaveScreen()) super.finish()
     }
 
     @Composable
@@ -105,20 +135,23 @@ abstract class BaseServerActivity : BaseComponentActivity() {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FormTextField(
-                stringResource(R.string.server_lab_remarks),
-                state.remarks,
-                { state.remarks = it }
+                label = stringResource(R.string.server_lab_remarks),
+                value = state.remarks,
+                onValueChange = { state.remarks = it },
+                isError = state.isRemarksError
             )
             FormTextField(
-                stringResource(R.string.server_lab_address),
-                state.address,
-                { state.address = it }
+                label = stringResource(R.string.server_lab_address),
+                value = state.address,
+                onValueChange = { state.address = it },
+                isError = state.isAddressError
             )
             FormTextField(
-                stringResource(R.string.server_lab_port),
-                state.port,
-                { state.port = it },
-                keyboardType = KeyboardType.Number
+                label = stringResource(R.string.server_lab_port),
+                value = state.port,
+                onValueChange = { state.port = it },
+                keyboardType = KeyboardType.Number,
+                isError = state.isPortError
             )
         }
     }
@@ -228,7 +261,7 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                     keyboardType = KeyboardType.Number
                 )
             }
-            FormTextField(
+            FinalMaskField(
                 stringResource(R.string.server_lab_final_mask),
                 state.finalMask,
                 { state.finalMask = it }
@@ -252,6 +285,17 @@ abstract class BaseServerActivity : BaseComponentActivity() {
             stringResource(R.string.server_lab_dial_mode),
             state.dialMode,
             { state.dialMode = it }
+        )
+    }
+
+    /** targetStrategy is an option of every Xray outbound, so every protocol offers it. */
+    @Composable
+    protected fun CommonTargetStrategyField(state: ServerUiState) {
+        FormDropdownField(
+            stringResource(R.string.server_lab_target_strategy),
+            state.shownTargetStrategy,
+            stringArrayResource(R.array.target_strategy_values).toList(),
+            { state.targetStrategy = it }
         )
     }
 
@@ -299,7 +343,7 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                     options.alpnOptions,
                     { state.alpn = it }
                 )
-                FormTextField(
+                CipherSuitesField(
                     stringResource(R.string.server_lab_cipher_suites),
                     state.cipherSuites,
                     { state.cipherSuites = it }
@@ -308,6 +352,11 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                     stringResource(R.string.server_lab_ech_config_list),
                     state.echConfigList,
                     { state.echConfigList = it }
+                )
+                FormTextField(
+                    stringResource(R.string.server_lab_ech_outbound),
+                    state.echOutbound,
+                    { state.echOutbound = it }
                 )
                 FormTextField(
                     stringResource(R.string.server_lab_verify_peer_cert_by_name),
@@ -380,34 +429,34 @@ abstract class BaseServerActivity : BaseComponentActivity() {
         }
     }
 
-    protected fun validateBasicConfig(state: ServerUiState): Boolean {
-        if (state.remarks.isBlank()) {
-            toast(R.string.server_lab_remarks)
-            return false
-        }
-        if (state.address.isBlank()) {
-            toast(R.string.server_lab_address)
-            return false
-        }
-        if (
-            state.configType != EConfigType.HYSTERIA2 &&
-            (state.port.toIntOrNull() ?: 0) <= 0
-        ) {
-            toast(R.string.server_lab_port)
-            return false
-        }
-        return true
+    protected open fun validateBasicConfig(state: ServerUiState): Boolean {
+        val remarksErr = state.remarks.isBlank()
+        val addressErr = state.address.isBlank()
+        val portErr = state.configType != EConfigType.HYSTERIA2 && (state.port.toIntOrNull() ?: 0) <= 0
+
+        state.isRemarksError = remarksErr
+        state.isAddressError = addressErr
+        state.isPortError = portErr
+
+        val hasError = remarksErr || addressErr || portErr
+        return !hasError
     }
 
     protected open fun validateProtocolConfig(config: ProfileItem): Boolean = true
 
-    protected open fun validateCommonConfig(config: ProfileItem): Boolean {
+    /**
+     * PattNG: the Aether listen port an Aether profile is built on, see [ServerUiState.toProfileItem]; null, the port of
+     * the settings, for the others, which have no core.
+     */
+    protected open val aetherListenPort: Int? get() = null
+
+    protected open fun validateCommonConfig(state: ServerUiState, config: ProfileItem): Boolean {
 
         if (config.password.isNullOrBlank()) {
+            state.isPasswordError = true
             if (config.configType == EConfigType.VMESS ||
                 config.configType == EConfigType.VLESS
             ) {
-                toast(R.string.server_lab_id)
                 return false
             }
 
@@ -415,7 +464,6 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                 config.configType == EConfigType.SHADOWSOCKS ||
                 config.configType == EConfigType.HYSTERIA2
             ) {
-                toast(R.string.server_lab_id3)
                 return false
             }
         }
@@ -435,25 +483,43 @@ abstract class BaseServerActivity : BaseComponentActivity() {
             toast(R.string.server_lab_final_mask)
             return false
         }
+        // PattNG: the ECH outbound is an outbound JSON object with a tag of its own, used with echConfigList
+        val echOutboundError = when (EchOutbound.validate(config)) {
+            null -> null
+            EchOutbound.Error.INVALID_JSON -> R.string.server_lab_ech_outbound
+            EchOutbound.Error.NEEDS_ECH_CONFIG_LIST -> R.string.toast_ech_outbound_needs_ech_config_list
+            EchOutbound.Error.INVALID_TAG -> R.string.toast_ech_outbound_invalid_tag
+        }
+        if (echOutboundError != null) {
+            toast(echOutboundError)
+            return false
+        }
+        // PattNG: TLS settings the Xray-core fork would not apply, or with which it would not connect
+        val tlsError = when (TlsSettingsCheck.validate(config)) {
+            null -> null
+            TlsSettingsCheck.Error.CIPHER_SUITES_NEED_UNSAFE -> R.string.toast_cipher_suites_need_unsafe
+            TlsSettingsCheck.Error.WEBSOCKET_ALPN_NOT_HTTP1 -> R.string.toast_websocket_alpn_http1_only
+        }
+        if (tlsError != null) {
+            toast(tlsError, long = true)
+            return false
+        }
         return true
     }
 
-    protected fun saveServer(state: ServerUiState): Boolean {
-        if (!validateBasicConfig(state)) return false
-        val config = state.toProfileItem(initialConfig)
-        if (!validateCommonConfig(config)) return false
-        if (!validateProtocolConfig(config)) return false
+    /**
+     * Saves the profile the screen holds once it passes the checks. PattNG: it is stored off the main thread, into the
+     * subscription the screen was opened in when it has none, see [ServerEditorViewModel]; the screen closes once it
+     * is, see [ServerEditorScaffold].
+     */
+    protected fun saveServer(state: ServerUiState) {
+        if (!validateBasicConfig(state)) return
+        val config = state.toProfileItem(initialConfig, aetherListenPort)
+        if (!validateCommonConfig(state, config)) return
+        if (!validateProtocolConfig(config)) return
 
         config.description = AngConfigManager.generateDescription(config)
-        if (config.subscriptionId.isEmpty() && !subscriptionId.isNullOrEmpty()) {
-            config.subscriptionId = subscriptionId.orEmpty()
-        }
-        val savedGuid = MmkvManager.encodeServerConfig(editGuid, config)
-        toastSuccess(R.string.toast_success)
-        ProfileEditorResult.run {
-            finishSaved(savedGuid, isRunning)
-        }
-        return true
+        editor.save(config)
     }
 
     @Composable
@@ -464,6 +530,21 @@ abstract class BaseServerActivity : BaseComponentActivity() {
     ) {
         var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
         val scrollState = rememberScrollState()
+        // PattNG: read off the main thread, see ProfileEditorViewModel.isRunning; no delete is offered until it is known.
+        val running by editor.isRunning.collectAsStateWithLifecycle()
+        EditorOutcomeEffect(
+            viewModel = editor,
+            onSaved = { guid ->
+                ProfileEditorResult.run {
+                    finishSaved(guid, editor.isRunning.value == true)
+                }
+            },
+            onDeleted = {
+                ProfileEditorResult.run {
+                    finishDeleted(editGuid)
+                }
+            }
+        )
         Scaffold(
             contentWindowInsets = WindowInsets(0),
             topBar = {
@@ -471,7 +552,7 @@ abstract class BaseServerActivity : BaseComponentActivity() {
                     title = title,
                     onBackClick = { finish() },
                     actions = {
-                        if (editGuid.isNotEmpty() && !isRunning) {
+                        if (editGuid.isNotEmpty() && running == false) {
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(
                                     painterResource(R.drawable.ic_delete_24dp),
@@ -507,23 +588,13 @@ abstract class BaseServerActivity : BaseComponentActivity() {
         if (showDeleteDialog) {
             DeleteConfirmDialog(
                 message = stringResource(R.string.confirm_delete_profile),
+                itemName = initialConfig.remarks,
                 onConfirm = {
                     showDeleteDialog = false
-                    deleteServer(editGuid)
+                    editor.delete()
                 },
                 onDismiss = { showDeleteDialog = false }
             )
-        }
-    }
-
-    private fun deleteServer(guid: String) {
-        if (guid.isEmpty() || guid == MmkvManager.getSelectServer()) {
-            toast(R.string.toast_action_not_allowed)
-            return
-        }
-        MmkvManager.removeServer(guid)
-        ProfileEditorResult.run {
-            finishDeleted(guid)
         }
     }
 }
