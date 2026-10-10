@@ -72,7 +72,7 @@ class ServerPoolParserTest {
         val files = File(requireNotNull(path)).listFiles { file -> file.extension == "html" }!!.toList()
         assertTrue(files.isNotEmpty())
         val results = files.map { ServerPoolParser.inspect(it.readText()) }
-        assertTrue("Actual Telegram responses must produce candidates", results.any { it.links.isNotEmpty() })
+        assertTrue(results.any { it.links.isNotEmpty() }, "Actual Telegram responses must produce candidates")
         results.forEach { assertTrue(it.links.size <= 4) }
     }
 }
