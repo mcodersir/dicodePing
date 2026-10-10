@@ -40,7 +40,6 @@
             <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
                 <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="16">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <Button Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
                         <StackPanel Spacing="0">
                             <TextBlock FontSize="18" FontWeight="SemiBold" Text="DicodePing" />
@@ -49,6 +48,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="8">
+                        <Button Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Button Click="OpenServerPool">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Path

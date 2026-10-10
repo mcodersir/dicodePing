@@ -251,7 +251,9 @@ public partial class CoreConfigSingboxService
             var domainStrategy = _config.RoutingBasicItem.DomainStrategy4Singbox.NullIfEmpty();
             var routing = context.RoutingItem;
             foreach (var processRule in (JsonUtils.Deserialize<List<RulesItem>>(routing?.RuleSet ?? "[]") ?? [])
-                .Where(x => x.Enabled && x.OutboundTag == Global.DirectTag && x.Process?.Count > 0))
+                .Where(x => x.Enabled && x.OutboundTag == Global.DirectTag && x.Process?.Count > 0
+                    && string.IsNullOrEmpty(x.Port) && string.IsNullOrEmpty(x.Network)
+                    && !(x.Domain?.Count > 0) && !(x.Ip?.Count > 0) && !(x.Protocol?.Count > 0) && !(x.InboundTag?.Count > 0)))
             {
                 var normalized = ProcessRoutingPolicy.Normalize(processRule.Process!);
                 var names = normalized.Where(x => !x.Contains('/')).Select(Utils.GetExeName).ToList();

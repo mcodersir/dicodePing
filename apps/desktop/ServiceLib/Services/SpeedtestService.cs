@@ -136,20 +136,16 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     {
         var lstSelected = new List<ServerTestItem>(selecteds.Count);
         var ids = selecteds.Where(it => !it.IndexId.IsNullOrEmpty()
-            && it.ConfigType != EConfigType.Custom
-            && (it.ConfigType.IsComplexType() || it.Port > 0))
+            && (it.ConfigType == EConfigType.Custom || it.ConfigType.IsComplexType() || it.Port > 0))
             .Select(it => it.IndexId)
             .ToList();
         var profileMap = await AppManager.Instance.GetProfileItemsByIndexIdsAsMap(ids);
         for (var i = 0; i < selecteds.Count; i++)
         {
             var it = selecteds[i];
-            if (it.ConfigType == EConfigType.Custom)
-            {
-                continue;
-            }
+            if (it.ConfigType == EConfigType.Custom && (actionType is ESpeedActionType.Tcping or ESpeedActionType.Location or ESpeedActionType.UdpTest || it.CoreType is not (ECoreType.Xray or ECoreType.sing_box))) continue;
 
-            if (!it.ConfigType.IsComplexType() && it.Port <= 0)
+            if (it.ConfigType != EConfigType.Custom && !it.ConfigType.IsComplexType() && it.Port <= 0)
             {
                 continue;
             }

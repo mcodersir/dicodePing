@@ -161,7 +161,7 @@ public class CoreManager
 
     private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
     {
-        if (selecteds.Any(x => _config.EntryHopItem.Applies(x.Profile))) return null;
+        if (selecteds.Any(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile))) return null;
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);

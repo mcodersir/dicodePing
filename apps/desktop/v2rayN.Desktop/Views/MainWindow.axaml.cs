@@ -509,7 +509,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
                 await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.Location, reachable, cts.Token);
             }
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            var best = ViewModel.ProfilesViewModel.ProfileItems.Where(x => x.Subid == primary.Id && x.Delay > 0).OrderBy(x => x.Delay).FirstOrDefault();
+            var best = reachable.OrderBy(x => delays.GetValueOrDefault(x.IndexId)).FirstOrDefault();
             if (best is not null && !CoreManager.Instance.IsRunning)
                 await ViewModel.ProfilesViewModel.SetDefaultServer(best.IndexId);
             await ViewModel.StatusBarViewModel.RefreshServersBiz();

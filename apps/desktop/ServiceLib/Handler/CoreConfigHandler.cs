@@ -189,7 +189,13 @@ public static class CoreConfigHandler
         var port = Utils.GetFreePort(initPort + testItem.QueueNum);
         testItem.Port = port;
 
-        if (context.RunCoreType == ECoreType.sing_box)
+        if (context.Node.ConfigType == EConfigType.Custom)
+        {
+            var source = context.Node.Address;
+            if (!File.Exists(source)) source = Utils.GetConfigPath(source);
+            result = new RetResult { Success = true, Data = CustomProbeConfiguration.Build(await File.ReadAllTextAsync(source), context.RunCoreType, port) };
+        }
+        else if (context.RunCoreType == ECoreType.sing_box)
         {
             result = new CoreConfigSingboxService(context).GenerateClientSpeedtestConfig(port);
         }

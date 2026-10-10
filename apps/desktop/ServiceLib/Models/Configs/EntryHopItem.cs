@@ -11,6 +11,7 @@ public class EntryHopItem
     public string LastTransport { get; set; } = "";
     public string NetworkKey { get; set; } = "";
     public int ConsecutiveFailures { get; set; }
+    public int RescanAfterFailures { get; set; } = 3;
     public bool Applies(ProfileItem node) => Enabled && (ProfileId.IsNotEmpty() ? node.IndexId == ProfileId
         : SubscriptionId.IsNotEmpty() ? node.Subid == SubscriptionId : true);
 }

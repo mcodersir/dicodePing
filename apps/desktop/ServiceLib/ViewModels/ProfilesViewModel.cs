@@ -958,7 +958,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                     : await GetProfileItems(false);
             }
             finally { ProfileOperationCoordinator.Gate.Release(); }
-            selected = selected?.Where(x => x.ConfigType != EConfigType.Custom && (x.ConfigType.IsComplexType() || x.Port > 0))
+            selected = selected?.Where(x => (x.ConfigType == EConfigType.Custom || x.ConfigType.IsComplexType() || x.Port > 0))
                 .DistinctBy(x => x.IndexId).ToList();
             if (selected is not { Count: > 0 }) return;
             var run = new ProbeRunModel { Total = selected.Count, Name = actionType switch {

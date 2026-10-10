@@ -12,6 +12,8 @@ public sealed class EntryHopWindow : Window
     {
         var config = AppManager.Instance.Config;
         var item = config.EntryHopItem;
+        CancellationTokenSource? scanCancellation = null;
+        Closed += (_, _) => scanCancellation?.Cancel();
         Title = ResUI.DicodeEntryTitle; Width = 620; Height = 560; MinWidth = 400;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var enabled = new CheckBox { Content = ResUI.DicodeEntryEnable, IsChecked = item.Enabled };
@@ -22,6 +24,19 @@ public sealed class EntryHopWindow : Window
         var port = new TextBox { Text = item.Port.ToString(), PlaceholderText = "61080" };
         var status = new TextBlock { Text = item.LastTransport, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         var save = new Button { Content = ResUI.TbConfirm, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var discover = new Button { Content = ResUI.DicodeDiscoverMask, HorizontalAlignment = HorizontalAlignment.Stretch };
+        discover.Click += async (_, _) => {
+            var selected = main.ProfilesViewModel.SelectedProfile?.IndexId ?? config.IndexId;
+            var profile = await AppManager.Instance.GetProfileItem(selected);
+            if (profile is null) { status.Text = ResUI.PleaseSelectServer; return; }
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90)); scanCancellation = cts;
+            discover.IsEnabled = false;
+            try { await main.ProfilesViewModel.StopDiagnosticsAsync();
+                var delay = await FinalMaskDiscovery.DiscoverAsync(config, profile, text => { Avalonia.Threading.Dispatcher.UIThread.Post(() => status.Text = text); return Task.CompletedTask; }, cts.Token);
+                status.Text = ResUI.DicodeEntryReady + " · " + delay + " ms"; await main.ProfilesViewModel.RefreshServersBiz();
+            } catch (Exception ex) { Logging.SaveLog("FinalMask discovery", ex); status.Text = ex.Message; }
+            finally { scanCancellation = null; discover.IsEnabled = true; }
+        };
         var scan = new Button { Content = ResUI.DicodeEntryRescan, HorizontalAlignment = HorizontalAlignment.Stretch };
         bool Save()
         {
@@ -41,6 +56,7 @@ public sealed class EntryHopWindow : Window
             if (!Save()) return;
             scan.IsEnabled = false; save.IsEnabled = false;
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            scanCancellation = cts;
             try
             {
                 await main.ProfilesViewModel.StopDiagnosticsAsync();
@@ -50,12 +66,12 @@ public sealed class EntryHopWindow : Window
                 status.Text = ResUI.DicodeEntryReady + " · " + item.LastTransport;
             }
             catch (Exception ex) { Logging.SaveLog("Entry-hop scan", ex); status.Text = ResUI.DicodeEntryFailed; }
-            finally { scan.IsEnabled = true; save.IsEnabled = true; }
+            finally { scanCancellation = null; scan.IsEnabled = true; save.IsEnabled = true; }
         };
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(24), Spacing = 14, Children = {
             new TextBlock { Text = ResUI.DicodeEntryTitle, FontSize = 24 },
             new TextBlock { Text = ResUI.DicodeEntryHint, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-            enabled, kind, scope, policy, new TextBlock { Text = ResUI.DicodeEntryPort }, port, status, scan, save
+            enabled, kind, scope, policy, new TextBlock { Text = ResUI.DicodeEntryPort }, port, status, scan, discover, save
         } } };
     }
 }

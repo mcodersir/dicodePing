@@ -9,6 +9,7 @@ public static class EntryHopService
     private static ProcessService? _process;
     private static string _activeKey = "";
     private static bool _stopping;
+    private static CancellationTokenSource? _health;
     public static event Func<Task>? Failed;
     public static string NetworkKey() => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|",
         NetworkInterface.GetAllNetworkInterfaces().Where(x => x.OperationalStatus == OperationalStatus.Up)
@@ -50,7 +51,7 @@ public static class EntryHopService
             if (IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(x => x.Port == item.Port))
                 throw new InvalidOperationException(ResUI.DicodeEntryPortBusy);
             var candidates = Candidates(item).ToList();
-            if (!rescan && item.NetworkKey == network && candidates.Remove(item.LastTransport)) candidates.Insert(0, item.LastTransport);
+            if (!rescan && item.ConsecutiveFailures < item.RescanAfterFailures && item.NetworkKey == network && candidates.Remove(item.LastTransport)) candidates.Insert(0, item.LastTransport);
             var successes = new List<(string Transport, long Delay)>();
             using var overall = CancellationTokenSource.CreateLinkedTokenSource(token);
             overall.CancelAfter(TimeSpan.FromMinutes(3));
@@ -99,6 +100,7 @@ public static class EntryHopService
             item.ConsecutiveFailures = 0;
             _activeKey = key;
             await ConfigHandler.SaveConfig(config);
+            StartHealthMonitor(config, key);
         }
         catch { await StopProcessAsync(); throw; }
         finally { Gate.Release(); }
@@ -119,15 +121,16 @@ public static class EntryHopService
         var directory = Utils.GetBinPath("", "aether");
         var binary = Path.Combine(directory, Utils.GetExeName("aether"));
         if (!File.Exists(binary)) throw new FileNotFoundException(ResUI.DicodeEntryFailed, binary);
-        var listener = item.Kind == "psiphon" ? "--psiphon-bind" : item.Kind == "aether-tor" ? "--tor-bind" : "--bind";
+        var listener = item.Kind == "psiphon" ? "--bind" : item.Kind == "aether-tor" ? "--tor-bind" : "--bind";
         var args = item.Kind == "psiphon" ? "--psiphon-only" : transport switch
         {
             "masque-h3" or "masque-h2" => "--masque",
             "gool-classic" => "--gool-classic",
-            _ => ""
+            _ => "--wg"
         };
         if (item.Kind == "aether-psiphon") { args += " --psiphon"; listener = "--psiphon-bind"; }
         if (item.Kind == "aether-tor") args += " --tor";
+        args += " --turbo -4 --quick-reconnect";
         args += $" {listener} 127.0.0.1:{item.Port} --config {Utils.GetConfigPath("aether-identity.json").AppendQuotes()}";
         var environment = new Dictionary<string, string> { ["AETHER_MASQUE_HTTP2"] = transport == "masque-h2" ? "1" : "0" };
         _process = new ProcessService(binary, args, directory, true, false, environment,
@@ -136,8 +139,42 @@ public static class EntryHopService
         await _process.StartAsync();
     }
 
+    private static void StartHealthMonitor(Config config, string key)
+    {
+        _health?.Cancel(); _health?.Dispose();
+        _health = new CancellationTokenSource();
+        var token = _health.Token;
+        _ = Task.Run(async () => {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), token);
+                    if (_activeKey != key) return;
+                    var item = config.EntryHopItem;
+                    var networkChanged = item.NetworkKey != NetworkKey();
+                    if (!networkChanged)
+                    {
+                        try { await ProbeAsync(item.Port, config.SpeedTestItem.SpeedPingTestUrl, token); item.ConsecutiveFailures = 0; continue; }
+                        catch (OperationCanceledException) { throw; }
+                        catch (Exception ex) { Logging.SaveLog("Entry-hop health check", ex); item.ConsecutiveFailures++; }
+                        if (item.ConsecutiveFailures < item.RescanAfterFailures) continue;
+                    }
+                    Logging.SaveLog(networkChanged ? "Entry-hop network changed; reconnecting without direct fallback" : "Entry-hop health failed; rescanning transports");
+                    _activeKey = "";
+                    await ConfigHandler.SaveConfig(config);
+                    if (Failed is { } failed) await failed();
+                    return;
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Logging.SaveLog("Entry-hop monitor", ex); }
+        }, token);
+    }
+
     private static async Task StopProcessAsync()
     {
+        _health?.Cancel(); _health?.Dispose(); _health = null;
         _stopping = true;
         try { if (_process is not null) { await _process.StopAsync(); _process.Dispose(); _process = null; } _activeKey = ""; }
         finally { _stopping = false; }
