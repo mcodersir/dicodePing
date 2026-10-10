@@ -493,9 +493,10 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, primary!.Id, false,
                 (_, message) => { Dispatcher.UIThread.Post(() => ViewModel.PreparationStatus = message); return Task.CompletedTask; }, cts.Token));
             cts.Token.ThrowIfCancellationRequested();
+            _config.SubIndexId = primary!.Id;
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
-            var profiles = await AppManager.Instance.ProfileItems(primary!.Id) ?? [];
+            var profiles = await AppManager.Instance.ProfileItems(primary.Id) ?? [];
             if (profiles.Count == 0) return;
             ViewModel.PreparationStatus = ResUI.DicodeProbeLatency;
             await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, profiles, cts.Token);
