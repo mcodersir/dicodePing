@@ -28,10 +28,10 @@ class MainActivityRemoteTest {
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes().isNotEmpty() }
-                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+                remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithText("Remote test server one").assertIsFocused()
-                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == first }
                 // Traverse the actual list/grid, including its nested row buttons, with a remote.
                 val oneBounds = compose.onNodeWithText("Remote test server one").fetchSemanticsNode().boundsInRoot
@@ -41,15 +41,15 @@ class MainActivityRemoteTest {
                     twoBounds.left >= oneBounds.right -> KeyEvent.KEYCODE_DPAD_RIGHT
                     else -> KeyEvent.KEYCODE_DPAD_LEFT
                 }
-                Espresso.pressKey(nextKey)
+                remoteKey(nextKey)
                 compose.onNodeWithText("Remote test server two").assertIsFocused()
-                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }
                 compose.onNodeWithContentDescription(connect).performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithContentDescription(connect).assertIsFocused().assertHasClickAction()
                 compose.onNodeWithContentDescription(menu).performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithContentDescription(menu).assertIsFocused()
-                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.onNodeWithText(settings).assertIsDisplayed()
                 // BACK is dispatched by Android to OnBackPressedDispatcher, outside Compose key input.
                 Espresso.pressBack()

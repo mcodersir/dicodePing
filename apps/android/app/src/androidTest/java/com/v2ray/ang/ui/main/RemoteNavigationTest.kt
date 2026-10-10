@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import android.view.KeyEvent
-import androidx.test.espresso.Espresso
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -16,6 +16,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.assertEquals
+
+/** Native key injection also switches Android out of touch mode, as a physical remote does. */
+internal fun remoteKey(keyCode: Int) = InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(keyCode)
 
 class RemoteNavigationTest {
     @get:Rule val compose = createComposeRule()
@@ -33,24 +36,24 @@ class RemoteNavigationTest {
                 }
             }
         }
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("server1").performSemanticsAction(SemanticsActions.RequestFocus)
         compose.onNodeWithTag("server1").assertIsFocused()
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+        remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, selected) }
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("server2").assertIsFocused()
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+        remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(2, selected) }
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("connect").assertIsFocused()
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+        remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, connects) }
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("menu").assertIsFocused()
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
+        remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, menus) }
-        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_UP)
+        remoteKey(KeyEvent.KEYCODE_DPAD_UP)
         compose.onNodeWithTag("connect").assertIsFocused()
     }
 }
