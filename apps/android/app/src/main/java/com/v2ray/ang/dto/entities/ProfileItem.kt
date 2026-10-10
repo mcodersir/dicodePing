@@ -85,6 +85,7 @@ data class ProfileItem(
      */
     var targetStrategy: String? = null,
 
+    var aetherDiscoveryFailures: Int = 0,
     var aetherDiscoveryNetwork: String? = null,
     var aetherProtocol: String? = null,
     var aetherTransport: String? = null,

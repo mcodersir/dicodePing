@@ -135,6 +135,7 @@ object CoreServiceManager {
             doStartCoreLoop(service, vpnInterface)
             return true
         } catch (e: Exception) {
+            MmkvManager.getSelectServer()?.let(AetherTransportDiscovery::recordFailure)
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, userFacingReason(e))
@@ -340,6 +341,7 @@ object CoreServiceManager {
         ContextCompat.getMainExecutor(service).execute {
             if (aetherExitHandled || AetherCoreManager.isRunning || !isRunning() || serviceControl?.get() !== control) return@execute
             aetherExitHandled = true
+            AetherTransportDiscovery.recordFailure(guid)
             LogUtil.e(
                 AppConfig.TAG,
                 "StartCore-Manager: Aether core exited while running, stopping ${service.javaClass.simpleName}, guid=$guid"

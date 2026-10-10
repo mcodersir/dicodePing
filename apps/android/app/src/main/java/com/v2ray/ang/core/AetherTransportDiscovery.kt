@@ -17,6 +17,15 @@ import java.util.UUID
 /** Uses the packaged helper's supported modes; readiness always means traffic through its SOCKS endpoint. */
 object AetherTransportDiscovery {
     private val gate = Mutex()
+    fun recordFailure(guid: String) {
+        try {
+            val profile = MmkvManager.decodeServerConfig(guid) ?: return
+            if (profile.configType != EConfigType.AETHER) return
+            val failures = profile.aetherDiscoveryFailures + 1
+            MmkvManager.encodeServerConfig(guid, profile.copy(aetherDiscoveryFailures = failures,
+                aetherDiscoveryNetwork = if (failures >= 3) null else profile.aetherDiscoveryNetwork))
+        } catch (error: Exception) { com.v2ray.ang.util.LogUtil.e(AppConfig.TAG, "Could not persist helper failure", error) }
+    }
     private fun networkKey(context: Context): String {
         val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = manager.activeNetwork
@@ -58,7 +67,7 @@ object AetherTransportDiscovery {
             val winner = successes.minByOrNull { it.second } ?: error("No Aether/Psiphon transport passed real traffic tests")
             val current = MmkvManager.decodeServerConfig(guid) ?: error("Profile no longer exists")
             check(JsonUtil.toJson(current) == identity) { "Profile changed during discovery" }
-            MmkvManager.encodeServerConfig(guid, winner.first.copy(aetherDiscoveryNetwork = key))
+            MmkvManager.encodeServerConfig(guid, winner.first.copy(aetherDiscoveryNetwork = key, aetherDiscoveryFailures = 0))
             winner.second
         }
     }
