@@ -6,6 +6,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso
+import androidx.test.platform.app.InstrumentationRegistry
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -19,6 +20,14 @@ import org.junit.Assert.assertEquals
 class MainActivityRemoteTest {
     @get:Rule val compose = createEmptyComposeRule()
     @Test fun mainScreenRowsConnectionControlAndDrawerAreReachable() {
+        // Exercise the app's remote navigation after first-run Android notification consent.
+        // The OS dialog owns a separate window and is outside this screen's focus traversal.
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            instrumentation.uiAutomation.grantRuntimePermission(
+                instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS
+            )
+        }
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
         MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, "")
         val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
