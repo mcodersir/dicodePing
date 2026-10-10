@@ -37,7 +37,7 @@ class MainActivityRemoteTest {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
-                compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes().isNotEmpty() }
+                compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithText("Remote test server one").assertIsFocused()
