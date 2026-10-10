@@ -29,6 +29,7 @@ class MainActivityRemoteTest {
             )
         }
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
+        MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 3)
         MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, "")
         val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
         val second = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server two"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
