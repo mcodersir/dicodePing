@@ -383,7 +383,12 @@ public partial class MainWindowViewModel : MyReactiveObject
         await ProfileExManager.Instance.Init();
         await CoreManager.Instance.Init(_config, UpdateHandler);
         CoreManager.Instance.UnexpectedExit += RecoverUnexpectedCoreExitAsync;
-        EntryHopService.Failed += async () => { await CoreManager.Instance.CoreStop(); await RecoverUnexpectedCoreExitAsync(-1); };
+        EntryHopService.Failed += async () => {
+            var selected = await AppManager.Instance.GetProfileItem(_config.IndexId);
+            if (selected is not null && _config.EntryHopItem.Applies(selected)) {
+                await CoreManager.Instance.CoreStop(); await RecoverUnexpectedCoreExitAsync(-1);
+            }
+        };
         await CertPemManager.Instance.Init(_config);
         TaskManager.Instance.RegUpdateTask(_config, UpdateTaskHandler);
 

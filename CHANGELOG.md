@@ -1,3 +1,19 @@
+## 4.4.0 — Verified routes and simpler connections
+
+- Optional automatic real-latency testing and sorting when the default subscription exists and is enabled, on startup and manual refresh. Desktop preparation reports real progress and locations before Home; skip/cancellation is bounded.
+- Best/selected desktop connection uses the requested server and awaits the actual core start. Failed or untested profiles cannot be selected as best.
+- Isolated Xray/sing-box custom-profile probes retain outbound chains and leave the original configuration file intact. Android custom probes exclude conflicting service/TUN inbounds.
+- Integrate PattNG 2.3.10-P63 source and transactional profile/subscription persistence, request IDs, focus indicators and TV remote activation. Ship a signed Universal APK.
+- PattN 7.25.5-P32 has no desktop C#/resource changes from the integrated P31 base; update its runtime dependencies and apply Dicode-specific DIRECT process priority and desktop page persistence.
+- Managed desktop Aether/Psiphon entry hops, scoped to one profile, one subscription or all; real SOCKS traffic validation, first/best policies, network-scoped winning mode, bounded scans, logs, lifecycle cleanup and configurable recovery threshold. Aether→Psiphon/Tor presets and existing local SOCKS mode are available.
+- Android Aether/Psiphon uses P63 native profiles/chains; optional transport discovery on selected Aether profiles with first/best policies, real traffic tests, network cache and manual rescan. Custom command lines are preserved and not rewritten.
+- FinalMask discovery for individual TLS/Xray profiles on both platforms persists a candidate only after two successful real probes. No unsupported Desync switch is advertised.
+- Opt-in SNI import preset uses unsafe ClientHello fingerprint, supported TCP fragmentation and cipher suites without disabling certificate verification or overwriting an existing mask/cipher list.
+- Runtime pins: desktop Xray v26.10.9; AndroidLibXrayLite v26.10.10; sing-box v1.14.3; Mihomo v1.19.32 (latest unchanged); Aether v2.3.0. SHA-256 pins are checked before packaging.
+- Updated responsive bilingual 4.4 download page, including Universal APK.
+
+Compatibility: managed desktop entry hops reject custom JSON rather than guessing a chain. Aether is unavailable on Android x86; it is included on arm64-v8a, armeabi-v7a and x86_64. UDP depends on the selected helper/transport. Android discovery is applied before a user starts an Aether profile and can be rerun manually; it does not reconfigure a running VPN's helper automatically. Desync is not implemented by the pinned Xray fork.
+
 ## 4.3.0 — Refresh, diagnostics and subscription reliability
 
 - Desktop refresh downloads the selected subscription (or all subscriptions), shows status, cancels diagnostics before profile replacement, and preserves the active connection.

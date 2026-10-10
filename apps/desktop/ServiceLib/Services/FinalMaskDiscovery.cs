@@ -25,7 +25,7 @@ public static class FinalMaskDiscovery
             {
                 using var candidate = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
                 candidate.CancelAfter(TimeSpan.FromSeconds(25));
-                process = await CoreManager.Instance.LoadCoreConfigSpeedtest(item);
+                process = await CoreManager.Instance.LoadCoreConfigSpeedtest(item, candidate.Token);
                 candidate.Token.ThrowIfCancellationRequested();
                 if (process is null) throw new IOException("Cannot start candidate core");
                 var first = await EntryHopService.ProbeAsync(item.Port, config.SpeedTestItem.SpeedPingTestUrl, candidate.Token);

@@ -2427,4 +2427,5 @@ https://t.me/dicodeping‏</value>
 <data name="DicodeSniPreset" xml:space="preserve"><value>پیش‌تنظیم SNI برای کانفیگ‌های TLS واردشده (اختیاری)</value></data>
 <data name="DicodeDiscoverMask" xml:space="preserve"><value>یافتن FinalMask مناسب</value></data>
 <data name="DicodeDiscoverFailed" xml:space="preserve"><value>هیچ پیش‌تنظیم موفق نبود؛ تنظیمات اصلی حفظ شد.</value></data>
+<data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>Rescan after this many consecutive failures</value></data>
 </root>

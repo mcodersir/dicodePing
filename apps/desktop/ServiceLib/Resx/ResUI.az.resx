@@ -1958,4 +1958,5 @@ Təyin edildikdə sertifikat sabitlənəcək və "Təhlükəsiz olmayan əlaqəy
 <data name="DicodeSniPreset" xml:space="preserve"><value>SNI-block preset for imported TLS profiles (opt-in)</value></data>
 <data name="DicodeDiscoverMask" xml:space="preserve"><value>Find a working FinalMask</value></data>
 <data name="DicodeDiscoverFailed" xml:space="preserve"><value>No tested preset worked; original settings kept.</value></data>
+<data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>Rescan after this many consecutive failures</value></data>
 </root>

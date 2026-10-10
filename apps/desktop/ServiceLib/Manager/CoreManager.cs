@@ -126,14 +126,14 @@ public class CoreManager
         finally { _probeLaunchLock.Release(); }
     }
 
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem item)
+    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem item, CancellationToken token = default)
     {
-        await _probeLaunchLock.WaitAsync();
-        try { return await ReadyProbe(await StartProbeItem(item), [item.Port]); }
+        await _probeLaunchLock.WaitAsync(token);
+        try { return await ReadyProbe(await StartProbeItem(item, token), [item.Port], token); }
         finally { _probeLaunchLock.Release(); }
     }
 
-    private static async Task<ProcessService?> ReadyProbe(ProcessService? process, IEnumerable<int> ports)
+    private static async Task<ProcessService?> ReadyProbe(ProcessService? process, IEnumerable<int> ports, CancellationToken token = default)
     {
         if (process is null) return null;
         var portList = ports.ToList();
@@ -142,8 +142,9 @@ public class CoreManager
             foreach (var port in portList)
             {
                 var ready = false;
-                for (var attempt = 0; attempt < 40 && !process.HasExited; attempt++)
+                for (var attempt = 0; attempt < 100 && !process.HasExited; attempt++)
                 {
+                    token.ThrowIfCancellationRequested();
                     try
                     {
                         using var client = new TcpClient();
@@ -182,7 +183,7 @@ public class CoreManager
         return process;
     }
 
-    private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem)
+    private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem, CancellationToken token)
     {
         var node = testItem.Profile;
         if (node is null)
@@ -193,7 +194,7 @@ public class CoreManager
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
         var (context, _) = await CoreConfigContextBuilder.Build(_config, node);
-        await EntryHopService.EnsureReadyAsync(context);
+        await EntryHopService.EnsureReadyAsync(context, token);
         var result = await CoreConfigHandler.GenerateClientSpeedtestConfig(_config, context, testItem, configPath);
         if (result.Success != true)
         {

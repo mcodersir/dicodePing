@@ -21,6 +21,7 @@ public sealed class EntryHopWindow : Window
         var kind = new ComboBox { ItemsSource = new[] { "Aether", "Psiphon", "Aether → Psiphon", "Aether → Tor", ResUI.DicodeEntryExternal }, SelectedIndex = Math.Max(0, Array.IndexOf(kinds, item.Kind)), HorizontalAlignment = HorizontalAlignment.Stretch };
         var scope = new ComboBox { ItemsSource = new[] { ResUI.DicodeEntryProfile, ResUI.DicodeEntrySubscription, ResUI.DicodeEntryAll }, SelectedIndex = item.ProfileId.IsNotEmpty() ? 0 : item.SubscriptionId.IsNotEmpty() ? 1 : 2, HorizontalAlignment = HorizontalAlignment.Stretch };
         var policy = new ComboBox { ItemsSource = new[] { ResUI.DicodeEntryFirst, ResUI.DicodeEntryBest }, SelectedIndex = item.Policy == "best" ? 1 : 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var failures = new NumericUpDown { Minimum = 1, Maximum = 10, Value = Math.Clamp(item.RescanAfterFailures, 1, 10), Increment = 1 };
         var port = new TextBox { Text = item.Port.ToString(), PlaceholderText = "61080" };
         var status = new TextBlock { Text = item.LastTransport, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         var save = new Button { Content = ResUI.TbConfirm, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -47,7 +48,7 @@ public sealed class EntryHopWindow : Window
             { status.Text = ResUI.PleaseSelectServer; return false; }
             item.Enabled = enabled.IsChecked == true; item.Kind = kinds[kind.SelectedIndex];
             item.ProfileId = profileId ?? ""; item.SubscriptionId = subscriptionId ?? "";
-            item.Port = parsed; item.Policy = policy.SelectedIndex == 1 ? "best" : "first";
+            item.Port = parsed; item.RescanAfterFailures = (int)(failures.Value ?? 3); item.Policy = policy.SelectedIndex == 1 ? "best" : "first";
             return true;
         }
         save.Click += async (_, _) => { if (!Save()) return; await ConfigHandler.SaveConfig(config); Close(); };
@@ -71,7 +72,7 @@ public sealed class EntryHopWindow : Window
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(24), Spacing = 14, Children = {
             new TextBlock { Text = ResUI.DicodeEntryTitle, FontSize = 24 },
             new TextBlock { Text = ResUI.DicodeEntryHint, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-            enabled, kind, scope, policy, new TextBlock { Text = ResUI.DicodeEntryPort }, port, status, scan, discover, save
+            enabled, kind, scope, policy, new TextBlock { Text = ResUI.DicodeEntryFailureThreshold }, failures, new TextBlock { Text = ResUI.DicodeEntryPort }, port, status, scan, discover, save
         } } };
     }
 }
