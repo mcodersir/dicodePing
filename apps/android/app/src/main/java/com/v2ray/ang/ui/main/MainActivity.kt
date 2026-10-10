@@ -338,7 +338,8 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            moveTaskToBack(false)
+            // Let the visible drawer/dialog consume gamepad BACK before the main task is backgrounded.
+            onBackPressedDispatcher.onBackPressed()
             return true
         }
         return super.onKeyDown(keyCode, event)

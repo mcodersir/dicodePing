@@ -64,6 +64,11 @@ class MainActivityRemoteTest {
                 // BACK is dispatched by Android to OnBackPressedDispatcher, outside Compose key input.
                 Espresso.pressBack()
                 compose.onNodeWithText("Remote test server two").assertIsDisplayed()
+                compose.onNodeWithContentDescription(menu).performSemanticsAction(SemanticsActions.RequestFocus)
+                remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
+                compose.onNodeWithText(settings).assertIsDisplayed()
+                remoteKey(KeyEvent.KEYCODE_BUTTON_B)
+                compose.onNodeWithText("Remote test server two").assertIsDisplayed()
                 assertEquals(second, MmkvManager.getSelectServer())
             }
         } finally { MmkvManager.tryRemoveServer(first); MmkvManager.tryRemoveServer(second) }
