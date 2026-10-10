@@ -19,12 +19,13 @@ class MainActivityRemoteTest {
     @get:Rule val compose = createEmptyComposeRule()
     @Test fun mainScreenRowsConnectionControlAndDrawerAreReachable() {
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
+        MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, "")
         val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
         val second = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server two"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
         try {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 var menu = ""; var settings = ""; var connect = ""
-                scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_settings); connect = it.getString(R.string.fab_manual_connect) }
+                scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithText("Remote test server one").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }

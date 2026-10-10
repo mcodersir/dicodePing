@@ -21,7 +21,7 @@ public static class EntryHopService
         "psiphon" => ["psiphon-auto"],
         "aether-psiphon" => ["masque-h3", "masque-h2", "wireguard"],
         "aether-tor" => ["masque-h3", "masque-h2", "wireguard"],
-        _ => ["masque-h3", "masque-h2", "wireguard", "gool-classic"],
+        _ => ["masque-h3", "masque-h2", "wireguard", "gool-classic", "gool-masque-h3", "gool-masque-h2", "mim-h3", "mim-h2"],
     };
 
     public static async Task EnsureReadyAsync(CoreConfigContext context, CancellationToken token = default)
@@ -57,7 +57,7 @@ public static class EntryHopService
             overall.CancelAfter(TimeSpan.FromMinutes(3));
             foreach (var candidate in candidates)
             {
-                overall.Token.ThrowIfCancellationRequested();
+                if (overall.IsCancellationRequested) { token.ThrowIfCancellationRequested(); break; }
                 try
                 {
                     await StartAsync(item, candidate);
@@ -76,7 +76,7 @@ public static class EntryHopService
                     Logging.SaveLog($"Entry hop: {candidate} validated through SOCKS ({delay} ms)");
                     if (item.Policy != "best") break;
                 }
-                catch (OperationCanceledException) when (overall.IsCancellationRequested) { throw; }
+                catch (OperationCanceledException) when (overall.IsCancellationRequested) { token.ThrowIfCancellationRequested(); break; }
                 catch (Exception ex) { Logging.SaveLog($"Entry hop: {candidate} failed", ex); }
                 await StopProcessAsync();
             }
@@ -86,7 +86,7 @@ public static class EntryHopService
             {
                 await StopProcessAsync();
                 await StartAsync(item, winner);
-                using var ready = CancellationTokenSource.CreateLinkedTokenSource(overall.Token);
+                using var ready = CancellationTokenSource.CreateLinkedTokenSource(token);
                 ready.CancelAfter(TimeSpan.FromSeconds(40));
                 while (true)
                 {
@@ -129,13 +129,21 @@ public static class EntryHopService
         {
             "masque-h3" or "masque-h2" => "--masque",
             "gool-classic" => "--gool-classic",
+            "gool-masque-h3" or "gool-masque-h2" => "--gool",
+            "mim-h3" or "mim-h2" => "--mim",
             _ => "--wg"
         };
         if (item.Kind == "aether-psiphon") { args += " --psiphon"; listener = "--psiphon-bind"; }
         if (item.Kind == "aether-tor") args += " --tor";
+        var psiphon = Path.Combine(directory, "pt", Utils.GetExeName("psiphon-tunnel-core"));
+        if (File.Exists(psiphon)) args += " --psiphon-bin " + psiphon.AppendQuotes();
         args += " --turbo -4 --quick-reconnect";
         args += $" {listener} 127.0.0.1:{item.Port} --config {Utils.GetConfigPath("aether-identity.json").AppendQuotes()}";
-        var environment = new Dictionary<string, string> { ["AETHER_MASQUE_HTTP2"] = transport == "masque-h2" ? "1" : "0" };
+        var environment = new Dictionary<string, string> {
+            ["AETHER_MASQUE_HTTP2"] = transport.EndsWith("-h2", StringComparison.Ordinal) ? "1" : "0",
+            ["HTTP_PROXY"] = "", ["HTTPS_PROXY"] = "", ["ALL_PROXY"] = "",
+            ["http_proxy"] = "", ["https_proxy"] = "", ["all_proxy"] = "", ["NO_PROXY"] = "*", ["no_proxy"] = "*"
+        };
         _process = new ProcessService(binary, args, directory, true, false, environment,
             (_, line) => { Logging.SaveLog("Entry hop: " + line); return Task.CompletedTask; });
         _process.Exited += exitCode => { if (!_stopping && _activeKey.IsNotEmpty()) { _activeKey = ""; if (Failed is { } failed) _ = failed(); } };
