@@ -1,8 +1,8 @@
 package com.v2ray.ang.handler
 
 import java.io.File
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class ServerPoolParserTest {
     @Test fun allThreeSamplesMustPass() {
@@ -68,7 +68,7 @@ class ServerPoolParserTest {
 
     @Test fun releaseSmokeExtractsActualTelegramResponses() {
         val path = System.getenv("POOL_LIVE_FIXTURES")
-        org.junit.Assume.assumeTrue("Live source check runs in release CI", path != null)
+        org.junit.jupiter.api.Assumptions.assumeTrue(path != null, "Live source check runs in release CI")
         val files = File(requireNotNull(path)).listFiles { file -> file.extension == "html" }!!.toList()
         assertTrue(files.isNotEmpty())
         val results = files.map { ServerPoolParser.inspect(it.readText()) }

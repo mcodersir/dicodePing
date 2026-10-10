@@ -46,6 +46,7 @@ class MainViewModelServersChangedTest {
      * stored, recorded in [moves], at once or, held by [hold], once [release] lets it, or refused, see [refusals].
      */
     private class FakeSource : MainDataSource {
+        override fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) = Unit
         val events = Channel<MainServiceEvent>(Channel.UNLIMITED)
 
         @Volatile
