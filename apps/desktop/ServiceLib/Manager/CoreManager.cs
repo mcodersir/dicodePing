@@ -184,7 +184,7 @@ public class CoreManager
 
     private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem)
     {
-        var node = await AppManager.Instance.GetProfileItem(testItem.IndexId);
+        var node = testItem.Profile;
         if (node is null)
         {
             return null;

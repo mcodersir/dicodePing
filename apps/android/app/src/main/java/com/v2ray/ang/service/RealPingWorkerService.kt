@@ -53,6 +53,7 @@ class RealPingWorkerService(
     private val onlyTcp: Boolean = false,
     private val locationOnly: Boolean = false,
     private val sanctionsOnly: Boolean = false,
+    private val batch: String = UUID.randomUUID().toString(),
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
     private val job = SupervisorJob()
@@ -61,7 +62,6 @@ class RealPingWorkerService(
     private val scope = CoroutineScope(job + dispatcher + CoroutineName("RealPingBatchWorker"))
 
     // Names the measurements of this batch in the native core, so that cancel() ends them and no other batch's
-    private val batch = UUID.randomUUID().toString()
 
     private val runningCount = AtomicInteger(0)
     private val totalCount = AtomicInteger(0)
@@ -248,5 +248,5 @@ class RealPingWorkerService(
 /** Pool and main-list probes share the same chain-aware implementation. */
 internal object RealPingProbe {
     suspend fun measure(context: Context, guid: String, batch: String = java.util.UUID.randomUUID().toString()): Long =
-        RealPingWorkerService(context, emptyList()).let { worker -> try { worker.startRealPing(guid) } finally { worker.cancel(); worker.disposeProbe() } }
+        RealPingWorkerService(context, emptyList(), batch = batch).let { worker -> try { worker.startRealPing(guid) } finally { worker.cancel(); worker.disposeProbe() } }
 }

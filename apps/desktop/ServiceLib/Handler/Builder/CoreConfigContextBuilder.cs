@@ -210,6 +210,7 @@ public class CoreConfigContextBuilder
                     ProtectDomainList =
                     [.. nodeContext.ProtectDomainList ?? [], .. preSocksResult.Context.ProtectDomainList ?? []],
                     ProtectCoreTypeList = protectCoreTypeList,
+                    UseEntryHop = false,
                 },
             };
         }
