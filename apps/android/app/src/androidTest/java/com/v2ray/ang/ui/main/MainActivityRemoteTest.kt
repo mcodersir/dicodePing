@@ -33,7 +33,15 @@ class MainActivityRemoteTest {
                 compose.onNodeWithText("Remote test server one").assertIsFocused()
                 Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == first }
-                compose.onNodeWithText("Remote test server two").performSemanticsAction(SemanticsActions.RequestFocus)
+                // Traverse the actual list/grid, including its nested row buttons, with a remote.
+                val oneBounds = compose.onNodeWithText("Remote test server one").fetchSemanticsNode().boundsInRoot
+                val twoBounds = compose.onNodeWithText("Remote test server two").fetchSemanticsNode().boundsInRoot
+                val nextKey = when {
+                    twoBounds.top >= oneBounds.bottom -> KeyEvent.KEYCODE_DPAD_DOWN
+                    twoBounds.left >= oneBounds.right -> KeyEvent.KEYCODE_DPAD_RIGHT
+                    else -> KeyEvent.KEYCODE_DPAD_LEFT
+                }
+                Espresso.pressKey(nextKey)
                 compose.onNodeWithText("Remote test server two").assertIsFocused()
                 Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }
