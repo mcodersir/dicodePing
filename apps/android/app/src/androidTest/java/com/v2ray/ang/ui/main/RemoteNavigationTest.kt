@@ -7,7 +7,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key
+import android.view.KeyEvent
+import androidx.test.espresso.Espresso
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -32,19 +33,24 @@ class RemoteNavigationTest {
                 }
             }
         }
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("server1").performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.onNodeWithTag("server1").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.onNodeWithTag("server1").assertIsFocused()
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, selected) }
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("server2").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("server2").assertIsFocused()
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(2, selected) }
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("connect").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("connect").assertIsFocused()
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, connects) }
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNodeWithTag("menu").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithTag("menu").assertIsFocused()
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.runOnIdle { assertEquals(1, menus) }
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        Espresso.pressKey(KeyEvent.KEYCODE_DPAD_UP)
         compose.onNodeWithTag("connect").assertIsFocused()
     }
 }

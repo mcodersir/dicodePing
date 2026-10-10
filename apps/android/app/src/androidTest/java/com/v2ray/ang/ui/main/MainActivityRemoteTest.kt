@@ -1,6 +1,6 @@
 package com.v2ray.ang.ui.main
 
-import androidx.compose.ui.input.key.Key
+import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -28,16 +28,20 @@ class MainActivityRemoteTest {
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
                 compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes().isNotEmpty() }
+                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
-                compose.onNodeWithText("Remote test server one").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.onNodeWithText("Remote test server one").assertIsFocused()
+                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == first }
                 compose.onNodeWithText("Remote test server two").performSemanticsAction(SemanticsActions.RequestFocus)
-                compose.onNodeWithText("Remote test server two").assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.onNodeWithText("Remote test server two").assertIsFocused()
+                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }
                 compose.onNodeWithContentDescription(connect).performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithContentDescription(connect).assertIsFocused().assertHasClickAction()
                 compose.onNodeWithContentDescription(menu).performSemanticsAction(SemanticsActions.RequestFocus)
-                compose.onNodeWithContentDescription(menu).assertIsFocused().performKeyInput { pressKey(Key.DirectionCenter) }
+                compose.onNodeWithContentDescription(menu).assertIsFocused()
+                Espresso.pressKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.onNodeWithText(settings).assertIsDisplayed()
                 // BACK is dispatched by Android to OnBackPressedDispatcher, outside Compose key input.
                 Espresso.pressBack()

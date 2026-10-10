@@ -21,6 +21,8 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,9 +54,14 @@ fun MainTopBar(
 ) {
     val initialFocus = remember { FocusRequester() }
     val context = LocalContext.current
+    val inputModeManager = LocalInputModeManager.current
     LaunchedEffect(Unit) {
         val television = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-        if (television && !showSearch) initialFocus.requestFocus()
+        if (television && !showSearch) {
+            // Compose clickable controls reject focus in touch mode. TV starts with remote input.
+            inputModeManager.requestInputMode(InputMode.Keyboard)
+            initialFocus.requestFocus()
+        }
     }
     var showImportMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
