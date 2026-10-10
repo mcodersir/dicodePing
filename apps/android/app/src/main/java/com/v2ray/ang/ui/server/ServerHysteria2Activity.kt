@@ -1,14 +1,12 @@
 package com.v2ray.ang.ui.server
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-import com.v2ray.ang.extension.toast
 import com.v2ray.ang.ui.compose.FormTextField
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 
@@ -17,8 +15,7 @@ class ServerHysteria2Activity : BaseServerActivity() {
     override val serverConfigType: EConfigType = EConfigType.HYSTERIA2
 
     @Composable
-    override fun ScreenContent() {
-        val scope = rememberCoroutineScope()
+    override fun EditorContent() {
         val uiState = rememberSaveable(saver = ServerUiState.Saver) {
             ServerUiState.from(
                 initialConfig = initialConfig
@@ -33,13 +30,14 @@ class ServerHysteria2Activity : BaseServerActivity() {
         ) {
             CommonBasicFields(uiState)
             Hysteria2ProtocolFields(uiState)
+            CommonDialModeField(uiState)
+            CommonTargetStrategyField(uiState)
 
         }
     }
 
     override fun validateProtocolConfig(config: ProfileItem): Boolean {
         if (config.password.isNullOrBlank()) {
-            toast(R.string.server_lab_id3)
             return false
         }
         if (config.security.isNullOrBlank()) {
@@ -51,9 +49,10 @@ class ServerHysteria2Activity : BaseServerActivity() {
     @Composable
     private fun Hysteria2ProtocolFields(state: ServerUiState) {
         FormTextField(
-            stringResource(R.string.server_lab_id3),
-            state.password,
-            { state.password = it }
+            label = stringResource(R.string.server_lab_id3),
+            value = state.password,
+            onValueChange = { state.password = it },
+            isError = state.isPasswordError
         )
         FormTextField(
             stringResource(R.string.server_obfs_password),
@@ -92,12 +91,22 @@ class ServerHysteria2Activity : BaseServerActivity() {
             { state.sni = it }
         )
         FormTextField(
+            stringResource(R.string.server_lab_ech_config_list),
+            state.echConfigList,
+            { state.echConfigList = it }
+        )
+        FormTextField(
+            stringResource(R.string.server_lab_ech_outbound),
+            state.echOutbound,
+            { state.echOutbound = it }
+        )
+        FormTextField(
             stringResource(R.string.server_lab_pinned_ca256),
             state.pinnedCA256,
             { state.pinnedCA256 = it }
         )
 
-        FormTextField(
+        FinalMaskField(
             stringResource(R.string.server_lab_final_mask),
             state.finalMask,
             { state.finalMask = it }

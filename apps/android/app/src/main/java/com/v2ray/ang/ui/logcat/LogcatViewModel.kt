@@ -1,14 +1,20 @@
 package com.v2ray.ang.ui.logcat
 
 import android.app.Application
+import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import java.io.IOException
 
 class LogcatViewModel(application: Application) : BaseViewModel(application) {
@@ -17,6 +23,10 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
 
     private val _filteredLogs = MutableStateFlow<List<String>>(emptyList())
     val filteredLogs: StateFlow<List<String>> = _filteredLogs.asStateFlow()
+    val logEntries: StateFlow<List<LogcatEntry>> = filteredLogs
+        .map(::createLogcatEntries)
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun loadLogcat() {
         launchLoading {
@@ -26,8 +36,14 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
                 lst.add("-d")
                 lst.add("-v")
                 lst.add("time")
+                lst.add("-t")
+                lst.add("1000")
                 lst.add("-s")
-                lst.add("GoLog,${AppConfig.ANG_PACKAGE},AndroidRuntime,System.err")
+                lst.add("GoLog:V")
+                lst.add("${AppConfig.TAG}:V")
+                lst.add("AndroidRuntime:E")
+                lst.add("System.err:V")
+                lst.add("*:S")
                 val process = Runtime.getRuntime().exec(lst.toTypedArray())
                 val allText = process.inputStream.bufferedReader().use { it.readLines() }.reversed()
 
@@ -73,4 +89,17 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
             logsetsAll.filter { it.contains(currentFilter) }
         }
     }
+}
+
+data class LogcatEntry(val key: String, val text: String)
+
+internal fun createLogcatEntries(logs: List<String>): List<LogcatEntry> {
+    val occurrences = HashMap<String, Int>()
+    // Identical lines are valid. Count oldest-first so filtering other lines or
+    // prepending newer entries does not change the keys of existing occurrences.
+    return logs.asReversed().map { line ->
+        val occurrence = occurrences.getOrDefault(line, 0)
+        occurrences[line] = occurrence + 1
+        LogcatEntry("$occurrence:$line", line)
+    }.asReversed()
 }

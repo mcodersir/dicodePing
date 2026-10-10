@@ -3,6 +3,8 @@ namespace ServiceLib.Models.Dto;
 [Serializable]
 public class SpeedTestResult
 {
+    public bool IsFinal { get; set; } = true;
+
     public string? IndexId { get; set; }
 
     public string? Delay { get; set; }

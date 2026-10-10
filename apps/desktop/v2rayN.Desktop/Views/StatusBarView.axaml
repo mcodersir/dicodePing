@@ -2,36 +2,92 @@
     x:Class="v2rayN.Desktop.Views.StatusBarView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:v2rayN.Desktop.Views"
+    xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:DataType="vms:StatusBarViewModel">
-  <Border Margin="12,8,12,12" Padding="14" Classes="DicodeCard">
-    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="20">
-      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button x:Name="btnToggleConnection" MinWidth="116" Classes.Success="{Binding IsConnected}">
-          <TextBlock Text="{Binding ConnectionStatusText}" />
-        </Button>
-        <Button x:Name="btnSmartConnection" ToolTip.Tip="اتصال هوشمند" Content="⚡ بهترین" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" VerticalAlignment="Center">
-        <TextBlock x:Name="txtRunningServerDisplay" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-        <StackPanel Orientation="Horizontal" Spacing="14">
-          <TextBlock Text="{Binding PingDisplay}" Opacity="0.82" />
-          <TextBlock Text="{Binding LocationDisplay}" Opacity="0.82" />
+  <Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1040" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+    <Border Padding="32" Classes="DicodeCard">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="220,*" RowSpacing="18" ColumnSpacing="20">
+        <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
+          <Button
+              x:Name="btnToggleConnection"
+              Classes.DicodePower="True"
+              Width="132"
+              Height="132"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Background="{DynamicResource DicodeSurfaceElevated}"
+              BorderBrush="{DynamicResource DicodeAccent}"
+              BorderThickness="2"
+              Classes.Success="{Binding IsConnected}"
+              CornerRadius="40">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+              <Path
+                  HorizontalAlignment="Center"
+                  Width="40"
+                  Height="40"
+                  Data="M12,3 V12 M6.2,6.5 A8,8 0 1,0 17.8,6.5"
+                  Stretch="Uniform"
+                  Stroke="{DynamicResource DicodeTextPrimary}"
+                  StrokeLineCap="Round"
+                  StrokeThickness="2" />
+              <TextBlock HorizontalAlignment="Center" FontSize="12" Text="{Binding ConnectionStatusText}" TextWrapping="Wrap" TextAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button
+              x:Name="btnSmartConnection"
+              MinWidth="160"
+              HorizontalAlignment="Center"
+              Content="{x:Static resx:ResUI.DicodeBest}"
+              ToolTip.Tip="{x:Static resx:ResUI.DicodeSmartConnect}" />
         </StackPanel>
-        <TextBlock x:Name="txtRunningInfoDisplay" IsVisible="False" />
-      </StackPanel>
-      <StackPanel Grid.Column="2" MinWidth="230" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="2">
-        <TextBlock x:Name="txtInboundDisplay" HorizontalAlignment="Right" />
-        <TextBlock x:Name="txtInboundLanDisplay" HorizontalAlignment="Right" Opacity="0.72" />
-        <Border Padding="8,3" CornerRadius="8" Background="{DynamicResource DicodeSurfaceElevated}" BorderBrush="{DynamicResource DicodeBorder}" BorderThickness="1">
-          <TextBlock x:Name="txtTotalTrafficDisplay" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="NoWrap" />
-        </Border>
-      </StackPanel>
-      <TextBlock x:Name="txtSpeedProxyDisplay" IsVisible="False" />
-      <TextBlock x:Name="txtSpeedDirectDisplay" IsVisible="False" />
-      <ToggleSwitch x:Name="togEnableTun" IsVisible="False" />
-      <ComboBox x:Name="cmbSystemProxy" IsVisible="False"><ComboBoxItem /></ComboBox>
-      <ComboBox x:Name="cmbRoutings2" IsVisible="False" ItemsSource="{Binding RoutingItems}" />
-    </Grid>
-  </Border>
+
+        <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="12">
+          <Border Padding="16" Background="{DynamicResource DicodeSurfaceElevated}" BorderBrush="{DynamicResource DicodeBorder}" BorderThickness="1" CornerRadius="16">
+            <StackPanel Spacing="8">
+              <TextBlock FontSize="13" Opacity="0.68" Text="{x:Static resx:ResUI.DicodeRoute}" />
+              <TextBlock x:Name="txtRunningServerDisplay" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <StackPanel Orientation="Horizontal" Spacing="14">
+                <TextBlock Text="{Binding PingDisplay}" Opacity="0.82" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <local:CountryFlagIcon
+                      Width="22"
+                      Height="15"
+                      VerticalAlignment="Center"
+                      SourceText="{Binding LocationCountry}" />
+                  <Path
+                      Width="13"
+                      Height="13"
+                      VerticalAlignment="Center"
+                      Data="M12,21 C12,21 5.5,14.8 5.5,10 A6.5,6.5 0 0,1 18.5,10 C18.5,14.8 12,21 12,21 Z M12,12.2 A2.2,2.2 0 1,0 12,7.8 A2.2,2.2 0 1,0 12,12.2 Z"
+                      Stretch="Uniform"
+                      Stroke="{DynamicResource DicodeTextSecondary}"
+                      StrokeLineCap="Round"
+                      StrokeThickness="1.5" />
+                  <TextBlock Text="{Binding LocationDisplay}" TextWrapping="Wrap" Opacity="0.82" />
+                </StackPanel>
+              </StackPanel>
+              <TextBlock x:Name="txtRunningInfoDisplay" TextWrapping="Wrap" Opacity="0.72" />
+            </StackPanel>
+          </Border>
+          <Border Padding="16" Background="{DynamicResource DicodeSurfaceElevated}" BorderBrush="{DynamicResource DicodeBorder}" BorderThickness="1" CornerRadius="16">
+            <StackPanel Spacing="4">
+              <TextBlock FontSize="13" Opacity="0.68" Text="{x:Static resx:ResUI.DicodeTraffic}" />
+              <TextBlock x:Name="txtInboundDisplay" />
+              <TextBlock x:Name="txtInboundLanDisplay" Opacity="0.72" />
+              <TextBlock x:Name="txtTotalTrafficDisplay" FontWeight="SemiBold" TextWrapping="NoWrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Static resx:ResUI.DicodeHomeHint}" Opacity="0.65" TextWrapping="Wrap" />
+        <TextBlock x:Name="txtSpeedProxyDisplay" Grid.Row="1" IsVisible="False" />
+        <TextBlock x:Name="txtSpeedDirectDisplay" Grid.Row="1" IsVisible="False" />
+        <ToggleSwitch x:Name="togEnableTun" Grid.Row="1" IsVisible="False" />
+        <ComboBox x:Name="cmbSystemProxy" Grid.Row="1" IsVisible="False"><ComboBoxItem /></ComboBox>
+        <ComboBox x:Name="cmbRoutings2" Grid.Row="1" IsVisible="False" ItemsSource="{Binding RoutingItems}" />
+      </Grid>
+    </Border>
+  </Grid>
 </UserControl>

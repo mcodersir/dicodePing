@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.text.TextUtils
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreConfigManager
+import com.v2ray.ang.core.TlsSettingsCheck
 import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -12,6 +13,7 @@ import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.fmt.AetherFmt
 import com.v2ray.ang.fmt.CustomFmt
 import com.v2ray.ang.fmt.Hysteria2Fmt
 import com.v2ray.ang.fmt.ShadowsocksFmt
@@ -48,7 +50,7 @@ object AngConfigManager {
             EConfigType.WIREGUARD.protocolScheme to WireguardFmt::parse,
             EConfigType.HYSTERIA2.protocolScheme to Hysteria2Fmt::parse,
             AppConfig.HY2 to Hysteria2Fmt::parse,
-            AppConfig.V2RAYNFMTS to V2rayNFmt::parse
+            EConfigType.AETHER.protocolScheme to AetherFmt::parse,
         )
     }
 
@@ -164,6 +166,7 @@ object AngConfigManager {
                 EConfigType.TROJAN -> TrojanFmt.toUri(config)
                 EConfigType.WIREGUARD -> WireguardFmt.toUri(config)
                 EConfigType.HYSTERIA2 -> Hysteria2Fmt.toUri(config)
+                EConfigType.AETHER -> AetherFmt.toUri(config)
                 else -> {}
             }
         } catch (e: Exception) {
@@ -249,25 +252,36 @@ object AngConfigManager {
 
             // Parse all configs first (no I/O during parsing)
             val configs = mutableListOf<ProfileItem>()
+            val v2raynLines = mutableListOf<String>()
+
             servers.lines()
                 .distinct()
                 .reversed()
                 .forEach {
-                    val config = parseConfig(it, subid, subItem)
-                    if (config != null) {
-                        configs.add(config)
+                    if (it.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)) {
+                        v2raynLines.add(it)
+                    } else {
+                        val config = parseConfig(it, subid, subItem)
+                        if (config != null) {
+                            configs.add(config)
+                        }
                     }
                 }
 
-            if (configs.isNotEmpty()) {
+            val v2raynConfigs = V2rayNFmt.parse(v2raynLines, subid)
+            val allConfigs = (v2raynConfigs + configs).distinctBy { it.duplicateIdentity() }
+            allConfigs.forEach(TlsSettingsCheck::fixImportedAlpn)
+            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_DICODE_SNI_BYPASS, false)) allConfigs.forEach(TlsSettingsCheck::applySniPreset)
+
+            if (allConfigs.isNotEmpty()) {
                 commitProfiles(
-                    configs = configs.map(::ParsedProfile),
+                    configs = allConfigs.map(::ParsedProfile),
                     subid = subid,
                     append = append,
                 )
             }
 
-            return configs.size
+            return allConfigs.size
         } catch (e: ProfileStorageException) {
             throw e
         } catch (e: Exception) {
@@ -417,20 +431,29 @@ object AngConfigManager {
                 if (!matched) return null
             }
 
+            applySubscriptionOverrides(config, subItem)
+
             config.subscriptionId = subid
             config.description = generateDescription(config)
-
-            if (str.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)
-                && config.policyGroupSubscriptionId == "self"
-            ) {
-                config.policyGroupSubscriptionId = subid
-            }
 
             return config
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to parse config", e)
             return null
         }
+    }
+
+    /**
+     * Replaces the address and/or port of a profile imported from a subscription with the
+     * override values configured on that subscription. Blank values leave the profile unchanged.
+     *
+     * @param config The parsed profile.
+     * @param subItem The subscription the profile belongs to, or null.
+     */
+    internal fun applySubscriptionOverrides(config: ProfileItem, subItem: SubscriptionItem?) {
+        subItem ?: return
+        subItem.overrideAddress?.trim()?.takeIf { it.isNotEmpty() }?.let { config.server = it }
+        subItem.overridePort?.takeIf { it in 1..65535 }?.let { config.serverPort = it.toString() }
     }
 
     /**
@@ -469,6 +492,21 @@ object AngConfigManager {
                 || TextUtils.isEmpty(it.subscription.url)
             ) {
                 return SubscriptionUpdateResult(skipCount = 1)
+            }
+
+            // One built-in group combines both independent subscription feeds.
+            if (it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) {
+                val spoText = PrimarySubscriptionSources.aggregate()
+                if (spoText.isBlank()) {
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
+                val spoCount = parseConfigViaSub(spoText, it.guid, false)
+                if (spoCount > 0) {
+                    it.subscription.lastUpdated = System.currentTimeMillis()
+                    MmkvManager.encodeSubscription(it.guid, it.subscription)
+                    return SubscriptionUpdateResult(configCount = spoCount, successCount = 1)
+                }
+                return SubscriptionUpdateResult(failureCount = 1)
             }
 
             val url = HttpUtil.toIdnUrl(it.subscription.url)
@@ -525,11 +563,16 @@ object AngConfigManager {
             val count = parseConfigViaSub(configText, it.guid, false)
             if (count > 0) {
                 it.subscription.lastUpdated = System.currentTimeMillis()
-                downloadResponse?.headers?.entries
-                    ?.firstOrNull { header -> header.key.equals("subscription-userinfo", true) }
-                    ?.value
-                    ?.let { header -> applySubscriptionUserInfo(it.subscription, header) }
-                MmkvManager.encodeSubscription(it.guid, it.subscription)
+                if (!MmkvManager.finishSubscriptionUpdate(it.guid, it.subscription.lastUpdated)) {
+                    return SubscriptionUpdateResult(skipCount = 1)
+                }
+                downloadResponse?.headers?.entries?.firstOrNull { h -> h.key.equals("subscription-userinfo", true) }
+                    ?.value?.let { header ->
+                        MmkvManager.decodeSubscription(it.guid)?.let { current ->
+                            applySubscriptionUserInfo(current, header)
+                            MmkvManager.encodeSubscription(it.guid, current)
+                        }
+                    }
                 LogUtil.i(AppConfig.TAG, "Subscription updated: ${it.subscription.remarks}, $count configs")
                 return SubscriptionUpdateResult(
                     configCount = count,
@@ -562,12 +605,10 @@ object AngConfigManager {
      * @param subId The subscription ID.
      */
     fun removeInvalidServer(subId: String) {
-        val serverList = MmkvManager.decodeServerList(subId)
-        val invalidServers = serverList.filter {
-            val aff = MmkvManager.decodeServerAffiliationInfo(it)
-            aff != null && aff.testDelayMillis < 0L
-        }
-        MmkvManager.removeServers(invalidServers, subId)
+        // PattNG: among the profiles listed under the profile index lock, so that a profile an update stored, or a delete
+        // of the subscription removed, meanwhile, is not undone, by their results under the lock of the test results, so
+        // that a test passing one meanwhile keeps it; a refusal is logged there.
+        MmkvManager.tryRemoveFailedServers(subId)
     }
 
     /**
@@ -576,19 +617,12 @@ object AngConfigManager {
      * @param subId The subscription ID.
      */
     fun sortByTestResultsForSub(subId: String) {
-        val serverList = MmkvManager.decodeServerList(subId)
-        if (serverList.isEmpty()) return
-
-        val sorted = serverList
-            .map { guid ->
-                val delay =
-                    MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
-                guid to if (delay <= 0L) Long.MAX_VALUE else delay
-            }
-            .sortedBy { it.second }
-            .map { it.first }
-            .toMutableList()
-        MmkvManager.encodeServerList(sorted, subId)
+        // PattNG: the list as stored under the profile index lock, so that a profile an update stored, or a delete of the
+        // subscription removed, meanwhile, is not undone; a refusal is logged there.
+        MmkvManager.trySortServerList(subId) { guid ->
+            val delay = MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
+            if (delay <= 0L) Long.MAX_VALUE else delay
+        }
     }
 
     /**
@@ -627,8 +661,8 @@ object AngConfigManager {
         val subItem = SubscriptionItem()
         subItem.remarks = uri.fragment ?: "import sub"
         subItem.url = url
-        MmkvManager.encodeSubscription("", subItem)
-        return 1
+        // PattNG: stored and listed in one hold of the profile index lock, checked; a refusal is logged there.
+        return if (MmkvManager.tryEncodeSubscription("", subItem) != null) 1 else 0
     }
 
     /** Generates a description for the profile.

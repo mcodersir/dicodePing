@@ -44,6 +44,8 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
                 return ret;
             }
 
+            // PattN: the ECH outbounds of this config are collected while its outbounds are built
+            context.EchOutbounds.Clear();
             GenLog();
 
             GenInbounds();
@@ -53,6 +55,19 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
             GenRouting();
 
             GenDns();
+
+            if (context.IsTunEnabled)
+            {
+                // PattN: with the TUN inbound, freedom must resolve domain targets via the built-in
+                // DNS instead of the OS resolver, whose queries would detour back through the tun
+                var directOutbound = _coreConfig.outbounds.FirstOrDefault(t => t is { protocol: "freedom", tag: Global.DirectTag });
+                if (directOutbound != null)
+                {
+                    directOutbound.streamSettings ??= new();
+                    directOutbound.streamSettings.sockopt ??= new();
+                    directOutbound.streamSettings.sockopt.domainStrategy ??= "ForceIP";
+                }
+            }
 
             GenStatistic();
 
@@ -71,9 +86,18 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
                 _coreConfig.routing.rules.Add(finalRule);
             }
 
+            var coreConfigContent = ApplyFinalConfigModifiers();
+            // PattN: the ECH outbounds go after every other outbound
+            var echOutboundError = AppendEchOutbounds(ref coreConfigContent);
+            if (echOutboundError != null)
+            {
+                ret.Msg = echOutboundError;
+                return ret;
+            }
+
             ret.Msg = string.Format(ResUI.SuccessfulConfiguration, "");
             ret.Success = true;
-            ret.Data = ApplyFinalConfigModifiers();
+            ret.Data = coreConfigContent;
             return ret;
         }
         catch (Exception ex)
@@ -108,6 +132,8 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
 
             var (lstIpEndPoints, lstTcpConns) = Utils.GetActiveNetworkInfo();
 
+            // PattN: the ECH outbounds of this config are collected while its outbounds are built
+            context.EchOutbounds.Clear();
             GenLog();
             _coreConfig.inbounds.Clear();
             _coreConfig.outbounds.Clear();
@@ -212,9 +238,18 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
             }
             ApplyOutboundBindInterface();
             ApplyOutboundSendThrough();
+            var coreConfigContent = ApplyCustomOutboundReplace();
+            // PattN: the ECH outbounds go after every other outbound
+            var echOutboundError = AppendEchOutbounds(ref coreConfigContent);
+            if (echOutboundError != null)
+            {
+                ret.Msg = echOutboundError;
+                return ret;
+            }
+
             //ret.Msg =string.Format(ResUI.SuccessfulConfiguration"), node.getSummary());
             ret.Success = true;
-            ret.Data = ApplyCustomOutboundReplace();
+            ret.Data = coreConfigContent;
             return ret;
         }
         catch (Exception ex)
@@ -257,6 +292,8 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
                 return ret;
             }
 
+            // PattN: the ECH outbounds of this config are collected while its outbounds are built
+            context.EchOutbounds.Clear();
             GenLog();
             GenOutbounds();
 
@@ -289,9 +326,18 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
             ApplyOutboundBindInterface();
             ApplyOutboundSendThrough();
 
+            var coreConfigContent = ApplyCustomOutboundReplace();
+            // PattN: the ECH outbounds go after every other outbound
+            var echOutboundError = AppendEchOutbounds(ref coreConfigContent);
+            if (echOutboundError != null)
+            {
+                ret.Msg = echOutboundError;
+                return ret;
+            }
+
             ret.Msg = string.Format(ResUI.SuccessfulConfiguration, "");
             ret.Success = true;
-            ret.Data = ApplyCustomOutboundReplace();
+            ret.Data = coreConfigContent;
             return ret;
         }
         catch (Exception ex)

@@ -4,6 +4,7 @@ public class ProfileExManager
 {
     private static readonly Lazy<ProfileExManager> _instance = new(() => new());
     private ConcurrentBag<ProfileExItem> _lstProfileEx = [];
+    private readonly ConcurrentDictionary<string, ProfileExItem> _profileIndex = new();
     // Results arrive from parallel ping/location/speed workers. A normal Queue
     // can lose or corrupt ids during a refresh, making rows appear to reset.
     private readonly ConcurrentQueue<string> _queIndexIds = new();
@@ -35,6 +36,8 @@ public class ProfileExManager
         await SQLiteHelper.Instance.ExecuteAsync($"delete from ProfileExItem where indexId not in ( select indexId from ProfileItem )");
 
         _lstProfileEx = new(await SQLiteHelper.Instance.TableAsync<ProfileExItem>().ToListAsync());
+        _profileIndex.Clear();
+        foreach (var item in _lstProfileEx) _profileIndex[item.IndexId] = item;
     }
 
     private void IndexIdEnqueue(string indexId)
@@ -125,7 +128,10 @@ public class ProfileExManager
     {
         lock (_profileLock)
         {
-            return _lstProfileEx.FirstOrDefault(t => t.IndexId == indexId) ?? AddProfileEx(indexId);
+            if (_profileIndex.TryGetValue(indexId, out var existing)) return existing;
+            var item = _lstProfileEx.FirstOrDefault(t => t.IndexId == indexId) ?? AddProfileEx(indexId);
+            _profileIndex[indexId] = item;
+            return item;
         }
     }
 
@@ -133,6 +139,7 @@ public class ProfileExManager
     {
         await SQLiteHelper.Instance.ExecuteAsync($"delete from ProfileExItem ");
         _lstProfileEx = [];
+        _profileIndex.Clear();
     }
 
     public async Task SaveTo()
@@ -149,7 +156,7 @@ public class ProfileExManager
 
     public void SetTestDelay(string indexId, int delay)
     {
-        if (delay <= 0) return;
+
         var profileEx = GetProfileExItem(indexId);
 
         profileEx.Delay = delay;
@@ -158,7 +165,7 @@ public class ProfileExManager
 
     public void SetTestSpeed(string indexId, decimal speed)
     {
-        if (speed <= 0) return;
+
         var profileEx = GetProfileExItem(indexId);
 
         profileEx.Speed = speed;

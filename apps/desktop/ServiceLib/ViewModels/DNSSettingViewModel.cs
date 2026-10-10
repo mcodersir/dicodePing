@@ -7,7 +7,6 @@ public partial class DNSSettingViewModel : MyReactiveObject, ICloseable
     [Reactive] public partial bool UseSystemHosts { get; set; }
     [Reactive] public partial bool AddCommonHosts { get; set; }
     [Reactive] public partial bool FakeIP { get; set; }
-    [Reactive] public partial string FakeIPRange { get; set; }
     [Reactive] public partial bool BlockBindingQuery { get; set; }
     [Reactive] public partial string DirectDNS { get; set; }
     [Reactive] public partial string RemoteDNS { get; set; }
@@ -39,6 +38,8 @@ public partial class DNSSettingViewModel : MyReactiveObject, ICloseable
     public ReactiveCommand<RxVoid, RxVoid> SaveCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> ImportDefConfig4V2rayCompatibleCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> ImportDefConfig4SingboxCompatibleCmd { get; }
+
+    [Reactive] public partial string FakeIPRange { get; set; }
 
     public DNSSettingViewModel()
     {
@@ -72,7 +73,7 @@ public partial class DNSSettingViewModel : MyReactiveObject, ICloseable
         UseSystemHosts = item.UseSystemHosts ?? false;
         AddCommonHosts = item.AddCommonHosts ?? false;
         FakeIP = item.FakeIP ?? false;
-        FakeIPRange = item.FakeIPRange ?? string.Empty;
+        FakeIPRange = item.FakeIPRange ?? "198.18.0.0/15";
         BlockBindingQuery = item.BlockBindingQuery ?? false;
         DirectDNS = item.DirectDNS ?? string.Empty;
         RemoteDNS = item.RemoteDNS ?? string.Empty;

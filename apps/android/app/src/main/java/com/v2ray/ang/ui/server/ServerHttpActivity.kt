@@ -13,7 +13,7 @@ class ServerHttpActivity : BaseServerActivity() {
     override val serverConfigType: EConfigType = EConfigType.HTTP
 
     @Composable
-    override fun ScreenContent() {
+    override fun EditorContent() {
         val scope = rememberCoroutineScope()
         val uiState = rememberSaveable(saver = ServerUiState.Saver) {
             ServerUiState.from(
@@ -29,6 +29,8 @@ class ServerHttpActivity : BaseServerActivity() {
         ) {
             CommonBasicFields(uiState)
             HttpProtocolFields(uiState)
+            CommonDialModeField(uiState)
+            CommonTargetStrategyField(uiState)
 
         }
     }

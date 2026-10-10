@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.content.ContextCompat
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.SubscriptionUpdateMessage
@@ -16,7 +15,7 @@ import com.v2ray.ang.util.LogUtil
 import java.io.Serializable
 
 object MessageHelper {
-
+    const val EXTRA_REQUEST_ID = "requestId"
 
     /**
      * Sends a message to the service.
@@ -67,8 +66,8 @@ object MessageHelper {
      * @param what The message identifier.
      * @param content The message content.
      */
-    fun sendMsg2UI(ctx: Context, what: Int, content: Serializable) {
-        sendMsg(ctx, AppConfig.BROADCAST_ACTION_ACTIVITY, what, content)
+    fun sendMsg2UI(ctx: Context, what: Int, content: Serializable, requestId: String? = null) {
+        sendMsg(ctx, AppConfig.BROADCAST_ACTION_ACTIVITY, what, content, requestId)
     }
 
     /**
@@ -77,18 +76,15 @@ object MessageHelper {
      * @param ctx The context.
      * @param message The test service message containing key, subscriptionId, and serverGuids.
      */
-    fun sendMsg2TestService(ctx: Context, message: TestServiceMessage) {
+    fun sendMsg2TestService(ctx: Context, message: TestServiceMessage, requestId: String? = null) {
         try {
             val intent = Intent()
             intent.component = ComponentName(ctx, CoreTestService::class.java)
             intent.putExtra("content", message)
+            requestId?.let { intent.putExtra(EXTRA_REQUEST_ID, it) }
             when (message.key) {
                 AppConfig.MSG_MEASURE_CONFIG_START -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ContextCompat.startForegroundService(ctx, intent)
-                    } else {
-                        ctx.startService(intent)
-                    }
+                    ContextCompat.startForegroundService(ctx, intent)
                 }
 
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> {
@@ -102,6 +98,9 @@ object MessageHelper {
             }
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to send message to test service", e)
+            if (message.key == AppConfig.MSG_MEASURE_CONFIG_START) {
+                sendMsg2UI(ctx, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", requestId)
+            }
         }
     }
 
@@ -110,31 +109,36 @@ object MessageHelper {
      *
      * @param ctx The context.
      * @param message The subscription service message containing key and subId.
+     * @return PattNG: whether the system took the message, which a start in the background it refuses is not; no
+     * acknowledgement of the service.
      */
-    fun sendMsg2SubscriptionService(ctx: Context, message: SubscriptionUpdateMessage) {
-        try {
+    fun sendMsg2SubscriptionService(ctx: Context, message: SubscriptionUpdateMessage): Boolean {
+        return try {
             val intent = Intent()
             intent.component = ComponentName(ctx, SubscriptionUpdateService::class.java)
             intent.putExtra("content", message)
             when (message.key) {
                 AppConfig.MSG_SUB_UPDATE_START -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ContextCompat.startForegroundService(ctx, intent)
-                    } else {
-                        ctx.startService(intent)
-                    }
+                    ContextCompat.startForegroundService(ctx, intent)
                 }
 
                 AppConfig.MSG_SUB_UPDATE_CANCEL -> {
                     ctx.stopService(intent)
                 }
 
+                AppConfig.MSG_SUB_UPDATE_CANCEL_TEST -> {
+                    // A broadcast reaches only a running service; a service intent would start one to cancel nothing.
+                    sendMsg(ctx, AppConfig.BROADCAST_ACTION_SUBSCRIPTION, message.key, message)
+                }
+
                 else -> {
                     ctx.startService(intent)
                 }
             }
+            true
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to send message to subscription service", e)
+            false
         }
     }
 
@@ -146,9 +150,11 @@ object MessageHelper {
      * @param what The message identifier.
      * @param content The message content.
      */
-    private fun sendMsg(ctx: Context, action: String, what: Int, content: Serializable) {
+    private fun sendMsg(ctx: Context, action: String, what: Int, content: Serializable, requestId: String? = null) {
         try {
-            ctx.sendBroadcast(messageIntent(action, what, content))
+            ctx.sendBroadcast(messageIntent(action, what, content).apply {
+                requestId?.let { putExtra(EXTRA_REQUEST_ID, it) }
+            })
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to send message with action: $action", e)
         }

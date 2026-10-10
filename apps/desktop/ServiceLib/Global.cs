@@ -1,12 +1,12 @@
-namespace ServiceLib;
+﻿namespace ServiceLib;
 
 public class Global
 {
     public const string AppName = "DicodePing";
     public const string GithubUrl = "https://github.com";
     public const string GithubApiUrl = "https://api.github.com/repos";
-    public const string GeoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/{0}.dat";
-    public const string SingboxRulesetUrl = @"https://raw.githubusercontent.com/2dust/sing-box-rules/rule-set-{0}/{1}.srs";
+    public const string GeoUrl = "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/latest/download/{0}.dat";
+    public const string SingboxRulesetUrl = @"https://raw.githubusercontent.com/chocolate4u/Iran-sing-box-rules/rule-set/{1}.srs";
 
     public const string PromotionUrl = @"aHR0cHM6Ly90Lm1lL2RpY29kZXBpbmc=";
     public const string ConfigFileName = "DicodePingConfig.json";
@@ -91,17 +91,31 @@ public class Global
     public const string V2RayLocalAsset = "V2RAY_LOCATION_ASSET";
     public const string XrayLocalAsset = "XRAY_LOCATION_ASSET";
     public const string XrayLocalCert = "XRAY_LOCATION_CERT";
-    public const int SpeedTestPageSize = 1000;
+    public const int SpeedTestPageSize = 16;
+    public const int SpeedTestConcurrencyCountMin = 10;
     public const string LinuxBash = "/bin/bash";
     public const string StringTrue = "true";
     public const string StringFalse = "false";
     public const int SqliteMaxBatchSize = 10000;
+    public static readonly TimeSpan LocalFetch = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan DirectFetch = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan ProxyFetch = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan DirectDownloadConnect = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan ProxyDownloadConnect = TimeSpan.FromSeconds(10);
 
-    public const string SingboxDirectDNSTag = "direct_dns";
-    public const string SingboxRemoteDNSTag = "remote_dns";
-    public const string SingboxLocalDNSTag = "local_local";
-    public const string SingboxHostsDNSTag = "hosts_dns";
-    public const string SingboxFakeDNSTag = "fake_dns";
+    public const string SingboxDirectDNSTagPrefix = "direct-dns-";
+    public const string SingboxRemoteDNSTagPrefix = "remote-dns-";
+    public const string SingboxDirectDNSTag = "direct-dns-1";
+    public const string SingboxRemoteDNSTag = "remote-dns-1";
+    public const string SingboxDirectDNSTagTemplate = "direct-dns-{0}";
+    public const string SingboxRemoteDNSTagTemplate = "remote-dns-{0}";
+    public const string SingboxLocalDNSTag = "local-local";
+    public const string SingboxHostsDNSTag = "hosts-dns";
+    public const string SingboxFakeDNSTag = "fake-dns";
+    // PattN: sing-box's fake IP ranges are XTLS/Xray-core's default fake DNS pools (features/dns/fakedns.go)
+    public const string SingboxFakeIPv4Range = "198.18.0.0/15";
+    public const string SingboxFakeIPv6Range = "2001:2::/48";
+    public const string SingboxSrsDownloadHttpClientTag = "srs-download-http-client";
 
     public const int Hysteria2DefaultHopInt = 30;
     public const string PolicyGroupExcludeKeywords = @"剩余|过期|到期|重置|[Rr]emaining|[Ee]xpir|[Rr]eset";
@@ -175,14 +189,16 @@ public class Global
     [
         "",
         @"https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/{0}.dat",
-        @"https://github.com/Chocolate4U/Iran-v2ray-rules/releases/latest/download/{0}.dat"
+        @"https://github.com/Chocolate4U/Iran-v2ray-rules/releases/latest/download/{0}.dat",
+        @"https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/{0}.dat"
     ];
 
     public static readonly List<string> SingboxRulesetSources =
     [
         "",
         @"https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/sing-box/rule-set-{0}/{1}.srs",
-        @"https://raw.githubusercontent.com/chocolate4u/Iran-sing-box-rules/rule-set/{1}.srs"
+        @"https://raw.githubusercontent.com/chocolate4u/Iran-sing-box-rules/rule-set/{1}.srs",
+        @"https://raw.githubusercontent.com/2dust/sing-box-rules/rule-set-{0}/{1}.srs"
     ];
 
     public static readonly List<string> RoutingRulesSources =
@@ -250,7 +266,8 @@ public class Global
         { EConfigType.TUIC, "tuic" },
         { EConfigType.WireGuard, "wireguard" },
         { EConfigType.Anytls, "anytls" },
-        { EConfigType.Naive, "naive" }
+        { EConfigType.Naive, "naive" },
+        { EConfigType.MASQUE, "masque" },
     };
 
     public static readonly List<string> VmessSecurities =
@@ -360,6 +377,7 @@ public class Global
         EConfigType.Trojan,
         EConfigType.Hysteria2,
         EConfigType.WireGuard,
+        EConfigType.MASQUE,
         EConfigType.SOCKS,
         EConfigType.HTTP,
     ];
@@ -375,6 +393,7 @@ public class Global
         EConfigType.Anytls,
         EConfigType.Naive,
         EConfigType.WireGuard,
+        EConfigType.MASQUE,
         EConfigType.SOCKS,
         EConfigType.HTTP,
     ];
@@ -409,6 +428,7 @@ public class Global
         "qq",
         "random",
         "randomized",
+        "unsafe",
         ""
     ];
 
@@ -450,8 +470,26 @@ public class Global
         ""
     ];
 
+    // PattN: values of the Xray outbound targetStrategy; the first one is Xray's default
+    public static readonly List<string> TargetStrategies =
+    [
+        AsIs,
+        "UseIP",
+        "UseIPv4",
+        "UseIPv6",
+        "UseIPv4v6",
+        "UseIPv6v4",
+        "ForceIP",
+        "ForceIPv4",
+        "ForceIPv6",
+        "ForceIPv4v6",
+        "ForceIPv6v4"
+    ];
+
     public static readonly List<string> DomainDirectDNSAddress =
     [
+        "8.8.8.8",
+        "1.1.1.1",
         "119.29.29.29",
         "223.5.5.5",
         "119.29.29.29,223.5.5.5,https://doh.pub/dns-query",
@@ -463,8 +501,10 @@ public class Global
 
     public static readonly List<string> DomainRemoteDNSAddress =
     [
-        "https://cloudflare-dns.com/dns-query",
+        // PattN: the default Remote DNS; an IP address needs no lookup of the DoH server's name
+        "https://8.8.8.8/dns-query",
         "https://dns.google/dns-query",
+        "https://cloudflare-dns.com/dns-query",
         "https://cloudflare-dns.com/dns-query,https://dns.google/dns-query,8.8.8.8",
         "https://dns.cloudflare.com/dns-query",
         "https://doh.dns.sb/dns-query",
@@ -479,21 +519,28 @@ public class Global
 
     public static readonly List<string> DomainPureIPDNSAddress =
     [
+        "8.8.8.8",
         "119.29.29.29",
         "223.5.5.5",
         "localhost"
     ];
 
+    public static readonly List<LanguageOption> LanguageOptions =
+    [
+        new("zh-Hans", "简体中文"),
+        new("zh-Hant", "繁體中文"),
+        new("en", "English"),
+        new("fa", "فارسی"),
+        new("fr", "Français"),
+        new("ru", "Русский"),
+        new("hu", "Magyar"),
+        new("id", "Bahasa Indonesia"),
+        new("az", "Azərbaycan dili")
+    ];
+
     public static readonly List<string> Languages =
     [
-        "zh-Hans",
-        "zh-Hant",
-        "en",
-        "fa",
-        "fr",
-        "ru",
-        "hu",
-        "id"
+        .. LanguageOptions.Select(t => t.Value)
     ];
 
     public static readonly List<string> Alpns =
@@ -633,7 +680,7 @@ public class Global
     {
         { ECoreType.v2fly, "v2fly/v2ray-core" },
         { ECoreType.v2fly_v5, "v2fly/v2ray-core" },
-        { ECoreType.Xray, "XTLS/Xray-core" },
+        { ECoreType.Xray, "patterniha/Xray-core" },
         { ECoreType.sing_box, "SagerNet/sing-box" },
         { ECoreType.mihomo, "MetaCubeX/mihomo" },
         { ECoreType.hysteria, "apernet/hysteria" },
@@ -732,12 +779,6 @@ public class Global
         "reply",
     ];
 
-    public static readonly List<string> FakeIPRanges =
-    [
-        "198.18.0.0/15",
-        "11.0.0.0/8",
-    ];
-
     public static readonly List<string> RootCertProviders =
     [
         "system",
@@ -770,4 +811,5 @@ public class Global
         "fc00::10:1:0:1/126",
         "fc00::10:0:0:1/126",
     ];
+    public static readonly List<string> FakeIPRanges = ["198.18.0.0/15"];
 }

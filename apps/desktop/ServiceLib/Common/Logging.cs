@@ -22,10 +22,8 @@ public class Logging
 
     public static void LoggingEnabled(bool enable)
     {
-        if (!enable)
-        {
-            LogManager.SuspendLogging();
-        }
+        if (!enable) LogManager.SuspendLogging();
+        else LogManager.ResumeLogging();
     }
 
     public static void SaveLog(string strContent)
@@ -36,6 +34,7 @@ public class Logging
         }
 
         _logger1.Info(strContent);
+        AppEvents.SendMsgViewRequested.Publish($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}-INFO {strContent}");
     }
 
     public static void SaveLog(string strTitle, Exception ex)
@@ -46,6 +45,7 @@ public class Logging
         }
 
         _logger2.Debug($"{strTitle},{ex.Message}");
+        AppEvents.SendMsgViewRequested.Publish($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}-ERROR {strTitle}: {ex.Message}");
         _logger2.Debug(ex.StackTrace);
         if (ex?.InnerException != null)
         {

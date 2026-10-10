@@ -1,12 +1,11 @@
 package com.v2ray.ang.ui.server
 
-import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -54,137 +53,79 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.v2ray.ang.AppConfig
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.R
-import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-import com.v2ray.ang.extension.toast
-import com.v2ray.ang.extension.toastSuccess
-import com.v2ray.ang.fmt.CustomFmt
-import com.v2ray.ang.handler.AngConfigManager
-import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.EditorLoading
+import com.v2ray.ang.ui.base.EditorOutcomeEffect
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
 import com.v2ray.ang.ui.compose.FormTextField
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.horizontalScrollbar
 import com.v2ray.ang.ui.compose.verticalScrollbar
-import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.flow.collectLatest
 
 class ServerCustomConfigActivity : BaseComponentActivity() {
 
     private val editGuid by lazy { intent.getStringExtra("guid").orEmpty() }
-    private val isRunning by lazy {
-        intent.getBooleanExtra("isRunning", false)
-                && editGuid.isNotEmpty()
-                && editGuid == MmkvManager.getSelectServer()
-    }
 
-    private var initialRemarks: String = ""
-    private var initialContent: String = ""
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val config = MmkvManager.decodeServerConfig(editGuid)
-        initialRemarks = config?.remarks ?: ""
-        initialContent = MmkvManager.decodeServerRaw(editGuid).orEmpty()
+    /** PattNG: the save and the delete, which outlive this activity when it is recreated, see [ServerCustomConfigViewModel]. */
+    private val viewModel: ServerCustomConfigViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                ServerCustomConfigViewModel(application, ProfileEditorRepository(), editGuid, intent.getBooleanExtra("isRunning", false))
+            }
+        }
     }
 
     @Composable
     override fun ScreenContent() {
+        // PattNG: read off the main thread, see ProfileEditorViewModel.isRunning; no delete is offered until it is known.
+        val running by viewModel.isRunning.collectAsStateWithLifecycle()
+        val opened by viewModel.opened.collectAsStateWithLifecycle()
+        EditorOutcomeEffect(
+            viewModel = viewModel,
+            onSaved = { guid ->
+                ProfileEditorResult.run {
+                    finishSaved(
+                        guid = guid,
+                        restartService = viewModel.isRunning.value == true
+                    )
+                }
+            },
+            onDeleted = {
+                ProfileEditorResult.run {
+                    finishDeleted(editGuid)
+                }
+            }
+        )
+        // PattNG: the profile and its configuration are read off the main thread; until they are, the screen waits.
+        val custom = opened
+        if (custom == null) {
+            EditorLoading(EConfigType.CUSTOM.toString()) { finish() }
+            return
+        }
         ServerCustomConfigScreen(
             editGuid = editGuid,
-            isRunning = isRunning,
-            initialRemarks = initialRemarks,
-            initialContent = initialContent,
+            isRunning = running != false,
+            initialRemarks = custom.remarks,
+            initialContent = custom.content,
             onBackClick = { finish() },
-            onSave = { remarks, content -> saveServer(remarks, content) },
-            onDelete = { deleteServer() }
+            onSave = { remarks, content -> viewModel.save(remarks, content) },
+            onDelete = { viewModel.delete() }
         )
     }
 
-    private fun saveServer(
-        remarks: String,
-        content: String
-    ): Boolean {
-        if (remarks.isBlank()) {
-            toast(R.string.server_lab_remarks)
-            return false
-        }
-
-        val parsedProfile = try {
-            CustomFmt.parse(content)
-        } catch (e: Exception) {
-            LogUtil.e(
-                AppConfig.TAG,
-                "Failed to parse custom configuration",
-                e
-            )
-            val detail = e.cause?.message?.takeIf { it.isNotBlank() }
-                ?: e.message?.takeIf { it.isNotBlank() }
-            toast(
-                if (detail.isNullOrBlank()) {
-                    getString(R.string.toast_malformed_json)
-                } else {
-                    getString(R.string.toast_malformed_json_detail, detail)
-                }
-            )
-            return false
-        }
-
-        val config =
-            MmkvManager.decodeServerConfig(editGuid)
-                ?: ProfileItem.create(EConfigType.CUSTOM)
-
-        config.remarks =
-            remarks.ifEmpty { parsedProfile?.remarks.orEmpty() }
-
-        config.server = parsedProfile?.server
-        config.serverPort = parsedProfile?.serverPort
-        config.description =
-            AngConfigManager.generateDescription(config)
-
-        val savedGuid = MmkvManager.encodeServerConfig(
-            editGuid,
-            config
-        )
-
-        MmkvManager.encodeServerRaw(
-            savedGuid,
-            content
-        )
-
-        toastSuccess(R.string.toast_success)
-
-        ProfileEditorResult.run {
-            finishSaved(
-                guid = savedGuid,
-                restartService = isRunning
-            )
-        }
-
-        return true
-    }
-
-    private fun deleteServer(): Boolean {
-        if (editGuid.isEmpty()) {
-            return false
-        }
-
-        if (editGuid == MmkvManager.getSelectServer()) {
-            toast(R.string.toast_action_not_allowed)
-            return false
-        }
-
-        MmkvManager.removeServer(editGuid)
-
-        ProfileEditorResult.run {
-            finishDeleted(editGuid)
-        }
-
-        return true
+    /**
+     * PattNG: the screen closes only once the save or the delete that runs has written, telling the screen it returns
+     * to what it did, see [com.v2ray.ang.ui.base.EditorViewModel.leaveScreen].
+     */
+    override fun finish() {
+        if (viewModel.leaveScreen()) super.finish()
     }
 }
 
@@ -204,10 +145,11 @@ fun ServerCustomConfigScreen(
     initialRemarks: String,
     initialContent: String,
     onBackClick: () -> Unit,
-    onSave: (String, String) -> Boolean,
+    onSave: (String, String) -> Unit,
     onDelete: () -> Unit
 ) {
     var remarks by rememberSaveable { mutableStateOf(initialRemarks) }
+    var isRemarksError by rememberSaveable { mutableStateOf(false) }
     val textFieldState = rememberTextFieldState(initialText = initialContent)
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val showDelete = editGuid.isNotEmpty() && !isRunning
@@ -326,7 +268,15 @@ fun ServerCustomConfigScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { onSave(remarks, textFieldState.text.toString()) }) {
+                    IconButton(onClick = {
+                        val remarksErr = remarks.isBlank()
+                        isRemarksError = remarksErr
+
+                        val hasError = remarksErr
+                        if (!hasError) {
+                            onSave(remarks, textFieldState.text.toString())
+                        }
+                    }) {
                         Icon(
                             painterResource(R.drawable.ic_fab_check),
                             contentDescription = stringResource(R.string.acc_save)
@@ -346,7 +296,8 @@ fun ServerCustomConfigScreen(
             FormTextField(
                 label = stringResource(R.string.server_lab_remarks),
                 value = remarks,
-                onValueChange = { remarks = it }
+                onValueChange = { remarks = it },
+                isError = isRemarksError
             )
 
             Box(
@@ -487,6 +438,7 @@ fun ServerCustomConfigScreen(
     if (showDeleteConfirm) {
         DeleteConfirmDialog(
             message = stringResource(R.string.confirm_delete_profile),
+            itemName = initialRemarks,
             onConfirm = {
                 showDeleteConfirm = false
                 onDelete()

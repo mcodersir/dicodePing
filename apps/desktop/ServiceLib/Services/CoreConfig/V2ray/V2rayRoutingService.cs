@@ -13,6 +13,18 @@ public partial class CoreConfigV2rayService
                 {
                     _coreConfig.routing.rules.AddRange(tunRules);
                 }
+
+                // Browsers aggressively prefer QUIC (UDP 443). Forwarding UDP through
+                // the tunnel is unreliable on many networks and a broken QUIC session
+                // surfaces as ERR_QUIC_PROTOCOL_ERROR in the browser. Block it so
+                // clients fall back to TCP/TLS, which the tunnel carries reliably.
+                _coreConfig.routing.rules.Add(new()
+                {
+                    type = "field",
+                    port = "443",
+                    network = "udp",
+                    outboundTag = Global.BlockTag,
+                });
                 var lstDirectExe = BuildRoutingDirectExe();
                 if (lstDirectExe.Count > 0)
                 {
@@ -28,9 +40,10 @@ public partial class CoreConfigV2rayService
                         outboundTag = Global.DirectTag,
                     });
                 }
+                // "socks" is included for setups that feed TUN traffic in via tun2socks
                 _coreConfig.routing.rules.Add(new()
                 {
-                    inboundTag = ["tun"],
+                    inboundTag = ["tun", "socks"],
                     port = "53",
                     outboundTag = Global.DnsOutboundTag,
                 });
@@ -64,6 +77,15 @@ public partial class CoreConfigV2rayService
                     }
                 }
                 AddDomainFilterRules();
+                var processDirect = (JsonUtils.Deserialize<List<RulesItem>>(context.RoutingItem?.RuleSet ?? "[]") ?? [])
+                    .Where(x => x.Enabled && x.OutboundTag == Global.DirectTag && x.Process?.Count > 0)
+                    .Select(x => {
+                        var rule = JsonUtils.Deserialize<RulesItem4Ray>(JsonUtils.Serialize(x));
+                        rule.type = "field"; rule.domain = null; rule.ip = null;
+                        rule.process = ProcessRoutingPolicy.Normalize(x.Process!);
+                        return rule;
+                    }).ToList();
+                _coreConfig.routing.rules.InsertRange(0, processDirect);
                 var balancerTagList = _coreConfig.routing.balancers
                     ?.Select(p => p.tag)
                     .ToList() ?? [];
@@ -288,7 +310,7 @@ public partial class CoreConfigV2rayService
 
     private List<string> BuildRoutingDirectExe()
     {
-        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "aether", "psiphon-tunnel-core", "lyrebird", "tor" };
 
         var allCoreInfo = CoreInfoManager.Instance.GetCoreInfo();
 
