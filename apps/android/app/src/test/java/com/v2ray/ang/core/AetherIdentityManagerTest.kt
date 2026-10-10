@@ -2,6 +2,7 @@ package com.v2ray.ang.core
 
 import com.v2ray.ang.enums.AetherKeyKind
 import com.v2ray.ang.enums.AetherProtocol
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -246,7 +247,9 @@ class AetherIdentityManagerTest {
         val renewal = File(folder, "aether-renewal")
         val registered = CompletableDeferred<Unit>()
 
-        val job = launch {
+        // Reach the IO suspension before the parent starts blocking its event loop.
+        // A queued start can otherwise be starved by the polling loop under a parallel release build.
+        val job = launch(start = CoroutineStart.UNDISPATCHED) {
             AetherIdentityManager.renew(dir, renewal, AetherIdentityManager.KEY_FILES) {
                 register(renewal)
                 registered.complete(Unit)
