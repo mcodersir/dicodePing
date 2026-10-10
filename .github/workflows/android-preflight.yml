@@ -69,8 +69,7 @@ jobs:
         disable-animations: true
         working-directory: apps/android
         script: |
-          trap 'adb logcat -d > app/build/remote-test-logcat.txt' EXIT
-          ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.RemoteNavigationTest,com.v2ray.ang.ui.main.MainActivityRemoteTest
+          trap 'adb logcat -d > app/build/remote-test-logcat.txt' EXIT; ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.RemoteNavigationTest,com.v2ray.ang.ui.main.MainActivityRemoteTest
     - name: Preserve Android test diagnostics
       if: always()
       uses: actions/upload-artifact@v7
