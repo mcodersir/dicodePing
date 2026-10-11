@@ -1368,8 +1368,11 @@ public class Utils
         {
             return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         }
-        return false;
+        return GetEffectiveUserId() == 0;
     }
+
+    [DllImport("libc", EntryPoint = "geteuid")]
+    private static extern uint GetEffectiveUserId();
 
     public static bool IsPackagedInstall()
     {

@@ -143,7 +143,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         for (var i = 0; i < selecteds.Count; i++)
         {
             var it = selecteds[i];
-            if (it.ConfigType == EConfigType.Custom && (actionType is ESpeedActionType.Tcping or ESpeedActionType.Location or ESpeedActionType.UdpTest || it.CoreType is not (ECoreType.Xray or ECoreType.sing_box))) continue;
+            if (it.ConfigType == EConfigType.Custom && (actionType is ESpeedActionType.Tcping or ESpeedActionType.UdpTest || it.CoreType is not (ECoreType.Xray or ECoreType.sing_box))) continue;
 
             if (it.ConfigType != EConfigType.Custom && !it.ConfigType.IsComplexType() && it.Port <= 0)
             {
@@ -544,7 +544,9 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(it, innerCt);
                 if (processService is null)
                 {
-                    await UpdateFunc(it.IndexId, "", ResUI.FailedToRunCore);
+                    if (updateDelay) { ProfileExManager.Instance.SetTestDelay(it.IndexId, -1); await UpdateFunc(it.IndexId, "-1", ResUI.FailedToRunCore); }
+                    else await UpdateFunc(it.IndexId, "", ResUI.FailedToRunCore);
+                    completedIds.TryAdd(it.IndexId, 0);
                     return;
                 }
 
@@ -570,6 +572,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             catch (Exception ex)
             {
                 Logging.SaveLog(_tag, ex);
+                if (updateDelay) { ProfileExManager.Instance.SetTestDelay(it.IndexId, -1); await UpdateFunc(it.IndexId, "-1", ex.Message); }
+                completedIds.TryAdd(it.IndexId, 0);
             }
             finally
             {

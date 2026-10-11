@@ -74,3 +74,20 @@ reports.Clear(); reports.MsgFilter = "INFO";
 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 if (reports.LogItems.Count != 0) throw new Exception("Cleared reports reappeared");
 Console.WriteLine("Reports live, pause/resume, and clear checks passed");
+
+// Render the actual Home control as well as the full window shell at short sizes.
+Environment.SetEnvironmentVariable("DICODE_DATA_DIR", Path.Combine(Path.GetTempPath(), "dicode-layout-450-" + Guid.NewGuid()));
+if (!AppManager.Instance.InitApp()) throw new Exception("Could not initialize layout fixture");
+foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(1180, 720) }) {
+    var shell = new MainWindow { Width = size.Width, Height = size.Height, FlowDirection = Avalonia.Media.FlowDirection.RightToLeft };
+    shell.FindControl<ContentControl>("contentStatusBarView")!.Content = new StatusBarView();
+    shell.FindControl<Border>("preparationOverlay")!.IsVisible = false;
+    shell.Show();
+    shell.Measure(size); shell.Arrange(new Rect(size));
+    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    using var bitmap = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height));
+    bitmap.Render(shell);
+    bitmap.Save($"desktop-qa/home-{size.Width}-{size.Height}.png");
+    shell.Hide();
+    Console.WriteLine($"Rendered Home shell {size}");
+}

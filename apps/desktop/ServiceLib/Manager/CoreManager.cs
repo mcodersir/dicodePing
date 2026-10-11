@@ -293,11 +293,25 @@ public class CoreManager
                 var proc = await RunProcess(coreInfo, Global.CorePreConfigFileName, true, true, preContext.IsTunEnabled);
                 if (proc is null)
                 {
-                    return;
+                    await CoreStop();
+                    throw new IOException("Could not start the proxy/TUN bridge");
                 }
                 _processPreService = proc;
+                proc.Exited += code => {
+                    if (ReferenceEquals(_processPreService, proc) && !proc.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0)
+                        _ = StopAfterBridgeFailureAsync(code);
+                };
             }
         }
+    }
+
+    private async Task StopAfterBridgeFailureAsync(int code)
+    {
+        try {
+            Logging.SaveLog($"CoreHandler: proxy/TUN bridge exited with code {code}; stopping the full chain.");
+            await CoreStop();
+            if (UnexpectedExit is { } handler) await handler(code);
+        } catch (Exception error) { Logging.SaveLog("Bridge failure cleanup", error); }
     }
 
     private async Task UpdateFunc(bool notify, string msg)
@@ -403,7 +417,8 @@ public class CoreManager
         try
         {
             if (mayNeedSudo
-                && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows()))
+                && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())
+                && !Utils.IsAdministrator())
             {
                 _linuxSudo = true;
                 await CoreAdminManager.Instance.Init(_config, _updateFunc);

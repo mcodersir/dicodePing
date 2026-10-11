@@ -207,6 +207,9 @@ jobs:
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/sing_box/sing-box cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
           python scripts/package-desktop.py --root cli-publish --edition cli --platform ${{ matrix.artifact }}
           if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed' }
+      - name: Exercise CLI with actual proxy traffic and cleanup
+        if: runner.os == 'Linux'
+        run: python scripts/verify-cli.py --root cli-publish
       - name: Archive and checksum
         run: python scripts/package-desktop.py --platform ${{ matrix.artifact }}
       - name: Build Windows installer

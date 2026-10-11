@@ -36,7 +36,7 @@ public sealed class NativeMethodsWindow : Window
                 var json = NativeProfileTemplates.Build(kinds[kind.SelectedIndex], server.Text ?? "", (int)(port.Value ?? 443), username.Text ?? "", password.Text ?? "", extra.Text ?? "");
                 await File.WriteAllTextAsync(path, json);
                 await NativeConfigurationValidator.ValidateAsync(path);
-                var node = new ProfileItem { Address = path, CoreType = ECoreType.sing_box, PreSocksPort = AppManager.Instance.GetLocalPort(EInboundProtocol.mixed), Remarks = name.Text.IsNotEmpty() ? name.Text : kinds[kind.SelectedIndex], Subid = AppManager.Instance.Config.SubIndexId };
+                var node = new ProfileItem { Address = path, CoreType = ECoreType.sing_box, DisplayLog = true, PreSocksPort = System.Text.Json.Nodes.JsonNode.Parse(json)!["inbounds"]![0]!["listen_port"]!.GetValue<int>(), Remarks = name.Text.IsNotEmpty() ? name.Text : kinds[kind.SelectedIndex], Subid = AppManager.Instance.Config.SubIndexId };
                 if (await ConfigHandler.AddCustomServer(AppManager.Instance.Config, node, true) != 0) throw new IOException("Could not save profile");
                 await main.ProfilesViewModel.RefreshServersBiz(); Close();
             } catch (Exception error) { status.Text = error.Message; }

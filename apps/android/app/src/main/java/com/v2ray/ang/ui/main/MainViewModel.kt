@@ -954,9 +954,9 @@ class MainViewModel(
         }
     }
 
-    fun reloadAllGroups(groupIds: List<String>) {
+    fun reloadAllGroups(groupIds: List<String>): Job {
         reloadJob?.cancel()
-        reloadJob = viewModelScope.launch(preloadDispatcher) {
+        return viewModelScope.launch(preloadDispatcher) {
             val selected = uiState.value.selectedGroupId
             val order = buildList {
                 if (selected in groupIds) add(selected)
@@ -967,7 +967,7 @@ class MainViewModel(
                 if (index > 0) delay(32)
                 updateGroupUi(groupId, loadGroup(groupId, forceRefresh = true))
             }
-        }
+        }.also { reloadJob = it }
     }
 
     fun filterConfig(keyword: String) {
@@ -1181,7 +1181,7 @@ class MainViewModel(
             withContext(ioDispatcher) {
                 if (!wasDiagnostic) dataSource.sortByTestResultsForSub(request.groupId)
                 cacheMutex.withLock { groupDataCache.clear() }
-                reloadAllGroups(_uiState.value.groups.map { it.id })
+                reloadAllGroups(_uiState.value.groups.map { it.id }).join()
             }
             if (!wasDiagnostic && startupLocationGroup == request.groupId) {
                 startupLocationGroup = null

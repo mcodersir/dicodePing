@@ -36,7 +36,7 @@ public static class NativeProfileTemplates
         }
         var root = new JsonObject {
             ["log"] = new JsonObject { ["level"] = "warn" },
-            ["inbounds"] = new JsonArray(new JsonObject { ["type"] = "mixed", ["tag"] = "socks", ["listen"] = Global.Loopback, ["listen_port"] = AppManager.Instance.GetLocalPort(EInboundProtocol.mixed) }),
+            ["inbounds"] = new JsonArray(new JsonObject { ["type"] = "mixed", ["tag"] = "socks", ["listen"] = Global.Loopback, ["listen_port"] = Utils.GetFreePort(AppManager.Instance.GetLocalPort(EInboundProtocol.mixed) + 100) }),
             ["route"] = new JsonObject { ["final"] = "proxy", ["auto_detect_interface"] = true },
         };
         root[kind is "openconnect" or "openvpn-client" ? "endpoints" : "outbounds"] = new JsonArray(proxy);

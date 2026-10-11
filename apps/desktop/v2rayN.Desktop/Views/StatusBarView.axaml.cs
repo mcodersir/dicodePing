@@ -11,6 +11,8 @@ public partial class StatusBarView : ReactiveUserControl<StatusBarViewModel>
     {
         if (sender is not Grid grid) return;
         var narrow = e.NewSize.Width < 640;
+        btnToggleConnection.Width = narrow ? 96 : 132;
+        btnToggleConnection.Height = narrow ? 96 : 132;
         grid.ColumnDefinitions = new ColumnDefinitions(narrow ? "*" : "180,*");
         foreach (var child in grid.Children)
         {
@@ -30,6 +32,7 @@ public partial class StatusBarView : ReactiveUserControl<StatusBarViewModel>
 
         this.WhenActivated(disposables =>
         {
+            if (ViewModel is null) return;
             //status bar
             this.OneWayBind(ViewModel, vm => vm.InboundDisplay, v => v.txtInboundDisplay.Text).DisposeWith(disposables);
             this.OneWayBind(ViewModel, vm => vm.InboundLanDisplay, v => v.txtInboundLanDisplay.Text).DisposeWith(disposables);

@@ -306,6 +306,8 @@
         <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
     </Style>
 
+    <Style Selector="Window.compact RadioButton.DicodeNav"><Setter Property="Padding" Value="8,6" /></Style>
+    <Style Selector="Window.compact TextBlock.HomeSubtitle"><Setter Property="IsVisible" Value="False" /></Style>
     <Style Selector="Window.compact RadioButton.DicodeNav TextBlock"><Setter Property="IsVisible" Value="False" /></Style>
     <Style Selector="TextBox"><Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="10" /><Setter Property="MinHeight" Value="40" /><Setter Property="Padding" Value="12,8" /></Style>
     <Style Selector="TextBox:focus"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>

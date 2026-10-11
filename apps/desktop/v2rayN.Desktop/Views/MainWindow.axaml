@@ -37,7 +37,7 @@
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
-            <Border Grid.Row="0" Margin="16,14,16,8" Padding="10,8" Classes="DicodeCard" MaxHeight="130">
+            <Border x:Name="mainHeader" Grid.Row="0" Margin="16,14,16,8" Padding="10,8" Classes="DicodeCard" MaxHeight="130">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled"><WrapPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
@@ -94,9 +94,9 @@
             <!--  A plain two-column grid keeps the nav rail on the visual right in  -->
             <!--  Persian (RTL) and on the visual left in English (LTR), because      -->
             <!--  Avalonia grids mirror their columns with the flow direction.       -->
-            <Grid Grid.Row="1" Margin="16,0,16,16" ColumnDefinitions="Auto,*">
-                <Border x:Name="navRail" Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="64" Width="196" Padding="8" VerticalAlignment="Stretch">
-                    <StackPanel Spacing="4">
+            <Grid x:Name="mainBody" Grid.Row="1" Margin="16,0,16,16" ColumnDefinitions="Auto,*">
+                <Border x:Name="navRail" Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="48" Width="196" Padding="8" VerticalAlignment="Stretch">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel Spacing="4">
                         <RadioButton
                             x:Name="navHome"
                             Classes="DicodeNav"
@@ -200,18 +200,16 @@
                                 <TextBlock VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeAbout}" />
                             </StackPanel>
                         </RadioButton>
-                    </StackPanel>
+                    </StackPanel></ScrollViewer>
                 </Border>
 
-                <Panel Grid.Column="1" Margin="14,0,0,0">
+                <Panel x:Name="pageHost" Grid.Column="1" Margin="14,0,0,0">
                     <Panel x:Name="pageHome" Classes="DicodePage">
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
-                                <StackPanel Spacing="6">
-                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
-                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
+                            <StackPanel Margin="4,0" Spacing="4">
+                                <TextBlock FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
+                                <TextBlock Classes="HomeSubtitle" Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
+                            </StackPanel>
                             <ContentControl x:Name="contentStatusBarView" Grid.Row="1" />
                         </Grid>
                     </Panel>
@@ -360,7 +358,7 @@
                 <MenuItem x:Name="menuReload" Header="{x:Static resx:ResUI.menuReload}" />
                 <MenuItem x:Name="menuClose" Header="{x:Static resx:ResUI.menuExit}" />
             </Menu>
-            <Border Grid.RowSpan="2" ZIndex="100" Background="{DynamicResource DicodePageBackground}" IsVisible="{Binding IsPreparing}">
+            <Border x:Name="preparationOverlay" Grid.RowSpan="2" ZIndex="100" Background="{DynamicResource DicodePageBackground}" IsVisible="{Binding IsPreparing}">
                 <Border Classes="DicodeCard" MaxWidth="600" Margin="16" Padding="24" VerticalAlignment="Center">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel Spacing="18">
                         <Image Width="64" Height="64" Source="/Assets/DicodePing.ico" />

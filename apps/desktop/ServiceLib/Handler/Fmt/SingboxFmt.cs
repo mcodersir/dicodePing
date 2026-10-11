@@ -34,9 +34,9 @@ public class SingboxFmt : BaseFmt
         if (!isOutbound)
         {
             var fullProfile = ResolveFull(jsonObject, subRemarks);
-            profileList.Add(fullProfile);
             if (fullProfile is not null)
             {
+                profileList.Add(fullProfile);
                 return profileList;
             }
         }
@@ -73,13 +73,23 @@ public class SingboxFmt : BaseFmt
             return null;
         }
 
+        var remarks = jsonObject["remarks"]?.ToString();
+        jsonObject.Remove("remarks");
+        var inbound = (jsonObject["inbounds"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(x => x["type"]?.ToString() is "mixed" or "socks");
+        var helperPort = inbound?["listen_port"]?.GetValue<int>();
+        if (helperPort == AppManager.Instance.GetLocalPort(EInboundProtocol.mixed)) {
+            helperPort = Utils.GetFreePort(helperPort.Value + 100);
+            inbound!["listen_port"] = helperPort.Value;
+        }
         var fileName = WriteAllText(JsonUtils.Serialize(jsonObject));
         var profileItem = new ProfileItem
         {
             ConfigType = EConfigType.Custom,
             CoreType = ECoreType.sing_box,
             Address = fileName,
-            Remarks = subRemarks ?? "singbox_custom",
+            Remarks = subRemarks ?? remarks ?? "singbox_custom",
+            PreSocksPort = helperPort,
+            DisplayLog = true,
         };
 
         return profileItem;

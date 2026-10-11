@@ -38,7 +38,10 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         SizeChanged += (_, e) => {
             var compact = e.NewSize.Width < 900;
             Classes.Set("compact", compact);
-            navRail.Width = compact ? 64 : 196;
+            navRail.Width = compact ? 48 : 196;
+            mainHeader.MaxHeight = e.NewSize.Height < 500 ? 96 : 130;
+            mainBody.Margin = compact ? new Thickness(6,0,6,6) : new Thickness(16,0,16,16);
+            pageHost.Margin = compact ? new Thickness(6,0,0,0) : new Thickness(14,0,0,0);
             navRail.Padding = compact ? new Thickness(4) : new Thickness(8);
         };
         txtAboutVersion.Text = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
@@ -85,6 +88,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
         this.WhenActivated(disposables =>
         {
+            if (ViewModel is null) return;
             //servers
             this.BindCommand(ViewModel, vm => vm.AddVmessServerCmd, v => v.menuAddVmessServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddVlessServerCmd, v => v.menuAddVlessServer).DisposeWith(disposables);

@@ -1901,7 +1901,7 @@ public static class ConfigHandler
 
             if (it.ConfigType == EConfigType.Custom)
             {
-                it.PreSocksPort = subItem?.PreSocksPort;
+                it.PreSocksPort = subItem?.PreSocksPort ?? it.PreSocksPort;
                 if (await AddCustomServer(config, it, true) == 0)
                 {
                     count++;

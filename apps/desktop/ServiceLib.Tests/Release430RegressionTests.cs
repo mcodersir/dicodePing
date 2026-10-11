@@ -23,7 +23,7 @@ public class Release430RegressionTests
         Assert.InRange(run.Percent, 49, 50);
         run.StopRequested = true;
         run.UpdateSummary("Stopped");
-        Assert.Contains("80 / 163", run.Summary);
+        Assert.Equal("80 / 163", run.Counter);
         Assert.Contains("Stopped", run.Summary);
     }
 

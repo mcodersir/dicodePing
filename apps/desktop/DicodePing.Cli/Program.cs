@@ -80,6 +80,7 @@ try
                 selectedId = best?.IndexId ?? throw new InvalidOperationException("No server passed the real latency test");
             }
             var node = await AppManager.Instance.GetProfileItem(selectedId) ?? throw new InvalidOperationException("Select a profile ID or --best");
+            if (args.Contains("--tun") && !Utils.IsAdministrator()) throw new InvalidOperationException("Run the CLI as administrator/root for --tun");
             config.TunModeItem.EnableTun = args.Contains("--tun");
             config.SystemProxyItem.SysProxyType = args.Contains("--system-proxy") ? ESysProxyType.ForcedChange : ESysProxyType.ForcedClear;
             var contexts = await CoreConfigContextBuilder.BuildAll(config, node);
@@ -96,7 +97,7 @@ try
     return 0;
 }
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return 130; }
-catch (Exception error) { Console.Error.WriteLine(error.Message); return 1; }
+catch (Exception error) { Console.Error.WriteLine(args.Contains("--verbose") ? error.ToString() : error.Message); return 1; }
 finally
 {
     await CoreManager.Instance.CoreStop();
@@ -113,6 +114,8 @@ static async Task Ping(Config config, CancellationToken token)
         lock (completed)
             if (!string.IsNullOrEmpty(result.IndexId) && int.TryParse(result.Delay, out var delay) && completed.Add(result.IndexId))
                 Console.WriteLine(JsonSerializer.Serialize(new { id = result.IndexId, latency = delay, completed = completed.Count, total = profiles.Count }));
+        if (result.Delay?.Length > 0 && !int.TryParse(result.Delay, out _)) Console.Error.WriteLine(result.Delay);
+        if (result.Speed?.Length > 0) Console.Error.WriteLine(result.Speed);
         return Task.CompletedTask;
     });
     await service.RunLoop(ESpeedActionType.Realping, profiles, token);
