@@ -21,6 +21,16 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
  configfile=data/'guiConfigs'/'DicodePingConfig.json';config=json.loads(configfile.read_text(encoding='utf-8-sig'))
  config['SpeedTestItem']['SpeedPingTestUrl']=f'http://127.0.0.1:{http.server_port}/'
  configfile.write_text(json.dumps(config))
+ # A single custom profile must use the isolated probe too, rather than failing
+ # because it cannot be included in the shared batch configuration.
+ singles=pathlib.Path(folder)/'single'
+ file=pathlib.Path(folder)/'good.json'
+ singlecmd=command+['import',str(file),'--data',str(singles),'--verbose']
+ subprocess.run(singlecmd,check=True,capture_output=True,text=True,timeout=30)
+ scfile=singles/'guiConfigs'/'DicodePingConfig.json';sc=json.loads(scfile.read_text(encoding='utf-8-sig'))
+ sc['SpeedTestItem']['SpeedPingTestUrl']=f'http://127.0.0.1:{http.server_port}/';scfile.write_text(json.dumps(sc))
+ sp=subprocess.run(command+['ping','--data',str(singles),'--verbose'],capture_output=True,text=True,timeout=60)
+ assert sp.returncode==0 and any(json.loads(l).get('latency',0)>0 for l in sp.stdout.splitlines() if l.startswith('{')),sp.stderr+'\n'+sp.stdout
  output=call('ping');probes=[json.loads(line) for line in output.splitlines() if line.startswith('{')]
  assert len(probes)==2 and max(p['completed'] for p in probes)==2,output
  profiles=json.loads(call('profiles'));assert profiles[0]['name']=='good' and profiles[0]['latency']>0 and profiles[1]['latency']<=0,profiles

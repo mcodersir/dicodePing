@@ -7,6 +7,19 @@ namespace ServiceLib.Tests;
 
 public class NativeRuntimeTests
 {
+    [Fact]
+    public void WindowsTunDriverCanBeLoaded()
+    {
+        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Windows driver loading is validated in Windows release CI.");
+        foreach (var relative in new[] { "wintun.dll", Path.Combine("bin", "xray", "wintun.dll") })
+        {
+            var handle = System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(root!, relative));
+            try { Assert.NotEqual(IntPtr.Zero, System.Runtime.InteropServices.NativeLibrary.GetExport(handle, "WintunCreateAdapter")); }
+            finally { System.Runtime.InteropServices.NativeLibrary.Free(handle); }
+        }
+    }
+
     [Theory]
     [InlineData(ECoreType.Xray, "normal")]
     [InlineData(ECoreType.Xray, "tun")]

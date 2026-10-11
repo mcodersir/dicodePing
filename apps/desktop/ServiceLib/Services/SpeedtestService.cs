@@ -217,6 +217,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 var text = ip?.ToString() ?? "—";
                 ProfileExManager.Instance.SetTestIpInfo(item.IndexId, text);
                 await UpdateIpInfoFunc(item.IndexId, text);
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) {
+                Logging.SaveLog(_tag, ex);
+                await UpdateIpInfoFunc(item.IndexId, ResUI.FailedToRunCore);
             } finally {
                 completedIds.TryAdd(item.IndexId, 0);
                 if (single is not null) { await single.StopAsync(); single.Dispose(); }
@@ -328,6 +332,15 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunRealPingBatchAsync(List<ServerTestItem> lstSelected,
         ConcurrentDictionary<string, byte> completedIds, int pageSize = 0, CancellationToken ct = default)
     {
+        // Custom configurations and entry hops require an owned, isolated core.
+        // The shared batch builder cannot execute them, including a single item.
+        var isolated = lstSelected.Where(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        if (isolated.Count > 0)
+        {
+            await RunMixedTestAsync(isolated, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct);
+            lstSelected = lstSelected.Except(isolated).ToList();
+        }
+        if (lstSelected.Count == 0) return;
         if (pageSize <= 0)
         {
             pageSize = Math.Min(lstSelected.Count, _speedTestPageSize);
@@ -364,7 +377,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         }
         else if (lstFailed.Count > 0)
         {
-            await SetTestResultAsync(lstFailed, ESpeedActionType.Realping, ResUI.FailedToRunCore);
+            await RunMixedTestAsync(lstFailed, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct);
         }
     }
 

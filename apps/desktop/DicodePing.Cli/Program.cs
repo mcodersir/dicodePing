@@ -67,8 +67,7 @@ try
             await SubscriptionHandler.UpdateProcess(config, "", false, Output, cancellation.Token);
             break;
         case "ping":
-            await Ping(config, cancellation.Token);
-            break;
+            return await Ping(config, cancellation.Token);
         case "connect":
             var profiles = await AppManager.Instance.ProfileModels("", "");
             var selectedId = args.Length > 1 && !args[1].StartsWith("--") ? args[1] : config.IndexId;
@@ -104,7 +103,7 @@ finally
     if (AppManager.Instance.Config is { } config && args.Contains("--system-proxy")) await SysProxyHandler.UpdateSysProxy(config, true);
 }
 
-static async Task Ping(Config config, CancellationToken token)
+static async Task<int> Ping(Config config, CancellationToken token)
 {
     var profiles = new List<ProfileItem>();
     foreach (var model in await AppManager.Instance.ProfileModels("", ""))
@@ -119,6 +118,9 @@ static async Task Ping(Config config, CancellationToken token)
         return Task.CompletedTask;
     });
     await service.RunLoop(ESpeedActionType.Realping, profiles, token);
+    token.ThrowIfCancellationRequested();
     await ConfigHandler.SortServers(config, "", nameof(EServerColName.DelayVal), true);
     await ProfileExManager.Instance.SaveTo();
+    var ids = profiles.Select(p => p.IndexId).ToHashSet();
+    return (await ProfileExManager.Instance.GetProfileExs()).Any(p => ids.Contains(p.IndexId) && p.Delay > 0) ? 0 : 2;
 }
