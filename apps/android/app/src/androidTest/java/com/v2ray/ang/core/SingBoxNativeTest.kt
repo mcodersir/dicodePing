@@ -10,6 +10,27 @@ import java.net.Socket
 import kotlin.concurrent.thread
 
 class SingBoxNativeTest {
+    @Test fun bundledAndroidCoreAcceptsEveryNativeConnectionForm() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val ca = instrumentation.context.assets.open("native-test-ca.pem").bufferedReader().use { it.readText() }
+        val executable = java.io.File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
+        for (kind in NativeProfileTemplates.kinds) {
+            val raw = NativeProfileTemplates.build(kind, "vpn.example.com", 443, "test", "abcdefghijklmnopqrstuvwxyz123456", if (kind == "openvpn-client") ca else "", "Native test")
+            val file = java.io.File(context.cacheDir, "native-check-$kind.json")
+            file.writeText(SingBoxConfig.prepare(raw, 21512))
+            val process = ProcessBuilder(executable.absolutePath, "check", "-c", file.absolutePath).redirectErrorStream(true).start()
+            try {
+                assertTrue("Native configuration check timed out: $kind", process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS))
+                val output = process.inputStream.bufferedReader().readText()
+                assertEquals("Unsupported native form $kind: $output", 0, process.exitValue())
+            } finally {
+                if (process.isAlive) process.destroyForcibly()
+                file.delete()
+            }
+        }
+    }
+
     @Test fun nativeHelperMakesRealHttpRequestsAndCleansUpItsListener() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val port = ServerSocket(0).use { it.localPort }
