@@ -46,7 +46,7 @@ class MainActivityRemoteTest {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
-                val testTab = hasText(groupName) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+                val testTab = hasText(groupName, substring = true) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
                 compose.waitUntil(15_000) { compose.onAllNodes(testTab).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 compose.onNode(testTab).performScrollTo().performClick()
                 try {
