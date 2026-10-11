@@ -6,6 +6,7 @@ namespace v2rayN.Desktop;
 internal class Program
 {
     public static EventWaitHandle ProgramStarted;
+    private static Mutex? _instanceMutex;
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -69,7 +70,8 @@ internal class Program
         }
         else
         {
-            _ = new Mutex(true, "DicodePing.Desktop", out var bOnlyOneInstance);
+            // Retain the mutex for the entire process, including when the window is in the tray.
+            _instanceMutex = new Mutex(true, "DicodePing.Desktop", out var bOnlyOneInstance);
             if (!bOnlyOneInstance)
             {
                 return false;

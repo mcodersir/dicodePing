@@ -1,0 +1,26 @@
+<UserControl
+    x:Class="v2rayN.Desktop.Views.DomainFilterSettingView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib" x:DataType="vms:DomainFilterSettingViewModel"
+    Background="{DynamicResource DicodePageBackground}">
+  <Border Margin="24" Padding="22" Classes="DicodeCard">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+      <TextBlock FontSize="24" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeDomainFilter}" />
+      <TextBlock Grid.Row="1" Margin="0,8,0,18" Opacity="0.72" TextWrapping="Wrap"
+                 Text="{x:Static resx:ResUI.DicodeDomainFilterDesc}" />
+      <StackPanel Grid.Row="2" Spacing="10">
+        <ToggleSwitch x:Name="togOnly" Content="{x:Static resx:ResUI.DicodeDomainFilterOnly}" />
+        <ToggleSwitch x:Name="togBypass" Content="{x:Static resx:ResUI.DicodeDomainFilterBypass}" />
+      </StackPanel>
+      <TextBox x:Name="txtDomains" Grid.Row="3" Margin="0,18,0,18" AcceptsReturn="True"
+               TextWrapping="Wrap" VerticalContentAlignment="Top"
+               PlaceholderText="{x:Static resx:ResUI.DicodeDomainFilterWatermark}" />
+      <StackPanel Grid.Row="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+        <Button x:Name="btnCancel" Content="{x:Static resx:ResUI.DicodeCancel}" />
+        <Button x:Name="btnSave" Classes="Accent" Content="{x:Static resx:ResUI.DicodeSaveApply}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

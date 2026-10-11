@@ -1,29 +1,27 @@
 package com.v2ray.ang.handler
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.CoreServiceManager
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.toSpeedString
 import com.v2ray.ang.extension.toTrafficString
+import com.v2ray.ang.helper.NotificationHelper
 import com.v2ray.ang.ui.main.MainActivity
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +46,27 @@ object NotificationManager {
     val trafficTotalsFlow = _trafficTotals.asStateFlow()
 
     fun trafficTotals(): Pair<Long, Long> = totalUplink to totalDownlink
+    private var statusLine: String? = null
+    private var lastContentText: String? = null
+
+    /**
+     * Shows a line above the traffic text while the running profile cannot carry traffic yet;
+     * pass null once it can. The Aether warm-up uses it, since Xray is up before the tunnel
+     * behind it is.
+     */
+    fun setStatusLine(text: String?) {
+        statusLine = text
+        val builder = mBuilder ?: return
+        val content = composeContentText()
+        builder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        builder.setContentText(content)
+        getNotificationManager()?.notify(NOTIFICATION_ID, builder.build())
+    }
+
+    private fun composeContentText(): String? =
+        listOfNotNull(statusLine, lastContentText?.takeIf { it.isNotEmpty() })
+            .joinToString("\n")
+            .ifEmpty { null }
 
     /**
      * Starts the speed notification.
@@ -85,6 +104,7 @@ object NotificationManager {
         totalUplink = 0L
         totalDownlink = 0L
         _trafficTotals.value = 0L to 0L
+        lastContentText = null
 
         val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
 
@@ -101,14 +121,7 @@ object NotificationManager {
         restartV2RayIntent.putExtra("key", AppConfig.MSG_STATE_RESTART)
         val restartV2RayPendingIntent = PendingIntent.getBroadcast(service, NOTIFICATION_PENDING_INTENT_RESTART_V2RAY, restartV2RayIntent, flags)
 
-        val channelId =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                createNotificationChannel()
-            } else {
-                // If earlier version channel ID is not used
-                // https://developer.android.com/reference/android/support/v4/app/NotificationCompat.Builder.html#NotificationCompat.Builder(android.content.Context)
-                ""
-            }
+        val channelId = createNotificationChannel()
 
         mBuilder = NotificationCompat.Builder(service, channelId)
             .setSmallIcon(R.drawable.ic_dicode_notification)
@@ -146,15 +159,21 @@ object NotificationManager {
     }
 
     /**
-     * Cancels the notification.
+     * Cancels the notification. Leaving the foreground removes the notification a service holds
+     * there, but the proxy-only and the root service tear down in onDestroy, when stopSelf() has
+     * already taken them out of the foreground: whatever was posted since is an ordinary
+     * notification, and it is cancelled by its id.
      */
     fun cancelNotification() {
         val service = getService() ?: return
-        service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
-
-        mBuilder = null
         speedNotificationJob?.cancel()
         speedNotificationJob = null
+        service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
+        getNotificationManager()?.cancel(NOTIFICATION_ID)
+
+        mBuilder = null
+        statusLine = null
+        lastContentText = null
         mNotificationManager = null
     }
 
@@ -170,18 +189,22 @@ object NotificationManager {
     }
 
     /**
-     * Creates a notification channel for Android O and above.
+     * Creates the notification channel.
      * @return The channel ID.
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(): String {
         val channelId = AppConfig.RAY_NG_CHANNEL_ID
-        val channelName = AppConfig.RAY_NG_CHANNEL_NAME
-        // Foreground-service notifications must remain visible; LOW is silent but valid.
-        val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
-        chan.lightColor = Color.DKGRAY
-        chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-        getNotificationManager()?.createNotificationChannel(chan)
+        val service = getService() ?: return channelId
+        NotificationHelper.ensureNotificationChannel(
+            context = service,
+            channelId = channelId,
+            channelNameRes = R.string.notification_channel_service,
+            // Foreground-service notifications must remain visible; LOW is silent but valid.
+            importance = NotificationManager.IMPORTANCE_LOW,
+        ) {
+            lightColor = Color.DKGRAY
+            lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+        }
         return channelId
     }
 
@@ -192,18 +215,20 @@ object NotificationManager {
      * @param directTraffic The direct traffic.
      */
     private fun updateNotification(contentText: String?, proxyTraffic: Long, directTraffic: Long) {
-        if (mBuilder != null) {
-            if (proxyTraffic < NOTIFICATION_ICON_THRESHOLD && directTraffic < NOTIFICATION_ICON_THRESHOLD) {
-                mBuilder?.setSmallIcon(R.drawable.ic_dicode_notification)
-            } else if (proxyTraffic > directTraffic) {
-                mBuilder?.setSmallIcon(R.drawable.ic_dicode_notification)
-            } else {
-                mBuilder?.setSmallIcon(R.drawable.ic_dicode_notification)
-            }
-            mBuilder?.setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
-            mBuilder?.setContentText(contentText)
-            getNotificationManager()?.notify(NOTIFICATION_ID, mBuilder?.build())
+        // Taken once: the speed job runs on its own thread, and a stop clears the builder meanwhile.
+        val builder = mBuilder ?: return
+        if (proxyTraffic < NOTIFICATION_ICON_THRESHOLD && directTraffic < NOTIFICATION_ICON_THRESHOLD) {
+            builder.setSmallIcon(R.drawable.ic_dicode_notification)
+        } else if (proxyTraffic > directTraffic) {
+            builder.setSmallIcon(R.drawable.ic_dicode_notification)
+        } else {
+            builder.setSmallIcon(R.drawable.ic_dicode_notification)
         }
+        lastContentText = contentText
+        val content = composeContentText()
+        builder.setStyle(NotificationCompat.BigTextStyle().bigText(content))
+        builder.setContentText(content)
+        getNotificationManager()?.notify(NOTIFICATION_ID, builder.build())
     }
 
     /**
@@ -259,6 +284,9 @@ object NotificationManager {
 
         CoreServiceManager.queryAllOutboundTrafficStats().forEach { stat ->
             when {
+                // PattNG: the Aether core's tunnel, the traffic of the outbound that dials it a second time.
+                stat.tag == AppConfig.TAG_EXIT_NODE -> Unit
+
                 stat.tag == AppConfig.TAG_DIRECT -> {
                     when (stat.direction) {
                         AppConfig.UPLINK -> directUplink += stat.value

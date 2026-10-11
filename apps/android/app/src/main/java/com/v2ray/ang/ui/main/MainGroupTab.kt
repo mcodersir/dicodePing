@@ -70,6 +70,7 @@ private fun GroupTabItem(
     val serverFlow = remember(group.id) { serverFlowProvider() }
     val servers by serverFlow.collectAsStateWithLifecycle()
     Tab(
+        modifier = Modifier.remoteFocus(),
         selected = selected,
         onClick = onClick,
         text = {

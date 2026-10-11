@@ -4,7 +4,6 @@ public class V2rayConfig
 {
     public Log4Ray log { get; set; }
     public object dns { get; set; }
-    public FakeDns4Ray? fakedns { get; set; }
     public List<Inbounds4Ray> inbounds { get; set; }
     public List<Outbounds4Ray> outbounds { get; set; }
     public Routing4Ray routing { get; set; }
@@ -26,7 +25,16 @@ public class Metrics4Ray
 
 public class Policy4Ray
 {
-    public SystemPolicy4Ray system { get; set; }
+    public Dictionary<string, LevelPolicy4Ray>? levels { get; set; }
+    public SystemPolicy4Ray? system { get; set; }
+}
+
+public class LevelPolicy4Ray
+{
+    public int? handshake { get; set; }
+    public int? connIdle { get; set; }
+    public int? uplinkOnly { get; set; }
+    public int? downlinkOnly { get; set; }
 }
 
 public class SystemPolicy4Ray
@@ -42,12 +50,6 @@ public class Log4Ray
     public string? error { get; set; }
 
     public string? loglevel { get; set; }
-}
-
-public class FakeDns4Ray
-{
-    public string? ipPool { get; set; }
-    public long? poolSize { get; set; }
 }
 
 public class Inbounds4Ray
@@ -75,8 +77,6 @@ public class Inboundsettings4Ray
 
     public string? address { get; set; }
 
-    public List<UsersItem4Ray>? clients { get; set; }
-
     public string? decryption { get; set; }
 
     public bool? allowTransparent { get; set; }
@@ -94,21 +94,10 @@ public class Inboundsettings4Ray
     public string? autoOutboundsInterface { get; set; }
 
     public List<string>? dns { get; set; }
-}
 
-public class UsersItem4Ray
-{
-    public string? id { get; set; }
+    public bool? autoSystemDnsToGateway { get; set; }
 
-    public int? alterId { get; set; }
-
-    public string? email { get; set; }
-
-    public string? security { get; set; }
-
-    public string? encryption { get; set; }
-
-    public string? flow { get; set; }
+    public List<string>? autoSystemWfpBlockLeak { get; set; }
 }
 
 public class Sniffing4Ray
@@ -137,9 +126,8 @@ public class Outbounds4Ray
 
 public class Outboundsettings4Ray
 {
-    public List<VnextItem4Ray>? vnext { get; set; }
-
-    public List<ServersItem4Ray>? servers { get; set; }
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? ExtraSettings { get; set; }
 
     public Response4Ray? response { get; set; }
 
@@ -172,29 +160,18 @@ public class Outboundsettings4Ray
     public int? workers { get; set; }
 
     public int? version { get; set; }
-}
 
-public class WireguardPeer4Ray
-{
-    public string endpoint { get; set; }
-    public string publicKey { get; set; }
-    public string? preSharedKey { get; set; }
-}
+    public List<string>? remoteDNS { get; set; }
 
-public class VnextItem4Ray
-{
-    public string address { get; set; }
+    public string? id { get; set; }
 
-    public int port { get; set; }
+    public int? alterId { get; set; }
 
-    public List<UsersItem4Ray> users { get; set; }
-}
+    public string? security { get; set; }
 
-public class ServersItem4Ray
-{
-    public string email { get; set; }
+    public string? encryption { get; set; }
 
-    public string address { get; set; }
+    public string? flow { get; set; }
 
     public string? method { get; set; }
 
@@ -202,24 +179,14 @@ public class ServersItem4Ray
 
     public string? password { get; set; }
 
-    public int port { get; set; }
-
-    public int? level { get; set; }
-
-    public string flow { get; set; }
-
     public bool? uot { get; set; }
-
-    public List<SocksUsersItem4Ray> users { get; set; }
 }
 
-public class SocksUsersItem4Ray
+public class WireguardPeer4Ray
 {
-    public string user { get; set; }
-
-    public string pass { get; set; }
-
-    public int? level { get; set; }
+    public string endpoint { get; set; }
+    public string publicKey { get; set; }
+    public string? preSharedKey { get; set; }
 }
 
 public class Mux4Ray
@@ -250,6 +217,7 @@ public class DnsServer4Ray
     public int? port { get; set; }
     public List<string>? domains { get; set; }
     public bool? skipFallback { get; set; }
+    public bool? finalQuery { get; set; }
     public List<string>? expectedIPs { get; set; }
     public string? tag { get; set; }
 }
@@ -356,6 +324,7 @@ public class StreamSettings4Ray
     public GrpcSettings4Ray? grpcSettings { get; set; }
 
     public HysteriaSettings4Ray? hysteriaSettings { get; set; }
+    public MasqueSettings4Ray? masqueSettings { get; set; }
 
     public object? finalmask { get; set; }
 
@@ -367,6 +336,8 @@ public class TlsSettings4Ray
     public string? serverName { get; set; }
 
     public List<string>? alpn { get; set; }
+
+    public string? cipherSuites { get; set; }
 
     public string? fingerprint { get; set; }
 
@@ -484,6 +455,12 @@ public class HysteriaSettings4Ray
     public string? auth { get; set; }
 }
 
+public class MasqueSettings4Ray
+{
+    public string? path { get; set; }
+    public Dictionary<string, string>? headers { get; set; }
+}
+
 public class UdpHop4Ray
 {
     public string? ports { get; set; }
@@ -560,6 +537,8 @@ public class Sockopt4Ray
     public string? Interface { get; set; }
 
     public HappyEyeballs4Ray? happyEyeballs { get; set; }
+
+    public string? dialMode { get; set; }
 }
 
 public class HappyEyeballs4Ray

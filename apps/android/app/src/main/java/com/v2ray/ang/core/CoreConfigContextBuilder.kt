@@ -2,6 +2,7 @@ package com.v2ray.ang.core
 
 import android.content.Context
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.dto.ByName
 import com.v2ray.ang.dto.CoreConfigContext
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BalancerStrategyType
@@ -26,9 +27,11 @@ object CoreConfigContextBuilder {
     /**
      * Load one profile and produce a fully analyzed context.
      *
-     * Null is returned only when the selected profile cannot be loaded.
+     * Null is returned only when the selected profile cannot be loaded. PattNG: without [routingTargets], as for a
+     * latency test, which measures the profile alone, the profiles the routing rules send to are left out; the
+     * fallback of a group that is the profile stays, which its balancer names.
      */
-    fun build(context: Context, guid: String): CoreConfigContext? {
+    fun build(context: Context, guid: String, routingTargets: Boolean = true): CoreConfigContext? {
         val config = MmkvManager.decodeServerConfig(guid) ?: return null
 
         // CUSTOM: return immediately — CoreConfigManager handles this path on its own.
@@ -43,9 +46,10 @@ object CoreConfigContextBuilder {
         }
 
         // Step 2: Resolve all non-builtin routing outbound tags.
-        val routingResolvedOutbounds = resolveRoutingOutbounds()
+        val (routingResolvedOutbounds, unresolvedRoutingTarget) =
+            if (routingTargets) resolveRoutingOutbounds() else emptyList<CoreConfigContext.ResolvedOutbound>() to null
         val resolvedOutbounds = listOf(primaryResolvedOutbound) + routingResolvedOutbounds
-        val fallbackResolvedOutbounds = resolveFallbackOutbounds(resolvedOutbounds)
+        val (fallbackResolvedOutbounds, unresolvedFallback) = resolveFallbackOutbounds(resolvedOutbounds)
         val routingDomainRules = collectRoutingDomainRulesForDns()
 
         return CoreConfigContext(
@@ -53,6 +57,7 @@ object CoreConfigContextBuilder {
             guid = guid,
             resolvedOutbounds = resolvedOutbounds + fallbackResolvedOutbounds,
             routingDomainRules = routingDomainRules,
+            unresolvedTarget = unresolvedRoutingTarget ?: unresolvedFallback,
         )
     }
 
@@ -66,6 +71,7 @@ object CoreConfigContextBuilder {
             return null
         }
 
+        var unresolvedHop: CoreConfigContext.UnresolvedName? = null
         val (resolvedProfiles, resolvedType) = when (profile.configType) {
             EConfigType.POLICYGROUP -> Pair(
                 resolvePolicyGroupProfiles(profile),
@@ -73,13 +79,15 @@ object CoreConfigContextBuilder {
             )
 
             EConfigType.PROXYCHAIN -> {
-                val chainProfiles = resolveProxyChainProfiles(profile)
+                val (chainProfiles, unresolved) = resolveProxyChainProfiles(profile)
+                unresolvedHop = unresolved
                 val type = if (chainProfiles.size <= 1) CoreResolvedType.NORMAL else CoreResolvedType.PROXYCHAIN
                 Pair(chainProfiles, type)
             }
 
             else -> {
-                val chainProfiles = resolveProxyChainProfilesFromGroup(profile)
+                val (chainProfiles, unresolved) = resolveProxyChainProfilesFromGroup(profile)
+                unresolvedHop = unresolved
                 val type = if (chainProfiles.size <= 1) CoreResolvedType.NORMAL else CoreResolvedType.PROXYCHAIN
                 Pair(chainProfiles, type)
             }
@@ -90,18 +98,23 @@ object CoreConfigContextBuilder {
             profile = profile,
             resolvedProfiles = resolvedProfiles,
             resolvedType = resolvedType,
+            unresolvedHop = unresolvedHop,
         )
     }
 
     /**
      * Collect and resolve non-builtin routing targets from enabled rules.
      *
-     * Invalid or empty targets are skipped and handled by fallback logic later.
+     * Invalid or empty targets are skipped. PattNG: the session is then refused for them, see
+     * CoreConfigManager.unbuiltRoutingTarget. A target is a profile's name; the first one that no profile has any more,
+     * or several have, goes beside them, for the session to be refused for it rather than send the rule's traffic by
+     * the proxy, or by a profile it may not mean.
      */
-    private fun resolveRoutingOutbounds(): List<CoreConfigContext.ResolvedOutbound> {
-        val rulesetItems = MmkvManager.decodeRoutingRulesets() ?: return emptyList()
+    private fun resolveRoutingOutbounds(): Pair<List<CoreConfigContext.ResolvedOutbound>, CoreConfigContext.UnresolvedName?> {
+        val rulesetItems = MmkvManager.decodeRoutingRulesets() ?: return emptyList<CoreConfigContext.ResolvedOutbound>() to null
         val resolvedOutbounds = mutableListOf<CoreConfigContext.ResolvedOutbound>()
         val processedTags = mutableSetOf<String>()
+        var unresolved: CoreConfigContext.UnresolvedName? = null
 
         try {
             rulesetItems
@@ -116,15 +129,21 @@ object CoreConfigContextBuilder {
                     processedTags.add(tag)
 
                     try {
-                        val profile = SettingsManager.getServerViaRemarks(tag) ?: run {
-                            LogUtil.w(AppConfig.TAG, "Routing tag '$tag' has no matching profile — will fall back to proxy at routing time")
-                            return@forEach
+                        val profile = when (val found = SettingsManager.findServerViaRemarks(tag, ::takesAsRoutingTarget)) {
+                            is ByName.One -> found.value
+                            ByName.None, ByName.Several -> {
+                                val several = found == ByName.Several
+                                LogUtil.w(AppConfig.TAG, "Routing tag '$tag' has ${if (several) "several matching profiles" else "no matching profile"}; the session is refused")
+                                if (unresolved == null) unresolved = CoreConfigContext.UnresolvedName(tag.trim(), reasonOf(several))
+                                return@forEach
+                            }
                         }
                         val resolvedOutbound = resolveOutbound(tag, profile) ?: run {
                             LogUtil.w(AppConfig.TAG, "Cannot use CUSTOM profile as routing outbound for tag '$tag', skipping")
                             return@forEach
                         }
-                        if (resolvedOutbound.resolvedProfiles.isEmpty()) {
+                        // PattNG: a chain that names a hop no profile has, or several have, stays, for the configuration to be refused for it.
+                        if (resolvedOutbound.resolvedProfiles.isEmpty() && resolvedOutbound.unresolvedHop == null) {
                             LogUtil.w(AppConfig.TAG, "Routing outbound '$tag' resolved to empty list, skipping")
                             return@forEach
                         }
@@ -138,8 +157,11 @@ object CoreConfigContextBuilder {
             LogUtil.e(AppConfig.TAG, "Failed to resolve routing outbounds from rulesets", e)
         }
 
-        return resolvedOutbounds
+        return resolvedOutbounds to unresolved
     }
+
+    /** PattNG: whether [profile] can be what a routing rule sends to: any profile but a custom configuration. */
+    internal fun takesAsRoutingTarget(profile: ProfileItem): Boolean = profile.configType != EConfigType.CUSTOM
 
     private fun resolvePolicyGroupProfiles(config: ProfileItem): List<ProfileItem> {
         try {
@@ -167,56 +189,148 @@ object CoreConfigContextBuilder {
                         }
                     }
                 }
-                .filter { it.server.isNotNullEmpty() }
-                .filter { Utils.isPureIpAddress(it.server!!) || Utils.isValidUrl(it.server!!) }
+                .filter { it.hasDialableServer() }
                 .filter { !it.configType.isComplexType() }
                 .toList()
+                .let { members ->
+                    val (kept, leftOut) = withOneAetherProfile(members)
+                    leftOut.forEach {
+                        LogUtil.w(AppConfig.TAG, "Policy group '${config.remarks}' leaves out '${it.remarks}': a second Aether profile with other settings, and one core serves one profile")
+                    }
+                    kept
+                }
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to resolve policy group profiles for '${config.remarks}'", e)
             return listOf(config)
         }
     }
 
-    private fun resolveProxyChainProfiles(config: ProfileItem): List<ProfileItem> {
+    /**
+     * PattNG: the hops of the proxy chain [config], from the exit to the entry hop, found by their names, see
+     * [proxyChainHops], and the first name that finds no profile, several, or one without a server address beside
+     * them: the configuration is refused for it, rather than run without that hop, or through one it may not mean.
+     */
+    private fun resolveProxyChainProfiles(config: ProfileItem): Pair<List<ProfileItem>, CoreConfigContext.UnresolvedName?> {
         if (config.proxyChainProfiles.isNullOrBlank()) {
-            return listOf(config)
+            return listOf(config) to null
         }
 
         try {
-            return config.proxyChainProfiles.orEmpty().split(",")
-                .asSequence()
-                .mapNotNull { remark -> SettingsManager.getServerViaRemarks(remark) }
-                .filter { it.server.isNotNullEmpty() }
-                .filter { Utils.isPureIpAddress(it.server!!) || Utils.isValidUrl(it.server!!) }
-                .filter { !it.configType.isComplexType() }
-                .toList()
-                .reversed()
+            val (hops, unresolved) = proxyChainHops(ProfileItem.proxyChainMembersOf(config.proxyChainProfiles), SettingsManager::findServerViaRemarks)
+            return hops.reversed() to unresolved
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to resolve proxy chain profiles for '${config.remarks}'", e)
-            return listOf(config)
+            return listOf(config) to null
         }
     }
+
+    /** PattNG: whether [profile] can be a hop of a proxy chain: no chain, group or custom configuration of its own. */
+    internal fun takesAsHop(profile: ProfileItem): Boolean = !profile.configType.isComplexType()
+
+    /**
+     * PattNG: the profiles [names], the hops of a proxy chain in the order it lists them, find among those that can be a
+     * hop, see [takesAsHop], and the first of the names that finds none, several, one a chain cannot go through, see
+     * [hasServerAddress], or only a group, a chain or a custom configuration, which is told as such rather than as a
+     * name no profile has, see [HOP_REASONS]. [find] looks a name up among the profiles a filter takes, see [ByName];
+     * inline, so that an editor looks up through its own source, which suspends. A blank name names no hop.
+     */
+    internal inline fun proxyChainHops(
+        names: List<String>,
+        find: (String, (ProfileItem) -> Boolean) -> ByName<ProfileItem>,
+    ): Pair<List<ProfileItem>, CoreConfigContext.UnresolvedName?> {
+        val hops = mutableListOf<ProfileItem>()
+        var unresolved: CoreConfigContext.UnresolvedName? = null
+        for (name in names.map(String::trim).filter(String::isNotEmpty)) {
+            val reason = when (val found = find(name, ::takesAsHop)) {
+                is ByName.One -> if (hasServerAddress(found.value)) {
+                    hops += found.value
+                    null
+                } else {
+                    CoreConfigContext.UnresolvedName.Reason.NO_SERVER
+                }
+
+                ByName.None -> reasonByType(name, HOP_REASONS, find) ?: CoreConfigContext.UnresolvedName.Reason.NOT_FOUND
+                ByName.Several -> CoreConfigContext.UnresolvedName.Reason.SEVERAL
+            }
+            if (reason != null && unresolved == null) unresolved = CoreConfigContext.UnresolvedName(name, reason)
+        }
+        return hops to unresolved
+    }
+
+    /**
+     * PattNG: the types of profile a chain cannot go through, see [takesAsHop], with why each is told, see
+     * [reasonByType].
+     */
+    internal val HOP_REASONS = listOf(
+        EConfigType.POLICYGROUP to CoreConfigContext.UnresolvedName.Reason.GROUP_AS_HOP,
+        EConfigType.PROXYCHAIN to CoreConfigContext.UnresolvedName.Reason.CHAIN_AS_HOP,
+        EConfigType.CUSTOM to CoreConfigContext.UnresolvedName.Reason.CUSTOM_AS_HOP,
+    )
+
+    /** PattNG: the types of profile a group cannot fall back to, see [takesAsFallback], with why each is told. */
+    internal val FALLBACK_REASONS = listOf(
+        EConfigType.POLICYGROUP to CoreConfigContext.UnresolvedName.Reason.GROUP_AS_FALLBACK,
+        EConfigType.CUSTOM to CoreConfigContext.UnresolvedName.Reason.CUSTOM_AS_FALLBACK,
+    )
+
+    /**
+     * PattNG: why [name], which finds no profile it can be used as, cannot be used: the reason of the first of
+     * [reasons], in their order, whose type [find] finds a profile of the name among, or null when none does, as when no
+     * profile has the name at all. A name that a profile of another type has is told by what it names, rather than as a
+     * name no profile has. One lookup among the profiles of all those types tells it, as each lookup reads every
+     * profile; the types are looked up one by one only when several of those profiles have the name.
+     */
+    internal inline fun reasonByType(
+        name: String,
+        reasons: List<Pair<EConfigType, CoreConfigContext.UnresolvedName.Reason>>,
+        find: (String, (ProfileItem) -> Boolean) -> ByName<ProfileItem>,
+    ): CoreConfigContext.UnresolvedName.Reason? =
+        when (val found = find(name) { profile -> reasons.any { it.first == profile.configType } }) {
+            ByName.None -> null
+            is ByName.One -> reasons.first { it.first == found.value.configType }.second
+            ByName.Several -> reasons.firstOrNull { (type, _) -> find(name) { it.configType == type } != ByName.None }?.second
+        }
+
+    /**
+     * PattNG: whether a proxy chain can go through [profile]: an Aether one, whose core it reaches on the loopback, or
+     * one with a server address, whatever it is: Xray dials localhost or a name without a dot as well, and tells when it
+     * cannot. A chain used to leave a hop out without a word when its address did not look like a web address.
+     */
+    internal fun hasServerAddress(profile: ProfileItem): Boolean =
+        profile.configType == EConfigType.AETHER || !profile.server.isNullOrBlank()
+
+    /** PattNG: why a name that finds no profile, or [several], cannot be used, see [ByName]. */
+    private fun reasonOf(several: Boolean): CoreConfigContext.UnresolvedName.Reason =
+        if (several) CoreConfigContext.UnresolvedName.Reason.SEVERAL else CoreConfigContext.UnresolvedName.Reason.NOT_FOUND
+
+    /**
+     * PattNG: true when [profile], selected, runs as a chain with the hops its subscription puts
+     * around every one of its profiles, or would, but for a hop its subscription names that no
+     * profile, or several, have, for which it is refused as a chain; see [resolveProxyChainProfilesFromGroup].
+     */
+    internal fun isChained(profile: ProfileItem): Boolean =
+        resolveProxyChainProfilesFromGroup(profile).let { (profiles, unresolved) -> profiles.size > 1 || unresolved != null }
 
     /**
      * Resolve chain nodes from subscription neighbors in order: next, current, prev.
      *
-     * When no chain is available, return a single-node result.
+     * When no chain is available, return a single-node result. PattNG: the neighbors are found by their names, as the
+     * hops of a chain profile are, see [proxyChainHops]; the first name that finds no profile, or several, goes beside
+     * them, and the configuration is refused for it.
      */
-    private fun resolveProxyChainProfilesFromGroup(config: ProfileItem): List<ProfileItem> {
+    private fun resolveProxyChainProfilesFromGroup(config: ProfileItem): Pair<List<ProfileItem>, CoreConfigContext.UnresolvedName?> {
         if (config.subscriptionId.isEmpty()) {
-            return listOf(config)
+            return listOf(config) to null
         }
 
         try {
-            val subItem = MmkvManager.decodeSubscription(config.subscriptionId) ?: return listOf(config)
-            val resolved = mutableListOf<ProfileItem>()
-            SettingsManager.getServerViaRemarks(subItem.nextProfile)?.let { resolved.add(it) }
-            resolved.add(config)
-            SettingsManager.getServerViaRemarks(subItem.prevProfile)?.let { resolved.add(it) }
-            return resolved
+            val subItem = MmkvManager.decodeSubscription(config.subscriptionId) ?: return listOf(config) to null
+            val (next, nextUnresolved) = proxyChainHops(listOfNotNull(subItem.nextProfile), SettingsManager::findServerViaRemarks)
+            val (prev, prevUnresolved) = proxyChainHops(listOfNotNull(subItem.prevProfile), SettingsManager::findServerViaRemarks)
+            return next + config + prev to (nextUnresolved ?: prevUnresolved)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to resolve proxy chain from group for '${config.remarks}'", e)
-            return listOf(config)
+            return listOf(config) to null
         }
     }
 
@@ -253,21 +367,94 @@ object CoreConfigContextBuilder {
     /**
      * Resolve and collect fallback outbounds from all POLICYGROUP nodes.
      *
-     * Fallback targets must not overlap with already resolved tags or builtin tags.
+     * Fallback targets must not overlap with already resolved tags or builtin tags. PattNG: a target is a profile's
+     * name, read as [fallbackNameOf] reads it; the first one that no profile has any more, or several have, goes beside
+     * them, for the session to be refused for it rather than fall back to an outbound that is not there, or to a profile
+     * it may not mean. A routing target of that name stands in for the fallback only when it can be one, see
+     * [takesAsFallback]: a group, which builds a balancer and no outbound of its name, is looked up and refused as when
+     * no rule sends to it.
      */
-    private fun resolveFallbackOutbounds(resolvedOutbounds: List<CoreConfigContext.ResolvedOutbound>): List<CoreConfigContext.ResolvedOutbound> {
-        return resolvedOutbounds
+    private fun resolveFallbackOutbounds(
+        resolvedOutbounds: List<CoreConfigContext.ResolvedOutbound>,
+    ): Pair<List<CoreConfigContext.ResolvedOutbound>, CoreConfigContext.UnresolvedName?> {
+        var unresolved: CoreConfigContext.UnresolvedName? = null
+        val fallbacks = resolvedOutbounds
             .asSequence()
             .filter { it.resolvedType == CoreResolvedType.POLICYGROUP }
             .filter { BalancerStrategyType.from(it.profile.policyGroupType).supportsObservatory && it.profile.policyGroupTestOutbounds != false }
-            .mapNotNull { it.profile.policyGroupFallbackTag }
-            .filter { it !in AppConfig.BUILTIN_OUTBOUND_TAGS && resolvedOutbounds.none { outbound -> outbound.tag == it } }
+            .mapNotNull { fallbackNameOf(it.profile) }
+            .filter { it !in AppConfig.BUILTIN_OUTBOUND_TAGS && resolvedOutbounds.none { outbound -> outbound.tag == it && takesAsFallback(outbound.profile) } }
             .distinct()
             .mapNotNull { tag ->
-                SettingsManager.getServerViaRemarks(tag)
-                    ?.takeUnless { it.configType == EConfigType.CUSTOM || it.configType == EConfigType.POLICYGROUP }
-                    ?.let { resolveOutbound(tag, it) }
+                val (profile, reason) = fallbackOf(tag, SettingsManager::findServerViaRemarks)
+                if (reason != null) {
+                    LogUtil.w(AppConfig.TAG, "Policy group fallback '$tag' cannot be used ($reason)")
+                    if (unresolved == null) unresolved = CoreConfigContext.UnresolvedName(tag, reason)
+                }
+                profile?.let { resolveOutbound(tag, it) }
             }
             .toList()
+        return fallbacks to unresolved
     }
+
+    /** PattNG: whether [profile] can be the fallback of a policy group: any profile but a group or a custom configuration. */
+    internal fun takesAsFallback(profile: ProfileItem): Boolean =
+        profile.configType != EConfigType.CUSTOM && profile.configType != EConfigType.POLICYGROUP
+
+    /**
+     * PattNG: the one profile [name], the fallback a policy group names, finds among those that can be a fallback, see
+     * [takesAsFallback], or why it finds none: no such profile has the name, several have it, or only a group or a
+     * custom configuration has it, which is told as such rather than as a name no profile has, see [FALLBACK_REASONS].
+     * [find] looks a name up among the profiles a filter takes, see [ByName]; inline, so that the group editor looks up
+     * through its own source, which suspends.
+     */
+    internal inline fun fallbackOf(
+        name: String,
+        find: (String, (ProfileItem) -> Boolean) -> ByName<ProfileItem>,
+    ): Pair<ProfileItem?, CoreConfigContext.UnresolvedName.Reason?> =
+        when (val found = find(name, ::takesAsFallback)) {
+            is ByName.One -> found.value to null
+            ByName.Several -> null to CoreConfigContext.UnresolvedName.Reason.SEVERAL
+            ByName.None -> null to (reasonByType(name, FALLBACK_REASONS, find) ?: CoreConfigContext.UnresolvedName.Reason.NOT_FOUND)
+        }
+
+    /**
+     * PattNG: the name of the profile the policy group [profile] falls back to, trimmed, or null when it names none. The
+     * outbound built for that profile is tagged with it, and the group's balancer falls back to it, see
+     * CoreConfigManager.resolvePolicyGroupFallbackTag: both read it here, so that the two tags match. A blank name
+     * names none; the group then falls back to its first member, rather than to an outbound of a blank tag.
+     */
+    internal fun fallbackNameOf(profile: ProfileItem): String? =
+        profile.policyGroupFallbackTag?.trim()?.takeIf(String::isNotEmpty)
+
+    /**
+     * A group is filled by a filter rather than by named members, so it can catch several Aether
+     * profiles while one core serves one of them. The first one stays, together with any whose
+     * settings are the same; the others are left out. A chain or a routing rule names its profiles,
+     * so a conflict there is reported instead.
+     */
+    internal fun withOneAetherProfile(members: List<ProfileItem>): Pair<List<ProfileItem>, List<ProfileItem>> {
+        var kept: AetherCore? = null
+        return members.partition { member ->
+            if (member.configType != EConfigType.AETHER) return@partition true
+            val core = AetherCore.of(member)
+            when (kept) {
+                null -> {
+                    kept = core
+                    true
+                }
+
+                core -> true
+                else -> false
+            }
+        }
+    }
+
+    /**
+     * A member the core can dial. An Aether profile has no address of its own to check: its core
+     * finds the endpoint, and the outbound built for it points at that core.
+     */
+    private fun ProfileItem.hasDialableServer(): Boolean =
+        configType == EConfigType.AETHER ||
+            (server.isNotNullEmpty() && (Utils.isPureIpAddress(server!!) || Utils.isValidUrl(server!!)))
 }

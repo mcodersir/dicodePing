@@ -1861,4 +1861,128 @@
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>自定义配置核心</value>
   </data>
+<data name="menuCheckAndUpdate" xml:space="preserve">
+    <value>检查并更新</value>
+  </data>
+
+<data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+
+<data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+
+<data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
+
+<data name="TbSettingsEnableUpdateViaProxy" xml:space="preserve">
+    <value>通过代理更新</value>
+  </data>
+
+<data name="LvOverrideAddress" xml:space="preserve">
+    <value>覆盖地址</value>
+  </data>
+
+<data name="LvOverridePort" xml:space="preserve">
+    <value>覆盖端口</value>
+  </data>
+
+<data name="TipOverrideAddress" xml:space="preserve">
+    <value>留空则保留订阅中的地址</value>
+  </data>
+
+<data name="TipOverridePort" xml:space="preserve">
+    <value>留空则保留订阅中的端口</value>
+  </data>
+
+<data name="menuDelaytest" xml:space="preserve">
+    <value>延迟测试</value>
+  </data>
+
+<data name="menuRegionalPresetsChina" xml:space="preserve">
+    <value>中国大陆</value>
+  </data>
+
+<data name="TbXrayOnly" xml:space="preserve">
+    <value>仅 Xray</value>
+  </data>
+
+<data name="TbBlockAAAAQueries" xml:space="preserve">
+    <value>阻止 AAAA 查询</value>
+  </data>
+
+<data name="TbBlockAAAAQueriesTips" xml:space="preserve">
+    <value>开启后将阻止 IPv6 查询</value>
+  </data>
+
+<data name="TbDNS" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+
+<data name="TbSettingsMux4Ray" xml:space="preserve">
+    <value>Xray Mux 设置</value>
+  </data>
+
+<data name="LvRequestHeaders" xml:space="preserve">
+    <value>HTTP 请求头 (JSON)</value>
+  </data>
+
+<data name="SubRequestHeadersTips" xml:space="preserve">
+    <value>可选，示例：{"X-hwid": "my_device"}。自定义值覆盖默认请求头，应用于本组所有订阅地址（包括订阅转换服务）。</value>
+  </data>
+
+<data name="SubRequestHeadersInvalid" xml:space="preserve">
+    <value>HTTP 请求头无效。请使用 JSON 对象，键名不能重复，值必须为字符串；请求头名称和值不能包含换行符。</value>
+  </data>
+
+<data name="TbSortingProcess" xml:space="preserve">
+    <value>进程</value>
+  </data>
+
+<data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+
+<data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>EchOutbound 需要填写 EchConfigList</value>
+  </data>
+
+<data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>EchOutbound 必须包含非空的 "tag"，不能是 direct 或 block，且不能以 proxy 开头</value>
+  </data>
+
+<data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>EchOutbound 的 tag "{0}" 已被其他出站使用</value>
+  </data>
+
+<data name="menuAddMasqueServer" xml:space="preserve">
+    <value>添加 [MASQUE]</value>
+  </data>
+
+<data name="DicodeAutoPrepare" xml:space="preserve"><value>Automatically test and sort the enabled default subscription</value></data>
+<data name="DicodePreparing" xml:space="preserve"><value>Preparing your fastest routes</value></data>
+<data name="DicodePreparationHint" xml:space="preserve"><value>Real latency and location checks run before Home opens. You can skip; completed results are kept.</value></data>
+<data name="DicodeSkipPreparation" xml:space="preserve"><value>Skip and open Home</value></data>
+<data name="DicodeNoReachable" xml:space="preserve"><value>No reachable server was measured. Refresh or test again.</value></data>
+<data name="DicodeEntryTitle" xml:space="preserve"><value>Entry hop</value></data>
+<data name="DicodeEntryEnable" xml:space="preserve"><value>Enable entry hop</value></data>
+<data name="DicodeEntryExternal" xml:space="preserve"><value>Existing local SOCKS proxy</value></data>
+<data name="DicodeEntryProfile" xml:space="preserve"><value>Selected profile</value></data>
+<data name="DicodeEntrySubscription" xml:space="preserve"><value>Selected subscription</value></data>
+<data name="DicodeEntryAll" xml:space="preserve"><value>All profiles</value></data>
+<data name="DicodeEntryFirst" xml:space="preserve"><value>First reachable transport</value></data>
+<data name="DicodeEntryBest" xml:space="preserve"><value>Best available transport</value></data>
+<data name="DicodeEntryRescan" xml:space="preserve"><value>Rescan transports</value></data>
+<data name="DicodeEntryReady" xml:space="preserve"><value>Real traffic verified</value></data>
+<data name="DicodeEntryPort" xml:space="preserve"><value>Local SOCKS port</value></data>
+<data name="DicodeEntryHint" xml:space="preserve"><value>Aether/Psiphon is the first hop before your selected route. HTTP/3, HTTP/2 and WireGuard are tested through SOCKS with time limits. The winner is saved per network. Tor needs a locally installed Tor client. UDP support depends on the helper. Logs are in Reports.</value></data>
+<data name="DicodeEntryFailed" xml:space="preserve"><value>Entry hop failed. See Reports; no direct fallback is used.</value></data>
+<data name="DicodeEntryPortBusy" xml:space="preserve"><value>Choose an available local port between 1024 and 65535.</value></data>
+<data name="DicodeEntryCustomUnsupported" xml:space="preserve"><value>For custom JSON, configure the local SOCKS entry hop explicitly.</value></data>
+<data name="DicodeSniPreset" xml:space="preserve"><value>SNI-block preset for imported TLS profiles (opt-in)</value></data>
+<data name="DicodeDiscoverMask" xml:space="preserve"><value>Find a working FinalMask</value></data>
+<data name="DicodeDiscoverFailed" xml:space="preserve"><value>No tested preset worked; original settings kept.</value></data>
+<data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>Rescan after this many consecutive failures</value></data>
 </root>
