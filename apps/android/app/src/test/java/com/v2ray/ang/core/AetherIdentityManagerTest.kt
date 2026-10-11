@@ -2,7 +2,7 @@ package com.v2ray.ang.core
 
 import com.v2ray.ang.enums.AetherKeyKind
 import com.v2ray.ang.enums.AetherProtocol
-import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -246,26 +246,37 @@ class AetherIdentityManagerTest {
         val dir = keysInUse()
         val renewal = File(folder, "aether-renewal")
         val registered = CompletableDeferred<Unit>()
-
-        // Reach the IO suspension before the parent starts blocking its event loop.
-        // A queued start can otherwise be starved by the polling loop under a parallel release build.
-        val job = launch(start = CoroutineStart.UNDISPATCHED) {
+        val allowRegistrationReturn = java.util.concurrent.CountDownLatch(1)
+        val allowReadyReturn = java.util.concurrent.CountDownLatch(1)
+        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val dispatcher = executor.asCoroutineDispatcher()
+        val job = launch(dispatcher) {
             AetherIdentityManager.renew(dir, renewal, AetherIdentityManager.KEY_FILES) {
                 register(renewal)
                 registered.complete(Unit)
+                assertTrue(allowRegistrationReturn.await(10, TimeUnit.SECONDS))
                 true
             }
         }
-        registered.await()
-        // The mark is written on the IO dispatcher. Waiting for it without suspending keeps this
-        // single-threaded event loop busy, so the step's result can only be delivered after the
-        // cancellation below: the moment a renewal must neither drop its new keys nor leave half of them.
-        val mark = File(renewal, AetherIdentityManager.READY_MARK)
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-        while (!mark.exists() && System.nanoTime() < deadline) Thread.sleep(1)
-        assertTrue(mark.exists())
-        job.cancel()
-        job.join()
+        try {
+            registered.await()
+            // Queue a barrier behind registration and ahead of the IO result. The IO step can
+            // write its ready mark, but renewal cannot consume that result before cancellation.
+            executor.execute { allowReadyReturn.await(10, TimeUnit.SECONDS) }
+            allowRegistrationReturn.countDown()
+            val mark = File(renewal, AetherIdentityManager.READY_MARK)
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (!mark.exists() && System.nanoTime() < deadline) Thread.sleep(1)
+            assertTrue(mark.exists())
+            job.cancel()
+            allowReadyReturn.countDown()
+            job.join()
+        } finally {
+            allowRegistrationReturn.countDown()
+            allowReadyReturn.countDown()
+            job.cancelAndJoin()
+            dispatcher.close()
+        }
 
         assertEquals(every("new"), devices(dir))
         assertFalse(renewal.exists())
