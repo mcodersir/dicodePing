@@ -181,12 +181,7 @@ jobs:
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter FullyQualifiedName~NativeRuntimeTests
           if ($LASTEXITCODE -ne 0) { throw 'Generated configurations failed native core validation' }
       - name: Archive and checksum
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-4.4.0-${{ matrix.artifact }}-portable.zip"
-          Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
-          "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
+        run: python scripts/package-desktop.py --platform ${{ matrix.artifact }}
       - name: Build Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
