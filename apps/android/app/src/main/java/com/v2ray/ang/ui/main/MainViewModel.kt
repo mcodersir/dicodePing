@@ -395,6 +395,7 @@ class MainViewModel(
                 if (primary == null || !primary.subscription.enabled || !dataSource.isDefaultAutoTestEnabled()) return@launch
                 dataSource.updateConfigViaSub(primary)
                 dataSource.setSelectedSubscriptionId(primary.guid)
+                _uiState.update { it.copy(selectedGroupId = primary.guid) }
                 setupGroupTab(forceRefresh = true).join()
                 withContext(Dispatchers.Main) {
                     startupLocationGroup = primary.guid
@@ -739,6 +740,7 @@ class MainViewModel(
                         if (primary?.subscription?.enabled == true && dataSource.isDefaultAutoTestEnabled()
                             && (subId.isEmpty() || subId == primary.guid)) {
                             dataSource.setSelectedSubscriptionId(primary.guid)
+                            _uiState.update { it.copy(selectedGroupId = primary.guid) }
                             setupGroupTab(forceRefresh = true).join()
                             withContext(Dispatchers.Main) { testAllRealPing() }
                         }

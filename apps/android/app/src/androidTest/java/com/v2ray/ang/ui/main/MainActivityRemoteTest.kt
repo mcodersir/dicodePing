@@ -60,6 +60,7 @@ class MainActivityRemoteTest {
                 val oneBounds = compose.onNodeWithText("Remote test server one").fetchSemanticsNode().boundsInRoot
                 val twoBounds = compose.onNodeWithText("Remote test server two").fetchSemanticsNode().boundsInRoot
                 val nextKey = when {
+                    twoBounds.bottom <= oneBounds.top -> KeyEvent.KEYCODE_DPAD_UP
                     twoBounds.top >= oneBounds.bottom -> KeyEvent.KEYCODE_DPAD_DOWN
                     twoBounds.left >= oneBounds.right -> KeyEvent.KEYCODE_DPAD_RIGHT
                     else -> KeyEvent.KEYCODE_DPAD_LEFT

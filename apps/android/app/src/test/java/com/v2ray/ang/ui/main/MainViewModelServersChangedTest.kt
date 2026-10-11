@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.SubscriptionUpdateResult
 import com.v2ray.ang.dto.TestServiceMessage
 import com.v2ray.ang.dto.entities.ProfileItem
@@ -55,6 +56,8 @@ class MainViewModelServersChangedTest {
         /** Whether the list of every group, its id empty, is shown too, as the setting has it. */
         @Volatile
         var showAllGroup = false
+        var showPrimaryGroup = false
+        val testMessages = Channel<TestServiceMessage>(Channel.UNLIMITED)
         private var selectedSubscriptionId = ""
 
         /** The moves stored, as the group and the two guids. */
@@ -94,6 +97,7 @@ class MainViewModelServersChangedTest {
         override fun getSubscriptions() = buildList {
             if (showAllGroup) add(SubscriptionCache("", SubscriptionItem(remarks = "All")))
             add(SubscriptionCache(SUB, SubscriptionItem(remarks = "Sub")))
+            if (showPrimaryGroup) add(SubscriptionCache(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, SubscriptionItem(remarks = "Primary", enabled = true)))
         }
         /** Shut by a test, the next reading of the list of every group waits on it after it read the group, see [readingHeld]. */
         @Volatile
@@ -120,11 +124,11 @@ class MainViewModelServersChangedTest {
                 listReadHeld.complete(Unit)
                 gate.await(5, TimeUnit.SECONDS)
             }
-            return serverGuids
+            return if (groupId == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) listOf("primary-server") else serverGuids
         }
         override fun decodeServerConfig(guid: String): ProfileItem? =
             ProfileItem.create(EConfigType.VLESS).apply {
-                subscriptionId = SUB
+                subscriptionId = if (guid == "primary-server") AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID else SUB
                 remarks = guid
                 description = guid
             }
@@ -158,7 +162,7 @@ class MainViewModelServersChangedTest {
         override fun share2Clipboard(guid: String) = false
         override fun sendMsg2Service(msgId: Int, content: String) = Unit
         override fun queryServiceState() = Unit
-        override fun sendMsg2TestService(msg: TestServiceMessage, requestId: String?) = Unit
+        override fun sendMsg2TestService(msg: TestServiceMessage, requestId: String?) { testMessages.trySend(msg) }
         override fun cancelAllPing() = Unit
         override fun testCurrentServerRealPing(requestId: String) = Unit
         override fun syncSubscriptions() = Unit
@@ -176,6 +180,21 @@ class MainViewModelServersChangedTest {
     @AfterEach
     fun resetMainDispatcher() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun startupTestsThePrimarySubscriptionEvenWhenTheAggregateWasSelected() = runBlocking {
+        val source = FakeSource().apply { showAllGroup = true; showPrimaryGroup = true }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        assertEquals("", viewModel.uiState.value.selectedGroupId)
+
+        viewModel.initialize()
+        val request = withTimeout(5_000) { source.testMessages.receive() }
+
+        assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, request.subscriptionId)
+        assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, viewModel.uiState.value.selectedGroupId)
+        assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, source.getSelectedSubscriptionId())
     }
 
     @Test
