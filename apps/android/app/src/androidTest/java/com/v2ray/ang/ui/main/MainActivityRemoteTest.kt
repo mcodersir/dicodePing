@@ -37,7 +37,20 @@ class MainActivityRemoteTest {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
-                compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
+                try {
+                    compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
+                } catch (failure: Throwable) {
+                    android.util.Log.e("RemoteNavigationDiagnostics", "Selected group: ${MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID)}, indexed test profiles: ${MmkvManager.decodeAllServerList().count { it == first || it == second }}")
+                    runCatching { compose.onRoot().printToLog("RemoteNavigationDiagnostics") }
+                    val root = InstrumentationRegistry.getInstrumentation().uiAutomation.rootInActiveWindow
+                    fun dump(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0) {
+                        if (node == null || depth > 16) return
+                        android.util.Log.e("RemoteNavigationDiagnostics", "${" ".repeat(depth)}${node.className}: ${node.text} / ${node.contentDescription}")
+                        for (i in 0 until node.childCount) dump(node.getChild(i), depth + 1)
+                    }
+                    dump(root)
+                    throw failure
+                }
                 remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithText("Remote test server one").performSemanticsAction(SemanticsActions.RequestFocus)
                 compose.onNodeWithText("Remote test server one").assertIsFocused()
