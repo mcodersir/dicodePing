@@ -7,6 +7,18 @@ public partial class StatusBarView : ReactiveUserControl<StatusBarViewModel>
 {
     private static Config _config;
 
+    private void ConnectionLayoutSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (sender is not Grid grid) return;
+        var narrow = e.NewSize.Width < 640;
+        grid.ColumnDefinitions = new ColumnDefinitions(narrow ? "*" : "180,*");
+        foreach (var child in grid.Children)
+        {
+            if (child.Classes.Contains("ConnectionDetails")) { Grid.SetColumn(child, narrow ? 0 : 1); Grid.SetRow(child, narrow ? 1 : 0); }
+            if (child.Classes.Contains("ConnectionHint")) Grid.SetColumnSpan(child, narrow ? 1 : 2);
+        }
+    }
+
     public StatusBarView()
     {
         InitializeComponent();

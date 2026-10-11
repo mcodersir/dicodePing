@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -141,6 +142,9 @@ class MainViewModel(
     private val testRequests = MainTestRequests()
     private var bulkTestJob: Job? = null
     private var startupLocationGroup: String? = null
+    private var startupJob: Job? = null
+    private var startupStarted = false
+    private var preparationDone: CompletableDeferred<Unit>? = null
     private var diagnosticMode: String? = null
 
     private val initialPageReady = CompletableDeferred<Unit>()
@@ -210,7 +214,7 @@ class MainViewModel(
 
             is MainServiceEvent.MeasureConfigNotify -> {
                 if (event.requestId == testRequests.bulk?.id) {
-                    _uiState.update { it.copy(status = MainStatus.TestProgress(event.progress)) }
+                    _uiState.update { it.copy(status = MainStatus.TestProgress(event.progress), preparationProgress = event.progress) }
                 }
             }
 
@@ -233,6 +237,7 @@ class MainViewModel(
                 if (testRequests.completeBulk(event.requestId) != null) {
                     cancelPendingTestResults()
                     resetTestStatus()
+                    preparationDone?.complete(Unit)
                 }
             }
 
@@ -385,28 +390,56 @@ class MainViewModel(
 
     // ---------- Initialization ----------
     fun initialize() {
-        viewModelScope.launch(preloadDispatcher) {
+        if (startupStarted) return
+        startupStarted = true
+        startupJob = viewModelScope.launch(preloadDispatcher) {
             try {
                 initialPageReady.await()
-                delay(32)
                 dataSource.initAssets()
                 dataSource.syncSubscriptions()
                 val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
-                if (primary == null || !primary.subscription.enabled || !dataSource.isDefaultAutoTestEnabled()) return@launch
-                dataSource.updateConfigViaSub(primary)
-                dataSource.setSelectedSubscriptionId(primary.guid)
-                _uiState.update { it.copy(selectedGroupId = primary.guid) }
-                setupGroupTab(forceRefresh = true).join()
-                withContext(Dispatchers.Main) {
-                    startupLocationGroup = primary.guid
-                    testAllRealPing()
+                if (primary == null || !primary.subscription.enabled || !dataSource.isDefaultAutoTestEnabled() || uiState.value.isRunning) return@launch
+                _uiState.update { it.copy(preparationVisible = true, preparationStage = "refresh", preparationProgress = "") }
+                val completed = withTimeoutOrNull(240_000L) {
+                    dataSource.updateConfigViaSub(primary)
+                    dataSource.setSelectedSubscriptionId(primary.guid)
+                    _uiState.update { it.copy(selectedGroupId = primary.guid, preparationStage = "latency") }
+                    setupGroupTab(forceRefresh = true).join()
+                    preparationDone = CompletableDeferred()
+                    withContext(Dispatchers.Main) {
+                        startupLocationGroup = primary.guid
+                        testAllRealPing()
+                        if (!testRequests.isTesting) preparationDone?.complete(Unit)
+                    }
+                    preparationDone?.await()
+                    withContext(ioDispatcher) {
+                        val best = loadGroup(primary.guid).filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+                        // Preserve an explicitly selected reachable server; otherwise prepare the fastest.
+                        val selected = dataSource.getSelectServer()
+                        val reachable = loadGroup(primary.guid).any { it.guid == selected && it.testDelayMillis > 0 }
+                        if (!reachable && best != null) selectForConnection(best.guid)
+                    }
+                    true
                 }
+                if (completed == null) withContext(Dispatchers.Main) { cancelAllPing() }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                LogUtil.e(AppConfig.TAG, "Main background initialization failed", error)
+                LogUtil.e(AppConfig.TAG, "Default subscription preparation failed", error)
+            } finally {
+                startupLocationGroup = null
+                preparationDone = null
+                _uiState.update { it.copy(preparationVisible = false, preparationStage = "", preparationProgress = "") }
             }
         }
+    }
+
+    fun skipPreparation() {
+        startupJob?.cancel()
+        startupLocationGroup = null
+        preparationDone?.complete(Unit)
+        cancelAllPing()
+        _uiState.update { it.copy(preparationVisible = false) }
     }
 
     fun selectForConnection(guid: String) { dataSource.setSelectServer(guid); _uiState.update { it.copy(selectedGuid = guid) } }
@@ -1150,7 +1183,10 @@ class MainViewModel(
             }
             if (!wasDiagnostic && startupLocationGroup == request.groupId) {
                 startupLocationGroup = null
+                _uiState.update { it.copy(preparationStage = "location", preparationProgress = "") }
                 testAllLocations(request.groupId)
+            } else if (wasDiagnostic && uiState.value.preparationVisible) {
+                preparationDone?.complete(Unit)
             }
         }
     }
@@ -1212,6 +1248,7 @@ class MainViewModel(
     }
 
     override fun onCleared() {
+        startupJob?.cancel()
         setupGroupJob?.cancel()
         preloadJob?.cancel()
         selectedGroupLoadJob?.cancel()

@@ -6,7 +6,7 @@ public partial class ProbeRunModel : ReactiveObject
     public string Name { get; init; } = "";
     public int Total { get; init; }
     public bool StopRequested { get; set; }
-    public bool IsRunning { get; set; } = true;
+    [Reactive] public partial bool IsRunning { get; set; } = true;
     [Reactive] public partial int Completed { get; set; }
     [Reactive] public partial double Percent { get; set; }
     [Reactive] public partial string Summary { get; set; }

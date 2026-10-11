@@ -816,4 +816,11 @@
     <string name="dicode_rescan_aether">Rescan selected Aether/Psiphon transports</string>
     <string name="dicode_aether_auto">Auto-scan transports for Aether profiles before connecting</string>
     <string name="dicode_aether_best">Test all transports and use the fastest verified result</string>
+
+    <string name="preparation_title">Preparing your connection</string>
+    <string name="preparation_refresh">Updating the default subscription</string>
+    <string name="preparation_latency">Testing real server latency</string>
+    <string name="preparation_location">Checking reachable server locations</string>
+    <string name="preparation_hint">Results are saved to your server list. You can connect as soon as preparation finishes.</string>
+    <string name="preparation_skip">Continue without waiting</string>
 </resources>

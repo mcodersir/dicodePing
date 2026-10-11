@@ -142,6 +142,11 @@ fun MainScreen(
             }
     }
 
+    if (uiState.preparationVisible) {
+        PreparationScreen(uiState, mainViewModel::skipPreparation)
+        return
+    }
+
     MainDialogs(
         showDelAllConfirm = showDelAllConfirm,
         onDismissDelAll = { showDelAllConfirm = false },

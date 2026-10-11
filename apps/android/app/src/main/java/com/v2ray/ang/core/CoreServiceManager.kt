@@ -55,6 +55,7 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
+    private var singBoxProcess: SingBoxProcess? = null
 
     /** The Aether core the running configuration depends on, null when it has no Aether outbound. */
     private var currentAether: AetherCore? = null
@@ -217,11 +218,27 @@ object CoreServiceManager {
         // if any, starts once Xray listens, see launchNativeCore.
         AetherCoreManager.stop()
 
+        singBoxProcess?.close()
+        singBoxProcess = null
         try {
+            result.singBoxContent?.let { nativeConfig ->
+                val helper = SingBoxProcess(service)
+                singBoxProcess = helper
+                helper.start(nativeConfig, result.singBoxPort) {
+                    service.mainExecutor.execute {
+                        if (singBoxProcess === helper && isServiceRunning()) {
+                            LogUtil.e(AppConfig.TAG, "sing-box stopped; stopping VPN without direct fallback")
+                            serviceControl?.get()?.stopService()
+                        }
+                    }
+                }
+            }
             launchNativeCore(service, guid, config, aether, result.content, vpnInterface, isReload)
         } catch (e: Exception) {
             // Setup failed after this attempt spawned the Aether process; release it with the rest.
             AetherCoreManager.stop()
+            singBoxProcess?.close()
+            singBoxProcess = null
             throw e
         }
     }
@@ -357,6 +374,8 @@ object CoreServiceManager {
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(): Boolean {
+        singBoxProcess?.close()
+        singBoxProcess = null
         connectionTestScope.coroutineContext.cancelChildren()
         val service = getService() ?: return false
 

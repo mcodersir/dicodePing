@@ -148,10 +148,13 @@ public class CoreManager
                     try
                     {
                         using var client = new TcpClient();
-                        await client.ConnectAsync(Global.Loopback, port).WaitAsync(TimeSpan.FromMilliseconds(150));
+                        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        deadline.CancelAfter(TimeSpan.FromMilliseconds(150));
+                        await client.ConnectAsync(Global.Loopback, port, deadline.Token);
                         ready = true; break;
                     }
-                    catch { await Task.Delay(50); }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                    catch (Exception) { await Task.Delay(50, token); }
                 }
                 if (!ready) { await process.StopAsync(); process.Dispose(); return null; }
             }

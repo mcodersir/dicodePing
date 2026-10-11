@@ -2428,4 +2428,6 @@ https://t.me/dicodeping‏</value>
 <data name="DicodeDiscoverMask" xml:space="preserve"><value>یافتن FinalMask مناسب</value></data>
 <data name="DicodeDiscoverFailed" xml:space="preserve"><value>هیچ پیش‌تنظیم موفق نبود؛ تنظیمات اصلی حفظ شد.</value></data>
 <data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>اسکن دوباره پس از این تعداد خطای متوالی</value></data>
+<data name="DicodeUploadLabel" xml:space="preserve"><value>آپلود ↑</value></data>
+<data name="DicodeDownloadLabel" xml:space="preserve"><value>دانلود ↓</value></data>
 </root>

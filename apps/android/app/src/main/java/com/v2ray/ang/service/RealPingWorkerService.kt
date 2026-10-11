@@ -139,6 +139,14 @@ class RealPingWorkerService(
         if (!configResult.status) {
             return retFailure
         }
+        configResult.singBoxContent?.let { content ->
+            return RealPingExecutionLimiter.run(config.configType) {
+                com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
+                    helper.start(content, configResult.singBoxPort)
+                    helper.measure(configResult.singBoxPort, SettingsManager.getDelayTestUrl())
+                }
+            }
+        }
         val aether = configResult.aetherCore
         if (aether != null) {
             // The configuration reaches the internet through an Aether outbound, so it is measured behind

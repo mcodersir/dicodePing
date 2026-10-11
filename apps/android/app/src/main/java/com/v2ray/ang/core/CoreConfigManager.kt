@@ -144,7 +144,12 @@ object CoreConfigManager {
             )
         val result = ConfigResult(true, configContext.guid, raw)
 
-        val json = JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
+        val json = if (SingBoxConfig.isConfig(raw)) {
+            val port = Utils.findRandomFreePort()
+            result.singBoxContent = raw
+            result.singBoxPort = port
+            SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
+        } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         val dependency = AetherDependency.ofCustom(json)
         aetherFailure(context, configContext.guid, dependency)?.let { return it }

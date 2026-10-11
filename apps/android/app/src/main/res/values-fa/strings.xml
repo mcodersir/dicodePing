@@ -804,4 +804,11 @@
     <string name="dicode_rescan_aether">اسکن دوباره مسیرهای Aether/Psiphon انتخاب‌شده</string>
     <string name="dicode_aether_auto">اسکن خودکار مسیرهای پروفایل Aether پیش از اتصال</string>
     <string name="dicode_aether_best">تست همهٔ مسیرها و انتخاب سریع‌ترین نتیجهٔ موفق</string>
+
+    <string name="preparation_title">آماده‌سازی اتصال شما</string>
+    <string name="preparation_refresh">تازه‌سازی اشتراک پیش‌فرض</string>
+    <string name="preparation_latency">اندازه‌گیری تأخیر واقعی سرورها</string>
+    <string name="preparation_location">بررسی موقعیت سرورهای در دسترس</string>
+    <string name="preparation_hint">نتایج در فهرست سرورها ذخیره می‌شوند تا پس از پایان آماده‌سازی سریع‌تر متصل شوید.</string>
+    <string name="preparation_skip">ادامه بدون انتظار</string>
 </resources>

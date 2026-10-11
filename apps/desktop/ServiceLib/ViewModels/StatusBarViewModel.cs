@@ -99,6 +99,10 @@ public partial class StatusBarViewModel : MyReactiveObject
     [Reactive]
     public partial string SpeedDirectDisplay { get; set; }
     [Reactive] public partial string TotalTrafficDisplay { get; set; }
+    [Reactive] public partial string DownloadTotal { get; set; } = "0 KB";
+    [Reactive] public partial string UploadTotal { get; set; } = "0 KB";
+    [Reactive] public partial string DownloadRate { get; set; } = "0 KB/s";
+    [Reactive] public partial string UploadRate { get; set; } = "0 KB/s";
     [Reactive] public partial string PingDisplay { get; set; }
     [Reactive] public partial string LocationDisplay { get; set; }
     [Reactive] public partial string LocationCountry { get; set; }
@@ -559,7 +563,11 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         try
         {
-            TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
+            DownloadTotal = Utils.HumanFy(update.TotalDown);
+            UploadTotal = Utils.HumanFy(update.TotalUp);
+            DownloadRate = Utils.HumanFy(update.ProxyDown) + "/s";
+            UploadRate = Utils.HumanFy(update.ProxyUp) + "/s";
+            TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ {UploadTotal}  ↓ {DownloadTotal}";
             if (AppManager.Instance.IsRunningCore(ECoreType.sing_box))
             {
                 SpeedProxyDisplay = string.Format(ResUI.SpeedDisplayText, EInboundProtocol.mixed, Utils.HumanFy(update.ProxyUp), Utils.HumanFy(update.ProxyDown));

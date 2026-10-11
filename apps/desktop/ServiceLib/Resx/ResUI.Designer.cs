@@ -6788,5 +6788,7 @@ namespace ServiceLib.Resx {
         public static string DicodeDiscoverMask => ResourceManager.GetString("DicodeDiscoverMask", resourceCulture);
         public static string DicodeDiscoverFailed => ResourceManager.GetString("DicodeDiscoverFailed", resourceCulture);
         public static string DicodeEntryFailureThreshold => ResourceManager.GetString("DicodeEntryFailureThreshold", resourceCulture);
+        public static string DicodeUploadLabel => ResourceManager.GetString("DicodeUploadLabel", resourceCulture);
+        public static string DicodeDownloadLabel => ResourceManager.GetString("DicodeDownloadLabel", resourceCulture);
     }
 }

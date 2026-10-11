@@ -12,8 +12,8 @@
     Title="DicodePing"
     Width="1200"
     Height="800"
-    MinWidth="720"
-    MinHeight="560"
+    MinWidth="320"
+    MinHeight="360"
     x:DataType="vms:MainWindowViewModel"
     Design.DataContext="{x:Static dd:DesignData.MainWindow}"
     Icon="/Assets/DicodePing.ico"
@@ -37,8 +37,8 @@
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
-            <Border Grid.Row="0" Margin="16,14,16,8" Padding="16,10" Classes="DicodeCard">
-                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="16">
+            <Border Grid.Row="0" Margin="16,14,16,8" Padding="10,8" Classes="DicodeCard">
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
                         <StackPanel Spacing="0">
@@ -47,7 +47,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <WrapPanel Grid.Column="1" HorizontalAlignment="Center" Orientation="Horizontal">
+                    <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal">
                         <Button Margin="4" Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Button Margin="4" Click="OpenServerPool">
                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -80,21 +80,21 @@
                     </WrapPanel>
 
                     <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsRefreshing}"><StackPanel Spacing="6"><TextBlock Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" /><ProgressBar IsIndeterminate="True" Height="3" /></StackPanel><Button Grid.Column="1" Command="{Binding CancelRefreshCmd}" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" /></Grid>
-                    <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
                         <Button
                             x:Name="btnNewUpdate"
                             Content="{x:Static resx:ResUI.menuNewUpdate}"
                             IsVisible="False" />
                         <ContentControl x:Name="conTheme" />
                     </StackPanel>
-                </Grid>
+                </WrapPanel>
             </Border>
 
             <!--  A plain two-column grid keeps the nav rail on the visual right in  -->
             <!--  Persian (RTL) and on the visual left in English (LTR), because      -->
             <!--  Avalonia grids mirror their columns with the flow direction.       -->
             <Grid Grid.Row="1" Margin="16,0,16,16" ColumnDefinitions="Auto,*">
-                <Border Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="196" Padding="8" VerticalAlignment="Stretch">
+                <Border x:Name="navRail" Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="64" Width="196" Padding="8" VerticalAlignment="Stretch">
                     <StackPanel Spacing="4">
                         <RadioButton
                             x:Name="navHome"
@@ -216,15 +216,7 @@
                     </Panel>
 
                     <Panel x:Name="pageProfiles" Classes="DicodePage" IsVisible="False">
-                        <Grid RowDefinitions="Auto,*" RowSpacing="14">
-                            <Border Padding="18" Classes="DicodeCard" MaxWidth="1040">
-                                <StackPanel Spacing="6">
-                                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeProfilesTitle}" />
-                                    <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeProfilesSubtitle}" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                            <ContentControl x:Name="tabProfiles" Grid.Row="1" />
-                        </Grid>
+                        <ContentControl x:Name="tabProfiles" />
                     </Panel>
 
                     <Panel x:Name="pageProxies" Classes="DicodePage" IsVisible="False">

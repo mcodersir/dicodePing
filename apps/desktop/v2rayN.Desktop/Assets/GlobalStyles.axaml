@@ -305,4 +305,16 @@
     <Style Selector="TabItem:selected">
         <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
     </Style>
+
+    <Style Selector="Window.compact RadioButton.DicodeNav TextBlock"><Setter Property="IsVisible" Value="False" /></Style>
+    <Style Selector="TextBox"><Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="10" /><Setter Property="MinHeight" Value="40" /><Setter Property="Padding" Value="12,8" /></Style>
+    <Style Selector="TextBox:focus"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ComboBox"><Setter Property="CornerRadius" Value="10" /><Setter Property="MinHeight" Value="40" /><Setter Property="Padding" Value="12,8" /></Style>
+    <Style Selector="ComboBoxItem"><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="MinHeight" Value="36" /></Style>
+    <Style Selector="ComboBoxItem:pointerover"><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /></Style>
+    <Style Selector="NumericUpDown"><Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="10" /><Setter Property="MinHeight" Value="40" /></Style>
+    <Style Selector="ToggleSwitch"><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="MinHeight" Value="40" /></Style>
+    <Style Selector="CheckBox"><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="MinHeight" Value="36" /></Style>
+    <Style Selector="Slider"><Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ProgressBar"><Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" /><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="3" /></Style>
 </Styles>

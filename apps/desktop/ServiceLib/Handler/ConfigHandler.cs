@@ -1115,7 +1115,7 @@ public static class ConfigHandler
                 EServerColName.Port => lstProfile.OrderBy(t => t.Port).ToList(),
                 EServerColName.Network => lstProfile.OrderBy(t => t.Network).ToList(),
                 EServerColName.StreamSecurity => lstProfile.OrderBy(t => t.StreamSecurity).ToList(),
-                EServerColName.DelayVal => lstProfile.OrderBy(t => t.Delay).ToList(),
+                EServerColName.DelayVal => lstProfile.OrderBy(t => t.Delay <= 0).ThenBy(t => t.Delay > 0 ? t.Delay : int.MaxValue).ThenBy(t => t.Sort).ToList(),
                 EServerColName.SpeedVal => lstProfile.OrderBy(t => t.Speed).ToList(),
                 EServerColName.IpInfo => lstProfile.OrderBy(t => t.IpInfo).ToList(),
                 EServerColName.SubRemarks => lstProfile.OrderBy(t => t.Subid).ToList(),
@@ -1136,7 +1136,7 @@ public static class ConfigHandler
                 EServerColName.Port => lstProfile.OrderByDescending(t => t.Port).ToList(),
                 EServerColName.Network => lstProfile.OrderByDescending(t => t.Network).ToList(),
                 EServerColName.StreamSecurity => lstProfile.OrderByDescending(t => t.StreamSecurity).ToList(),
-                EServerColName.DelayVal => lstProfile.OrderByDescending(t => t.Delay).ToList(),
+                EServerColName.DelayVal => lstProfile.OrderBy(t => t.Delay <= 0).ThenByDescending(t => t.Delay > 0 ? t.Delay : 0).ThenBy(t => t.Sort).ToList(),
                 EServerColName.SpeedVal => lstProfile.OrderByDescending(t => t.Speed).ToList(),
                 EServerColName.IpInfo => lstProfile.OrderByDescending(t => t.IpInfo).ToList(),
                 EServerColName.SubRemarks => lstProfile.OrderByDescending(t => t.Subid).ToList(),
@@ -1152,29 +1152,7 @@ public static class ConfigHandler
         {
             ProfileExManager.Instance.SetSort(lstProfile[i].IndexId, (i + 1) * 10);
         }
-        switch (name)
-        {
-            case EServerColName.DelayVal:
-                {
-                    var maxSort = lstProfile.Select(t => t.Sort).DefaultIfEmpty(0).Max() + 10;
-                    foreach (var item in lstProfile.Where(item => item.Delay <= 0))
-                    {
-                        ProfileExManager.Instance.SetSort(item.IndexId, maxSort);
-                    }
-
-                    break;
-                }
-            case EServerColName.SpeedVal:
-                {
-                    var maxSort = lstProfile.Select(t => t.Sort).DefaultIfEmpty(0).Max() + 10;
-                    foreach (var item in lstProfile.Where(item => item.Speed <= 0))
-                    {
-                        ProfileExManager.Instance.SetSort(item.IndexId, maxSort);
-                    }
-
-                    break;
-                }
-        }
+        await ProfileExManager.Instance.SaveTo();
 
         return 0;
     }

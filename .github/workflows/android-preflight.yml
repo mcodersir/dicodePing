@@ -1,8 +1,8 @@
-name: Android 4.4 preflight
+name: Android 4.5 preflight
 on:
   push:
     branches:
-    - codex/release-4.4.0
+    - codex/release-4.5.0
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -32,6 +32,8 @@ jobs:
         cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
 
         '
+    - name: Bundle verified Android sing-box
+      run: python scripts/stage-singbox-android.py
     - name: Fetch the verified Android Xray runtime
       run: 'mkdir -p apps/android/app/libs
 
@@ -54,7 +56,7 @@ jobs:
 
         chmod +x gradlew
 
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.4.0'
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.5.0'
 
     - name: Enable hardware acceleration for the test emulator
       run: |

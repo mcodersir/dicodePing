@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--platform", required=True, choices=["windows-x64", "linux-x64", "macos-x64", "macos-arm64"])
     parser.add_argument("--output", default="dist", type=pathlib.Path)
     args = parser.parse_args()
-    archive = args.output / ("DicodePing-4.4.0-" + args.platform + "-portable.zip")
+    archive = args.output / ("DicodePing-4.5.0-" + args.platform + "-portable.zip")
     package(args.root, archive, args.platform == "windows-x64")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:

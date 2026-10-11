@@ -333,7 +333,7 @@ object AngConfigManager {
         }
         if (server.contains("inbounds")
             && server.contains("outbounds")
-            && server.contains("routing")
+            && (server.contains("routing") || server.contains("route") || com.v2ray.ang.core.SingBoxConfig.isConfig(server))
         ) {
             try {
                 val serverList: Array<Any> =

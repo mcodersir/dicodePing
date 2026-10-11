@@ -11,4 +11,6 @@ data class ConfigResult(
     var localizedError: Boolean = false,
     /** The Aether core the configuration runs on, when it has an Aether outbound; the daemon starts it. */
     var aetherCore: AetherCore? = null,
+    var singBoxContent: String? = null,
+    var singBoxPort: Int = 0,
 )

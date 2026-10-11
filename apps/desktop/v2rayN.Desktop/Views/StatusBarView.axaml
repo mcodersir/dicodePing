@@ -6,9 +6,9 @@
     xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
     xmlns:vms="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
     x:DataType="vms:StatusBarViewModel">
-  <Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1040" VerticalAlignment="Top" HorizontalAlignment="Stretch">
-    <Border Padding="32" Classes="DicodeCard">
-      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="220,*" RowSpacing="18" ColumnSpacing="20">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled"><Grid RowDefinitions="Auto,Auto" RowSpacing="14" MaxWidth="1040" VerticalAlignment="Top" HorizontalAlignment="Stretch">
+    <Border Padding="18" Classes="DicodeCard">
+      <Grid x:Name="connectionLayout" SizeChanged="ConnectionLayoutSizeChanged" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="180,*" RowSpacing="18" ColumnSpacing="20">
         <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
           <Button
               x:Name="btnToggleConnection"
@@ -43,7 +43,7 @@
               ToolTip.Tip="{x:Static resx:ResUI.DicodeSmartConnect}" />
         </StackPanel>
 
-        <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="12">
+        <StackPanel Classes="ConnectionDetails" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="12">
           <Border Padding="16" Background="{DynamicResource DicodeSurfaceElevated}" BorderBrush="{DynamicResource DicodeBorder}" BorderThickness="1" CornerRadius="16">
             <StackPanel Spacing="8">
               <TextBlock FontSize="13" Opacity="0.68" Text="{x:Static resx:ResUI.DicodeRoute}" />
@@ -76,12 +76,16 @@
               <TextBlock FontSize="13" Opacity="0.68" Text="{x:Static resx:ResUI.DicodeTraffic}" />
               <TextBlock x:Name="txtInboundDisplay" />
               <TextBlock x:Name="txtInboundLanDisplay" Opacity="0.72" />
-              <TextBlock x:Name="txtTotalTrafficDisplay" FontWeight="SemiBold" TextWrapping="NoWrap" />
+              <TextBlock x:Name="txtTotalTrafficDisplay" IsVisible="False" />
+              <WrapPanel Orientation="Horizontal">
+                <Border Margin="0,8,8,0" Padding="14" MinWidth="128" CornerRadius="12" Background="{DynamicResource DicodeSurface}"><StackPanel Spacing="6"><TextBlock Text="{x:Static resx:ResUI.DicodeDownloadLabel}" Foreground="{DynamicResource DicodeAccent}" /><TextBlock Text="{Binding DownloadRate}" FontSize="20" FontWeight="SemiBold" FlowDirection="LeftToRight" /><TextBlock Text="{Binding DownloadTotal}" FlowDirection="LeftToRight" Opacity="0.7" /></StackPanel></Border>
+                <Border Margin="0,8,8,0" Padding="14" MinWidth="128" CornerRadius="12" Background="{DynamicResource DicodeSurface}"><StackPanel Spacing="6"><TextBlock Text="{x:Static resx:ResUI.DicodeUploadLabel}" Foreground="{DynamicResource DicodeAccent}" /><TextBlock Text="{Binding UploadRate}" FontSize="20" FontWeight="SemiBold" FlowDirection="LeftToRight" /><TextBlock Text="{Binding UploadTotal}" FlowDirection="LeftToRight" Opacity="0.7" /></StackPanel></Border>
+              </WrapPanel>
             </StackPanel>
           </Border>
         </StackPanel>
 
-        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{x:Static resx:ResUI.DicodeHomeHint}" Opacity="0.65" TextWrapping="Wrap" />
+        <TextBlock Classes="ConnectionHint" Grid.Row="2" Grid.ColumnSpan="2" Text="{x:Static resx:ResUI.DicodeHomeHint}" Opacity="0.65" TextWrapping="Wrap" />
         <TextBlock x:Name="txtSpeedProxyDisplay" Grid.Row="1" IsVisible="False" />
         <TextBlock x:Name="txtSpeedDirectDisplay" Grid.Row="1" IsVisible="False" />
         <ToggleSwitch x:Name="togEnableTun" Grid.Row="1" IsVisible="False" />
@@ -89,5 +93,5 @@
         <ComboBox x:Name="cmbRoutings2" Grid.Row="1" IsVisible="False" ItemsSource="{Binding RoutingItems}" />
       </Grid>
     </Border>
-  </Grid>
+  </Grid></ScrollViewer>
 </UserControl>
