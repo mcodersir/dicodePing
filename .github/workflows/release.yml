@@ -2,7 +2,7 @@ name: Release 4.5.0 Stable
 
 on:
   push:
-    tags: ['v4.*']
+    tags: ['v4.5.0']
   workflow_dispatch:
 
 permissions:
@@ -186,8 +186,26 @@ jobs:
         shell: pwsh
         run: |
           $env:DICODE_RUNTIME_TEST_ROOT = (Resolve-Path publish).Path
-          dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter FullyQualifiedName~NativeRuntimeTests
+          dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter "FullyQualifiedName~NativeRuntimeTests|FullyQualifiedName~BundledRuntimeAcceptsNativeTemplates"
           if ($LASTEXITCODE -ne 0) { throw 'Generated configurations failed native core validation' }
+      - name: Publish independent CLI with verified runtimes
+        shell: pwsh
+        run: |
+          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.5.0 -o cli-publish
+          if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
+          Copy-Item publish/bin cli-publish/bin -Recurse -Force
+          Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
+          if (Test-Path publish/wintun.dll) { Copy-Item publish/wintun.dll cli-publish/wintun.dll }
+          Copy-Item docs/CLI.md cli-publish/README.md
+          Copy-Item LICENSE cli-publish/LICENSE
+          $cli = (Resolve-Path ('cli-publish/dicodeping' + '${{ matrix.rid == 'win-x64' && '.exe' || '' }}')).Path
+          & $cli --version
+          if ($LASTEXITCODE -ne 0) { throw 'CLI version check failed' }
+          & $cli --help
+          if ($LASTEXITCODE -ne 0) { throw 'CLI help check failed' }
+          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/sing_box/sing-box cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
+          python scripts/package-desktop.py --root cli-publish --edition cli --platform ${{ matrix.artifact }}
+          if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed' }
       - name: Archive and checksum
         run: python scripts/package-desktop.py --platform ${{ matrix.artifact }}
       - name: Build Windows installer
@@ -299,21 +317,45 @@ jobs:
           make_latest: true
           generate_release_notes: false
           body: |
-            ## DicodePing 4.5.0 — پایدار
+            ## DicodePing 4.5.0 — اتصال آماده‌تر، انتخاب ساده‌تر
 
-            - تست پینگ واقعی و مرتب‌سازی خودکار ساب پیش‌فرض موجود و فعال؛ قابل خاموش‌کردن در تنظیمات هر دو نسخه.
-            - اسپلش آماده‌سازی دسکتاپ برای پینگ و لوکیشن؛ اتصال به بهترین سرورِ دارای نتیجهٔ موفق، بدون تست مجدد غیرضروری.
-            - تست جدا و ایمن کانفیگ‌های سفارشی؛ پیشرفت واقعی انجام‌شده/کل و مدیریت لغو آزمون‌ها.
-            - یکپارچه‌سازی تغییرات PattNG 2.3.10-P63؛ ناوبری قابل مشاهده با کنترل تلویزیون و فایل Universal.
-            - پیش‌نیازهای PattN 7.25.5-P32؛ اولویت قواعد DIRECT برنامه‌ها و حفظ صفحهٔ دسکتاپ.
-            - Aether و Psiphon مدیریت‌شده برای پروفایل یا ساب دسکتاپ؛ بررسی واقعی ترافیک، ذخیرهٔ مسیر موفق برای شبکه و بازیابی بدون جایگزینی مستقیم.
-            - اسکن اختیاری ترنسپورتِ پروفایل‌های تنظیمی Aether در اندروید؛ انتخاب اولین یا بهترین مسیر قابل دسترسی، ذخیره برای شبکه و اسکن مجدد دستی.
-            - جست‌وجوی FinalMask برای پروفایل TLS انتخاب‌شده؛ فقط نتیجهٔ تأییدشده ذخیره می‌شود.
-            - گزینهٔ اختیاری SNI-Block برای واردکردن TLS/FinalMask/Cipher؛ اعتبارسنجی گواهی خاموش نمی‌شود.
-            - Xray دسکتاپ v26.10.9، کتابخانهٔ اندروید v26.10.10، sing-box v1.14.3، Mihomo v1.19.32 و Aether v2.3.0 با SHA-256.
+            این نسخه روی آماده‌سازی اتصال، خوانایی نتایج و پایداری تمرکز دارد. نسخهٔ مستقل CLI هم برای اولین بار به دانلودهای **DicodePing** اضافه شده است.
 
-            نکات سازگاری: Aether در ABI اندروید x86 موجود نیست. گزینهٔ FinalMask برای TLS/Xray است؛ Desync توسط هستهٔ فعلی پشتیبانی نمی‌شود. زنجیرهٔ مدیریت‌شدهٔ دسکتاپ کانفیگ Custom را نمی‌پذیرد؛ زنجیره‌های داخلی اندروید از امکانات PattNG استفاده می‌کنند. اسکن اندروید پیش از شروع اتصال کاربر یا به‌صورت دستی انجام می‌شود؛ VPN در حال اجرا را خودکار بازپیکربندی نمی‌کند و فرمان‌های سفارشی را بازنویسی نمی‌کند. UDP به قابلیت مسیر انتخابی وابسته است. هیچ اتصال موفقی تضمین نمی‌شود؛ نتایج به شبکه و سرور وابسته‌اند.
-            دانلود: https://mcodersir.github.io/dicodePing/#download
+            ### آماده‌سازی قبل از اتصال
+            - **اندروید:** اگر ساب پیش‌فرض موجود و فعال باشد و تست خودکار را خاموش نکرده باشید، صفحهٔ آماده‌سازی ابتدا ساب را تازه می‌کند، پینگ واقعی می‌گیرد و IP خروجی سرورها را بررسی می‌کند. پیشرفت واقعی دیده می‌شود و می‌توانید آن را رد کنید.
+            - نتیجهٔ پینگ و موقعیت در فهرست پروفایل‌ها باقی می‌ماند. اتصال به «بهترین» از نتیجهٔ موفق ذخیره‌شده استفاده می‌کند؛ اگر نتیجهٔ معتبری ندارید ابتدا آزمون انجام می‌شود.
+            - سرورهای دارای پینگ موفق از تأخیر کمتر به بیشتر مرتب می‌شوند؛ نتیجه‌های ناموفق و بدون نتیجه در انتهای فهرست قرار می‌گیرند.
+            - ساب حذف‌شده یا غیرفعال دوباره برای اجرای اسپلش اضافه نمی‌شود.
+
+            ### دسکتاپ مرتب‌تر و پایدارتر
+            - پنجرهٔ کوچک، نوار ابزار منعطف، منو و ورودی‌های هماهنگ با تم؛ حذف باکس اضافی بالای پروفایل‌ها.
+            - نمایش جداگانهٔ دانلود و آپلود با جهت درست اعداد؛ پیشرفت خواناتر و جمع‌شدن باکس تست بعد از پایان.
+            - پرچم‌های محلی کامل‌تر، بدون نیاز به دانلود آنلاین تصاویر پرچم.
+            - اصلاح تداخل تراکنش‌های پایگاه داده و لغو اتصال‌های آزمایشی که در لاگ کاربران دیده شد.
+            - بستهٔ ویندوز اکنون فایل لازم برای اجرای TUN در Xray را کنار هسته قرار می‌دهد.
+            - حفظ قفل اجرای برنامه در لینوکس هنگام بستن پنجره به سینی سیستم.
+
+            ### روش‌های اتصال بیشتر
+            - فرم ساخت **Snell 4، AnyTLS، SSH، Cisco/OpenConnect و OpenVPN** در اندروید و دسکتاپ؛ با اجرای واقعی هستهٔ sing-box و حفظ بررسی گواهی TLS.
+            - **sing-box بومی در بسته‌های اندروید** اضافه شده است. Xray همچنان VPN اندروید را مدیریت می‌کند و مسیر جدید از پروکسی داخلیِ جدا عبور می‌کند. توقف یا شکست هسته، به اتصال مستقیمِ پنهانی تبدیل نمی‌شود.
+            - خروجی گرفتن و ورود دوبارهٔ JSON کانفیگ‌های سفارشی اندروید اصلاح شده؛ فرمت `dicode-json://` نیز در دسکتاپ و CLI قابل ورود است.
+            - ابزار **CF IP Scanner** دسکتاپ و CLI، IPهای انتخابی شما را با درخواست HTTPS و اعتبارسنجی گواهی تست می‌کند.
+            - مسیرهای Aether، Psiphon و زنجیره‌های موجود حفظ شده‌اند. روش‌های پیشرفته با تنظیمات واقعی سرور کار می‌کنند؛ صرف افزودن نام روش، اتصال موفق را تضمین نمی‌کند.
+
+            ### CLI مستقل
+            برای ویندوز، لینوکس و مک، فایل `cli.zip` جداگانه همراه هسته‌ها ارائه می‌شود. ورود پروفایل، تازه‌سازی، تست پینگ، اتصال به بهترین، اجرای JSON و اسکن CF از ترمینال در دسترس‌اند. توقف با Ctrl+C و خروجی قابل پردازش برای ابزارهای خودکار.
+
+            ### حدود پشتیبانی، روشن و بدون ادعا
+            - OpenVPN با گواهی کاربر یا tls-crypt به تنظیمات تکمیلی همان سرور در JSON نیاز دارد؛ فرم ساده جایگزین همهٔ فایل‌های پیچیدهٔ ovpn نیست.
+            - MasterDNS، DNSTT، VayDNS، MHR، MHR-CFW، MITM fronting و ابزار مستقل SNI Spoofing **هستهٔ داخلی این نسخه نیستند**. گزینهٔ «ابزار مستقل · SOCKS5» اتصال به پروکسیِ ابزار اجراشده را فراهم می‌کند. نصب و راه‌اندازی ابزار و سرور آن جداست؛ گواهی ریشه خودکار نصب نمی‌شود.
+            - IKEv2 مدیریت‌شده به این نسخه اضافه نشده است. هیچ دکمهٔ نمایشی یا ادعای پشتیبانی جعلی برای آن ارائه نمی‌شود.
+            - درخواست‌های مربوط به برنامه‌های دیگر تنها وقتی به DicodePing قابل تطبیق بودند اصلاح شدند؛ این یادداشت ادعای رفع تمام issueهای آن برنامه‌ها را ندارد.
+
+            هسته‌های تثبیت‌شدهٔ بسته: Xray 26.10.9 دسکتاپ، AndroidLib 26.10.10، sing-box 1.14.3، Mihomo 1.19.32 دسکتاپ و Aether 2.3.0. نسخه و SHA-256 فایل‌های بومی در بسته‌های دسکتاپ و CLI موجود است.
+
+            **دانلود:** https://mcodersir.github.io/dicodePing/#download
+
+            برای ارتقا، فایل متناسب با سیستم را نصب کنید. امضای APK و شناسهٔ اندروید حفظ می‌شود. فایل‌های SHA-256 کنار دانلودها قرار دارند. اشکال شبکه یا سرور با یک عدد پینگ یا یک آزمون تنظیمات قابل تضمین نیست؛ خطاها و محدودیت‌های مسیر در لاگ قابل بررسی‌اند.
           files: artifacts/*
 
   website:

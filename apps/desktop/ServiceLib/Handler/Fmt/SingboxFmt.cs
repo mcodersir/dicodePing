@@ -56,12 +56,12 @@ public class SingboxFmt : BaseFmt
     private static ProfileItem? ResolveFull(JsonObject jsonObject, string? subRemarks)
     {
         if (jsonObject?["inbounds"] == null
-            || jsonObject["outbounds"] == null)
+            || (jsonObject["outbounds"] == null && jsonObject["endpoints"] == null))
         {
             return null;
         }
 
-        if (jsonObject["outbounds"] is JsonArray outboundsArray)
+        if ((jsonObject["outbounds"] ?? jsonObject["endpoints"]) is JsonArray outboundsArray)
         {
             if (!outboundsArray.Any(IsValidSingboxOutbound))
             {

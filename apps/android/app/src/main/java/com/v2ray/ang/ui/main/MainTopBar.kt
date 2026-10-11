@@ -50,7 +50,8 @@ fun MainTopBar(
     isAutoConnecting: Boolean,
     onSmartConnect: () -> Unit,
     onAction: (MainAction) -> Unit,
-    onMoreMenuAction: (MainMoreMenuAction) -> Unit
+    onMoreMenuAction: (MainMoreMenuAction) -> Unit,
+    onNativeMethods: () -> Unit = {}
 ) {
     val initialFocus = remember { FocusRequester() }
     val context = LocalContext.current
@@ -117,6 +118,10 @@ fun MainTopBar(
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(importMenuScrollState)
                 ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { androidx.compose.material3.Text(stringResource(R.string.native_methods_title)) },
+                        onClick = { showImportMenu = false; onNativeMethods() },
+                    )
                     ImportMenuContent(
                         onAction = { action ->
                             showImportMenu = false

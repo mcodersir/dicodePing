@@ -31,6 +31,7 @@ internal class SingBoxProcess(private val context: Context) : AutoCloseable {
         val started = command.start(); process = started
         thread(name = "DicodeSingBoxLog", isDaemon = true) {
             runCatching { started.inputStream.bufferedReader().useLines { lines -> lines.forEach { LogUtil.i(AppConfig.TAG, "sing-box: $it") } } }
+            runCatching { started.waitFor() }
             if (!stopped) onExit?.invoke()
         }
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)

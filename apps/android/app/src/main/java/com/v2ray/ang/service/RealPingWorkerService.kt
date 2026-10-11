@@ -30,6 +30,7 @@ import kotlin.concurrent.thread
 
 internal object RealPingExecutionLimiter {
     private val customConfigMutex = Mutex()
+    val locationMutex = Mutex()
 
     suspend fun <T> run(configType: EConfigType, block: () -> T): T {
         // Custom profiles bypass speed-test trimming and start complete Xray configs.
@@ -75,7 +76,7 @@ class RealPingWorkerService(
                 try {
                     val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
                     val result = if (locationOnly || sanctionsOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
-                    val location = if (locationOnly) SpeedtestManager.getServerLocationInfo(MmkvManager.decodeServerConfig(guid)?.server) else null
+                    val location = if (locationOnly) startLocationInfo(guid) else null
                     if (scope.isActive) {
                         onEvent(RealPingEvent.Result(guid, result, location?.country, location?.ipAddress, sanctions?.first, sanctions?.second ?: 0, sanctions?.third ?: 0))
                     }
@@ -124,6 +125,49 @@ class RealPingWorkerService(
             // ignore
         }
     }
+
+    private suspend fun startLocationInfo(guid: String): SpeedtestManager.RemoteEndpointInfo? =
+        RealPingExecutionLimiter.locationMutex.withLock {
+            scope.ensureActive()
+            val profile = MmkvManager.decodeServerConfig(guid) ?: return@withLock null
+            val result = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
+            if (!result.status) return@withLock null
+            result.singBoxContent?.let { content ->
+                return@withLock com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
+                    helper.start(content, result.singBoxPort)
+                    scope.ensureActive()
+                    SpeedtestManager.getProxyLocationInfo(result.singBoxPort)
+                }
+            }
+            if (profile.configType == EConfigType.AETHER && !CoreConfigContextBuilder.isChained(profile)) {
+                var location: SpeedtestManager.RemoteEndpointInfo? = null
+                AetherDelayTester.measureVia(context, guid, com.v2ray.ang.core.AetherCore.of(profile)) { port, _ ->
+                    location = SpeedtestManager.getProxyLocationInfo(port)
+                    if (location == null) -1 else 1
+                }
+                return@withLock location
+            }
+            // openExit adds a temporary inbound/outbound owned by this probe, while
+            // preserving the active VPN. It rejects a conflicting exit owner.
+            fun queryExit(): SpeedtestManager.RemoteEndpointInfo? {
+                val json = com.google.gson.JsonParser.parseString(result.content).asJsonObject
+                val proxy = json.getAsJsonArray("outbounds")?.firstOrNull {
+                    it.asJsonObject.get("tag")?.asString == "proxy"
+                }?.asJsonObject ?: return null
+                proxy.addProperty("tag", "exit-node")
+                val port = CoreNativeManager.openExit(context, json.toString())
+                return try { scope.ensureActive(); SpeedtestManager.getProxyLocationInfo(port) }
+                finally { CoreNativeManager.closeExit() }
+            }
+            val aetherCore = result.aetherCore
+            if (aetherCore != null) {
+                var location: SpeedtestManager.RemoteEndpointInfo? = null
+                AetherDelayTester.measureVia(context, guid, aetherCore, result.content) { _, _ ->
+                    location = queryExit(); if (location == null) -1 else 1
+                }
+                location
+            } else queryExit()
+        }
 
     internal suspend fun startRealPing(guid: String): Long {
         val retFailure = -1L

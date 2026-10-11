@@ -20,6 +20,7 @@ public static class CountryCodes
             }
             catch (ArgumentException) { }
         }
+        names["Congo, Republic of"] = "CG"; names["Congo, Democratic Republic of"] = "CD";
         names["UK"] = "GB"; names["XK"] = "XK"; names["EU"] = "EU";
         return names;
     }
@@ -27,8 +28,6 @@ public static class CountryCodes
     {
         if (string.IsNullOrWhiteSpace(location)) return "";
         var text = location.Trim();
-        foreach (var word in Regex.Matches(text, @"(?<![A-Za-z])[A-Za-z]{2}(?![A-Za-z])").Cast<Match>())
-            if (Names.TryGetValue(word.Value, out var code)) return code;
         var runes = text.EnumerateRunes().ToArray();
         for (var i = 0; i + 1 < runes.Length; i++)
             if (runes[i].Value is >= 0x1F1E6 and <= 0x1F1FF && runes[i+1].Value is >= 0x1F1E6 and <= 0x1F1FF)
@@ -36,6 +35,9 @@ public static class CountryCodes
         foreach (var pair in Names.Where(x => x.Key.Length > 2).OrderByDescending(x => x.Key.Length))
             if (text.Equals(pair.Key, StringComparison.OrdinalIgnoreCase) || text.StartsWith(pair.Key + " ", StringComparison.OrdinalIgnoreCase)
                 || text.StartsWith(pair.Key + ",", StringComparison.OrdinalIgnoreCase)) return pair.Value;
+        foreach (var word in Regex.Matches(text, @"(?<![A-Za-z])[A-Z]{2}(?![A-Za-z])").Cast<Match>())
+            if (Names.TryGetValue(word.Value, out var code)) return code;
+        if (text.Length == 2 && Names.TryGetValue(text, out var exact)) return exact;
         return "";
     }
 }

@@ -7,9 +7,9 @@ import stat
 import zipfile
 
 
-def package(root: pathlib.Path, archive: pathlib.Path, windows: bool) -> None:
+def package(root: pathlib.Path, archive: pathlib.Path, windows: bool, cli: bool = False) -> None:
     executables = [] if windows else [
-        "DicodePing", "bin/xray/xray", "bin/mihomo/mihomo", "bin/sing_box/sing-box",
+        "dicodeping" if cli else "DicodePing", "bin/xray/xray", "bin/mihomo/mihomo", "bin/sing_box/sing-box",
         "bin/aether/aether", "bin/aether/pt/lyrebird", "bin/aether/pt/psiphon-tunnel-core",
     ]
     for name in executables:
@@ -33,15 +33,16 @@ if __name__ == "__main__":
     parser.add_argument("--root", default="publish", type=pathlib.Path)
     parser.add_argument("--platform", required=True, choices=["windows-x64", "linux-x64", "macos-x64", "macos-arm64"])
     parser.add_argument("--output", default="dist", type=pathlib.Path)
+    parser.add_argument("--edition", choices=["desktop", "cli"], default="desktop")
     args = parser.parse_args()
-    archive = args.output / ("DicodePing-4.5.0-" + args.platform + "-portable.zip")
-    package(args.root, archive, args.platform == "windows-x64")
+    archive = args.output / ("DicodePing-4.5.0-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
+    package(args.root, archive, args.platform == "windows-x64", args.edition == "cli")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             hasher.update(block)
     digest = hasher.hexdigest()
-    (args.output / ("SHA256SUMS-" + args.platform + ".txt")).write_text(
+    (args.output / ("SHA256SUMS-" + args.platform + ("-cli" if args.edition == "cli" else "") + ".txt")).write_text(
         digest + "  " + archive.name + "\n", encoding="utf-8"
     )
     print("Archived and verified", archive.name)

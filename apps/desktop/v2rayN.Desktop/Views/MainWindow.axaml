@@ -48,6 +48,7 @@
                     </StackPanel>
 
                     <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                        <Button Margin="4" Content="＋ روش‌های اتصال" Click="OpenNativeMethods" />
                         <Button Margin="4" Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Button Margin="4" Click="OpenServerPool">
                             <StackPanel Orientation="Horizontal" Spacing="8">

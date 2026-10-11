@@ -1713,6 +1713,17 @@ public static class ConfigHandler
                 }
                 continue;
             }
+            if (str.StartsWith("dicode-json://", StringComparison.Ordinal))
+            {
+                try {
+                    var payload = str["dicode-json://".Length..].Replace('-', '+').Replace('_', '/');
+                    payload = payload.PadRight((payload.Length + 3) / 4 * 4, '=');
+                    var raw = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+                    var imported = await AddBatchServers4Custom(config, raw, subid, isSub);
+                    if (imported > 0) countServers += imported;
+                } catch (Exception error) { Logging.SaveLog("Custom import", error); }
+                continue;
+            }
             var profileItem = FmtHandler.ResolveConfig(str, out var msg);
             if (profileItem is null)
             {

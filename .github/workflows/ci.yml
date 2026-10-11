@@ -15,6 +15,10 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.5.0
 
+      - name: Build independent CLI
+        run: |
+          dotnet build apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release
+          dotnet run --project apps/desktop/DicodePing.Cli -c Release --no-build -- --help
       - name: Render desktop layout in both directions and themes
         run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
       - uses: actions/upload-artifact@v7

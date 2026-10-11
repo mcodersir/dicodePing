@@ -21,7 +21,7 @@ AppBuilder.Configure<v2rayN.Desktop.App>().WithFontByDefault().UseSkia()
 typeof(AppManager).GetField("_config", BindingFlags.Instance | BindingFlags.NonPublic)!
     .SetValue(AppManager.Instance, new Config { UiItem = new UIItem(), MsgUIItem = new MsgUIItem { AutoRefresh = false } });
 Directory.CreateDirectory("desktop-qa");
-foreach (var width in new[] { 480, 800, 1180 })
+foreach (var width in new[] { 320, 360, 480, 800, 1180 })
 foreach (var rtl in new[] { false, true })
 foreach (var dark in new[] { false, true })
 {
@@ -32,7 +32,7 @@ foreach (var dark in new[] { false, true })
     var view = new ProfilesView { Width = width, Height = 720,
         FlowDirection = rtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight };
     var list = view.FindControl<ListBox>("lstProfiles")!;
-    var run = new ProbeRunModel { Total = 163, Name = rtl ? "پینگ" : "Latency" };
+    var run = new ProbeRunModel { IsRunning = true, Total = 163, Name = rtl ? "پینگ" : "Latency" };
     for (var i = 0; i < 80; i++) run.Complete(i.ToString());
     view.FindControl<ItemsControl>("diagnosticRuns")!.ItemsSource = new[] { run };
     view.FindControl<Border>("emptyProfiles")!.IsVisible = false;

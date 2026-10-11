@@ -206,7 +206,23 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunLocationBatchAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct)
     {
-        foreach (var batch in GetTestBatchItem(selecteds, Math.Max(1, _speedTestPageSize)))
+        var isolated = selecteds.Where(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        await Parallel.ForEachAsync(isolated, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (item, token) =>
+        {
+            ProcessService? single = null;
+            try {
+                single = await CoreManager.Instance.LoadCoreConfigSpeedtest(item, token);
+                if (single is null) { await UpdateIpInfoFunc(item.IndexId, ResUI.FailedToRunCore); return; }
+                var ip = await ConnectionHandler.GetIPInfo(new WebProxy($"socks5://{Global.Loopback}:{item.Port}"), token);
+                var text = ip?.ToString() ?? "—";
+                ProfileExManager.Instance.SetTestIpInfo(item.IndexId, text);
+                await UpdateIpInfoFunc(item.IndexId, text);
+            } finally {
+                completedIds.TryAdd(item.IndexId, 0);
+                if (single is not null) { await single.StopAsync(); single.Dispose(); }
+            }
+        });
+        foreach (var batch in GetTestBatchItem(selecteds.Except(isolated).ToList(), Math.Max(1, _speedTestPageSize)))
         {
             ct.ThrowIfCancellationRequested();
             ProcessService? process = null;

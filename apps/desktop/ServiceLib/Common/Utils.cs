@@ -1191,6 +1191,8 @@ public class Utils
 
     public static string StartupPath()
     {
+        var explicitData = Environment.GetEnvironmentVariable("DICODE_DATA_DIR");
+        if (!string.IsNullOrWhiteSpace(explicitData)) return Path.GetFullPath(explicitData);
         if (Environment.GetEnvironmentVariable(Global.LocalAppData) == "1")
         {
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing");

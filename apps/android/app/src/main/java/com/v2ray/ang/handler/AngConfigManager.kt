@@ -158,6 +158,10 @@ object AngConfigManager {
         try {
             val config = MmkvManager.decodeServerConfig(guid) ?: return ""
 
+            if (config.configType == EConfigType.CUSTOM) {
+                val raw = MmkvManager.decodeServerRaw(guid) ?: return ""
+                return "dicode-json://" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray(Charsets.UTF_8))
+            }
             return config.configType.protocolScheme + when (config.configType) {
                 EConfigType.VMESS -> VmessFmt.toUri(config)
                 EConfigType.SHADOWSOCKS -> ShadowsocksFmt.toUri(config)
@@ -167,7 +171,7 @@ object AngConfigManager {
                 EConfigType.WIREGUARD -> WireguardFmt.toUri(config)
                 EConfigType.HYSTERIA2 -> Hysteria2Fmt.toUri(config)
                 EConfigType.AETHER -> AetherFmt.toUri(config)
-                else -> {}
+                else -> return ""
             }
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to share config for GUID: $guid", e)
@@ -253,12 +257,19 @@ object AngConfigManager {
             // Parse all configs first (no I/O during parsing)
             val configs = mutableListOf<ProfileItem>()
             val v2raynLines = mutableListOf<String>()
+            val customConfigs = mutableListOf<ParsedProfile>()
 
             servers.lines()
                 .distinct()
                 .reversed()
                 .forEach {
-                    if (it.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)) {
+                    if (it.startsWith("dicode-json://")) {
+                        runCatching {
+                            val raw = String(java.util.Base64.getUrlDecoder().decode(it.removePrefix("dicode-json://")), Charsets.UTF_8)
+                            val profile = CustomFmt.parse(raw).apply { subscriptionId = subid }
+                            customConfigs.add(ParsedProfile(profile, raw))
+                        }.onFailure { LogUtil.e(AppConfig.TAG, "Invalid custom share link", it) }
+                    } else if (it.startsWith(AppConfig.V2RAYNFMTS, ignoreCase = true)) {
                         v2raynLines.add(it)
                     } else {
                         val config = parseConfig(it, subid, subItem)
@@ -273,15 +284,16 @@ object AngConfigManager {
             allConfigs.forEach(TlsSettingsCheck::fixImportedAlpn)
             if (MmkvManager.decodeSettingsBool(AppConfig.PREF_DICODE_SNI_BYPASS, false)) allConfigs.forEach(TlsSettingsCheck::applySniPreset)
 
-            if (allConfigs.isNotEmpty()) {
+            val parsed = allConfigs.map(::ParsedProfile) + customConfigs.distinctBy { it.rawConfig }
+            if (parsed.isNotEmpty()) {
                 commitProfiles(
-                    configs = allConfigs.map(::ParsedProfile),
+                    configs = parsed,
                     subid = subid,
                     append = append,
                 )
             }
 
-            return allConfigs.size
+            return parsed.size
         } catch (e: ProfileStorageException) {
             throw e
         } catch (e: Exception) {
@@ -331,10 +343,10 @@ object AngConfigManager {
         if (server == null) {
             return 0
         }
-        if (server.contains("inbounds")
+        if (com.v2ray.ang.core.SingBoxConfig.isConfig(server) || (server.contains("inbounds")
             && server.contains("outbounds")
             && (server.contains("routing") || server.contains("route") || com.v2ray.ang.core.SingBoxConfig.isConfig(server))
-        ) {
+        )) {
             try {
                 val serverList: Array<Any> =
                     JsonUtil.fromJson(server, Array<Any>::class.java) ?: arrayOf()

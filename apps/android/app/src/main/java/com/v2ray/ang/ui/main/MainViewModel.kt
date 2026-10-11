@@ -402,6 +402,7 @@ class MainViewModel(
                 _uiState.update { it.copy(preparationVisible = true, preparationStage = "refresh", preparationProgress = "") }
                 val completed = withTimeoutOrNull(240_000L) {
                     dataSource.updateConfigViaSub(primary)
+                    currentCoroutineContext().ensureActive()
                     dataSource.setSelectedSubscriptionId(primary.guid)
                     _uiState.update { it.copy(selectedGroupId = primary.guid, preparationStage = "latency") }
                     setupGroupTab(forceRefresh = true).join()
@@ -413,10 +414,11 @@ class MainViewModel(
                     }
                     preparationDone?.await()
                     withContext(ioDispatcher) {
-                        val best = loadGroup(primary.guid).filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+                        val servers = loadGroup(primary.guid, forceRefresh = true).servers
+                        val best = servers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
                         // Preserve an explicitly selected reachable server; otherwise prepare the fastest.
                         val selected = dataSource.getSelectServer()
-                        val reachable = loadGroup(primary.guid).any { it.guid == selected && it.testDelayMillis > 0 }
+                        val reachable = servers.any { it.guid == selected && it.testDelayMillis > 0 }
                         if (!reachable && best != null) selectForConnection(best.guid)
                     }
                     true

@@ -88,6 +88,8 @@ fun MainScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
+    var showNativeMethods by remember { mutableStateOf(false) }
+    if (showNativeMethods) NativeMethodsDialog(onDismiss = { showNativeMethods = false }, onImport = { onAction(MainAction.ImportBatchConfig(it)) })
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showDelAllConfirm by remember { mutableStateOf(false) }
@@ -217,6 +219,7 @@ fun MainScreen(
                         }
                     },
                     onAction = onAction,
+                    onNativeMethods = { showNativeMethods = true },
                     onMoreMenuAction = { action ->
                         when (action) {
                             MainMoreMenuAction.RestartService -> onAction(MainAction.RestartService)

@@ -7,9 +7,11 @@ public static class CustomProbeConfiguration
     {
         if (core is not (ECoreType.Xray or ECoreType.sing_box)) throw new NotSupportedException("Custom probes require Xray or sing-box JSON");
         var root = JsonNode.Parse(content) as JsonObject ?? throw new InvalidOperationException("Invalid custom JSON");
-        var outbounds = root["outbounds"] as JsonArray ?? throw new InvalidOperationException("Missing custom outbounds");
-        var target = outbounds.OfType<JsonObject>().FirstOrDefault(x => x["tag"]?.ToString() == Global.ProxyTag)
-            ?? outbounds.OfType<JsonObject>().FirstOrDefault(x => (x[core == ECoreType.Xray ? "protocol" : "type"]?.ToString() ?? "") is not ("freedom" or "blackhole" or "dns" or "direct" or "block"));
+        var outbounds = (root["outbounds"] as JsonArray)?.OfType<JsonObject>() ?? [];
+        if (core == ECoreType.sing_box)
+            outbounds = outbounds.Concat((root["endpoints"] as JsonArray)?.OfType<JsonObject>() ?? []);
+        var target = outbounds.FirstOrDefault(x => x["tag"]?.ToString() == Global.ProxyTag)
+            ?? outbounds.FirstOrDefault(x => (x[core == ECoreType.Xray ? "protocol" : "type"]?.ToString() ?? "") is not ("freedom" or "blackhole" or "dns" or "direct" or "block"));
         if (target is null) throw new InvalidOperationException("Custom profile has no proxy outbound");
         target["tag"] ??= "dicode-custom-exit";
         const string inbound = "dicode-custom-probe";

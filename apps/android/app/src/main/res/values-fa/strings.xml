@@ -811,4 +811,9 @@
     <string name="preparation_location">بررسی موقعیت سرورهای در دسترس</string>
     <string name="preparation_hint">نتایج در فهرست سرورها ذخیره می‌شوند تا پس از پایان آماده‌سازی سریع‌تر متصل شوید.</string>
     <string name="preparation_skip">ادامه بدون انتظار</string>
+    <string name="native_methods_title">روش‌های اتصال بیشتر</string>
+    <string name="native_methods_hint">این پروفایل‌ها با هستهٔ داخلی sing-box اجرا می‌شوند. تنظیمات پیشرفته و گواهی کاربر را در JSON پروفایل ویرایش کنید.</string>
+    <string name="native_connection_name">نام اتصال</string>
+    <string name="native_save_connection">ذخیرهٔ اتصال</string>
+    <string name="native_external_hint">برای MasterDNS، DNSTT، VayDNS، MHR، MHR-CFW، MITM fronting و SNI Spoofing، ابتدا ابزار مستقل را اجرا کنید و آدرس SOCKS5 آن را وارد کنید. این ابزارها در بسته نیستند. گواهی ریشه خودکار نصب نمی‌شود.</string>
 </resources>
