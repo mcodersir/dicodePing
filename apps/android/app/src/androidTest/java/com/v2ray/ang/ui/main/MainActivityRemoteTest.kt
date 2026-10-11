@@ -2,6 +2,8 @@ package com.v2ray.ang.ui.main
 
 import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
@@ -10,6 +12,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
+import com.v2ray.ang.dto.entities.SubscriptionItem
+import com.v2ray.ang.util.Utils
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.MmkvManager
 import org.junit.Rule
@@ -30,13 +34,21 @@ class MainActivityRemoteTest {
         }
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
         MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 3)
-        MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, "")
-        val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
-        val second = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { remarks = "Remote test server two"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
+        val previousGroup = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
+        val group = Utils.getUuid()
+        val groupName = "Remote navigation test"
+        // Public subscription updates must not move the fixture offscreen in the aggregate list.
+        MmkvManager.encodeSubscription(group, SubscriptionItem(remarks = groupName, enabled = false, autoUpdate = false))
+        MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, group)
+        val first = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { subscriptionId = group; remarks = "Remote test server one"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
+        val second = MmkvManager.encodeServerConfig("", ProfileItem.create(EConfigType.VLESS).apply { subscriptionId = group; remarks = "Remote test server two"; server = "127.0.0.1"; serverPort = "443"; security = "tls" })
         try {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 var menu = ""; var settings = ""; var connect = ""
                 scenario.onActivity { menu = it.getString(R.string.acc_open_menu); settings = it.getString(R.string.title_server_pool); connect = it.getString(R.string.fab_manual_connect) }
+                val testTab = hasText(groupName) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+                compose.waitUntil(15_000) { compose.onAllNodes(testTab).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
+                compose.onNode(testTab).performScrollTo().performClick()
                 try {
                     compose.waitUntil(15_000) { compose.onAllNodesWithText("Remote test server one").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 } catch (failure: Throwable) {
@@ -85,6 +97,9 @@ class MainActivityRemoteTest {
                 compose.onNodeWithText("Remote test server two").assertIsDisplayed()
                 assertEquals(second, MmkvManager.getSelectServer())
             }
-        } finally { MmkvManager.tryRemoveServer(first); MmkvManager.tryRemoveServer(second) }
+        } finally {
+            MmkvManager.removeSubscription(group)
+            MmkvManager.encodeSettings(AppConfig.CACHE_SUBSCRIPTION_ID, previousGroup)
+        }
     }
 }
