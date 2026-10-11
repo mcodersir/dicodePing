@@ -148,7 +148,16 @@ object CoreConfigManager {
             val port = Utils.findRandomFreePort()
             result.singBoxContent = raw
             result.singBoxPort = port
-            SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
+            SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort()).apply {
+                val inbound = getAsJsonArray("inbounds")[0].asJsonObject
+                if (!forTest && MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) inbound.addProperty("listen", "0.0.0.0")
+                val user = SettingsManager.getSocksUsername(); val password = SettingsManager.getSocksPassword()
+                if (user != null && password != null) {
+                    val settings = inbound.getAsJsonObject("settings")
+                    settings.addProperty("auth", "password")
+                    settings.add("accounts", com.google.gson.JsonArray().apply { add(JsonObject().apply { addProperty("user", user); addProperty("pass", password) }) })
+                }
+            }
         } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         val dependency = AetherDependency.ofCustom(json)

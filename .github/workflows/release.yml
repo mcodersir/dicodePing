@@ -106,6 +106,7 @@ jobs:
             if ($null -eq $wintun) { throw 'wintun.dll missing from verified Xray archive' }
             Copy-Item $wintun.FullName "$xrayDir/wintun.dll" -Force
             Copy-Item $wintun.FullName 'publish/wintun.dll' -Force
+            Copy-Item 'xray-runtime/LICENSE-Wintun' 'publish/bin/xray/LICENSE-Wintun' -Force
           }
           # Routing rules such as geosite:google need Xray's data files beside
           # the executable root. Without these files the main TUN core cannot

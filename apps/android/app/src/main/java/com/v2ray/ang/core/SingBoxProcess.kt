@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
 internal class SingBoxProcess(private val context: Context) : AutoCloseable {
     private var process: Process? = null
     private val directory = File(context.cacheDir, "sing-box-${UUID.randomUUID()}")
-    private var stopped = false
+    @Volatile private var stopped = false
 
     fun start(content: String, port: Int, onExit: (() -> Unit)? = null) {
         val executable = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")

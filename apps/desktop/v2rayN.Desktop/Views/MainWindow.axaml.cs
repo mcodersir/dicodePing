@@ -38,7 +38,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         SizeChanged += (_, e) => {
             var compact = e.NewSize.Width < 900;
             Classes.Set("compact", compact);
-            navRail.Width = compact ? 60 : 196;
+            navRail.Width = compact ? 64 : 196;
             navRail.Padding = compact ? new Thickness(4) : new Thickness(8);
         };
         txtAboutVersion.Text = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
@@ -501,9 +501,11 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             if (!DicodePingBootstrap.ShouldPrepare(_config, primary)) return;
             ViewModel.IsPreparing = true;
             ViewModel.PreparationStatus = ResUI.DicodeRefreshRunning;
+            ViewModel.IsPreparationRefreshing = true;
             await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, primary!.Id, false,
                 (_, message) => { Dispatcher.UIThread.Post(() => ViewModel.PreparationStatus = message); return Task.CompletedTask; }, cts.Token));
             cts.Token.ThrowIfCancellationRequested();
+            ViewModel.IsPreparationRefreshing = false;
             _config.SubIndexId = primary!.Id;
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
@@ -522,7 +524,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             }
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
             var best = reachable.OrderBy(x => delays.GetValueOrDefault(x.IndexId)).FirstOrDefault();
-            if (best is not null && !CoreManager.Instance.IsRunning)
+            if (best is not null && !CoreManager.Instance.IsRunning && delays.GetValueOrDefault(_config.IndexId) <= 0)
                 await ViewModel.ProfilesViewModel.SetDefaultServer(best.IndexId);
             await ViewModel.StatusBarViewModel.RefreshServersBiz();
         }
@@ -531,6 +533,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         finally
         {
             ViewModel.IsPreparing = false;
+            ViewModel.IsPreparationRefreshing = false;
             _startupCts = null;
         }
     }

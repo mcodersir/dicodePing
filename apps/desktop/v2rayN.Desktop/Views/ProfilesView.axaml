@@ -32,7 +32,7 @@
     <Grid Background="{DynamicResource DicodePageBackground}" MaxWidth="1040" HorizontalAlignment="Stretch">
         <DockPanel>
             <Border Margin="0,0,0,12" Padding="12" Classes="DicodeCard" DockPanel.Dock="Top">
-            <WrapPanel Background="{DynamicResource DicodeSurface}" Orientation="Horizontal" IsEnabled="{Binding !IsRefreshing}">
+            <ScrollViewer x:Name="profileToolsScroller" MaxHeight="190" HorizontalScrollBarVisibility="Disabled"><WrapPanel Background="{DynamicResource DicodeSurface}" Orientation="Horizontal" IsEnabled="{Binding !IsRefreshing}">
 <StackPanel Margin="4" Spacing="4"><TextBlock Text="{x:Static resx:ResUI.DicodeSources}" FontSize="11" Opacity="0.65" /><ComboBox x:Name="lstGroup" Width="260" MaxWidth="280" ItemsSource="{Binding SubItems}" DisplayMemberBinding="{Binding Remarks}"><ComboBox.ContextMenu><ContextMenu><MenuItem x:Name="menuSubEdit" Header="{x:Static resx:ResUI.menuSubEdit}" /><MenuItem x:Name="menuSubAdd" Header="{x:Static resx:ResUI.menuSubAdd}" /><MenuItem x:Name="menuSubDelete" Header="{x:Static resx:ResUI.menuSubDelete}" /></ContextMenu></ComboBox.ContextMenu></ComboBox></StackPanel>
 
                 <WrapPanel Orientation="Horizontal" VerticalAlignment="Bottom">
@@ -104,15 +104,15 @@
                     </Button>
                 </WrapPanel>
 
-            </WrapPanel>
+            </WrapPanel></ScrollViewer>
             </Border>
 <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
  <WrapPanel>
  <Button Click="SortByLatency" Classes="DicodeQuietButton" Content="{x:Static resx:ResUI.DicodeSortLatency}" Margin="0,0,8,0" />
  <Button Click="SortBySpeed" Classes="DicodeQuietButton" Content="{x:Static resx:ResUI.DicodeSortSpeed}" />
- <TextBlock Text="{x:Static resx:ResUI.DicodeListHint}" VerticalAlignment="Center" Margin="16,0" Opacity="0.65" />
+ <TextBlock x:Name="listHint" Text="{x:Static resx:ResUI.DicodeListHint}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="16,0" Opacity="0.65" />
  </WrapPanel>
- <StackPanel Grid.Row="1" Spacing="6"><TextBlock Text="{x:Static resx:ResUI.DicodeTestScope}" FontSize="11" Opacity="0.65" TextWrapping="Wrap" /><ItemsControl x:Name="diagnosticRuns" ItemsSource="{Binding ProbeRuns}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="dto:ProbeRunModel"><Border IsVisible="{Binding IsRunning}" Padding="14,10" Margin="0,0,0,5" CornerRadius="12" Background="{DynamicResource DicodeSurfaceElevated}"><StackPanel Spacing="8"><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="12" /><ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" Height="6" CornerRadius="3" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
+ <StackPanel Grid.Row="1" Spacing="6"><TextBlock Text="{x:Static resx:ResUI.DicodeTestScope}" FontSize="11" Opacity="0.65" TextWrapping="Wrap" /><ItemsControl x:Name="diagnosticRuns" ItemsSource="{Binding ProbeRuns}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="dto:ProbeRunModel"><Border IsVisible="{Binding IsRunning}" Padding="14,10" Margin="0,0,0,5" CornerRadius="12" Background="{DynamicResource DicodeSurfaceElevated}"><StackPanel Spacing="8"><WrapPanel><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="12" Margin="0,0,12,0" /><TextBlock Text="{Binding Counter}" FlowDirection="LeftToRight" FontSize="12" FontWeight="SemiBold" /></WrapPanel><ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" Height="6" CornerRadius="3" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
  <ListBox x:Name="lstProfiles" Grid.Row="2" SelectionMode="Multiple,Toggle" ItemsSource="{Binding ProfileItems}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                  <ListBox.KeyBindings>
                     <KeyBinding Command="{Binding Export2ShareUrlCmd}" Gesture="Ctrl+C" />

@@ -57,6 +57,12 @@ class MainViewModelServersChangedTest {
         @Volatile
         var showAllGroup = false
         var showPrimaryGroup = false
+        var primaryEnabled = true
+        var autoTestEnabled = true
+        var cancelCount = 0
+        val affiliations = ConcurrentHashMap<String, ServerAffiliationInfo>()
+        val requestIds = Channel<String>(Channel.UNLIMITED)
+        override fun isDefaultAutoTestEnabled() = autoTestEnabled
         val testMessages = Channel<TestServiceMessage>(Channel.UNLIMITED)
         private var selectedSubscriptionId = ""
 
@@ -97,7 +103,7 @@ class MainViewModelServersChangedTest {
         override fun getSubscriptions() = buildList {
             if (showAllGroup) add(SubscriptionCache("", SubscriptionItem(remarks = "All")))
             add(SubscriptionCache(SUB, SubscriptionItem(remarks = "Sub")))
-            if (showPrimaryGroup) add(SubscriptionCache(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, SubscriptionItem(remarks = "Primary", enabled = true)))
+            if (showPrimaryGroup) add(SubscriptionCache(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, SubscriptionItem(remarks = "Primary", enabled = primaryEnabled)))
         }
         /** Shut by a test, the next reading of the list of every group waits on it after it read the group, see [readingHeld]. */
         @Volatile
@@ -133,7 +139,7 @@ class MainViewModelServersChangedTest {
                 description = guid
             }
 
-        override fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo? = null
+        override fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo? = affiliations[guid]
 
         override fun moveServer(groupId: String, fromGuid: String, toGuid: String): Boolean {
             val move = asked.getAndIncrement()
@@ -162,8 +168,8 @@ class MainViewModelServersChangedTest {
         override fun share2Clipboard(guid: String) = false
         override fun sendMsg2Service(msgId: Int, content: String) = Unit
         override fun queryServiceState() = Unit
-        override fun sendMsg2TestService(msg: TestServiceMessage, requestId: String?) { testMessages.trySend(msg) }
-        override fun cancelAllPing() = Unit
+        override fun sendMsg2TestService(msg: TestServiceMessage, requestId: String?) { testMessages.trySend(msg); requestIds.trySend(requestId.orEmpty()) }
+        override fun cancelAllPing() { cancelCount++ }
         override fun testCurrentServerRealPing(requestId: String) = Unit
         override fun syncSubscriptions() = Unit
         override fun initAssets() = Unit
@@ -195,6 +201,45 @@ class MainViewModelServersChangedTest {
         assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, request.subscriptionId)
         assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, viewModel.uiState.value.selectedGroupId)
         assertEquals(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, source.getSelectedSubscriptionId())
+        assertEquals(true, viewModel.uiState.value.preparationVisible)
+        viewModel.skipPreparation()
+    }
+
+    @Test
+    fun preparationSkipsDeletedDisabledAndOptedOutDefaultSubscriptions() = runBlocking {
+        for (mode in listOf("deleted", "disabled", "optout")) {
+            val source = FakeSource().apply { showPrimaryGroup = mode != "deleted"; primaryEnabled = mode != "disabled"; autoTestEnabled = mode != "optout" }
+            val viewModel = MainViewModel(mock<Application>(), source)
+            viewModel.awaitServers("a", "b")
+            viewModel.initialize()
+            delay(200)
+            assertEquals(false, viewModel.uiState.value.preparationVisible)
+            assertEquals(null, source.testMessages.tryReceive().getOrNull())
+            viewModel.skipPreparation()
+        }
+    }
+
+    @Test
+    fun preparationKeepsSavedLatencyAndLocationAfterBothStagesFinish() = runBlocking {
+        val source = FakeSource().apply { showPrimaryGroup = true }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.initialize()
+        withTimeout(5_000) { source.testMessages.receive() }
+        val pingId = source.requestIds.receive()
+        source.affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
+        source.events.send(MainServiceEvent.MeasureConfigFinish(pingId))
+        val locationRequest = withTimeout(5_000) { source.testMessages.receive() }
+        val locationId = source.requestIds.receive()
+        assertEquals(true, locationRequest.locationOnly)
+        assertEquals(listOf("primary-server"), locationRequest.serverGuids)
+        source.affiliations["primary-server"] = ServerAffiliationInfo(42, "DE", "203.0.113.1")
+        source.events.send(MainServiceEvent.MeasureConfigFinish(locationId))
+        withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
+        val cached = viewModel.serversForGroup(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID).value.single()
+        assertEquals(42L, cached.testDelayMillis)
+        assertEquals("DE", cached.countryCode)
+        assertEquals("203.0.113.1", cached.ipAddress)
     }
 
     @Test

@@ -31,6 +31,12 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     public ProfilesView()
     {
         InitializeComponent();
+        SizeChanged += (_, e) => {
+            profileToolsScroller.MaxHeight = Math.Clamp(e.NewSize.Height * 0.25, 64, 190);
+            lstGroup.Width = Math.Clamp(e.NewSize.Width - 40, 140, 260);
+            txtServerFilter.Width = Math.Clamp(e.NewSize.Width - 44, 120, 200);
+            listHint.IsVisible = e.NewSize.Width >= 480 && e.NewSize.Height >= 480;
+        };
         lstProfiles.SizeChanged += (_, _) => lstProfiles.Classes.Set("narrow", lstProfiles.Bounds.Width < 660);
 
         _config = AppManager.Instance.Config;

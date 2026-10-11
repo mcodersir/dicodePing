@@ -36,8 +36,8 @@ internal object SingBoxConfig {
     }
 
     fun xrayBridge(port: Int, listenPort: Int): JsonObject = JsonParser.parseString("""
-        {"inbounds":[{"tag":"socks","listen":"127.0.0.1","port":$listenPort,"protocol":"socks","settings":{"auth":"noauth","udp":true}}],
-         "outbounds":[{"tag":"proxy","protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":$port}]}},
+        {"inbounds":[{"tag":"socks","listen":"127.0.0.1","port":$listenPort,"protocol":"mixed","settings":{"auth":"noauth","udp":true}}],
+         "outbounds":[{"tag":"proxy","protocol":"mixed","settings":{"servers":[{"address":"127.0.0.1","port":$port}]}},
                       {"tag":"direct","protocol":"freedom"},{"tag":"block","protocol":"blackhole"}],
          "routing":{"domainStrategy":"AsIs","rules":[]}}
     """.trimIndent()).asJsonObject

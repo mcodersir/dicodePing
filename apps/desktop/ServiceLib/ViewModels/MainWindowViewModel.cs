@@ -84,6 +84,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     public partial int TabMainSelectedIndex { get; set; }
 
     [Reactive] public partial bool IsPreparing { get; set; }
+    [Reactive] public partial bool IsPreparationRefreshing { get; set; }
     [Reactive] public partial string PreparationStatus { get; set; } = "";
     [Reactive] public partial bool BlIsWindows { get; set; }
 

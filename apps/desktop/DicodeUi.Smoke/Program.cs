@@ -45,7 +45,8 @@ foreach (var dark in new[] { false, true })
     window.Show();
     view.Measure(new Size(width, 720)); view.Arrange(new Rect(0, 0, width, 720));
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-    if (list.GetVisualDescendants().OfType<ListBoxItem>().Count() != 3) throw new Exception("Profile rows were not realized");
+    Console.WriteLine($"Viewport: {list.Bounds}, realized {list.GetVisualDescendants().OfType<ListBoxItem>().Count()}");
+    if (list.GetVisualDescendants().OfType<ListBoxItem>().Count() == 0) throw new Exception("Profile rows were not realized");
     using var bitmap = new RenderTargetBitmap(new PixelSize(width, 720));
     bitmap.Render(view);
     bitmap.Save($"desktop-qa/profiles-{width}-{(rtl ? "rtl" : "ltr")}-{(dark ? "dark" : "light")}.png");

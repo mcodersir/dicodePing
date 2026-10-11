@@ -1197,11 +1197,18 @@ class MainViewModel(
     private fun testAllSanctions() = runDiagnostic(uiState.value.selectedGroupId, true)
     private fun runDiagnostic(groupId: String, sanctions: Boolean) {
         cancelAllPing()
+        val preparationTargets = if (_uiState.value.preparationVisible && !sanctions)
+            mutableServerGroupState(groupId).value.servers.filter { it.testDelayMillis > 0 }.map { it.guid }
+        else emptyList()
+        if (_uiState.value.preparationVisible && !sanctions && preparationTargets.isEmpty()) {
+            preparationDone?.complete(Unit)
+            return
+        }
         val request = testRequests.beginBulk(groupId)
         diagnosticMode = if (sanctions) "sanctions" else "location"
         _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
         dataSource.sendMsg2TestService(TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_START,
-            subscriptionId = groupId, locationOnly = !sanctions, sanctionsOnly = sanctions), request.id)
+            subscriptionId = groupId, serverGuids = preparationTargets, locationOnly = !sanctions, sanctionsOnly = sanctions), request.id)
     }
     private fun testAllSecurity() {
         viewModelScope.launch(ioDispatcher) {

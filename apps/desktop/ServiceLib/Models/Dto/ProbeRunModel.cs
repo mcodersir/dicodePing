@@ -10,12 +10,14 @@ public partial class ProbeRunModel : ReactiveObject
     [Reactive] public partial int Completed { get; set; }
     [Reactive] public partial double Percent { get; set; }
     [Reactive] public partial string Summary { get; set; }
+    public string Counter => $"{Completed} / {Total}";
     public void Complete(string id)
     {
         if (!_completedIds.Add(id)) return;
         Completed = Math.Min(Total, _completedIds.Count);
         Percent = Total == 0 ? 0 : 100d * Completed / Total;
+        this.RaisePropertyChanged(nameof(Counter));
         UpdateSummary(ResUI.DicodeProbeRunning);
     }
-    public void UpdateSummary(string state) => Summary = $"{Name} · \u2066{Completed} / {Total}\u2069 · {state}";
+    public void UpdateSummary(string state) => Summary = $"{Name} · {state}";
 }
