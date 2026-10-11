@@ -319,4 +319,15 @@
     <Style Selector="CheckBox"><Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" /><Setter Property="MinHeight" Value="36" /></Style>
     <Style Selector="Slider"><Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" /></Style>
     <Style Selector="ProgressBar"><Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" /><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="3" /></Style>
+    <Style Selector="ToggleSwitch:unchecked /template/ Border#SwitchBackgroundBorder"><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /></Style>
+    <Style Selector="ToggleSwitch:checked /template/ Border#SwitchBackgroundBorder"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ToggleSwitch:pointerover /template/ Border#SwitchBackgroundBorder"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ToggleSwitch:disabled /template/ Border#SwitchBackgroundBorder"><Setter Property="Opacity" Value="0.45" /></Style>
+    <Style Selector="CheckBox /template/ Border#NormalRectangle"><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="5" /></Style>
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="CheckBox:indeterminate /template/ Border#NormalRectangle"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ComboBox /template/ Border#PopupBorder"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="12" /></Style>
+    <Style Selector="ComboBox /template/ PathIcon#DropDownGlyph"><Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" /></Style>
+    <Style Selector="Slider /template/ RepeatButton#PART_DecreaseButton"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="CheckBox:checked /template/ Border#RootBorder"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /><Setter Property="CornerRadius" Value="10" /></Style>
 </Styles>

@@ -83,11 +83,28 @@ foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(11
     shell.FindControl<ContentControl>("contentStatusBarView")!.Content = new StatusBarView();
     shell.FindControl<Border>("preparationOverlay")!.IsVisible = false;
     shell.Show();
+    typeof(MainWindow).GetMethod("ShowPage", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(shell, new object[] { "home" });
+    shell.FindControl<Panel>("pageHome")!.Transitions = null;
+    shell.FindControl<Panel>("pageHome")!.Opacity = 1;
     shell.Measure(size); shell.Arrange(new Rect(size));
+    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    Thread.Sleep(300); // Let the real page transition finish before capturing.
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     using var bitmap = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height));
     bitmap.Render(shell);
     bitmap.Save($"desktop-qa/home-{size.Width}-{size.Height}.png");
     shell.Hide();
     Console.WriteLine($"Rendered Home shell {size}");
+}
+
+foreach (var width in new[] { 320, 640, 1180 }) {
+    var view = new OptionSettingView { Width = width, Height = 640, FlowDirection = Avalonia.Media.FlowDirection.RightToLeft };
+    var window = new Window { Width = width, Height = 640, Content = view };
+    window.Show(); Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    Thread.Sleep(100); Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    var port = view.FindControl<TextBox>("txtlocalPort")!;
+    if (width < 620 && (Grid.GetColumn(port) != 0 || port.Bounds.Width > width)) throw new Exception("Settings input did not adapt to narrow viewport");
+    using var bitmap = new RenderTargetBitmap(new PixelSize(width, 640)); bitmap.Render(view);
+    bitmap.Save($"desktop-qa/settings-{width}.png");
+    window.Close(); Console.WriteLine($"Rendered responsive settings {width}px");
 }

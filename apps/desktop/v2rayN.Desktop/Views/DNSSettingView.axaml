@@ -1,6 +1,7 @@
 <UserControl
     x:Class="v2rayN.Desktop.Views.DNSSettingView"
     xmlns="https://github.com/avaloniaui"
+    xmlns:common="clr-namespace:v2rayN.Desktop.Common"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:dd="clr-namespace:v2rayN.Desktop.DesignData"
@@ -29,12 +30,13 @@
         </StackPanel>
 
         <TabControl HorizontalContentAlignment="Stretch">
+            <TabControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></TabControl.ItemsPanel>
             <TabItem Header="{x:Static resx:ResUI.ThBasicDNSSettings}">
                 <ScrollViewer VerticalScrollBarVisibility="Visible">
                     <Grid
                         x:Name="gridBasicDNSSettings"
                         Margin="{StaticResource Margin8}"
-                        ColumnDefinitions="Auto,Auto,*"
+                        common:ResponsiveForm.Enabled="True" ColumnDefinitions="Auto,Auto,*"
                         RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
                         <TextBlock
@@ -228,7 +230,7 @@
                     <Grid
                         x:Name="gridAdvancedDNSSettings"
                         Margin="{StaticResource Margin8}"
-                        ColumnDefinitions="Auto,Auto,*"
+                        common:ResponsiveForm.Enabled="True" ColumnDefinitions="Auto,Auto,*"
                         RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
 
                         <TextBlock
