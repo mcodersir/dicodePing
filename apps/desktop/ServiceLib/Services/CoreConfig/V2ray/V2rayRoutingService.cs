@@ -312,6 +312,9 @@ public partial class CoreConfigV2rayService
     {
         var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dicode-fox", "aether", "psiphon-tunnel-core", "lyrebird", "tor" };
 
+        directExeSet.Add(Utils.GetExeName("dicode-fox"));
+        directExeSet.Add(Utils.GetBinPath(Utils.GetExeName("dicode-fox"), "fox"));
+
         var allCoreInfo = CoreInfoManager.Instance.GetCoreInfo();
 
         foreach (var coreConfig in allCoreInfo)

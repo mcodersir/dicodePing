@@ -108,3 +108,20 @@ foreach (var width in new[] { 320, 640, 1180 }) {
     bitmap.Save($"desktop-qa/settings-{width}.png");
     window.Close(); Console.WriteLine($"Rendered responsive settings {width}px");
 }
+
+// The new Fox page uses the same theme controls and remains scrollable at narrow sizes.
+foreach (var width in new[] { 320, 580 })
+foreach (var rtl in new[] { false, true })
+foreach (var dark in new[] { false, true }) {
+    Application.Current!.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+    ServiceLib.Resx.ResUI.Culture = new CultureInfo(rtl ? "fa-IR" : "en-US");
+    var owner = new MainWindow();
+    var fox = new FoxWindow(owner.ViewModel!) { Width = width, Height = 500, FlowDirection = rtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight };
+    fox.Show(); fox.Measure(new Size(width,500)); fox.Arrange(new Rect(0,0,width,500)); Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    if (fox.Content is not ScrollViewer scroll || scroll.Extent.Height <= scroll.Viewport.Height) throw new Exception("Fox page did not expose scrollable content");
+    foreach (var control in fox.GetVisualDescendants().OfType<TextBox>())
+        if (control.Bounds.Width > width) throw new Exception("Fox input overflowed its viewport");
+    using var bitmap = new RenderTargetBitmap(new PixelSize(width,500)); bitmap.Render(fox);
+    bitmap.Save($"desktop-qa/fox-{width}-{(rtl ? "rtl" : "ltr")}-{(dark ? "dark" : "light")}.png");
+    fox.Close(); owner.Hide(); Console.WriteLine($"Rendered Fox page {width}px / {(rtl ? "rtl" : "ltr")} / {(dark ? "dark" : "light")}");
+}

@@ -20,6 +20,43 @@ public class NativeRuntimeTests
         }
     }
 
+    [Fact]
+    public async Task FoxTemplateIsAcceptedByBundledXrayWithoutExposingAccountTokens()
+    {
+        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
+        if (string.IsNullOrEmpty(root)) Assert.Skip("Bundled native cores are validated in release CI.");
+        var content = JsonNode.Parse(FoxProfiles.Template(Guid.NewGuid().ToString("N"), "DE", 21512, 21513))!.AsObject(); content.Remove("dicodeFox");
+        var file = Path.Combine(Path.GetTempPath(), $"dicode-fox-native-{Guid.NewGuid():N}.json"); await File.WriteAllTextAsync(file, content.ToJsonString());
+        try {
+            var binary = Path.Combine(root!, "bin", "xray", "xray" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+            using var process = new Process { StartInfo = new ProcessStartInfo(binary) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false } };
+            foreach (var arg in new[] { "run", "-test", "-c", file }) process.StartInfo.ArgumentList.Add(arg);
+            process.Start(); var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            try { await process.WaitForExitAsync(timeout.Token); } catch { process.Kill(true); throw; }
+            Assert.True(process.ExitCode == 0, await stdout + await stderr);
+        } finally { File.Delete(file); }
+    }
+
+    [Fact]
+    public async Task WindowsAliasRepairsCorruptCopiesAndRunsVerifiedBundledExecutable()
+    {
+        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Windows alias launch is validated in Windows release CI.");
+        var folder = Path.Combine(Path.GetTempPath(), $"dicode-alias-{Guid.NewGuid():N}"); Directory.CreateDirectory(folder);
+        try {
+            var original = Path.Combine(folder, "xray.exe"); File.Copy(Path.Combine(root!, "bin", "xray", "xray.exe"), original);
+            var stale = Path.Combine(folder, "p-xray-p.exe"); await File.WriteAllTextAsync(stale, "incomplete file");
+            var method = typeof(CoreInfoManager).GetMethod("GetXrayAliasExecFile", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var alias = (string)method.Invoke(null, [original])!;
+            Assert.Equal(stale,alias); Assert.Equal(SHA256.HashData(File.ReadAllBytes(original)),SHA256.HashData(File.ReadAllBytes(alias)));
+            using var process = new Process { StartInfo = new ProcessStartInfo(alias, "version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false } };
+            process.Start(); var output = process.StandardOutput.ReadToEndAsync(); using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try { await process.WaitForExitAsync(timeout.Token); } catch { process.Kill(true); throw; }
+            Assert.Equal(0,process.ExitCode); Assert.Contains("26.10.9", await output);
+        } finally { Directory.Delete(folder,true); }
+    }
+
     [Theory]
     [InlineData(ECoreType.Xray, "normal")]
     [InlineData(ECoreType.Xray, "tun")]

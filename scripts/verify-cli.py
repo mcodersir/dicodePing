@@ -16,6 +16,10 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
   if p.stderr:print(p.stderr,file=sys.stderr)
   if p.returncode!=0:raise RuntimeError(p.stderr+'\n'+p.stdout)
   return p.stdout
+ assert json.loads(call('fox','accounts')) == []
+ invalid=subprocess.run(command+['fox','login','--data',str(data)],input='invalid\nnever-stored-sentinel\n',capture_output=True,text=True,timeout=20)
+ assert invalid.returncode==1 and 'valid email' in invalid.stderr and 'never-stored-sentinel' not in invalid.stderr,invalid.stderr
+ assert not (data/'FoxAccounts'/'accounts.enc').exists(),'Failed login created a vault'
  for name,outbound in [('good',{'type':'direct','tag':'proxy'}),('failed',{'type':'socks','tag':'proxy','server':'127.0.0.1','server_port':9})]:
   file=pathlib.Path(folder)/(name+'.json');file.write_text(json.dumps({'remarks':name,'inbounds':[{'type':'mixed','tag':'socks','listen':'127.0.0.1','listen_port':serverport}],'outbounds':[outbound],'route':{'final':'proxy'}}));call('import',str(file))
  configfile=data/'guiConfigs'/'DicodePingConfig.json';config=json.loads(configfile.read_text(encoding='utf-8-sig'))

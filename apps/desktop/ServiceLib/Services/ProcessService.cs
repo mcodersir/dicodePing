@@ -103,7 +103,7 @@ public class ProcessService : IDisposable
         await _process.StandardInput.WriteLineAsync(request.ToJsonString().AsMemory(), token);
         await _process.StandardInput.FlushAsync(token);
         // Never forward protocol output to UI logs: it carries account tokens.
-        _ = Task.Run(async () => { while (await _process.StandardError.ReadLineAsync() is { }) { } });
+        _ = Task.Run(async () => { try { while (await _process.StandardError.ReadLineAsync() is { }) { } } catch (Exception) { /* Owned private pipe closed. */ } });
         var line = await _process.StandardOutput.ReadLineAsync(token);
         var result = JsonNode.Parse(line ?? "{}") as JsonObject ?? new JsonObject();
         if (result["ok"]?.GetValue<bool>() != true)
