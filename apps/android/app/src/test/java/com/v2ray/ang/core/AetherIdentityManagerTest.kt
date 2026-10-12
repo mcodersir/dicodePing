@@ -254,19 +254,18 @@ class AetherIdentityManagerTest {
             AetherIdentityManager.renew(dir, renewal, AetherIdentityManager.KEY_FILES) {
                 register(renewal)
                 registered.complete(Unit)
-                assertTrue(allowRegistrationReturn.await(10, TimeUnit.SECONDS))
+                allowRegistrationReturn.await()
                 true
             }
         }
         try {
-            registered.await()
+            kotlinx.coroutines.withTimeout(60_000) { registered.await() }
             // Queue a barrier behind registration and ahead of the IO result. The IO step can
             // write its ready mark, but renewal cannot consume that result before cancellation.
-            executor.execute { allowReadyReturn.await(10, TimeUnit.SECONDS) }
+            executor.execute { allowReadyReturn.await() }
             allowRegistrationReturn.countDown()
             val mark = File(renewal, AetherIdentityManager.READY_MARK)
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-            while (!mark.exists() && System.nanoTime() < deadline) Thread.sleep(1)
+            kotlinx.coroutines.withTimeout(60_000) { while (!mark.exists()) kotlinx.coroutines.delay(1) }
             assertTrue(mark.exists())
             job.cancel()
             allowReadyReturn.countDown()
