@@ -2,6 +2,8 @@ package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -94,11 +96,11 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                         OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(stringResource(R.string.fox_location) + " · " + country) }
                         DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { country = value; expandedCountries = false }) } }
                     }
-                    OutlinedTextField(email, { email = it }, label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                    OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.fox_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                    OutlinedTextField(email, { email = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                    OutlinedTextField(password, { password = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     Button(onClick = { run { FoxAccounts.login(context, email, password).id } }, enabled = !busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_login)) }
                     if (current?.pending == true) {
-                        OutlinedTextField(code, { code = it.take(16) }, label = { Text(stringResource(R.string.fox_code)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                        OutlinedTextField(code, { code = it.take(16) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_code)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                         Button(onClick = { run { FoxAccounts.verify(context, current.id, code).id.also { code = "" } } }, enabled = !busy && code.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_verify)) }
                     }
                     if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
