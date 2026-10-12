@@ -299,7 +299,8 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.6.0
+          ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.6.0
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.6.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
