@@ -48,7 +48,7 @@
                     </StackPanel>
 
                     <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal">
-                        <Button Margin="4" Click="OpenFox" ToolTip.Tip="روباه · Firefox VPN" AutomationProperties.Name="Fox · Firefox VPN"><PathIcon Width="22" Height="22" Data="M4,3 L8,7 L12,5 L16,7 L20,3 L22,13 L17,19 L12,22 L7,19 L2,13 Z M8,12 L10,14 M16,12 L14,14 M10,18 L14,18" /></Button>
+                        <Button Margin="4" Click="OpenFox" ToolTip.Tip="روباه · Firefox VPN" AutomationProperties.Name="Fox · Firefox VPN"><Path Width="22" Height="22" Stretch="Uniform" StrokeThickness="1.8" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="M4,3 L8,7 L12,5 L16,7 L20,3 L22,13 L17,19 L12,22 L7,19 L2,13 Z M8,12 L10,14 M16,12 L14,14 M10,18 L14,18" /></Button>
                         <Button Margin="4" Content="＋ روش‌های اتصال" Click="OpenNativeMethods" />
                         <Button Margin="4" Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                         <Button Margin="4" Click="OpenServerPool">

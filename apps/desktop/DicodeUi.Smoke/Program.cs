@@ -117,7 +117,10 @@ foreach (var dark in new[] { false, true }) {
     ServiceLib.Resx.ResUI.Culture = new CultureInfo(rtl ? "fa-IR" : "en-US");
     var owner = new MainWindow();
     var fox = new FoxWindow(owner.ViewModel!) { Width = width, Height = 500, FlowDirection = rtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight };
-    fox.Show(); fox.Measure(new Size(width,500)); fox.Arrange(new Rect(0,0,width,500)); Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    fox.Show();
+    Application.Current!.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+    typeof(v2rayN.Desktop.ViewModels.ThemeSettingViewModel).GetMethod("ApplyDicodePalette", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { Application.Current, dark ? "Dark" : "Light", dark });
+    fox.Measure(new Size(width,500)); fox.Arrange(new Rect(0,0,width,500)); Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     if (fox.Content is not ScrollViewer scroll || scroll.Extent.Height <= scroll.Viewport.Height) throw new Exception("Fox page did not expose scrollable content");
     foreach (var control in fox.GetVisualDescendants().OfType<TextBox>())
         if (control.Bounds.Width > width) throw new Exception("Fox input overflowed its viewport");
