@@ -88,8 +88,10 @@ func TestQuotaFailureNeverReturnsProxyPass(t *testing.T) {
 	defer server.Close()
 	p := newProvider(State{AccessToken: "token", ExpiresAt: time.Now().Unix() + 3600})
 	p.guardianURL = server.URL
-	if _, e := p.proxyPassLocked(context.Background()); e == nil {
-		t.Fatal("zero quota accepted")
+	for attempt := 0; attempt < 2; attempt++ {
+		if _, e := p.proxyPassLocked(context.Background()); e == nil {
+			t.Fatal("zero quota accepted, including cached pass")
+		}
 	}
 }
 func TestSOCKSUsesRealHTTP2ConnectAndClosesOnCancellation(t *testing.T) {
@@ -186,4 +188,17 @@ func mustPort(s string) int {
 		n = n*10 + int(c-'0')
 	}
 	return n
+}
+
+func TestPublicServerListUsesCompatibleLocationsAndSkipsQuarantine(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"data":[{"code":"DE","name":"Germany","cities":[{"code":"FRA","name":"Frankfurt","servers":[{"hostname":"first.example","port":2499},{"hostname":"quarantined.example","port":2499,"quarantined":true},{"hostname":"second.example","port":1,"protocols":[{"name":"connect","host":"h2.example","port":443}]}]}]}]}`)
+	}))
+	defer server.Close()
+	p := newProvider(State{})
+	p.settingsURL = server.URL
+	locations, e := p.locations(context.Background())
+	if e != nil || len(locations) != 2 || locations[1].Host != "h2.example" || locations[1].Port != 443 {
+		t.Fatal(locations, e)
+	}
 }

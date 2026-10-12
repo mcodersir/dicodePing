@@ -247,6 +247,7 @@ object CoreServiceManager {
                 }
             }
             launchNativeCore(service, guid, config, aether, result.content, vpnInterface, isReload)
+            if (result.foxAccountId != null && foxProcess?.isAlive != true) throw StartFailure("Fox helper stopped during connection startup")
         } catch (e: Exception) {
             // Setup failed after this attempt spawned the Aether process; release it with the rest.
             AetherCoreManager.stop()

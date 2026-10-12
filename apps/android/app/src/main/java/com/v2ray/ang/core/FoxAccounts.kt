@@ -112,10 +112,14 @@ internal object FoxAccounts {
         if (syncProfile) sync(context, get(context, id))
         return account
     }
-    fun profile(raw: String): FoxProfile? = runCatching {
-        val fox = JSONObject(raw).optJSONObject("dicodeFox") ?: return@runCatching null
-        FoxProfile(fox.getString("accountId"), fox.optString("country", "REC"))
-    }.getOrNull()
+    fun profile(raw: String): FoxProfile? {
+        val json = runCatching { JSONObject(raw) }.getOrNull() ?: return null
+        if (!json.has("dicodeFox")) return null
+        val fox = json.optJSONObject("dicodeFox") ?: throw FoxError("input", "Invalid Fox profile; recreate it from the Fox page")
+        val id = fox.optString("accountId"); val country = fox.optString("country", "REC")
+        if (!id.matches(Regex("[a-fA-F0-9]{32}")) || !(country == "REC" || country.matches(Regex("[A-Za-z]{2}")))) throw FoxError("input", "Invalid Fox profile metadata")
+        return FoxProfile(id, country.uppercase(java.util.Locale.ROOT))
+    }
     fun template(id: String, country: String): String = JSONObject()
         .put("dicodeFox", JSONObject().put("accountId", id).put("country", country))
         .put("inbounds", JSONArray())
@@ -137,6 +141,7 @@ internal object FoxAccounts {
 /** Private stdin/stdout protocol. Tokens never reach logcat or process arguments. */
 internal class FoxProcess(private val context: Context) : AutoCloseable {
     private var process: Process? = null
+    val isAlive: Boolean get() = process?.isAlive == true
     @Volatile private var stopped = false
     private fun launch(request: JSONObject): java.io.BufferedReader {
         val executable = File(context.applicationInfo.nativeLibraryDir, "libdicodefox.so")

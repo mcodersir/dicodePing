@@ -79,7 +79,7 @@ public sealed class FoxWindow : Window
         remove.Click += async (_, _) => await Run(async () => {
             if (accounts.SelectedItem is not FoxAccount account) return;
             var selected = await AppManager.Instance.GetProfileItem(AppManager.Instance.Config.IndexId);
-            if (FoxProfiles.Read(selected)?.AccountId == account.Id) await CoreManager.Instance.CoreStop();
+            if (FoxProfiles.Read(selected)?.AccountId == account.Id && main.ProfilesViewModel.StopConnection is { } stop) await stop();
             await FoxAccounts.RemoveAsync(account.Id); await Load(); await RefreshViews(); status.Text = FoxUi.T("حساب فقط از این برنامه حذف شد.", "Account removed from this application only.");
         });
         Opened += async (_, _) => {

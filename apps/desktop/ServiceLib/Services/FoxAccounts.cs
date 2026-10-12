@@ -76,6 +76,14 @@ public static class FoxAccounts
             await WriteAsync(all);
         } finally { Gate.Release(); }
     }
+    private static async Task UpdateSessionAsync(string id, JsonObject state, JsonObject? info = null)
+    {
+        await Gate.WaitAsync();
+        try {
+            var all = Read(); var current = all.FirstOrDefault(a => a.Id == id); if (current is null) return;
+            current.State = state.DeepClone().AsObject(); if (info is not null) current.Info = info.DeepClone().AsObject(); await WriteAsync(all);
+        } finally { Gate.Release(); }
+    }
     public static async Task RemoveAsync(string id)
     {
         await Gate.WaitAsync();
@@ -121,9 +129,9 @@ public static class FoxAccounts
         var account = await GetAsync(id); var process = Helper();
         try {
             var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
-                if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { account.State = state.DeepClone().AsObject(); await SaveAsync(account); }
+                if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { await UpdateSessionAsync(id, state); }
             }, token);
-            account.State = result["state"]!.DeepClone().AsObject(); account.Info = result["account"]?.DeepClone().AsObject() ?? account.Info; await SaveAsync(account);
+            await UpdateSessionAsync(id, result["state"]!.AsObject(), result["account"] as JsonObject);
             return process;
         } catch { await process.StopAsync(); process.Dispose(); throw; }
     }

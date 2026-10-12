@@ -319,6 +319,9 @@ func (p *provider) account(ctx context.Context) (AccountInfo, error) {
 	return p.info, nil
 }
 func (p *provider) proxyPassLocked(ctx context.Context) (string, error) {
+	if p.info.QuotaRemaining != nil && *p.info.QuotaRemaining <= 0 {
+		return "", &ProviderError{Code: "quota_exceeded", Message: "This account has no remaining VPN allowance. Wait for its reset date."}
+	}
 	if p.pass != "" && p.passExpiry > time.Now().Unix()+60 {
 		return p.pass, nil
 	}
