@@ -20,4 +20,21 @@ for(const tab of tabs){tab.addEventListener('click',()=>selectTab(tab));tab.addE
 selectTab(/Android/i.test(navigator.userAgent)?tabs[1]:tabs[0]);
 // Pinned links work without the API. Metadata enhances them without replacing
 // working download URLs with a stale or incomplete release.
-(async()=>{try{const response=await fetch('https://api.github.com/repos/mcodersir/dicodePing/releases/latest',{signal:AbortSignal.timeout(6000)});if(!response.ok)return;const release=await response.json();if(release.draft||release.prerelease||!/^v?\d+\.\d+\.\d+$/.test(release.tag_name))return;const version=release.tag_name.replace(/^v/,'');const [major,minor]=version.split('.').map(Number);if(major<4||(major===4&&minor<5))return;const assets=release.assets||[];for(const link of document.querySelectorAll('.asset')){const asset=assets.find(item=>item.name===`DicodePing-${version}-${link.dataset.asset}`);if(asset?.browser_download_url?.startsWith('https://github.com/mcodersir/dicodePing/releases/download/')){link.href=asset.browser_download_url;link.title=`${(asset.size/1048576).toFixed(1)} MB`}}for(const el of document.querySelectorAll('.version'))el.textContent=version;for(const link of document.querySelectorAll('.release-link'))link.href=release.html_url}catch{/* Static verified release links remain available. */}})();
+(async()=>{
+ try{
+  const response=await fetch('https://api.github.com/repos/mcodersir/dicodePing/releases/latest',{signal:AbortSignal.timeout(6000)});
+  if(!response.ok)return;
+  const release=await response.json();
+  if(release.draft||release.prerelease||!/^v?\d+\.\d+\.\d+$/.test(release.tag_name))return;
+  const version=release.tag_name.replace(/^v/,'');
+  const parts=version.split('.').map(Number), pinned=[4,6,0];
+  let comparison=0;for(let i=0;i<3;i++){if(parts[i]!==pinned[i]){comparison=parts[i]>pinned[i]?1:-1;break}}
+  if(comparison<0)return;
+  const assets=release.assets||[], links=[...document.querySelectorAll('.asset')];
+  const resolved=links.map(link=>assets.find(item=>item.name===`DicodePing-${version}-${link.dataset.asset}`));
+  if(resolved.some((asset,i)=>!asset||asset.size<=0||asset.browser_download_url!==`https://github.com/mcodersir/dicodePing/releases/download/${release.tag_name}/${asset.name}`))return;
+  links.forEach((link,i)=>{link.href=resolved[i].browser_download_url;link.title=`${(resolved[i].size/1048576).toFixed(1)} MB`});
+  for(const el of document.querySelectorAll('.version'))el.textContent=version;
+  if(release.html_url===`https://github.com/mcodersir/dicodePing/releases/tag/${release.tag_name}`)for(const link of document.querySelectorAll('.release-link'))link.href=release.html_url;
+ }catch{/* Static verified release links remain available. */}
+})();

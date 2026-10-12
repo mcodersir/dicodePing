@@ -149,7 +149,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         val command = ProcessBuilder(executable.absolutePath).directory(context.cacheDir)
         listOf("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy").forEach { command.environment().remove(it) }
         val child = command.start(); process = child
-        thread(isDaemon = true, name = "FoxPrivateErrors") { child.errorStream.bufferedReader().useLines { lines -> lines.forEach { } } }
+        thread(isDaemon = true, name = "FoxPrivateErrors") { runCatching { child.errorStream.bufferedReader().useLines { lines -> lines.forEach { } } } }
         request.put("ca_bundle", FoxAccounts.roots())
         child.outputStream.bufferedWriter().apply { write(request.toString()); newLine(); flush() }
         return child.inputStream.bufferedReader()
