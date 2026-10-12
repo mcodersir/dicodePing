@@ -258,9 +258,9 @@ public static class SubscriptionHandler
         }
 
         // Update completion message
-        await updateFunc?.Invoke(false, ret > 0
+        await (updateFunc?.Invoke(false, ret > 0
                 ? $"{hashCode}{ResUI.MsgUpdateSubscriptionEnd}"
-                : $"{hashCode}{ResUI.MsgFailedImportSubscription}");
+                : $"{hashCode}{ResUI.MsgFailedImportSubscription}") ?? Task.CompletedTask);
 
         return ret > 0;
     }
