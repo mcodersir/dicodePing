@@ -33,5 +33,8 @@ else:
     goos, arch = {'win-x64':('windows','amd64'), 'linux-x64':('linux','amd64'), 'osx-x64':('darwin','amd64'), 'osx-arm64':('darwin','arm64')}[args.rid]
     build(goos, arch, args.output/('dicode-fox.exe' if goos == 'windows' else 'dicode-fox')); legal = args.output
 for name in ['LICENSE-FoxyVPN.txt', 'NOTICE.md']: shutil.copy2(ROOT/'apps/fox-helper'/name, legal/name)
+goroot = pathlib.Path(subprocess.check_output([go, 'env', 'GOROOT'], text=True).strip())
+shutil.copy2(goroot/'LICENSE', legal/'LICENSE-Go.txt')
+shutil.copy2(ROOT/'LICENSE', legal/'LICENSE-DicodePing.txt')
 (legal/'runtime-versions.json').write_text(json.dumps(versions, indent=2)+'\n')
 print('Built Fox 4.6.0:', ', '.join(versions))

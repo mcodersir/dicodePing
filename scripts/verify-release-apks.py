@@ -21,5 +21,6 @@ for abi, suffix in abis.items():
             assert native[:4] == b"\x7fELF" and native[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Native core architecture mismatch"
             fox = archive.read(f"lib/{architecture}/libdicodefox.so")
             assert fox[:4] == b"\x7fELF" and fox[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Fox helper architecture mismatch"
-        assert "assets/fox/LICENSE-FoxyVPN.txt" in archive.namelist(), "Fox attribution is missing"
+        for notice in ["LICENSE-FoxyVPN.txt", "LICENSE-Go.txt", "LICENSE-DicodePing.txt"]:
+            assert "assets/fox/" + notice in archive.namelist(), "Fox license is missing: " + notice
     print("Verified signed upgrade and native core:", apk.name)
