@@ -54,26 +54,34 @@ public sealed class CoreInfoManager
         return fileName;
     }
 
+    private static readonly object AliasLock = new();
+    private static readonly Dictionary<string, string> VerifiedAliases = new();
     private const string XrayAliasExeName = "p-xray-p.exe";
 
     // Windows treats a process named "xray.exe" as suspicious (XTLS/Xray-core#4427), so the core is run from a
     // copy under another name; xray.exe itself is kept (and stays the update target) for third-party tools.
     private static string GetXrayAliasExecFile(string xrayExe)
     {
-        var aliasExe = Path.Combine(Path.GetDirectoryName(xrayExe) ?? string.Empty, XrayAliasExeName);
-        try
+        lock (AliasLock)
         {
-            if (!File.Exists(aliasExe) || !IsSameFileContent(xrayExe, aliasExe))
-            {
-                File.Copy(xrayExe, aliasExe, true);
-            }
-            return aliasExe;
-        }
-        catch (Exception ex)
-        {
-            // e.g. the copy is still running; keep using whichever file exists
-            Logging.SaveLog("CoreInfoManager", ex);
-            return File.Exists(aliasExe) ? aliasExe : xrayExe;
+            var aliasExe = Path.Combine(Path.GetDirectoryName(xrayExe) ?? string.Empty, XrayAliasExeName);
+            string Stamp(string path) { var f = new FileInfo(path); return $"{f.Length}|{f.LastWriteTimeUtc.Ticks}"; }
+            var temporary = aliasExe + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try {
+                NativeLaunchPolicy.Validate(xrayExe);
+                var stamp = Stamp(xrayExe) + "|" + (File.Exists(aliasExe) ? Stamp(aliasExe) : "missing");
+                if (VerifiedAliases.GetValueOrDefault(xrayExe) == stamp) return aliasExe;
+                if (!File.Exists(aliasExe) || !IsSameFileContent(xrayExe, aliasExe)) {
+                    File.Copy(xrayExe, temporary, true);
+                    NativeLaunchPolicy.ReadWindowsMachine(temporary);
+                    File.Move(temporary, aliasExe, true);
+                }
+                VerifiedAliases[xrayExe] = Stamp(xrayExe) + "|" + Stamp(aliasExe);
+                return aliasExe;
+            } catch (IOException) {
+                // A running image is locked by Windows. Never fall back to an unverified stale alias.
+                return File.Exists(aliasExe) && IsSameFileContent(xrayExe, aliasExe) ? aliasExe : xrayExe;
+            } finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
     }
 

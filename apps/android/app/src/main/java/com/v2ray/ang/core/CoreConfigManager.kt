@@ -144,7 +144,11 @@ object CoreConfigManager {
             )
         val result = ConfigResult(true, configContext.guid, raw)
 
-        val json = if (SingBoxConfig.isConfig(raw)) {
+        val fox = FoxAccounts.profile(raw)
+        val json = if (fox != null) {
+            val port = Utils.findRandomFreePort(); result.foxAccountId = fox.accountId; result.foxCountry = fox.country; result.foxPort = port
+            SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
+        } else if (SingBoxConfig.isConfig(raw)) {
             val port = Utils.findRandomFreePort()
             result.singBoxContent = raw
             result.singBoxPort = port
@@ -159,6 +163,16 @@ object CoreConfigManager {
                 }
             }
         } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
+
+        if (fox != null) {
+            val inbound = json.getAsJsonArray("inbounds")[0].asJsonObject
+            if (!forTest && MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) inbound.addProperty("listen", "0.0.0.0")
+            val user = SettingsManager.getSocksUsername(); val password = SettingsManager.getSocksPassword()
+            if (user != null && password != null) {
+                val settings = inbound.getAsJsonObject("settings"); settings.addProperty("auth", "password")
+                settings.add("accounts", com.google.gson.JsonArray().apply { add(JsonObject().apply { addProperty("user", user); addProperty("pass", password) }) })
+            }
+        }
 
         val dependency = AetherDependency.ofCustom(json)
         aetherFailure(context, configContext.guid, dependency)?.let { return it }

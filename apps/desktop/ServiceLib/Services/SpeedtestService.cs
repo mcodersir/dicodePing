@@ -699,7 +699,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task UpdateFunc(string indexId, string delay, string speed = "")
     {
-        await _updateFunc?.Invoke(new() { IndexId = indexId, Delay = delay, Speed = speed });
+        await (_updateFunc?.Invoke(new() { IndexId = indexId, Delay = delay, Speed = speed }) ?? Task.CompletedTask);
         if (indexId.IsNotEmpty() && speed.IsNotEmpty())
         {
             if (speed != ResUI.Speedtesting && speed != ResUI.SpeedtestingSkip && !decimal.TryParse(speed, out _)) ProfileExManager.Instance.SetTestSpeed(indexId, 0);
@@ -709,10 +709,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task UpdateSanctionsFunc(string indexId, string value)
     {
-        await _updateFunc?.Invoke(new() { IndexId = indexId, SanctionsInfo = value });
+        await (_updateFunc?.Invoke(new() { IndexId = indexId, SanctionsInfo = value }) ?? Task.CompletedTask);
     }
     private async Task UpdateIpInfoFunc(string indexId, string ip)
     {
-        await _updateFunc?.Invoke(new() { IndexId = indexId, IpInfo = ip });
+        await (_updateFunc?.Invoke(new() { IndexId = indexId, IpInfo = ip }) ?? Task.CompletedTask);
     }
 }

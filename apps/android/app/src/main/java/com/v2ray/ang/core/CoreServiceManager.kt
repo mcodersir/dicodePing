@@ -55,6 +55,7 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
+    private var foxProcess: FoxProcess? = null
     private var singBoxProcess: SingBoxProcess? = null
 
     /** The Aether core the running configuration depends on, null when it has no Aether outbound. */
@@ -218,9 +219,21 @@ object CoreServiceManager {
         // if any, starts once Xray listens, see launchNativeCore.
         AetherCoreManager.stop()
 
+        foxProcess?.close(); foxProcess = null
         singBoxProcess?.close()
         singBoxProcess = null
         try {
+            result.foxAccountId?.let { id ->
+                val helper = FoxProcess(service); foxProcess = helper
+                helper.start(id, result.foxCountry, result.foxPort) {
+                    service.mainExecutor.execute {
+                        if (foxProcess === helper && isServiceRunning()) {
+                            LogUtil.e(AppConfig.TAG, "Fox stopped; stopping VPN without a direct fallback")
+                            serviceControl?.get()?.stopService()
+                        }
+                    }
+                }
+            }
             result.singBoxContent?.let { nativeConfig ->
                 val helper = SingBoxProcess(service)
                 singBoxProcess = helper
@@ -237,6 +250,7 @@ object CoreServiceManager {
         } catch (e: Exception) {
             // Setup failed after this attempt spawned the Aether process; release it with the rest.
             AetherCoreManager.stop()
+            foxProcess?.close(); foxProcess = null
             singBoxProcess?.close()
             singBoxProcess = null
             throw e
@@ -374,6 +388,7 @@ object CoreServiceManager {
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(): Boolean {
+        foxProcess?.close(); foxProcess = null
         singBoxProcess?.close()
         singBoxProcess = null
         connectionTestScope.coroutineContext.cancelChildren()

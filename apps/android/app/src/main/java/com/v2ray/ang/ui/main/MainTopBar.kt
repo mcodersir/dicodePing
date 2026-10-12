@@ -51,7 +51,8 @@ fun MainTopBar(
     onSmartConnect: () -> Unit,
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit,
-    onNativeMethods: () -> Unit = {}
+    onNativeMethods: () -> Unit = {},
+    onFox: () -> Unit = {}
 ) {
     val initialFocus = remember { FocusRequester() }
     val context = LocalContext.current
@@ -93,6 +94,7 @@ fun MainTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onFox, modifier = Modifier.remoteFocus()) { Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = stringResource(R.string.fox_title)) }
             if (!showSearch) {
                 IconButton(onClick = { onSearchToggle(true) }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))

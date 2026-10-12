@@ -816,4 +816,21 @@
     <string name="native_connection_name">نام اتصال</string>
     <string name="native_save_connection">ذخیرهٔ اتصال</string>
     <string name="native_external_hint">برای MasterDNS، DNSTT، VayDNS، MHR، MHR-CFW، MITM fronting و SNI Spoofing، ابتدا ابزار مستقل را اجرا کنید و آدرس SOCKS5 آن را وارد کنید. این ابزارها در بسته نیستند. گواهی ریشه خودکار نصب نمی‌شود.</string>
+    <string name="fox_title">روباه</string>
+    <string name="fox_hint">اتصال غیررسمی Firefox VPN با حساب شما. دسترسی، موقعیت‌ها و سهمیه را Mozilla تعیین می‌کند؛ معمولاً تا ۵۰ گیگابایت در ماه برای حساب واجد شرایط. رمز عبور ذخیره نمی‌شود.</string>
+    <string name="fox_accounts">انتخاب حساب</string>
+    <string name="fox_quota_unknown">سهمیه هنوز توسط سرویس گزارش نشده است.</string>
+    <string name="fox_location">موقعیت · REC یعنی اولین مسیر قابل دسترس</string>
+    <string name="fox_email">ایمیل حساب Mozilla</string>
+    <string name="fox_password">رمز عبور · ذخیره نمی‌شود</string>
+    <string name="fox_login">ورود و افزودن حساب</string>
+    <string name="fox_code">کد تأیید حساب</string>
+    <string name="fox_verify">تأیید کد</string>
+    <string name="fox_waiting">در حال ارتباط امن با سرویس…</string>
+    <string name="fox_synced">حساب بررسی شد؛ ساب روباه با یک سرور آماده است.</string>
+    <string name="fox_needs_code">کد تأیید حساب را وارد کنید؛ هنوز اتصال فعال نشده است.</string>
+    <string name="fox_refresh">بررسی حساب و افزودن/تازه‌سازی ساب</string>
+    <string name="fox_connect">اتصال به روباه</string>
+    <string name="fox_remove">حذف حساب و ساب از این برنامه</string>
+    <string name="fox_limits">TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود. ساب حذف‌شده تا تازه‌سازی دستی برنمی‌گردد.</string>
 </resources>

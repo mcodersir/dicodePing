@@ -27,6 +27,8 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     private bool _dicodePingStartupScheduled;
     private CancellationTokenSource? _startupCts;
 
+    private async void OpenFox(object? sender, RoutedEventArgs e) { if (ViewModel is not null) await new FoxWindow(ViewModel).ShowDialog(this); }
+
     private async void OpenNativeMethods(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is not null) await new NativeMethodsWindow(ViewModel).ShowDialog(this);

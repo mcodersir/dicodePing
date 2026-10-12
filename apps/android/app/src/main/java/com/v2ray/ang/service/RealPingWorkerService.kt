@@ -132,6 +132,12 @@ class RealPingWorkerService(
             val profile = MmkvManager.decodeServerConfig(guid) ?: return@withLock null
             val result = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
             if (!result.status) return@withLock null
+            result.foxAccountId?.let { id ->
+                return@withLock com.v2ray.ang.core.FoxProcess(context).use { helper ->
+                    helper.start(id, result.foxCountry, result.foxPort); scope.ensureActive()
+                    SpeedtestManager.getProxyLocationInfo(result.foxPort)
+                }
+            }
             result.singBoxContent?.let { content ->
                 return@withLock com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
                     helper.start(content, result.singBoxPort)
@@ -182,6 +188,14 @@ class RealPingWorkerService(
         val configResult = CoreConfigManager.getV2rayConfig4Speedtest(context, guid)
         if (!configResult.status) {
             return retFailure
+        }
+        configResult.foxAccountId?.let { id ->
+            return RealPingExecutionLimiter.run(config.configType) {
+                com.v2ray.ang.core.FoxProcess(context).use { helper ->
+                    helper.start(id, configResult.foxCountry, configResult.foxPort)
+                    helper.measure(configResult.foxPort, SettingsManager.getDelayTestUrl())
+                }
+            }
         }
         configResult.singBoxContent?.let { content ->
             return RealPingExecutionLimiter.run(config.configType) {

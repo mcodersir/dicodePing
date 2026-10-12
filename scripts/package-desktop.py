@@ -10,7 +10,7 @@ import zipfile
 def package(root: pathlib.Path, archive: pathlib.Path, windows: bool, cli: bool = False) -> None:
     executables = [] if windows else [
         "dicodeping" if cli else "DicodePing", "bin/xray/xray", "bin/mihomo/mihomo", "bin/sing_box/sing-box",
-        "bin/aether/aether", "bin/aether/pt/lyrebird", "bin/aether/pt/psiphon-tunnel-core",
+        "bin/fox/dicode-fox", "bin/aether/aether", "bin/aether/pt/lyrebird", "bin/aether/pt/psiphon-tunnel-core",
     ]
     for name in executables:
         if not (root / name).is_file() or not (root / name).stat().st_mode & 0o111:
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="dist", type=pathlib.Path)
     parser.add_argument("--edition", choices=["desktop", "cli"], default="desktop")
     args = parser.parse_args()
-    archive = args.output / ("DicodePing-4.5.0-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
+    archive = args.output / ("DicodePing-4.6.0-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
     package(args.root, archive, args.platform == "windows-x64", args.edition == "cli")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:

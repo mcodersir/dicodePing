@@ -828,4 +828,21 @@
     <string name="native_connection_name">Connection name</string>
     <string name="native_save_connection">Save connection</string>
     <string name="native_external_hint">For MasterDNS, DNSTT, VayDNS, MHR, MHR-CFW, MITM fronting or SNI Spoofing, start the independent helper first and enter its SOCKS5 address. These helpers are not bundled. Root certificates are never installed automatically.</string>
+    <string name="fox_title">Fox</string>
+    <string name="fox_hint">Unofficial Firefox VPN connection using your account. Mozilla controls eligibility, locations and allowance, usually up to 50 GB/month for eligible accounts. Passwords are never stored.</string>
+    <string name="fox_accounts">Select account</string>
+    <string name="fox_quota_unknown">The provider has not reported an allowance yet.</string>
+    <string name="fox_location">Location · REC selects the first reachable route</string>
+    <string name="fox_email">Mozilla account email</string>
+    <string name="fox_password">Password · never saved</string>
+    <string name="fox_login">Sign in and add account</string>
+    <string name="fox_code">Account verification code</string>
+    <string name="fox_verify">Verify code</string>
+    <string name="fox_waiting">Contacting the provider securely…</string>
+    <string name="fox_synced">Account checked; Fox subscription with one profile is ready.</string>
+    <string name="fox_needs_code">Enter the verification code; the connection is not active yet.</string>
+    <string name="fox_refresh">Check account and sync subscription</string>
+    <string name="fox_connect">Connect to Fox</string>
+    <string name="fox_remove">Remove local account and subscription</string>
+    <string name="fox_limits">Supports TCP and encrypted DNS, not arbitrary UDP. A deleted subscription stays deleted until you explicitly sync it again.</string>
 </resources>

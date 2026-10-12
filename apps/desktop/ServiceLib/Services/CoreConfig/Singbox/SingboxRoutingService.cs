@@ -36,7 +36,7 @@ public partial class CoreConfigSingboxService
 
             if (context.IsTunEnabled)
             {
-                _coreConfig.route.rules.Add(new() { process_name = [Utils.GetExeName("aether"), Utils.GetExeName("psiphon-tunnel-core"), Utils.GetExeName("lyrebird"), Utils.GetExeName("tor")], outbound = Global.DirectTag });
+                _coreConfig.route.rules.Add(new() { process_name = [Utils.GetExeName("dicode-fox"), Utils.GetExeName("aether"), Utils.GetExeName("psiphon-tunnel-core"), Utils.GetExeName("lyrebird"), Utils.GetExeName("tor")], outbound = Global.DirectTag });
                 _coreConfig.route.auto_detect_interface = true;
 
                 var tunRules = JsonUtils.Deserialize<List<Rule4Sbox>>(EmbedUtils.GetEmbedText(Global.TunSingboxRulesFileName));

@@ -11,6 +11,9 @@ data class ConfigResult(
     var localizedError: Boolean = false,
     /** The Aether core the configuration runs on, when it has an Aether outbound; the daemon starts it. */
     var aetherCore: AetherCore? = null,
+    var foxAccountId: String? = null,
+    var foxCountry: String = "REC",
+    var foxPort: Int = 0,
     var singBoxContent: String? = null,
     var singBoxPort: Int = 0,
 )

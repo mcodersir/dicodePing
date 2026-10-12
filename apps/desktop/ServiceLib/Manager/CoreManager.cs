@@ -14,6 +14,7 @@ public class CoreManager
 
     private ProcessService? _processService;
     private ProcessService? _processPreService;
+    private ProcessService? _foxProcess;
     private string? _activeConfigHash;
     private int _intentionalStopDepth;
     private bool _linuxSudo = false;
@@ -85,8 +86,9 @@ public class CoreManager
             return;
         }
 
-        var generatedConfigHash = Convert.ToHexString(
-            SHA256.HashData(await File.ReadAllBytesAsync(fileName)));
+        var fox = FoxProfiles.Read(mainContext.Node);
+        var generatedConfigHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            await File.ReadAllTextAsync(fileName) + (fox is null ? "" : $"|fox:{fox.AccountId}:{fox.Country}"))));
         if (IsRunning && string.Equals(_activeConfigHash, generatedConfigHash, StringComparison.Ordinal))
         {
             Logging.SaveLog("CoreHandler: identical generated configuration; keeping the active TUN process.");
@@ -100,13 +102,15 @@ public class CoreManager
         await EntryHopService.EnsureReadyAsync(mainContext);
         await Task.Delay(250);
 
-        if (Utils.IsWindows() && (mainContext?.IsTunEnabled == true || preContext?.IsTunEnabled == true))
-        {
-            await Task.Delay(100);
-            await WindowsUtils.RemoveTunDevice();
+        if (fox is not null) {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token);
+            _foxProcess = helper;
+            helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code); };
         }
-
         await CoreStart(mainContext);
+        if (_processService is null) { await CoreStop(); return; }
+        if (_foxProcess is { HasExited: true }) { await CoreStop(); throw new FoxException("helper", "Firefox proxy stopped during startup"); }
         await WaitForProxyPort(preContext);
         await CoreStartPreService(preContext);
 
@@ -194,6 +198,8 @@ public class CoreManager
             return null;
         }
 
+        if (FoxProfiles.Read(node) is { } fox)
+            return await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, testItem.Port, token);
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
         var (context, _) = await CoreConfigContextBuilder.Build(_config, node);
@@ -237,6 +243,7 @@ public class CoreManager
                 _processPreService.Dispose();
                 _processPreService = null;
             }
+            if (_foxProcess is not null) { await _foxProcess.StopAsync(); _foxProcess.Dispose(); _foxProcess = null; }
             _activeConfigHash = null;
         }
         catch (Exception ex)
@@ -316,7 +323,7 @@ public class CoreManager
 
     private async Task UpdateFunc(bool notify, string msg)
     {
-        await _updateFunc?.Invoke(notify, msg);
+        await (_updateFunc?.Invoke(notify, msg) ?? Task.CompletedTask);
     }
 
     private static async Task WaitForProxyPort(CoreConfigContext? preContext)
@@ -407,7 +414,9 @@ public class CoreManager
 
     private async Task<ProcessService?> RunProcess(CoreInfo? coreInfo, string configPath, bool displayLog, bool mayNeedSudo, bool isTunLaunch = false)
     {
-        var fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out var msg);
+        string fileName; string msg;
+        try { fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out msg); }
+        catch (Exception error) { await UpdateFunc(mayNeedSudo, error.Message); return null; }
         if (fileName.IsNullOrEmpty())
         {
             await UpdateFunc(false, msg);
@@ -416,6 +425,7 @@ public class CoreManager
 
         try
         {
+            NativeLaunchPolicy.Validate(fileName);
             if (mayNeedSudo
                 && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())
                 && !Utils.IsAdministrator())
@@ -429,8 +439,10 @@ public class CoreManager
         }
         catch (Exception ex)
         {
-            Logging.SaveLog(_tag, ex);
-            await UpdateFunc(mayNeedSudo, ex.Message);
+            if (NativeLaunchPolicy.RecordLoaderFailure(fileName, ex)) {
+                Logging.SaveLog("Core loader rejected the executable; automatic repeated launches disabled.");
+                try { NativeLaunchPolicy.Validate(fileName); } catch (Exception failure) { await UpdateFunc(mayNeedSudo, failure.Message); }
+            } else await UpdateFunc(mayNeedSudo, ex.Message);
             return null;
         }
     }

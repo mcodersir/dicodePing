@@ -103,7 +103,7 @@ public class TaskManager
         {
             await SubscriptionHandler.UpdateProcess(_config, item.Id, true, async (success, msg) =>
             {
-                await _updateFunc?.Invoke(success, msg);
+                await (_updateFunc?.Invoke(success, msg) ?? Task.CompletedTask);
                 if (success)
                 {
                     Logging.SaveLog($"Update subscription end. {msg}");
@@ -123,7 +123,7 @@ public class TaskManager
 
             await new UpdateService(_config, async (success, msg) =>
             {
-                await _updateFunc?.Invoke(false, msg);
+                await (_updateFunc?.Invoke(false, msg) ?? Task.CompletedTask);
             }).UpdateGeoFileAll();
         }
     }
@@ -144,7 +144,7 @@ public class TaskManager
 
         foreach (var msg in msgs)
         {
-            await _updateFunc?.Invoke(false, msg);
+            await (_updateFunc?.Invoke(false, msg) ?? Task.CompletedTask);
         }
         NoticeManager.Instance.Enqueue(string.Join("\n", msgs));
         AppEvents.HasUpdateNotified.Publish(true);

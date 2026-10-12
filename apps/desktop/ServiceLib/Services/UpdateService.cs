@@ -552,6 +552,6 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
 
     private async Task UpdateFunc(bool notify, string msg)
     {
-        await _updateFunc?.Invoke(notify, msg);
+        await (_updateFunc?.Invoke(notify, msg) ?? Task.CompletedTask);
     }
 }

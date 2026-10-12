@@ -1,8 +1,8 @@
-name: Release 4.5.0 Stable
+name: Release 4.6.0 Stable
 
 on:
   push:
-    tags: ['v4.5.0']
+    tags: ['v4.6.0']
   workflow_dispatch:
 
 permissions:
@@ -67,11 +67,15 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.2
+          cache: false
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.5.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.6.0
       - name: Render desktop layout on Linux
         if: runner.os == 'Linux'
         run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -84,7 +88,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.5.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.6.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -164,6 +168,8 @@ jobs:
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
           if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
+      - name: Build Fox helper from source
+        run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
       - name: Bundle verified Aether and Psiphon helpers
         run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
       - name: Execute bundled cores in the ephemeral runner
@@ -171,6 +177,7 @@ jobs:
         run: |
           $versions = @{}
           $checks = @(
+            @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.6.0' },
             @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.9' },
             @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
             @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.3.0' },
@@ -192,7 +199,7 @@ jobs:
       - name: Publish independent CLI with verified runtimes
         shell: pwsh
         run: |
-          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.5.0 -o cli-publish
+          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.6.0 -o cli-publish
           if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
           Copy-Item publish/bin cli-publish/bin -Recurse -Force
           Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -204,7 +211,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'CLI version check failed' }
           & $cli --help
           if ($LASTEXITCODE -ne 0) { throw 'CLI help check failed' }
-          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/sing_box/sing-box cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
+          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/bin/fox/dicode-fox cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/sing_box/sing-box cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
           python scripts/package-desktop.py --root cli-publish --edition cli --platform ${{ matrix.artifact }}
           if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed' }
       - name: Exercise CLI with actual proxy traffic and cleanup
@@ -218,7 +225,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.5.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.6.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -229,6 +236,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.2
+          cache: false
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -264,6 +275,8 @@ jobs:
           python scripts/stage-aether.py --android --output apps/android/app/libs
           bash native-upstream/fetch-psiphon-servers.sh
           cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
+      - name: Build Fox helper for all Android architectures
+        run: python scripts/stage-fox.py --android --output apps/android/app/libs
       - name: Bundle verified Android sing-box
         run: python scripts/stage-singbox-android.py
       - name: Fetch the verified Android Xray runtime
@@ -286,7 +299,7 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.5.0
+          ./gradlew testFdroidDebugUnitTest assembleFdroidRelease --no-daemon -PdicodeVersion=4.6.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -313,17 +326,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.2
+          cache: false
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.5.0 — Stable
+          name: DicodePing 4.6.0 — Stable
           prerelease: false
           make_latest: true
           generate_release_notes: false
-          body_path: docs/RELEASE-4.5.0.md
+          body_path: docs/RELEASE-4.6.0.md
           files: artifacts/*
 
   website:
@@ -334,6 +351,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.2
+          cache: false
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

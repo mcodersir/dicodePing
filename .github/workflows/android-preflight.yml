@@ -1,14 +1,18 @@
-name: Android 4.5 preflight
+name: Android 4.6 preflight
 on:
   push:
     branches:
-    - codex/release-4.5.0
+    - codex/release-4.6.0
 jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.2
+        cache: false
     - uses: actions/setup-java@v5
       with:
         distribution: temurin
@@ -32,6 +36,8 @@ jobs:
         cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
 
         '
+    - name: Build Fox helper for all Android architectures
+      run: python scripts/stage-fox.py --android --output apps/android/app/libs
     - name: Bundle verified Android sing-box
       run: python scripts/stage-singbox-android.py
     - name: Fetch the verified Android Xray runtime
@@ -56,7 +62,7 @@ jobs:
 
         chmod +x gradlew
 
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.5.0'
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.6.0'
 
     - name: Enable hardware acceleration for the test emulator
       run: |

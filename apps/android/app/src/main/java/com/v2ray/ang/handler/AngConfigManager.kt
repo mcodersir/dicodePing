@@ -506,6 +506,10 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(skipCount = 1)
             }
 
+            if (it.subscription.url.startsWith("dicode-fox://")) {
+                com.v2ray.ang.core.FoxAccounts.refresh(com.v2ray.ang.AngApplication.application, it.subscription.url.removePrefix("dicode-fox://"), true)
+                return SubscriptionUpdateResult(configCount = 1, successCount = 1)
+            }
             // One built-in group combines both independent subscription feeds.
             if (it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) {
                 val spoText = PrimarySubscriptionSources.aggregate()

@@ -3,6 +3,7 @@ namespace ServiceLib.Services;
 public class ProcessService : IDisposable
 {
     private readonly Process _process;
+    private readonly bool _privateProtocol;
     private readonly Func<bool, string, Task>? _updateFunc;
     private bool _isDisposed;
     private readonly Queue<string> _recentOutput = new();
@@ -34,9 +35,10 @@ public class ProcessService : IDisposable
         bool displayLog,
         bool redirectInput,
         Dictionary<string, string>? environmentVars,
-        Func<bool, string, Task>? updateFunc)
+        Func<bool, string, Task>? updateFunc, bool privateProtocol = false)
     {
         _updateFunc = updateFunc;
+        _privateProtocol = privateProtocol;
 
         _process = new Process
         {
@@ -47,11 +49,11 @@ public class ProcessService : IDisposable
                 WorkingDirectory = workingDirectory,
                 UseShellExecute = false,
                 RedirectStandardInput = redirectInput,
-                RedirectStandardOutput = displayLog,
-                RedirectStandardError = displayLog,
+                RedirectStandardOutput = displayLog || privateProtocol,
+                RedirectStandardError = displayLog || privateProtocol,
                 CreateNoWindow = true,
-                StandardOutputEncoding = displayLog ? Encoding.UTF8 : null,
-                StandardErrorEncoding = displayLog ? Encoding.UTF8 : null,
+                StandardOutputEncoding = displayLog || privateProtocol ? Encoding.UTF8 : null,
+                StandardErrorEncoding = displayLog || privateProtocol ? Encoding.UTF8 : null,
             },
             EnableRaisingEvents = true
         };
@@ -71,7 +73,7 @@ public class ProcessService : IDisposable
             Exited?.Invoke(exitCode);
         };
 
-        if (displayLog)
+        if (displayLog && !privateProtocol)
         {
             RegisterEventHandlers();
         }
@@ -94,13 +96,33 @@ public class ProcessService : IDisposable
         }
     }
 
+    public async Task<JsonObject> StartPrivateProtocolAsync(JsonObject request, Func<JsonObject, Task>? onEvent, CancellationToken token)
+    {
+        if (!_privateProtocol) throw new InvalidOperationException("Not a private helper process");
+        _process.Start();
+        await _process.StandardInput.WriteLineAsync(request.ToJsonString().AsMemory(), token);
+        await _process.StandardInput.FlushAsync(token);
+        // Never forward protocol output to UI logs: it carries account tokens.
+        _ = Task.Run(async () => { while (await _process.StandardError.ReadLineAsync() is { }) { } });
+        var line = await _process.StandardOutput.ReadLineAsync(token);
+        var result = JsonNode.Parse(line ?? "{}") as JsonObject ?? new JsonObject();
+        if (result["ok"]?.GetValue<bool>() != true)
+            throw new FoxException(result["error"]?.ToString() ?? "helper", result["message"]?.ToString() ?? "Fox helper did not start");
+        if (onEvent is not null) _ = Task.Run(async () => {
+            try {
+                while (await _process.StandardOutput.ReadLineAsync() is { } next)
+                    if (JsonNode.Parse(next) is JsonObject message) await onEvent(message);
+            } catch (Exception) { /* Stopping an owned helper closes the private pipe. */ }
+        });
+        return result;
+    }
+
     public async Task StopAsync()
     {
         StopRequested = true;
-        if (_process.HasExited)
-        {
-            return;
-        }
+        if (_privateProtocol) { try { _process.StandardInput.Close(); } catch { } }
+        try { if (_process.HasExited) return; }
+        catch (InvalidOperationException) { return; }
 
         try
         {
@@ -139,12 +161,12 @@ public class ProcessService : IDisposable
             }
             catch (OperationCanceledException)
             {
-                await _updateFunc?.Invoke(false, "Core shutdown timed out; cleaning stale resources before restart.");
+                await (_updateFunc?.Invoke(false, "Core shutdown timed out; cleaning stale resources before restart.") ?? Task.CompletedTask);
             }
         }
         catch (Exception ex)
         {
-            await _updateFunc?.Invoke(true, ex.Message);
+            await (_updateFunc?.Invoke(true, ex.Message) ?? Task.CompletedTask);
         }
     }
 

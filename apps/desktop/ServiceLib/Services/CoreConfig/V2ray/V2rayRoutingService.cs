@@ -310,7 +310,7 @@ public partial class CoreConfigV2rayService
 
     private List<string> BuildRoutingDirectExe()
     {
-        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "aether", "psiphon-tunnel-core", "lyrebird", "tor" };
+        var directExeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dicode-fox", "aether", "psiphon-tunnel-core", "lyrebird", "tor" };
 
         var allCoreInfo = CoreInfoManager.Instance.GetCoreInfo();
 

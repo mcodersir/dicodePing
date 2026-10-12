@@ -13,7 +13,13 @@ using ServiceLib.Services;
 if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
 {
     Console.WriteLine("""
-        DicodePing CLI 4.5.0
+        DicodePing CLI 4.6.0
+        fox accounts|locations       List Fox accounts or provider locations
+        fox login                    Sign in (email/password read privately from stdin)
+        fox verify <account-id>      Enter Mozilla verification code
+        fox refresh <account-id>     Update allowance and the managed profile
+        fox location <id> <REC|CC>   Select a country or recommended location
+        fox remove <account-id>      Remove local account and subscription
         profiles                     List profile IDs, real latency and locations (JSON)
         import <file>                Import share links or native JSON configurations
         refresh                      Update enabled subscriptions
@@ -28,7 +34,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         """);
     return 0;
 }
-if (args[0] is "--version" or "version") { Console.WriteLine("4.5.0"); return 0; }
+if (args[0] is "--version" or "version") { Console.WriteLine("4.6.0"); return 0; }
 string? Option(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i+1 < args.Length ? args[i+1] : null; }
 var data = Path.GetFullPath(Option("--data") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing-CLI"));
 Directory.CreateDirectory(data);
@@ -45,11 +51,13 @@ try
     await ConfigHandler.InitBuiltinDNS(config);
     await ConfigHandler.InitBuiltinFullConfigTemplate(config);
     await ProfileExManager.Instance.Init();
-    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.5.0");
+    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.6.0");
     Task Output(bool success, string text) { Console.Error.WriteLine(text); return Task.CompletedTask; }
     await CoreManager.Instance.Init(config, Output);
     switch (args[0])
     {
+        case "fox":
+            return await FoxCommands.Execute(args, cancellation.Token);
         case "profiles":
             var extra = (await ProfileExManager.Instance.GetProfileExs()).ToDictionary(x => x.IndexId);
             Console.WriteLine(JsonSerializer.Serialize((await AppManager.Instance.ProfileModels("", "")).Select(p => new {
