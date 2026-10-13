@@ -12,7 +12,7 @@ for abi, suffix in abis.items():
     assert certs and all(c.lower() == expected_cert for c in certs), "APK signing identity changed"
     manifest = subprocess.run([str(tools / "aapt2"), "dump", "badging", str(apk)], check=True, capture_output=True, text=True).stdout
     assert "name='ir.dicode.ping.fdroid'" in manifest, "Android application ID changed"
-    assert "versionName='4.8.0'" in manifest and f"versionCode='{45800000 + suffix}'" in manifest, "APK version mismatch"
+    assert "versionName='4.8.0'" in manifest and f"versionCode='{45800100 + suffix}'" in manifest, "APK version mismatch"
     assert "targetSdkVersion:'36'" in manifest, "APK targets a preview SDK"
     with zipfile.ZipFile(apk) as archive:
         packaged = [a for a in abis if a != "universal"] if abi == "universal" else [abi]

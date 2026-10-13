@@ -25,8 +25,9 @@ selectTab(/Android/i.test(navigator.userAgent)?tabs[1]:tabs[0]);
   const response=await fetch('https://api.github.com/repos/mcodersir/dicodePing/releases/latest',{signal:AbortSignal.timeout(6000)});
   if(!response.ok)return;
   const release=await response.json();
-  if(release.draft||release.prerelease||!/^v?\d+\.\d+\.\d+$/.test(release.tag_name))return;
-  const version=release.tag_name.replace(/^v/,'');
+  const match=/^v?(\d+\.\d+\.\d+)(?:-r\d+)?$/.exec(release.tag_name);
+  if(release.draft||release.prerelease||!match)return;
+  const version=match[1];
   const parts=version.split('.').map(Number), pinned=[4,8,0];
   let comparison=0;for(let i=0;i<3;i++){if(parts[i]!==pinned[i]){comparison=parts[i]>pinned[i]?1:-1;break}}
   if(comparison<0)return;

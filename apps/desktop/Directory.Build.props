@@ -2,7 +2,8 @@
 
     <PropertyGroup>
     <Version>4.8.0</Version>
-    <FileVersion>4.8.0.0</FileVersion>
+    <FileVersion>4.8.0.1</FileVersion>
+    <InformationalVersion>4.8.0-r1</InformationalVersion>
     </PropertyGroup>
 
     <PropertyGroup>

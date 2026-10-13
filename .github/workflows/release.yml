@@ -2,7 +2,7 @@ name: Release 4.8.0 Stable
 
 on:
   push:
-    tags: ['v4.8.0']
+    tags: ['v4.8.0-r1']
   workflow_dispatch:
 
 permissions:
@@ -348,7 +348,7 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.8.0 — Stable
+          name: DicodePing 4.8.0 — Stable r1
           prerelease: false
           make_latest: true
           generate_release_notes: false
