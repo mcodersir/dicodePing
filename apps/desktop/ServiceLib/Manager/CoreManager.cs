@@ -301,6 +301,7 @@ public class CoreManager
             var preCoreType = preContext?.Node?.CoreType ?? ECoreType.sing_box;
             var fileName = Utils.GetBinConfigPath(Global.CorePreConfigFileName);
             var result = await CoreConfigHandler.GenerateClientConfig(preContext, fileName);
+            if (!result.Success) throw new IOException(result.Msg ?? "Could not generate the TUN bridge configuration");
             if (result.Success)
             {
                 var coreInfo = CoreInfoManager.Instance.GetCoreInfo(preCoreType);
@@ -365,10 +366,10 @@ public class CoreManager
 
                 await stream.WriteAsync(greeting, linkedToken);
 
-                var read = await stream.ReadAsync(buf.AsMemory(0, 2), linkedToken);
+                await stream.ReadExactlyAsync(buf.AsMemory(0, 2), linkedToken);
 
                 // Server selection: VER=5, METHOD=0x00 — proxy is fully ready
-                if (read == 2 && buf[0] == 0x05)
+                if (buf[0] == 0x05 && buf[1] == 0x00)
                 {
                     return;
                 }
@@ -379,8 +380,7 @@ public class CoreManager
                 {
                     continue;
                 }
-                Logging.SaveLog($"WaitForProxyPort Timeout waiting for proxy port {port} to be ready.");
-                return;
+                throw new TimeoutException($"SOCKS endpoint {port} did not become ready; the TUN bridge was not started.");
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
             {
@@ -391,8 +391,7 @@ public class CoreManager
                 }
                 catch (OperationCanceledException)
                 {
-                    Logging.SaveLog($"WaitForProxyPort Timeout waiting for proxy port {port} to be ready.");
-                    return;
+                    throw new TimeoutException($"SOCKS endpoint {port} did not become ready; the TUN bridge was not started.");
                 }
             }
             catch
@@ -400,6 +399,7 @@ public class CoreManager
                 // Ignore other exceptions and continue
             }
         }
+        throw new TimeoutException($"SOCKS endpoint {port} did not become ready; the TUN bridge was not started.");
     }
 
     #endregion Private
