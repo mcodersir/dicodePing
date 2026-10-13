@@ -47,7 +47,54 @@ public sealed class CoreInfoManager
             msg = string.Format(ResUI.NotFoundCore, Utils.GetBinPath("", coreInfo?.CoreType.ToString()), coreInfo?.CoreExes?.LastOrDefault(), coreInfo?.Url);
             Logging.SaveLog(msg);
         }
+        else if (coreInfo.CoreType == ECoreType.Xray && Utils.IsWindows())
+        {
+            fileName = GetXrayAliasExecFile(fileName);
+        }
         return fileName;
+    }
+
+    private static readonly object AliasLock = new();
+    private static readonly Dictionary<string, string> VerifiedAliases = new();
+    private const string XrayAliasExeName = "p-xray-p.exe";
+
+    // Windows treats a process named "xray.exe" as suspicious (XTLS/Xray-core#4427), so the core is run from a
+    // copy under another name; xray.exe itself is kept (and stays the update target) for third-party tools.
+    private static string GetXrayAliasExecFile(string xrayExe)
+    {
+        lock (AliasLock)
+        {
+            var aliasExe = Path.Combine(Path.GetDirectoryName(xrayExe) ?? string.Empty, XrayAliasExeName);
+            string Stamp(string path) { var f = new FileInfo(path); return $"{f.Length}|{f.LastWriteTimeUtc.Ticks}"; }
+            var temporary = aliasExe + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try {
+                NativeLaunchPolicy.Validate(xrayExe);
+                var stamp = Stamp(xrayExe) + "|" + (File.Exists(aliasExe) ? Stamp(aliasExe) : "missing");
+                if (VerifiedAliases.GetValueOrDefault(xrayExe) == stamp) return aliasExe;
+                if (!File.Exists(aliasExe) || !IsSameFileContent(xrayExe, aliasExe)) {
+                    File.Copy(xrayExe, temporary, true);
+                    NativeLaunchPolicy.ReadWindowsMachine(temporary);
+                    File.Move(temporary, aliasExe, true);
+                }
+                VerifiedAliases[xrayExe] = Stamp(xrayExe) + "|" + Stamp(aliasExe);
+                return aliasExe;
+            } catch (IOException) {
+                // A running image is locked by Windows. Never fall back to an unverified stale alias.
+                return File.Exists(aliasExe) && IsSameFileContent(xrayExe, aliasExe) ? aliasExe : xrayExe;
+            } finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
+    }
+
+    // Xray builds are reproducible (fixed timestamp) and sizes can repeat across versions, so compare by hash
+    private static bool IsSameFileContent(string path1, string path2)
+    {
+        if (new FileInfo(path1).Length != new FileInfo(path2).Length)
+        {
+            return false;
+        }
+        using var stream1 = File.OpenRead(path1);
+        using var stream2 = File.OpenRead(path2);
+        return SHA256.HashData(stream1).AsSpan().SequenceEqual(SHA256.HashData(stream2));
     }
 
     public List<ECoreType> GetCheckUpdateCoreTypes()
@@ -225,6 +272,7 @@ public sealed class CoreInfoManager
                     DownloadUrlLinuxLoong64 = urlSingbox + "/download/{0}/sing-box-{1}-linux-loong64.tar.gz",
                     DownloadUrlOSX64 = urlSingbox + "/download/{0}/sing-box-{1}-darwin-amd64.tar.gz",
                     DownloadUrlOSXArm64 = urlSingbox + "/download/{0}/sing-box-{1}-darwin-arm64.tar.gz",
+                    //LockedMaxVersion = new SemanticVersion(1, 14, int.MaxValue),
                     Match = "sing-box",
                     VersionArg = "version",
                 },
@@ -299,7 +347,7 @@ public sealed class CoreInfoManager
 
     private static List<string>? GetMihomoCoreExes()
     {
-        var names = new List<string>();
+        var names = new List<string> { "mihomo" };
 
         if (Utils.IsWindows())
         {
@@ -324,7 +372,7 @@ public sealed class CoreInfoManager
         }
 
         names.Add("clash");
-        names.Add("mihomo");
+
 
         return names;
     }

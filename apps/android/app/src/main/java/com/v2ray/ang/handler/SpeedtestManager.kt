@@ -93,6 +93,24 @@ object SpeedtestManager {
         )
     }
 
+    /** Queries the proxy exit itself, never the server hostname or the direct connection. */
+    fun getProxyLocationInfo(port: Int): RemoteEndpointInfo? {
+        if (port !in 1..65535) return null
+        val url = MmkvManager.decodeSettingsString(AppConfig.PREF_IP_API_URL).takeIf { !it.isNullOrBlank() } ?: AppConfig.IP_API_URL
+        val client = okhttp3.OkHttpClient.Builder()
+            .proxy(java.net.Proxy(java.net.Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port)))
+            .callTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build()
+        try {
+            return client.newCall(okhttp3.Request.Builder().url(url).build()).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val info = JsonUtil.fromJsonSafe(response.body.string(), com.v2ray.ang.dto.IPAPIInfo::class.java) ?: return@use null
+                val ip = listOf(info.ip, info.clientIp, info.ip_addr, info.query).firstOrNull { !it.isNullOrBlank() } ?: return@use null
+                val country = listOf(info.country_code, info.countryCode, info.location?.country_code, info.country).firstOrNull { !it.isNullOrBlank() }
+                RemoteEndpointInfo(country, ip)
+            }
+        } finally { client.dispatcher.cancelAll(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
+    }
+
     /**
      * Beta location lookup for a configuration endpoint. This intentionally uses
      * the endpoint address, rather than the currently selected VPN route, so a

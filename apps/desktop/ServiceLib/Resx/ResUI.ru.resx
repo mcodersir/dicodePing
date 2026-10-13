@@ -1860,4 +1860,140 @@
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>Ядро пользовательской конфигурации</value>
   </data>
+<data name="menuCheckAndUpdate" xml:space="preserve">
+    <value>Проверить и обновить</value>
+  </data>
+
+<data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+
+<data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+
+<data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
+
+<data name="TbSettingsEnableUpdateViaProxy" xml:space="preserve">
+    <value>Обновлять через прокси</value>
+  </data>
+
+<data name="LvOverrideAddress" xml:space="preserve">
+    <value>Заменить адрес</value>
+  </data>
+
+<data name="LvOverridePort" xml:space="preserve">
+    <value>Заменить порт</value>
+  </data>
+
+<data name="TipOverrideAddress" xml:space="preserve">
+    <value>Оставьте пустым, чтобы сохранить адрес из подписки</value>
+  </data>
+
+<data name="TipOverridePort" xml:space="preserve">
+    <value>Оставьте пустым, чтобы сохранить порт из подписки</value>
+  </data>
+
+<data name="TbSettingsMux4RayConcurrency" xml:space="preserve">
+    <value>Лимит дочерних соединений Mux для Xray</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpConcurrency" xml:space="preserve">
+    <value>Лимит дочерних XUDP-соединений Mux для Xray</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpProxyUDP443" xml:space="preserve">
+    <value>Обработка UDP443 (QUIC) в Mux для Xray</value>
+  </data>
+
+<data name="menuDelaytest" xml:space="preserve">
+    <value>Тест задержки</value>
+  </data>
+
+<data name="menuRegionalPresetsChina" xml:space="preserve">
+    <value>Китай</value>
+  </data>
+
+<data name="TbXrayOnly" xml:space="preserve">
+    <value>Только Xray</value>
+  </data>
+
+<data name="TbBlockAAAAQueries" xml:space="preserve">
+    <value>Блокировать DNS-запросы AAAA</value>
+  </data>
+
+<data name="TbBlockAAAAQueriesTips" xml:space="preserve">
+    <value>При включении блокирует DNS-запросы IPv6</value>
+  </data>
+
+<data name="TbDNS" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+
+<data name="TbSettingsMux4Ray" xml:space="preserve">
+    <value>Настройки Mux для Xray</value>
+  </data>
+
+<data name="LvRequestHeaders" xml:space="preserve">
+    <value>HTTP-заголовки (JSON)</value>
+  </data>
+
+<data name="SubRequestHeadersTips" xml:space="preserve">
+    <value>Необязательно. Пример: {"X-hwid": "my_device"}. Заданные значения переопределяют заголовки по умолчанию для всех URL этой группы, включая сервис конвертации подписок</value>
+  </data>
+
+<data name="SubRequestHeadersInvalid" xml:space="preserve">
+    <value>Некорректные HTTP-заголовки. Используйте JSON-объект с уникальными именами заголовков и строковыми значениями. Имена и значения заголовков не должны содержать переносов строк</value>
+  </data>
+
+<data name="TbSortingProcess" xml:space="preserve">
+    <value>Процесс</value>
+  </data>
+
+<data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+
+<data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>Для EchOutbound требуется EchConfigList</value>
+  </data>
+
+<data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>У EchOutbound должен быть непустой "tag", отличный от direct и block и не начинающийся с proxy</value>
+  </data>
+
+<data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>Тег "{0}" в EchOutbound уже используется другим outbound</value>
+  </data>
+
+<data name="menuAddMasqueServer" xml:space="preserve">
+    <value>Добавить сервер [MASQUE]</value>
+  </data>
+
+<data name="DicodeAutoPrepare" xml:space="preserve"><value>Automatically test and sort the enabled default subscription</value></data>
+<data name="DicodePreparing" xml:space="preserve"><value>Preparing your fastest routes</value></data>
+<data name="DicodePreparationHint" xml:space="preserve"><value>Real latency and location checks run before Home opens. You can skip; completed results are kept.</value></data>
+<data name="DicodeSkipPreparation" xml:space="preserve"><value>Skip and open Home</value></data>
+<data name="DicodeNoReachable" xml:space="preserve"><value>No reachable server was measured. Refresh or test again.</value></data>
+<data name="DicodeEntryTitle" xml:space="preserve"><value>Entry hop</value></data>
+<data name="DicodeEntryEnable" xml:space="preserve"><value>Enable entry hop</value></data>
+<data name="DicodeEntryExternal" xml:space="preserve"><value>Existing local SOCKS proxy</value></data>
+<data name="DicodeEntryProfile" xml:space="preserve"><value>Selected profile</value></data>
+<data name="DicodeEntrySubscription" xml:space="preserve"><value>Selected subscription</value></data>
+<data name="DicodeEntryAll" xml:space="preserve"><value>All profiles</value></data>
+<data name="DicodeEntryFirst" xml:space="preserve"><value>First reachable transport</value></data>
+<data name="DicodeEntryBest" xml:space="preserve"><value>Best available transport</value></data>
+<data name="DicodeEntryRescan" xml:space="preserve"><value>Rescan transports</value></data>
+<data name="DicodeEntryReady" xml:space="preserve"><value>Real traffic verified</value></data>
+<data name="DicodeEntryPort" xml:space="preserve"><value>Local SOCKS port</value></data>
+<data name="DicodeEntryHint" xml:space="preserve"><value>Aether/Psiphon is the first hop before your selected route. HTTP/3, HTTP/2 and WireGuard are tested through SOCKS with time limits. The winner is saved per network. Tor needs a locally installed Tor client. UDP support depends on the helper. Logs are in Reports.</value></data>
+<data name="DicodeEntryFailed" xml:space="preserve"><value>Entry hop failed. See Reports; no direct fallback is used.</value></data>
+<data name="DicodeEntryPortBusy" xml:space="preserve"><value>Choose an available local port between 1024 and 65535.</value></data>
+<data name="DicodeEntryCustomUnsupported" xml:space="preserve"><value>For custom JSON, configure the local SOCKS entry hop explicitly.</value></data>
+<data name="DicodeSniPreset" xml:space="preserve"><value>SNI-block preset for imported TLS profiles (opt-in)</value></data>
+<data name="DicodeDiscoverMask" xml:space="preserve"><value>Find a working FinalMask</value></data>
+<data name="DicodeDiscoverFailed" xml:space="preserve"><value>No tested preset worked; original settings kept.</value></data>
+<data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>Rescan after this many consecutive failures</value></data>
 </root>

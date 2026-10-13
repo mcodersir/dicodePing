@@ -99,8 +99,13 @@ public partial class StatusBarViewModel : MyReactiveObject
     [Reactive]
     public partial string SpeedDirectDisplay { get; set; }
     [Reactive] public partial string TotalTrafficDisplay { get; set; }
+    [Reactive] public partial string DownloadTotal { get; set; } = "0 KB";
+    [Reactive] public partial string UploadTotal { get; set; } = "0 KB";
+    [Reactive] public partial string DownloadRate { get; set; } = "0 KB/s";
+    [Reactive] public partial string UploadRate { get; set; } = "0 KB/s";
     [Reactive] public partial string PingDisplay { get; set; }
     [Reactive] public partial string LocationDisplay { get; set; }
+    [Reactive] public partial string LocationCountry { get; set; }
     [Reactive] public partial bool IsConnected { get; set; }
     [Reactive] public partial string ConnectionStatusText { get; set; }
 
@@ -118,10 +123,10 @@ public partial class StatusBarViewModel : MyReactiveObject
         SelectedRouting = new();
         SelectedServer = new();
         RunningServerToolTipText = GetRunningServerToolTipText("-");
-        ConnectionStatusText = "اتصال TUN";
-        TotalTrafficDisplay = "کل ↑ 0 KB  ↓ 0 KB";
-        PingDisplay = "پینگ: —";
-        LocationDisplay = "🏳️ —";
+        ConnectionStatusText = ResUI.DicodeTunConnect;
+        TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ 0 KB  ↓ 0 KB";
+        PingDisplay = $"{ResUI.DicodePingLabel}: —";
+        LocationDisplay = ResUI.DicodeNoLocation;
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
 
@@ -347,23 +352,25 @@ public partial class StatusBarViewModel : MyReactiveObject
         SetDefaultServerRequested.Publish(SelectedServer.ID);
     }
 
-    public async Task TestServerAvailability()
+    public async Task<AvailabilityCheckResult?> TestServerAvailability()
     {
         var item = await ConfigHandler.GetDefaultServer(_config);
         if (item == null)
         {
-            return;
+            return null;
         }
 
         await TestServerAvailabilitySub(ResUI.Speedtesting);
 
         var result = await Task.Run(ConnectionHandler.RunAvailabilityCheckDetailed);
         var country = result.Location?.Country;
-        PingDisplay = result.Delay > 0 ? $"پینگ: {result.Delay} ms" : "پینگ: ناموفق";
-        LocationDisplay = country.IsNotEmpty() ? $"{CountryFlag(country!)} {country}" : "🏳️ —";
+        PingDisplay = result.Delay > 0 ? $"{ResUI.DicodePingLabel}: {result.Delay} ms" : ResUI.DicodePingFailed;
+        LocationCountry = country.IsNotEmpty() ? country : string.Empty;
+        LocationDisplay = country.IsNotEmpty() ? country! : ResUI.DicodeNoLocation;
         var msg = $"{PingDisplay} · {LocationDisplay}";
         NoticeManager.Instance.SendMessageEx(msg);
         await TestServerAvailabilitySub(string.Empty);
+        return new AvailabilityCheckResult(result.Delay, result.Location?.ToString());
     }
 
     private async Task TestServerAvailabilitySub(string msg)
@@ -556,7 +563,11 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         try
         {
-            TotalTrafficDisplay = $"کل ↑ {Utils.HumanFy(update.TotalUp)}  ↓ {Utils.HumanFy(update.TotalDown)}";
+            DownloadTotal = Utils.HumanFy(update.TotalDown);
+            UploadTotal = Utils.HumanFy(update.TotalUp);
+            DownloadRate = Utils.HumanFy(update.ProxyDown) + "/s";
+            UploadRate = Utils.HumanFy(update.ProxyUp) + "/s";
+            TotalTrafficDisplay = $"{ResUI.DicodeTrafficTotal} ↑ {UploadTotal}  ↓ {DownloadTotal}";
             if (AppManager.Instance.IsRunningCore(ECoreType.sing_box))
             {
                 SpeedProxyDisplay = string.Format(ResUI.SpeedDisplayText, EInboundProtocol.mixed, Utils.HumanFy(update.ProxyUp), Utils.HumanFy(update.ProxyDown));

@@ -1,0 +1,25 @@
+{
+  "version": "1.14.3",
+  "assets": [
+    {
+      "name": "sing-box-1.14.3-android-386.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-386.tar.gz",
+      "sha256": "5812c457335efa711116cbc0b01a4810a95f0838ef2b1693e88bf06446160161"
+    },
+    {
+      "name": "sing-box-1.14.3-android-amd64.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-amd64.tar.gz",
+      "sha256": "a84a5aea86ad0588b76e23051e9e59405a7ed52358acfb9710cfaa055fe60e4a"
+    },
+    {
+      "name": "sing-box-1.14.3-android-arm.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-arm.tar.gz",
+      "sha256": "0c0df4fbf85656896d5b604e9eb4e556c1a3f68dd615b0ece3f9f6bd5adab5d6"
+    },
+    {
+      "name": "sing-box-1.14.3-android-arm64.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-arm64.tar.gz",
+      "sha256": "149569b5dbf01958e6598beb3a13078d6fc0e353ef06f4aff85f5f28bc23593b"
+    }
+  ]
+}

@@ -11,7 +11,6 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.HttpUtil
 import com.v2ray.ang.util.LogUtil
-import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -50,7 +49,7 @@ class UserAssetViewModel(application: Application) : BaseViewModel(application) 
         }.also { reloadJob = it }
     }
 
-    private fun buildAssetList(
+    internal fun buildAssetList(
         decodedAssets: List<AssetUrlCache>?,
         geoFilesSource: String
     ): List<AssetUrlCache> {
@@ -59,7 +58,8 @@ class UserAssetViewModel(application: Application) : BaseViewModel(application) 
             .filter { geoFile -> savedAssets.none { it.assetUrl.remarks == geoFile } }
             .map {
                 AssetUrlCache(
-                    Utils.getUuid(),
+                    // Built-in rows have no persisted GUID; keep their UI identity across reloads.
+                    "builtin:$it",
                     AssetUrlItem(
                         it,
                         String.format(AppConfig.GITHUB_DOWNLOAD_URL, geoFilesSource).concatUrl(it),
@@ -68,7 +68,7 @@ class UserAssetViewModel(application: Application) : BaseViewModel(application) 
                 )
             }
         // Force update URL for geoip-only-cn-private.dat
-        return (builtInItems + savedAssets).map { cache ->
+        return (builtInItems + psiphonServerList(savedAssets) + savedAssets).map { cache ->
             if (cache.assetUrl.remarks == AppConfig.GEOIP_ONLY_CN_PRIVATE_DAT) {
                 cache.copy(
                     assetUrl = cache.assetUrl.copy(
@@ -80,6 +80,19 @@ class UserAssetViewModel(application: Application) : BaseViewModel(application) 
             }
         }
     }
+
+    /** Psiphon's server list beside the geo files: built in with the address its client downloads it from, replaceable like them. */
+    private fun psiphonServerList(savedAssets: List<AssetUrlCache>): List<AssetUrlCache> =
+        if (savedAssets.any { it.assetUrl.remarks == AppConfig.PSIPHON_SERVERS_DAT }) {
+            emptyList()
+        } else {
+            listOf(
+                AssetUrlCache(
+                    "builtin:${AppConfig.PSIPHON_SERVERS_DAT}",
+                    AssetUrlItem(AppConfig.PSIPHON_SERVERS_DAT, AppConfig.PSIPHON_SERVERS_URL, locked = true)
+                )
+            )
+        }
 
     fun downloadGeoFiles(
         extDir: File,
