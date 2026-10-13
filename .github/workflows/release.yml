@@ -355,22 +355,4 @@ jobs:
           body_path: docs/RELEASE-4.7.2.md
           files: artifacts/*
 
-  website:
-    needs: publish
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version: 1.27.2
-          cache: false
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: web
-      - name: Publish download page
-        id: deployment
-        uses: actions/deploy-pages@v4
+# Download pages deploy through website.yml on the authorized Pages branch.
