@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.handler.PoolStrings
 import com.v2ray.ang.R
 import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.handler.*
@@ -38,7 +39,7 @@ import kotlin.coroutines.resume
 
 private val logTime = DateTimeFormatter.ofPattern("HH:mm:ss")
 data class PoolLog(val id: Long, val text: String)
-data class PoolScreenState(val progress: PoolProgress = PoolProgress("آماده", "برای جمع‌آوری شروع را بزنید."),
+data class PoolScreenState(val progress: PoolProgress = PoolProgress("آماده", PoolStrings.t("برای جمع‌آوری شروع را بزنید.", "Press Start to collect servers.")),
     val busy: Boolean = false, val logs: List<PoolLog> = emptyList(), val rows: List<String> = emptyList())
 
 class ServerPoolViewModel(application: Application) : AndroidViewModel(application) {
@@ -57,9 +58,9 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     }
     fun report(progress: PoolProgress) {
         val visible = if (stopRequested.get() && progress.stage == "آزمون")
-            progress.copy(stage = "توقف", message = "در حال پایان تست‌های فعال و آماده‌سازی ${progress.passed} نتیجهٔ موفق…")
+            progress.copy(stage = "توقف", message = PoolStrings.t("در حال پایان تست‌های فعال و آماده‌سازی ${progress.passed} نتیجهٔ موفق…", "Finishing active tests and preparing ${progress.passed} successful results…"))
         else progress
-        val entry = PoolLog(sequence.incrementAndGet(), "${LocalTime.now().format(logTime)} [${visible.stage}] ${visible.message}" +
+        val entry = PoolLog(sequence.incrementAndGet(), "${LocalTime.now().format(logTime)} [${PoolStrings.stage(visible.stage)}] ${visible.message}" +
             if (visible.total > 0) " · ${visible.completed}/${visible.total}" else "")
         state.update {
             val displayed = if (visible.total == 0 && visible.stage == it.progress.stage)
@@ -74,10 +75,10 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     fun cancel() {
         if (state.value.progress.stage == "آزمون") {
             stopRequested.set(true)
-            report(PoolProgress("توقف", "در حال توقف نرم؛ سرورهای موفق تکمیل‌شده ذخیره خواهند شد…",
+            report(PoolProgress("توقف", PoolStrings.t("در حال توقف نرم؛ سرورهای موفق تکمیل‌شده ذخیره خواهند شد…", "Stopping; completed successful servers will be saved…"),
                 passed = state.value.progress.passed, target = state.value.progress.target))
         } else {
-            report(PoolProgress("توقف", "در حال توقف جمع‌آوری…"))
+            report(PoolProgress("توقف", PoolStrings.t("در حال توقف جمع‌آوری…", "Stopping collection…")))
             job?.cancel()
         }
     }
@@ -86,14 +87,14 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
         stopRequested.set(false)
         state.update { it.copy(busy = true) }
         val normalized = options.normalized()
-        report(PoolProgress("شروع", "اجرای جدید · 4.1.0 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت"))
+        report(PoolProgress("شروع", PoolStrings.t("اجرای جدید · 4.1.0 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت", "New run · 4.7.0 · target ${normalized.targetCount} servers · ${normalized.testRounds} rounds")))
         job = viewModelScope.launch {
             try {
                 val context = getApplication<Application>()
                 ServerPoolManager.run(context, { guid ->
                     withContext(Dispatchers.Main) {
                         if (SettingsManager.isVpnMode())
-                            check(ensureVpnPermission()) { "برای اتصال fallback ساب پیش‌فرض، مجوز VPN لازم است." }
+                            check(ensureVpnPermission()) { PoolStrings.t("برای اتصال fallback ساب پیش‌فرض، مجوز VPN لازم است.", "VPN permission is required for the default fallback.") }
                         MmkvManager.setSelectServer(guid)
                         // Wait for the daemon's ordered restart acknowledgement before inspecting its port.
                         val acknowledged = withTimeoutOrNull(30_000) {
@@ -107,12 +108,12 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
                             }
                             true
                         } ?: false
-                        check(acknowledged) { "هسته به فرمان راه‌اندازی پاسخ نداد؛ لاگ اتصال را بررسی کنید." }
+                        check(acknowledged) { PoolStrings.t("هسته به فرمان راه‌اندازی پاسخ نداد؛ لاگ اتصال را بررسی کنید.", "The core did not acknowledge startup; check connection logs.") }
                     }
                 }, ::report, normalized) { stopRequested.get() }
                 refresh()
-            } catch (_: CancellationException) { report(PoolProgress("متوقف", "جمع‌آوری متوقف شد؛ استخر قبلی حفظ شد.")) }
-            catch (error: Exception) { report(PoolProgress("خطا", error.message ?: "جمع‌آوری ناموفق بود.")) }
+            } catch (_: CancellationException) { report(PoolProgress("متوقف", PoolStrings.t("جمع‌آوری متوقف شد؛ استخر قبلی حفظ شد.", "Collection stopped; previous pool kept."))) }
+            catch (error: Exception) { report(PoolProgress("خطا", error.message ?: PoolStrings.t("جمع‌آوری ناموفق بود.", "Collection failed."))) }
             finally { state.update { it.copy(busy = false) } }
         }
     }
@@ -154,26 +155,26 @@ class ServerPoolActivity : HelperBaseComponentActivity() {
         }
         Scaffold(topBar = { AppTopBar(stringResource(R.string.title_server_pool), { finish() }) }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("اتصال فعال ← fallback ساب پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.pool_ui_0), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = targetText,
                         onValueChange = { value -> targetText = value.filter(Char::isDigit).take(3) },
-                        enabled = !state.busy, singleLine = true, label = { Text("تعداد سرور موفق هدف") },
+                        enabled = !state.busy, singleLine = true, label = { Text(stringResource(R.string.pool_ui_1)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
                     OutlinedTextField(value = roundsText,
                         onValueChange = { value -> roundsText = value.filter(Char::isDigit).take(2) },
-                        enabled = !state.busy, singleLine = true, label = { Text("نوبت تست هر سرور") },
+                        enabled = !state.busy, singleLine = true, label = { Text(stringResource(R.string.pool_ui_2)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
                 }
                 ElevatedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(state.progress.stage, style = MaterialTheme.typography.titleMedium)
+                        Text(PoolStrings.stage(state.progress.stage), style = MaterialTheme.typography.titleMedium)
                         Text(state.progress.message, style = MaterialTheme.typography.bodyMedium)
                         if (state.progress.total > 0) {
                             LinearProgressIndicator(progress = { (state.progress.completed.toFloat() / state.progress.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                             Text(if (state.progress.stage == "جمع‌آوری")
-                                "${state.progress.completed}/${state.progress.total} · کاندید: ${state.progress.passed} · خطا: ${state.progress.failed}"
-                            else "${state.progress.completed}/${state.progress.total} · موفق: ${state.progress.passed}${if (state.progress.target > 0) "/${state.progress.target}" else ""} · ناموفق: ${state.progress.failed}")
+                                "${state.progress.completed}/${state.progress.total} · ${PoolStrings.t("کاندید", "Candidates")}: ${state.progress.passed} · ${PoolStrings.t("خطا", "Errors")}: ${state.progress.failed}"
+                            else "${state.progress.completed}/${state.progress.total} · ${PoolStrings.t("موفق", "Passed")}: ${state.progress.passed}${if (state.progress.target > 0) "/${state.progress.target}" else ""} · ${PoolStrings.t("ناموفق", "Failed")}: ${state.progress.failed}")
                         } else if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
                 }
@@ -186,26 +187,26 @@ class ServerPoolActivity : HelperBaseComponentActivity() {
                         targetText = pendingOptions.targetCount.toString()
                         roundsText = pendingOptions.testRounds.toString()
                         model.start(pendingOptions, ::ensureVpnPermission)
-                    }, modifier = Modifier.weight(1f)) { Text(if (state.logs.isEmpty()) "شروع جمع‌آوری" else "اجرای دوباره") }
+                    }, modifier = Modifier.weight(1f)) { Text(if (state.logs.isEmpty()) stringResource(R.string.pool_ui_3) else stringResource(R.string.pool_ui_4)) }
                     OutlinedButton(enabled = state.busy && state.progress.stage !in setOf("توقف", "ذخیره", "پایان", "متوقف"),
-                        onClick = model::cancel) { Text("توقف") }
+                        onClick = model::cancel) { Text(stringResource(R.string.pool_ui_5)) }
                 }
-                Text("هر پاسخ باید معتبر و حداکثر ۹۰۰ ms باشد. تست‌ها همزمان اجرا می‌شوند و توقف هنگام آزمون، موفق‌های تکمیل‌شده را ذخیره می‌کند.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.pool_ui_6), style = MaterialTheme.typography.bodySmall)
                 TabRow(selectedTabIndex = tab) {
-                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("لاگ زنده") })
-                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("استخر (${state.rows.size})") })
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.pool_ui_7)) })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("${stringResource(R.string.title_server_pool)} (${state.rows.size})") })
                 }
                 if (tab == 0) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { Utils.setClipboard(this@ServerPoolActivity, state.logs.joinToString("\n") { it.text }) }) { Text("کپی لاگ") }
-                        TextButton(onClick = model::clearLogs) { Text("پاک‌کردن") }
-                        TextButton(onClick = { follow = !follow }) { Text(if (follow) "توقف اسکرول" else "دنبال‌کردن") }
+                        TextButton(onClick = { Utils.setClipboard(this@ServerPoolActivity, state.logs.joinToString("\n") { it.text }) }) { Text(stringResource(R.string.pool_ui_8)) }
+                        TextButton(onClick = model::clearLogs) { Text(stringResource(R.string.pool_ui_9)) }
+                        TextButton(onClick = { follow = !follow }) { Text(if (follow) stringResource(R.string.pool_ui_10) else stringResource(R.string.pool_ui_11)) }
                     }
                     LazyColumn(Modifier.weight(1f), state = logScroll, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(state.logs, key = { it.id }) { Text(it.text, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
                     }
                 } else {
-                    if (state.rows.isEmpty()) Text("هنوز سروری ذخیره نشده است؛ جمع‌آوری را شروع کنید.")
+                    if (state.rows.isEmpty()) Text(stringResource(R.string.pool_ui_12))
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(state.rows) { Text(it, style = MaterialTheme.typography.bodyMedium) }
                     }

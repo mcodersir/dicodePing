@@ -126,12 +126,12 @@ internal object FoxAccounts {
         .put("outbounds", JSONArray().put(JSONObject().put("tag", "proxy").put("protocol", "socks").put("settings", JSONObject().put("servers", JSONArray().put(JSONObject().put("address", "127.0.0.1").put("port", 1080)))))).toString()
     fun sync(context: Context, account: FoxAccount): String {
         val cache = MmkvManager.decodeSubscriptions().firstOrNull { it.subscription.url == "dicode-fox://${account.id}" }
-        val sub = cache?.subscription ?: SubscriptionItem(remarks = "روباه · ${account.email}", url = "dicode-fox://${account.id}", autoUpdate = false)
+        val sub = cache?.subscription ?: SubscriptionItem(remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · ${account.email}", url = "dicode-fox://${account.id}", autoUpdate = false)
         sub.totalBytes = account.info.optLong("quota_max", 0); val remaining = account.info.optLong("quota_remaining", -1)
         if (remaining >= 0 && sub.totalBytes > 0) sub.downloadBytes = (sub.totalBytes - remaining).coerceAtLeast(0)
         sub.lastUpdated = System.currentTimeMillis(); val group = MmkvManager.encodeSubscription(cache?.guid.orEmpty(), sub)
         val nodes = MmkvManager.decodeServerList(group); val guid = nodes.firstOrNull().orEmpty()
-        val node = ProfileItem(configType = EConfigType.CUSTOM, subscriptionId = group, remarks = "روباه · Firefox VPN · ${account.country}")
+        val node = ProfileItem(configType = EConfigType.CUSTOM, subscriptionId = group, remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · Firefox VPN · ${account.country}")
         val stored = MmkvManager.encodeServerConfigWithRaw(guid, node, template(account.id, account.country))
         nodes.drop(1).forEach(MmkvManager::removeServer)
         return stored

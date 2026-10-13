@@ -19,7 +19,7 @@ internal fun NativeMethodsDialog(onDismiss: () -> Unit, onImport: (String) -> Un
     var port by remember { mutableStateOf("443") }; var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }; var extra by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }; var expanded by remember { mutableStateOf(false) }
-    val labels = listOf("Snell 4", "AnyTLS", "SSH", "Cisco / OpenConnect", "OpenVPN", "External helper · SOCKS5")
+    val labels = listOf("Snell 4", "AnyTLS", "SSH", "Cisco / OpenConnect", "OpenVPN", stringResource(R.string.native_external))
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.native_methods_title)) },
         text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.native_methods_hint))
@@ -29,12 +29,12 @@ internal fun NativeMethodsDialog(onDismiss: () -> Unit, onImport: (String) -> Un
                 }
             }
             OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.native_connection_name)) }, singleLine = true)
-            OutlinedTextField(server, { server = it }, label = { Text("Server / IP") }, singleLine = true)
-            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, label = { Text("Port") }, singleLine = true)
-            if (kind in listOf("ssh", "openconnect", "openvpn-client", "socks")) OutlinedTextField(user, { user = it }, label = { Text("Username") }, singleLine = true)
-            OutlinedTextField(password, { password = it }, label = { Text("Password / PSK") }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+            OutlinedTextField(server, { server = it }, label = { Text(stringResource(R.string.native_server)) }, singleLine = true)
+            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, label = { Text(stringResource(R.string.native_port)) }, singleLine = true)
+            if (kind in listOf("ssh", "openconnect", "openvpn-client", "socks")) OutlinedTextField(user, { user = it }, label = { Text(stringResource(R.string.native_user)) }, singleLine = true)
+            OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.native_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
             if (kind == "socks") Text(stringResource(R.string.native_external_hint))
-            if (kind !in listOf("snell", "socks")) OutlinedTextField(extra, { extra = it }, label = { Text(when (kind) { "ssh" -> "SSH host key"; "openconnect", "openvpn-client" -> "CA certificate (PEM)"; else -> "TLS server name (SNI)" }) }, minLines = if (kind.startsWith("open")) 3 else 1)
+            if (kind !in listOf("snell", "socks")) OutlinedTextField(extra, { extra = it }, label = { Text(when (kind) { "ssh" -> stringResource(R.string.native_ssh_key); "openconnect", "openvpn-client" -> stringResource(R.string.native_ca); else -> stringResource(R.string.native_sni) }) }, minLines = if (kind.startsWith("open")) 3 else 1)
             if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
         } },
         confirmButton = { TextButton(onClick = {

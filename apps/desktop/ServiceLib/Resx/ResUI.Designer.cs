@@ -63,6 +63,8 @@ namespace ServiceLib.Resx {
         /// <summary>
         ///   查找类似 Do you want to append rules? Choose yes to append, no to replace. 的本地化字符串。
         /// </summary>
+        public static string DicodeFoxTitle => ResourceManager.GetString("DicodeFoxTitle", resourceCulture);
+
         public static string AddBatchRoutingRulesYesNo {
             get {
                 return ResourceManager.GetString("AddBatchRoutingRulesYesNo", resourceCulture);

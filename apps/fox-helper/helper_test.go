@@ -202,3 +202,74 @@ func TestPublicServerListUsesCompatibleLocationsAndSkipsQuarantine(t *testing.T)
 		t.Fatal(locations, e)
 	}
 }
+
+func TestGuardianActivatesOnTokenRejectionBeforeRetry(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		if r.Header.Get("Authorization") != "Bearer access" {
+			t.Error("missing account authorization")
+		}
+		switch r.URL.Path {
+		case "/api/v1/fpn/token":
+			if len(calls) == 1 {
+				w.WriteHeader(403)
+				io.WriteString(w, `{}`)
+				return
+			}
+			w.Header().Set("X-Quota-Limit", "53687091200")
+			w.Header().Set("X-Quota-Remaining", "50000000000")
+			io.WriteString(w, `{"token":"valid-pass"}`)
+		case "/api/v1/fpn/activate":
+			io.WriteString(w, `{}`)
+		case "/api/v1/fpn/status":
+			io.WriteString(w, `{"uid":"123","limited_bandwidth":true}`)
+		}
+	}))
+	defer server.Close()
+	p := newProvider(State{AccessToken: "access", ExpiresAt: time.Now().Unix() + 3600})
+	p.guardianURL = server.URL
+	info, err := p.account(context.Background())
+	if err != nil || info.UID != "123" || info.QuotaMax == nil || *info.QuotaMax != 53687091200 {
+		t.Fatal(info, err)
+	}
+	expected := "GET /api/v1/fpn/token,POST /api/v1/fpn/activate,GET /api/v1/fpn/token,GET /api/v1/fpn/status"
+	if strings.Join(calls, ",") != expected {
+		t.Fatal(calls)
+	}
+}
+
+func TestValidPassDoesNotRequireStatusPermissionOrActivation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fpn/token":
+			w.Header().Set("X-Quota-Remaining", "42")
+			io.WriteString(w, `{"token":"valid-pass"}`)
+		case "/api/v1/fpn/status":
+			w.WriteHeader(403)
+		case "/api/v1/fpn/activate":
+			t.Error("unnecessary activation")
+			w.WriteHeader(500)
+		}
+	}))
+	defer server.Close()
+	p := newProvider(State{AccessToken: "access", ExpiresAt: time.Now().Unix() + 3600})
+	p.guardianURL = server.URL
+	info, err := p.account(context.Background())
+	if err != nil || info.QuotaRemaining == nil || *info.QuotaRemaining != 42 {
+		t.Fatal(info, err)
+	}
+}
+
+func TestActivationRejectionIsBoundedAndKeepsSession(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(403) }))
+	defer server.Close()
+	p := newProvider(State{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: time.Now().Unix() + 3600})
+	p.guardianURL = server.URL
+	_, err := p.account(context.Background())
+	api, ok := err.(*ProviderError)
+	if !ok || api.Code != "activation_required" || calls != 2 || p.state.RefreshToken != "refresh" {
+		t.Fatal(err, calls)
+	}
+}

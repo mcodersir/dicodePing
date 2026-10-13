@@ -76,6 +76,8 @@ public sealed class AppManager
         }
         _config = config;
         Thread.CurrentThread.CurrentUICulture = new(_config.UiItem.CurrentLanguage);
+        ResUI.Culture = Thread.CurrentThread.CurrentUICulture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ResUI.Culture;
 
         //Under Win10
         if (Utils.IsWindows() && Environment.OSVersion.Version.Major < 10)

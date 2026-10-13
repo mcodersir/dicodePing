@@ -1,3 +1,7 @@
+# 4.7.0
+
+Guided Fox login, Guardian activation recovery, consistent Persian/English UI and CLI, and refreshed responsive downloads. See [release notes](docs/RELEASE-4.7.0.md).
+
 ## 4.4.0 — Verified routes and simpler connections
 
 - Optional automatic real-latency testing and sorting when the default subscription exists and is enabled, on startup and manual refresh. Desktop preparation reports real progress and locations before Home; skip/cancellation is bounded.

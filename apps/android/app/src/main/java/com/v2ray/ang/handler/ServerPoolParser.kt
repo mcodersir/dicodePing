@@ -10,11 +10,11 @@ object ServerPoolParser {
     private val hrefs = Regex("""\bhref\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
     data class Extraction(val links: List<String>, val posts: Int, val datedPosts: Int, val newest: Instant?) {
         val summary: String get() = when {
-            links.isNotEmpty() && newest != null -> "${links.size} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ ${newest.toString().take(10)}"
-            links.isNotEmpty() -> "${links.size} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ در HTML نبود"
-            posts == 0 -> "صفحهٔ پیام‌های عمومی دریافت نشد"
-            datedPosts == 0 -> "$posts پیام؛ بدون لینک مستقیم V2Ray · تاریخ در HTML نبود"
-            else -> "$posts پیام؛ بدون لینک مستقیم V2Ray"
+            links.isNotEmpty() && newest != null -> PoolStrings.t("${links.size} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ ${newest.toString().take(10)}", "${links.size} candidates from recent visible messages · ${newest.toString().take(10)}")
+            links.isNotEmpty() -> PoolStrings.t("${links.size} کاندید از آخرین پیام‌های قابل‌نمایش · تاریخ در HTML نبود", "${links.size} candidates from recent visible messages · date unavailable")
+            posts == 0 -> PoolStrings.t("صفحهٔ پیام‌های عمومی دریافت نشد", "Public messages page unavailable")
+            datedPosts == 0 -> PoolStrings.t("$posts پیام؛ بدون لینک مستقیم V2Ray · تاریخ در HTML نبود", "$posts messages; no direct V2Ray links · date unavailable")
+            else -> PoolStrings.t("$posts پیام؛ بدون لینک مستقیم V2Ray", "$posts messages; no direct V2Ray links")
         }
     }
     fun channels(text: String): List<String> = text.lineSequence().map {

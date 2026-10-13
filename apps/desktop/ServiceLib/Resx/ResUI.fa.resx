@@ -2430,4 +2430,5 @@ https://t.me/dicodeping‏</value>
 <data name="DicodeEntryFailureThreshold" xml:space="preserve"><value>اسکن دوباره پس از این تعداد خطای متوالی</value></data>
 <data name="DicodeUploadLabel" xml:space="preserve"><value>آپلود ↑</value></data>
 <data name="DicodeDownloadLabel" xml:space="preserve"><value>دانلود ↓</value></data>
+  <data name="DicodeFoxTitle" xml:space="preserve"><value>روباه · Firefox VPN</value></data>
 </root>

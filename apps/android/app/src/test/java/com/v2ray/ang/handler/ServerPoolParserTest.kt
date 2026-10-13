@@ -56,7 +56,7 @@ class ServerPoolParserTest {
         assertEquals(1, missingDate.posts)
         assertEquals(0, missingDate.datedPosts)
         assertEquals(listOf("vless://id@example.com:443"), missingDate.links)
-        assertTrue(missingDate.summary.contains("تاریخ در HTML نبود"))
+        assertTrue(missingDate.summary.contains(PoolStrings.t("تاریخ در HTML نبود", "date unavailable")))
     }
 
     @Test fun wrapperlessPreviewUsesDocumentOrderAndRejectsTelegramProxy() {

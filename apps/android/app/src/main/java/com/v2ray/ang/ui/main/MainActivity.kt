@@ -147,16 +147,16 @@ class MainActivity : HelperBaseComponentActivity() {
         if (showTelegramPrompt.value) {
             AlertDialog(
                 onDismissRequest = ::dismissTelegramPrompt,
-                title = { Text("کانال دیکد پینگ") },
-                text = { Text("برای اطلاع از نسخه‌ها و خبرهای جدید، به کانال رسمی دیکد پینگ بپیوندید.") },
+                title = { Text(stringResource(R.string.dicode_channel_title)) },
+                text = { Text(stringResource(R.string.dicode_channel_hint)) },
                 confirmButton = {
                     TextButton(onClick = {
                         Utils.openUri(this, AppConfig.TG_CHANNEL_URL)
                         dismissTelegramPrompt()
-                    }) { Text("عضویت در کانال") }
+                    }) { Text(stringResource(R.string.dicode_channel_join)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = ::dismissTelegramPrompt) { Text("بعداً") }
+                    TextButton(onClick = ::dismissTelegramPrompt) { Text(stringResource(R.string.dicode_channel_later)) }
                 }
             )
         }

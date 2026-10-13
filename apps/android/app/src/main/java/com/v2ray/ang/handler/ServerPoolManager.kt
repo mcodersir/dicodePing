@@ -21,7 +21,7 @@ import kotlin.coroutines.resumeWithException
 
 object ServerPoolManager {
     const val POOL_ID = "dicode-server-pool"
-    const val POOL_NAME = "سرور های استخر"
+    val POOL_NAME get() = PoolStrings.t("سرورهای استخر", "Server pool")
     const val CHANNELS_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/channels.txt"
     private val running = AtomicBoolean(false)
 
@@ -86,7 +86,7 @@ object ServerPoolManager {
     private suspend fun tryPrepareRoute(name: String, proxy: Proxy?, report: (PoolProgress) -> Unit): PreparedRoute? {
         val client = networkClient(proxy)
         try {
-            report(PoolProgress("مسیر فعال", "بررسی $name بدون تغییر اتصال فعلی…"))
+            report(PoolProgress("مسیر فعال", PoolStrings.t("بررسی $name بدون تغییر اتصال فعلی…", "Checking $name without changing the active connection…")))
             var channels: List<String>? = null
             for (source in PoolNetwork.channelSources) {
                 currentCoroutineContext().ensureActive()
@@ -109,55 +109,55 @@ object ServerPoolManager {
                 } }.awaitAll().any { it }
             }
             check(telegramWorks) { "Telegram preview unavailable" }
-            report(PoolProgress("مسیر فعال", "$name قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند."))
+            report(PoolProgress("مسیر فعال", PoolStrings.t("$name قابل استفاده است؛ اتصال کاربر تغییر نمی‌کند.", "$name is usable; your connection remains active.")))
             return PreparedRoute(client, availableChannels, name)
         } catch (cancelled: CancellationException) {
             close(client)
             throw cancelled
         } catch (_: Exception) {
             close(client)
-            report(PoolProgress("مسیر فعال", "$name برای هر دو منبع GitHub و Telegram قابل استفاده نبود."))
+            report(PoolProgress("مسیر فعال", PoolStrings.t("$name برای هر دو منبع GitHub و Telegram قابل استفاده نبود.", "$name could not access both GitHub and Telegram.")))
             return null
         }
     }
 
     suspend fun run(context: Context, connect: suspend (String) -> Unit, report: (PoolProgress) -> Unit,
                     requestedOptions: ServerPoolOptions, shouldStop: () -> Boolean): Int = withContext(Dispatchers.IO) {
-        check(running.compareAndSet(false, true)) { "جمع‌آوری دیگری در حال اجراست." }
+        check(running.compareAndSet(false, true)) { PoolStrings.t("جمع‌آوری دیگری در حال اجراست.", "Another collection is already running.") }
         val options = requestedOptions.normalized()
         val stage = "pool-stage-${UUID.randomUUID()}"
         try {
             ensureSubscription()
-            report(PoolProgress("استخر", "اشتراک مستقل «$POOL_NAME» آماده است."))
+            report(PoolProgress("استخر", PoolStrings.t("اشتراک مستقل «$POOL_NAME» آماده است.", "The separate subscription «$POOL_NAME» is ready.")))
             CoreNativeManager.initCoreEnv(context)
-            var route = tryPrepareRoute("اتصال فعال DicodePing", localProxy(), report)
-                ?: tryPrepareRoute("مسیر مستقیم سیستم یا VPN دیگر", null, report)
+            var route = tryPrepareRoute(PoolStrings.t("اتصال فعال DicodePing", "Active DicodePing connection"), localProxy(), report)
+                ?: tryPrepareRoute(PoolStrings.t("مسیر مستقیم سیستم یا VPN دیگر", "System network or another VPN"), null, report)
             if (route == null) {
-                report(PoolProgress("ساب پیش‌فرض", "مسیر فعالی برای Telegram پیدا نشد؛ آزمون ساب پیش‌فرض…"))
+                report(PoolProgress("ساب پیش‌فرض", PoolStrings.t("مسیر فعالی برای Telegram پیدا نشد؛ آزمون ساب پیش‌فرض…", "No active Telegram route; testing the default subscription…")))
                 val primary = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
-                    ?: error("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.")
+                    ?: error(PoolStrings.t("ساب پیش‌فرض موجود نیست؛ صفحهٔ اصلی را باز کنید.", "Default subscription missing; open Home first."))
                 try {
                     val update = AngConfigManager.updateConfigViaSub(primary)
                     if (update.successCount == 0)
-                        report(PoolProgress("ساب پیش‌فرض", "بروزرسانی ساب نتیجه‌ای نداشت؛ cache موجود آزموده می‌شود."))
+                        report(PoolProgress("ساب پیش‌فرض", PoolStrings.t("بروزرسانی ساب نتیجه‌ای نداشت؛ cache موجود آزموده می‌شود.", "Subscription refresh returned no results; testing the cached profiles.")))
                 } catch (error: Exception) {
-                    report(PoolProgress("ساب پیش‌فرض", "بروزرسانی ساب در دسترس نبود (${PoolNetwork.describe(error)})؛ cache موجود آزموده می‌شود."))
+                    report(PoolProgress("ساب پیش‌فرض", PoolStrings.t("بروزرسانی ساب در دسترس نبود (${PoolNetwork.describe(error)})؛ cache موجود آزموده می‌شود.", "Subscription refresh unavailable (${PoolNetwork.describe(error)}); testing cached profiles.")))
                 }
                 currentCoroutineContext().ensureActive()
                 val primaryServers = MmkvManager.decodeServerList(primary.guid)
                 val best = probe(context, primaryServers, 1, primaryServers.size.coerceAtLeast(1), false, report) { false }
                     .minByOrNull { it.second }
-                    ?: error("هیچ مسیر فعال یا کانفیگ سالمی در cache ساب پیش‌فرض پیدا نشد؛ دوباره تلاش کنید.")
-                report(PoolProgress("اتصال", "شروع اتصال fallback به بهترین مسیر ساب پیش‌فرض · ${best.second} ms"))
+                    ?: error(PoolStrings.t("هیچ مسیر فعال یا کانفیگ سالمی در cache ساب پیش‌فرض پیدا نشد؛ دوباره تلاش کنید.", "No working route or cached default profile found; retry."))
+                report(PoolProgress("اتصال", PoolStrings.t("شروع اتصال fallback به بهترین مسیر ساب پیش‌فرض · ${best.second} ms", "Connecting to the best default fallback · ${best.second} ms")))
                 connect(best.first)
                 PoolNetwork.waitForListener { SettingsManager.getHttpPort() }
-                route = tryPrepareRoute("مسیر fallback ساب پیش‌فرض", localProxy(), report)
-                    ?: error("اتصال fallback برقرار شد اما GitHub و Telegram از آن قابل دسترسی نیستند.")
+                route = tryPrepareRoute(PoolStrings.t("مسیر fallback ساب پیش‌فرض", "Default subscription fallback"), localProxy(), report)
+                    ?: error(PoolStrings.t("اتصال fallback برقرار شد اما GitHub و Telegram از آن قابل دسترسی نیستند.", "Fallback connected but cannot reach GitHub and Telegram."))
             }
             val client = route.client
             val links = try {
                 val channels = route.channels
-                report(PoolProgress("کانال‌ها", "فهرست ${channels.size} کانال از ${route.name} آماده است."))
+                report(PoolProgress("کانال‌ها", PoolStrings.t("فهرست ${channels.size} کانال از ${route.name} آماده است.", "${channels.size} channels ready through ${route.name}.")))
                 val semaphore = Semaphore(8)
                 val done = AtomicInteger(); val failed = AtomicInteger(); val found = AtomicInteger()
                 coroutineScope {
@@ -175,29 +175,29 @@ object ServerPoolManager {
                             }
                             catch (cancelled: CancellationException) { throw cancelled }
                             catch (error: Exception) { failed.incrementAndGet(); report(PoolProgress("جمع‌آوری", "@$channel · ${PoolNetwork.describe(error)}")); emptyList() }
-                            finally { report(PoolProgress("جمع‌آوری", "بررسی کانال‌ها", done.incrementAndGet(), channels.size, passed = found.get(), failed = failed.get())) }
+                            finally { report(PoolProgress("جمع‌آوری", PoolStrings.t("بررسی کانال‌ها", "Checking channels"), done.incrementAndGet(), channels.size, passed = found.get(), failed = failed.get())) }
                         }
                     } }.awaitAll().flatten().distinct()
                 }
             } finally { close(client) }
             currentCoroutineContext().ensureActive()
-            check(links.isNotEmpty()) { "از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد." }
+            check(links.isNotEmpty()) { PoolStrings.t("از پیام‌های قابل‌دسترسی هیچ کانفیگ V2Ray استخراج نشد؛ آزمون آغاز نشد. جزئیات کانال‌ها را در لاگ بررسی کنید؛ استخر قبلی حفظ شد.", "No V2Ray profiles extracted. Check channel logs. Tests did not start; the previous pool was kept.") }
             // Candidates are isolated from every user subscription until validation completes.
             AngConfigManager.importBatchConfig(links.joinToString("\n"), stage, false)
             val candidates = MmkvManager.decodeServerList(stage)
-            check(candidates.isNotEmpty()) { "${links.size} لینک استخراج شد ولی هیچ‌کدام قابل ورود به هسته نبود؛ استخر قبلی حفظ شد." }
+            check(candidates.isNotEmpty()) { PoolStrings.t("${links.size} لینک استخراج شد ولی هیچ‌کدام قابل ورود به هسته نبود؛ استخر قبلی حفظ شد.", "${links.size} links extracted but none could be imported; the previous pool was kept.") }
             report(PoolProgress("آزمون",
-                "${links.size} لینک یکتا؛ ${candidates.size} کانفیگ قابل آزمون؛ هدف ${options.targetCount} سرور موفق؛ ${options.testRounds} نوبت تست واقعی همزمان",
+                PoolStrings.t("${links.size} لینک یکتا؛ ${candidates.size} کانفیگ قابل آزمون؛ هدف ${options.targetCount} سرور موفق؛ ${options.testRounds} نوبت تست واقعی همزمان", "${links.size} unique links; ${candidates.size} testable profiles; target ${options.targetCount} servers; ${options.testRounds} concurrent real tests"),
                 total = candidates.size, target = options.targetCount))
             val accepted = probe(context, candidates, options.testRounds, options.targetCount, true, report, shouldStop)
                 .sortedBy { it.second }.take(options.targetCount)
             currentCoroutineContext().ensureActive()
             if (accepted.isEmpty() && shouldStop()) throw CancellationException("No completed successful result")
-            check(accepted.isNotEmpty()) { "کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد." }
+            check(accepted.isNotEmpty()) { PoolStrings.t("کانفیگ واجد شرایط پیدا نشد؛ استخر قبلی حفظ شد.", "No qualifying profiles found; the previous pool was kept.") }
             val stopped = shouldStop()
             report(PoolProgress("ذخیره", if (stopped)
-                "توقف انجام شد؛ ذخیرهٔ ${accepted.size} سرور موفق تکمیل‌شده…"
-                else "ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…", passed = accepted.size, target = options.targetCount))
+                PoolStrings.t("توقف انجام شد؛ ذخیرهٔ ${accepted.size} سرور موفق تکمیل‌شده…", "Stopped; saving ${accepted.size} completed successful servers…")
+                else PoolStrings.t("ذخیرهٔ ${accepted.size} کانفیگ تأییدشده…", "Saving ${accepted.size} verified profiles…"), passed = accepted.size, target = options.targetCount))
             val profiles = accepted.associate { (guid, _) ->
                 UUID.randomUUID().toString() to requireNotNull(MmkvManager.decodeServerConfig(guid)).copy(subscriptionId = POOL_ID)
             }
@@ -208,8 +208,8 @@ object ServerPoolManager {
             AngConfigManager.sortByTestResultsForSub(POOL_ID)
             SettingsChangeManager.makeSetupGroupTab()
             report(PoolProgress(if (stopped) "متوقف" else "پایان",
-                if (stopped) "آزمایش با درخواست شما متوقف شد و ${accepted.size} سرور موفق در استخر ذخیره شد."
-                else "${accepted.size} کانفیگ سالم در استخر ذخیره شد.",
+                if (stopped) PoolStrings.t("آزمایش با درخواست شما متوقف شد و ${accepted.size} سرور موفق در استخر ذخیره شد.", "Tests stopped at your request; ${accepted.size} successful servers saved.")
+                else PoolStrings.t("${accepted.size} کانفیگ سالم در استخر ذخیره شد.", "${accepted.size} working profiles saved to the pool."),
                 accepted.size, accepted.size, accepted.size, target = options.targetCount))
             accepted.size
         } finally {
@@ -238,13 +238,13 @@ object ServerPoolManager {
                         } catch (cancelled: CancellationException) { throw cancelled }
                         catch (_: Exception) { -1L })
                         report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
-                            "سرور ${index + 1} · نوبت ${it + 1}/$rounds: ${if (samples.last() > 0) "${samples.last()} ms" else "ناموفق"}",
+                            "${PoolStrings.t("سرور", "Server")} ${index + 1} · ${PoolStrings.t("نوبت", "Round")} ${it + 1}/$rounds: ${if (samples.last() > 0) "${samples.last()} ms" else PoolStrings.t("ناموفق", "Failed")}",
                             passed = passed.get().coerceAtMost(targetCount), target = if (strict) targetCount else 0))
                     }
                     if (strict && shouldStop()) return@withPermit null
                     val accepted = if (strict) ServerPoolParser.accepts(samples, rounds) else samples.size == rounds && samples.all { it > 0 }
                     report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
-                        "سرور ${index + 1} · ${samples.joinToString(" / ") { if (it > 0) "$it ms" else "ناموفق" }} · ${if (accepted) "پذیرفته" else "رد شد"}",
+                        "${PoolStrings.t("سرور", "Server")} ${index + 1} · ${samples.joinToString(" / ") { if (it > 0) "$it ms" else PoolStrings.t("ناموفق", "Failed") }} · ${if (accepted) PoolStrings.t("پذیرفته", "Accepted") else PoolStrings.t("رد شد", "Rejected")}",
                         passed = passed.get().coerceAtMost(targetCount), target = if (strict) targetCount else 0))
                     if (accepted) {
                         val reservation = passed.incrementAndGet()
@@ -254,7 +254,7 @@ object ServerPoolManager {
                     val completed = done.incrementAndGet()
                     val successful = passed.get().coerceAtMost(targetCount)
                     report(PoolProgress(if (strict) "آزمون" else "ساب پیش‌فرض",
-                        if (strict) "آزمون واقعی مسیر · موفق $successful/$targetCount" else "آزمون واقعی مسیر",
+                        if (strict) PoolStrings.t("آزمون واقعی مسیر · موفق $successful/$targetCount", "Real route test · passed $successful/$targetCount") else PoolStrings.t("آزمون واقعی مسیر", "Real route test"),
                         completed, guids.size, successful, (completed - successful).coerceAtLeast(0), if (strict) targetCount else 0))
                 }
             }

@@ -7,14 +7,18 @@ namespace v2rayN.Desktop.Views;
 public static class FoxUi
 {
     public const string Icon = "M4,3 L8,7 L12,5 L16,7 L20,3 L22,13 L17,19 L12,22 L7,19 L2,13 Z M8,12 L10,14 M16,12 L14,14 M10,18 L14,18";
-    public static string T(string fa, string en) => ResUI.Culture?.TwoLetterISOLanguageName == "fa" ? fa : en;
+    public static string T(string fa, string en) => (ResUI.Culture ?? System.Globalization.CultureInfo.CurrentUICulture).TwoLetterISOLanguageName == "fa" ? fa : en;
     public static string Error(Exception e) => e is FoxException f ? f.Code switch {
         "credentials" => T("ایمیل یا رمز عبور درست نیست.", "Incorrect email or password."),
-        "login_required" => T("نشست یا دسترسی حساب توسط Mozilla رد شد؛ دوباره وارد شوید و وضعیت حساب را بررسی کنید.", "Mozilla rejected the account session or access. Sign in and check account eligibility."),
+        "login_required" => T("نشست حساب موزیلا منقضی یا رد شده است؛ دوباره وارد شوید.", "Your Mozilla session expired or was rejected. Sign in again."),
+        "activation_required" => T("فعال‌سازی Firefox VPN رد شد؛ دوباره تلاش کنید یا وارد حساب شوید.", "Firefox VPN activation was rejected. Retry or sign in again."),
+        "network" => T("ارتباط با سرویس برقرار نشد؛ اتصال اینترنت را بررسی کنید.", "Could not reach the provider. Check your connection."),
+        "input" => T("اطلاعات واردشده معتبر نیست؛ ایمیل و کد تأیید را بررسی کنید.", "Invalid input. Check your email and verification code."),
+        "missing_helper" => T("هسته روباه پیدا نشد؛ بسته کامل برنامه را نصب کنید.", "Fox helper is missing. Install the complete package."),
         "quota_exceeded" => T("سهمیه یا سقف درخواست حساب تمام شده؛ زمان بازنشانی را بررسی کنید.", "Account allowance or request limit reached. Check its reset date."),
         "verification_required" => T("حساب به تأیید در سایت Mozilla نیاز دارد. تأیید را کامل کنید و دوباره تلاش کنید.", "Complete Mozilla's interactive account verification, then retry."),
         "unreachable" => T("هیچ مسیر روباه از آزمون واقعی عبور نکرد؛ اتصال مستقیم جایگزین نمی‌شود.", "No Firefox route passed the real traffic test; there is no direct fallback."),
-        _ => f.Message
+        _ => T("عملیات روباه ناموفق بود؛ اطلاعات ورودی و اتصال را بررسی کنید.", f.Message)
     } : e.Message;
     public static string Quota(FoxAccount account)
     {
@@ -31,6 +35,7 @@ public sealed class FoxWindow : Window
     {
         Title = FoxUi.T("روباه · DicodePing", "Fox · DicodePing"); Width = 580; Height = 700; MinWidth = 320; MinHeight = 360;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        FlowDirection = FoxUi.T("fa", "en") == "fa" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         var accounts = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var email = new TextBox { PlaceholderText = FoxUi.T("ایمیل حساب Mozilla", "Mozilla account email"), FlowDirection = FlowDirection.LeftToRight };
         var password = new TextBox { PlaceholderText = FoxUi.T("رمز عبور · ذخیره نمی‌شود", "Password · never saved"), PasswordChar = '●' };
@@ -43,18 +48,46 @@ public sealed class FoxWindow : Window
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var remove = new Button { Content = FoxUi.T("حذف حساب و ساب از برنامه", "Remove local account and subscription") };
         foreach (var button in new[] { login, verify, refresh, connect, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
-        var cts = new CancellationTokenSource(); bool busy = false; Closed += (_, _) => cts.Cancel();
+        var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
+        var credentialsPanel = new StackPanel { Spacing = 12, Children = { email, password, login } };
+        var verificationPanel = new StackPanel { Spacing = 12, Children = { code, verify } };
+        var connectionPanel = new StackPanel { Spacing = 12, Children = {
+            quota, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, refresh, remove } };
+        var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
+        var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
+        var adding = false; bool busy = false;
+        void Render() {
+            var account = accounts.SelectedItem as FoxAccount;
+            var pending = !adding && account?.Pending == true;
+            var ready = !adding && account is not null && !account.Pending;
+            credentialsPanel.IsVisible = adding || account is null;
+            verificationPanel.IsVisible = pending;
+            connectionPanel.IsVisible = ready;
+            add.IsVisible = !adding && account is not null;
+            back.IsVisible = adding && accounts.ItemCount > 0;
+            steps.Text = credentialsPanel.IsVisible ? FoxUi.T("۱ · ورود به حساب", "1 · Sign in")
+                : pending ? FoxUi.T("۲ · تأیید حساب", "2 · Verify account") : FoxUi.T("۳ · انتخاب کشور و اتصال", "3 · Choose country and connect");
+            login.IsEnabled = !busy && !string.IsNullOrWhiteSpace(email.Text) && !string.IsNullOrEmpty(password.Text);
+            verify.IsEnabled = !busy && !string.IsNullOrWhiteSpace(code.Text);
+            connect.IsEnabled = refresh.IsEnabled = !busy && ready;
+            remove.IsEnabled = !busy && account is not null;
+            accounts.IsEnabled = country.IsEnabled = email.IsEnabled = password.IsEnabled = code.IsEnabled = add.IsEnabled = back.IsEnabled = !busy;
+        }
+        var cts = new CancellationTokenSource(); Closed += (_, _) => cts.Cancel();
         async Task Load(string? id = null) {
             var saved = await FoxAccounts.ListAsync(); accounts.ItemsSource = saved; accounts.SelectedItem = saved.FirstOrDefault(a => a.Id == id) ?? saved.FirstOrDefault();
         }
-        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); verify.IsVisible = code.IsVisible = account.Pending; country.SelectedItem = account.Country; } }
-        accounts.SelectionChanged += (_, _) => Selection();
+        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); verify.IsVisible = code.IsVisible = account.Pending; country.SelectedItem = account.Country; } Render(); }
+        accounts.SelectionChanged += (_, _) => { adding = false; Selection(); };
+        add.Click += (_, _) => { adding = true; email.Text = ""; code.Text = ""; status.Text = ""; Render(); email.Focus(); };
+        back.Click += (_, _) => { adding = false; password.Text = ""; Render(); };
+        email.TextChanged += (_, _) => Render(); password.TextChanged += (_, _) => Render(); code.TextChanged += (_, _) => Render();
         async Task Run(Func<Task> work) {
-            if (busy) return; busy = true; login.IsEnabled = verify.IsEnabled = refresh.IsEnabled = connect.IsEnabled = remove.IsEnabled = false;
+            if (busy) return; busy = true; Render();
             status.Text = FoxUi.T("در حال ارتباط امن با سرویس…", "Contacting the provider securely…");
             try { await work(); } catch (OperationCanceledException) { status.Text = FoxUi.T("لغو شد", "Cancelled"); }
-            catch (Exception error) { status.Text = FoxUi.Error(error); }
-            finally { password.Text = ""; busy = false; login.IsEnabled = verify.IsEnabled = refresh.IsEnabled = connect.IsEnabled = remove.IsEnabled = true; }
+            catch (Exception error) { status.Text = FoxUi.Error(error); await Load((accounts.SelectedItem as FoxAccount)?.Id); }
+            finally { password.Text = ""; busy = false; Render(); }
         }
         async Task RefreshViews() { await main.ProfilesViewModel.RefreshSubscriptions(); await main.ProfilesViewModel.RefreshServersBiz(); }
         login.Click += async (_, _) => await Run(async () => {
@@ -90,12 +123,12 @@ public sealed class FoxWindow : Window
                 country.ItemsSource = values; country.SelectedItem = (accounts.SelectedItem as FoxAccount)?.Country ?? "REC";
             } catch (Exception e) { status.Text = FoxUi.Error(e); }
         };
+        Render();
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(22), Spacing = 13, Children = {
             new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 32, Height = 32, Stretch = Stretch.Uniform, StrokeThickness = 1.8, Stroke = new SolidColorBrush(Color.Parse("#C77739")), HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = FoxUi.T("روباه", "Fox"), FontSize = 28, FontWeight = FontWeight.SemiBold },
             new TextBlock { Text = FoxUi.T("اتصال غیررسمی Firefox VPN با حساب شما. سهمیه و موقعیت‌های مجاز را Mozilla تعیین می‌کند؛ معمولاً تا ۵۰ گیگابایت در ماه برای حساب واجد شرایط. رمز عبور ذخیره نمی‌شود.", "Unofficial Firefox VPN connection using your account. Mozilla controls eligibility, locations and allowance, usually up to 50 GB/month for eligible accounts. Passwords are never stored."), TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = FoxUi.T("حساب‌های شما", "Your accounts"), FontWeight = FontWeight.SemiBold }, accounts, quota,
-            new TextBlock { Text = FoxUi.T("موقعیت · REC: انتخاب پیشنهادی", "Location · REC: recommended selection") }, country, refresh, email, password, login, code, verify, status, connect, remove,
+            new TextBlock { Text = FoxUi.T("حساب‌های شما", "Your accounts"), FontWeight = FontWeight.SemiBold }, accounts, add, back, steps, credentialsPanel, verificationPanel, connectionPanel, status,
             new TextBlock { Text = FoxUi.T("TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود. حذف ساب آن را خودکار برنمی‌گرداند؛ دکمهٔ تازه‌سازی امکان افزودن دوباره را دارد.", "Supports TCP and encrypted DNS, not arbitrary UDP. Deleted subscriptions stay deleted until you explicitly sync them again."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }
         } } };
     }

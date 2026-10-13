@@ -115,7 +115,7 @@ public static class FoxAccounts
     public static async Task<FoxAccount> VerifyAsync(string id, string code, CancellationToken token)
     {
         var account = await GetAsync(id); var result = await RequestAsync(new JsonObject { ["operation"] = "verify", ["code"] = code, ["state"] = account.State.DeepClone() }, token);
-        account.State = result["state"]!.DeepClone().AsObject(); await SaveAsync(account); await RefreshAsync(id, true, token); return account;
+        account.State = result["state"]!.DeepClone().AsObject(); await SaveAsync(account); return await RefreshAsync(id, true, token);
     }
     public static async Task<FoxAccount> RefreshAsync(string id, bool addProfile, CancellationToken token = default)
     {
@@ -165,7 +165,7 @@ public static class FoxProfiles
     public static async Task SyncAsync(FoxAccount account)
     {
         var config = AppManager.Instance.Config; var sub = (await AppManager.Instance.SubItems()).FirstOrDefault(s => s.Url == "dicode-fox://" + account.Id)
-            ?? new SubItem { Id = Guid.NewGuid().ToString("N"), Url = "dicode-fox://" + account.Id, Remarks = "روباه · " + account.Email, AutoUpdateInterval = 0 };
+            ?? new SubItem { Id = Guid.NewGuid().ToString("N"), Url = "dicode-fox://" + account.Id, Remarks = ResUI.DicodeFoxTitle + " · " + account.Email, AutoUpdateInterval = 0 };
         sub.TotalBytes = account.Info["quota_max"]?.GetValue<long>() ?? 0;
         var remaining = account.Info["quota_remaining"]?.GetValue<long>(); if (remaining is not null && sub.TotalBytes > 0) sub.DownloadBytes = Math.Max(0, sub.TotalBytes - remaining.Value);
         sub.UpdateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); await ConfigHandler.AddSubItem(config, sub);
@@ -174,7 +174,7 @@ public static class FoxProfiles
         var helperPort = Read(existing)?.HelperPort ?? Utils.GetFreePort(privatePort + 100);
         var path = Utils.GetTempPath("fox-" + account.Id + ".json"); await File.WriteAllTextAsync(path, Template(account.Id, account.Country, privatePort, helperPort));
         try {
-            var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, PreSocksPort = privatePort, Remarks = "روباه · Firefox VPN · " + account.Country, Address = path, DisplayLog = true, Subid = sub.Id, IsSub = true };
+            var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, PreSocksPort = privatePort, Remarks = ResUI.DicodeFoxTitle + " · " + account.Country, Address = path, DisplayLog = true, Subid = sub.Id, IsSub = true };
             if (await ConfigHandler.AddCustomServer(config, node, true) != 0) throw new IOException("Could not save Fox profile");
             foreach (var duplicate in nodes.Skip(1)) await ConfigHandler.RemoveServers(config, [duplicate]);
         } finally { if (File.Exists(path)) File.Delete(path); }

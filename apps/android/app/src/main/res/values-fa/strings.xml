@@ -833,4 +833,46 @@
     <string name="fox_connect">اتصال به روباه</string>
     <string name="fox_remove">حذف حساب و ساب از این برنامه</string>
     <string name="fox_limits">TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود. ساب حذف‌شده تا تازه‌سازی دستی برنمی‌گردد.</string>
+    <string name="fox_step_login">۱ · ورود به حساب</string>
+    <string name="fox_step_verify">۲ · تأیید حساب</string>
+    <string name="fox_step_connect">۳ · انتخاب کشور و اتصال</string>
+    <string name="fox_add_account">افزودن حساب دیگر</string>
+    <string name="fox_back_accounts">بازگشت به حساب‌ها</string>
+    <string name="native_server">سرور / IP</string>
+    <string name="native_port">پورت</string>
+    <string name="native_user">نام کاربری</string>
+    <string name="native_password">رمز عبور / PSK</string>
+    <string name="native_ssh_key">کلید میزبان SSH</string>
+    <string name="native_ca">گواهی CA (PEM)</string>
+    <string name="native_sni">نام TLS سرور (SNI)</string>
+    <string name="native_external">ابزار مستقل · SOCKS5</string>
+<string name="preset_setting_final_mask" translatable="false">finalMask</string>
+    <string name="preset_setting_cipher_suites" translatable="false">cipherSuites</string>
+    <string name="server_lab_target_strategy" translatable="false">targetStrategy</string>
+    <string-array name="domain_filter_mode_values" translatable="false">
+        <item>off</item>
+        <item>bypass</item>
+        <item>only</item>
+    </string-array>
+    <string name="aether_lab_exit_dial_mode" translatable="false">روش اتصال خروجی</string>
+    <string name="aether_lab_exit_node" translatable="false">گره خروجی</string>
+    <string name="aether_hint_fragment_size" translatable="false">اندازه قطعه‌ها (بایت)</string>
+    <string name="aether_hint_fragment_delay" translatable="false">تأخیر قطعه‌ها (میلی‌ثانیه)</string>
+        <string name="dicode_channel_title">کانال دیکد پینگ</string>
+    <string name="dicode_channel_hint">برای اطلاع از نسخه‌ها و خبرهای جدید، به کانال رسمی دیکد پینگ بپیوندید.</string>
+    <string name="dicode_channel_join">عضویت در کانال</string>
+    <string name="dicode_channel_later">بعداً</string>
+    <string name="pool_ui_0">اتصال فعال ← fallback ساب پیش‌فرض ← کانال‌ها ← آزمون ← ذخیره</string>
+    <string name="pool_ui_1">تعداد سرور موفق هدف</string>
+    <string name="pool_ui_2">نوبت تست هر سرور</string>
+    <string name="pool_ui_3">شروع جمع‌آوری</string>
+    <string name="pool_ui_4">اجرای دوباره</string>
+    <string name="pool_ui_5">توقف</string>
+    <string name="pool_ui_6">هر پاسخ باید معتبر و حداکثر ۹۰۰ ms باشد. تست‌ها همزمان اجرا می‌شوند و توقف هنگام آزمون، موفق‌های تکمیل‌شده را ذخیره می‌کند.</string>
+    <string name="pool_ui_7">لاگ زنده</string>
+    <string name="pool_ui_8">کپی لاگ</string>
+    <string name="pool_ui_9">پاک‌کردن</string>
+    <string name="pool_ui_10">توقف اسکرول</string>
+    <string name="pool_ui_11">دنبال‌کردن</string>
+    <string name="pool_ui_12">هنوز سروری ذخیره نشده است؛ جمع‌آوری را شروع کنید.</string>
 </resources>

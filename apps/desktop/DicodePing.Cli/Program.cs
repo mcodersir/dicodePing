@@ -10,10 +10,32 @@ using ServiceLib.Models.Configs;
 using ServiceLib.Models.Entities;
 using ServiceLib.Services;
 
+CliText.Configure(ref args);
+
 if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
 {
-    Console.WriteLine("""
-        DicodePing CLI 4.6.0
+    Console.WriteLine(CliText.T("""
+        دیکد پینگ CLI 4.7.0
+        fox accounts|locations       نمایش حساب‌ها یا کشورها
+        fox login                    ورود مرحله‌ای، تأیید و انتخاب کشور
+        fox verify <account-id>      واردکردن کد تأیید موزیلا
+        fox refresh <account-id>     تازه‌سازی سهمیه و ساب حساب
+        fox location <id> <REC|CC>   انتخاب کشور یا موقعیت پیشنهادی
+        fox remove <account-id>      حذف حساب و ساب از برنامه
+        profiles                     نمایش سرورها و تأخیر واقعی (JSON)
+        import <file>                واردکردن لینک‌ها یا فایل JSON
+        refresh                      تازه‌سازی اشتراک‌های فعال
+        ping                         آزمون تأخیر واقعی و مرتب‌سازی
+        connect [id | --best]         اتصال تا فشردن Ctrl+C
+        check <file> --engine xray|sing-box|mihomo
+        run <file> --engine xray|sing-box|mihomo
+        scan-cf <file>                تست HTTPS آدرس‌های کلودفلر
+        --data <directory>           مسیر مستقل ذخیره داده‌ها
+        --tun                        تونل کل سیستم؛ نیازمند دسترسی مدیر
+        --system-proxy               تنظیم پروکسی سیستم در این اجرا
+        --lang fa|en                 زبان راهنما و پیام‌ها
+        """, """
+        DicodePing CLI 4.7.0
         fox accounts|locations       List Fox accounts or provider locations
         fox login                    Sign in (email/password read privately from stdin)
         fox verify <account-id>      Enter Mozilla verification code
@@ -31,10 +53,11 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         --data <directory>           Separate writable data directory
         --tun                        Enable full-system TUN (requires administrator access)
         --system-proxy               Also set system proxy for this foreground session
-        """);
+        --lang fa|en                 Help and message language
+        """));
     return 0;
 }
-if (args[0] is "--version" or "version") { Console.WriteLine("4.6.0"); return 0; }
+if (args[0] is "--version" or "version") { Console.WriteLine("4.7.0"); return 0; }
 string? Option(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i+1 < args.Length ? args[i+1] : null; }
 var data = Path.GetFullPath(Option("--data") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing-CLI"));
 Directory.CreateDirectory(data);
@@ -46,12 +69,14 @@ try
     using var instance = new FileStream(Path.Combine(data, "cli.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     if (args[0] is "run" or "check") return await NativeCommands.Execute(args, Option("--engine") ?? "xray", cancellation.Token);
     if (args[0] == "scan-cf") return await NativeCommands.Scan(args, cancellation.Token);
-    if (!AppManager.Instance.InitApp()) throw new InvalidOperationException("Could not initialize configuration");
+    if (!AppManager.Instance.InitApp()) throw new InvalidOperationException(CliText.T("پیکربندی برنامه آماده نشد", "Could not initialize configuration"));
     var config = AppManager.Instance.Config;
+    ServiceLib.Resx.ResUI.Culture = new System.Globalization.CultureInfo(CliText.Persian ? "fa-IR" : "en-US");
+    System.Globalization.CultureInfo.CurrentUICulture = ServiceLib.Resx.ResUI.Culture;
     await ConfigHandler.InitBuiltinDNS(config);
     await ConfigHandler.InitBuiltinFullConfigTemplate(config);
     await ProfileExManager.Instance.Init();
-    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.6.0");
+    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.7.0");
     Task Output(bool success, string text) { Console.Error.WriteLine(text); return Task.CompletedTask; }
     await CoreManager.Instance.Init(config, Output);
     switch (args[0])
@@ -66,10 +91,10 @@ try
             }), new JsonSerializerOptions { WriteIndented = true }));
             break;
         case "import":
-            if (args.Length < 2) throw new ArgumentException("import requires a file");
+            if (args.Length < 2) throw new ArgumentException(CliText.T("فرمان import به مسیر فایل نیاز دارد", "import requires a file"));
             var imported = await ConfigHandler.AddBatchServers(config, await File.ReadAllTextAsync(args[1], cancellation.Token), "", false);
-            if (imported <= 0) throw new InvalidDataException("No valid profiles in file");
-            Console.WriteLine($"Imported {imported} profiles");
+            if (imported <= 0) throw new InvalidDataException(CliText.T("سرور معتبری در فایل وجود ندارد", "No valid profiles in file"));
+            Console.WriteLine(CliText.T($"{imported} سرور وارد شد", $"Imported {imported} profiles"));
             break;
         case "refresh":
             await SubscriptionHandler.UpdateProcess(config, "", false, Output, cancellation.Token);
@@ -84,27 +109,27 @@ try
                 var results = await ProfileExManager.Instance.GetProfileExs();
                 var best = results.Where(x => x.Delay > 0 && profiles.Any(p => p.IndexId == x.IndexId)).OrderBy(x => x.Delay).FirstOrDefault();
                 if (best is null) { await Ping(config, cancellation.Token); best = (await ProfileExManager.Instance.GetProfileExs()).Where(x => x.Delay > 0 && profiles.Any(p => p.IndexId == x.IndexId)).OrderBy(x => x.Delay).FirstOrDefault(); }
-                selectedId = best?.IndexId ?? throw new InvalidOperationException("No server passed the real latency test");
+                selectedId = best?.IndexId ?? throw new InvalidOperationException(CliText.T("هیچ سروری از آزمون تأخیر واقعی عبور نکرد", "No server passed the real latency test"));
             }
-            var node = await AppManager.Instance.GetProfileItem(selectedId) ?? throw new InvalidOperationException("Select a profile ID or --best");
-            if (args.Contains("--tun") && !Utils.IsAdministrator()) throw new InvalidOperationException("Run the CLI as administrator/root for --tun");
+            var node = await AppManager.Instance.GetProfileItem(selectedId) ?? throw new InvalidOperationException(CliText.T("شناسه سرور یا --best را انتخاب کنید", "Select a profile ID or --best"));
+            if (args.Contains("--tun") && !Utils.IsAdministrator()) throw new InvalidOperationException(CliText.T("برای --tun برنامه را با دسترسی مدیر اجرا کنید", "Run the CLI as administrator/root for --tun"));
             config.TunModeItem.EnableTun = args.Contains("--tun");
             config.SystemProxyItem.SysProxyType = args.Contains("--system-proxy") ? ESysProxyType.ForcedChange : ESysProxyType.ForcedClear;
             var contexts = await CoreConfigContextBuilder.BuildAll(config, node);
-            if (!contexts.Success) throw new InvalidOperationException("Profile validation failed");
+            if (!contexts.Success) throw new InvalidOperationException(CliText.T("اعتبارسنجی سرور ناموفق بود", "Profile validation failed"));
             await CoreManager.Instance.LoadCore(contexts.MainResult.Context, contexts.PreSocksResult?.Context);
-            if (!CoreManager.Instance.IsRunning) throw new InvalidOperationException("Core did not start");
+            if (!CoreManager.Instance.IsRunning) throw new InvalidOperationException(CliText.T("هسته اجرا نشد", "Core did not start"));
             if (args.Contains("--system-proxy")) await SysProxyHandler.UpdateSysProxy(config, false);
-            Console.Error.WriteLine($"Running {node.Remarks}. Press Ctrl+C to stop.");
+            Console.Error.WriteLine(CliText.T($"{node.Remarks} فعال است. برای توقف Ctrl+C را بزنید.", $"Running {node.Remarks}. Press Ctrl+C to stop."));
             while (!cancellation.IsCancellationRequested && CoreManager.Instance.IsRunning) await Task.Delay(500, cancellation.Token);
-            if (!cancellation.IsCancellationRequested) throw new IOException("Core stopped unexpectedly");
+            if (!cancellation.IsCancellationRequested) throw new IOException(CliText.T("هسته به‌صورت غیرمنتظره متوقف شد", "Core stopped unexpectedly"));
             break;
-        default: throw new ArgumentException("Unknown command; use --help");
+        default: throw new ArgumentException(CliText.T("فرمان ناشناخته است؛ از --help استفاده کنید", "Unknown command; use --help"));
     }
     return 0;
 }
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return 130; }
-catch (Exception error) { Console.Error.WriteLine(args.Contains("--verbose") ? error.ToString() : error.Message); return 1; }
+catch (Exception error) { Console.Error.WriteLine(args.Contains("--verbose") ? error.ToString() : CliText.Error(error)); return 1; }
 finally
 {
     await CoreManager.Instance.CoreStop();

@@ -128,7 +128,7 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 			return nil, nil, err
 		}
 	}
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; attempt < 5; attempt++ {
 		req, err := http.NewRequestWithContext(ctx, method, address, bytes.NewReader(data))
 		if err != nil {
 			return nil, nil, err
@@ -158,7 +158,7 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 		if readErr != nil {
 			return nil, nil, readErr
 		}
-		if resp.StatusCode == 406 && attempt == 0 {
+		if resp.StatusCode == 406 && attempt < 4 {
 			if err = p.challenge(ctx); err != nil {
 				return nil, nil, err
 			}
@@ -176,6 +176,10 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 			case 401, 403:
 				code = "login_required"
 				message = "The account session was rejected. Sign in again."
+				if strings.HasPrefix(address, p.guardianURL) {
+					code = "activation_required"
+					message = "Firefox VPN activation was rejected. Retry activation or sign in again."
+				}
 			case 406:
 				code = "verification_required"
 				message = "Mozilla requires browser verification. Complete it in your Mozilla account and try again."
@@ -295,25 +299,21 @@ func (p *provider) account(ctx context.Context) (AccountInfo, error) {
 	if err := p.ensureAuth(ctx); err != nil {
 		return AccountInfo{}, err
 	}
-	data, _, err := p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/status", "", p.state.AccessToken, nil)
-	if err != nil {
+	// Mint first, like FoxyVPN. Status is metadata, not an eligibility gate.
+	// A valid proxy pass is the authoritative connection permission.
+	if _, err := p.proxyPassLocked(ctx); err != nil {
 		return AccountInfo{}, err
 	}
-	if subscribed, _ := data["subscribed"].(bool); !subscribed && data["limited_bandwidth"] != true {
-		data, _, err = p.request(ctx, "POST", p.guardianURL+"/api/v1/fpn/activate", "", p.state.AccessToken, nil)
-		if err != nil {
-			return AccountInfo{}, err
+	data, _, err := p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/status", "", p.state.AccessToken, nil)
+	if err == nil {
+		p.info.UID = text(data["uid"])
+		p.info.Subscribed, _ = data["subscribed"].(bool)
+		p.info.LimitedBandwidth, _ = data["limited_bandwidth"].(bool)
+		if max, ok := data["maxBytes"]; ok && max != nil && p.info.QuotaMax == nil {
+			n := number(max)
+			p.info.QuotaMax = &n
 		}
-	}
-	info := AccountInfo{UID: text(data["uid"])}
-	info.Subscribed, _ = data["subscribed"].(bool)
-	info.LimitedBandwidth, _ = data["limited_bandwidth"].(bool)
-	if max, ok := data["maxBytes"]; ok && max != nil {
-		n := number(max)
-		info.QuotaMax = &n
-	}
-	p.info = info
-	if _, err = p.proxyPassLocked(ctx); err != nil {
+	} else if api, ok := err.(*ProviderError); !ok || (api.Status != 401 && api.Status != 403) {
 		return AccountInfo{}, err
 	}
 	return p.info, nil
@@ -329,6 +329,14 @@ func (p *provider) proxyPassLocked(ctx context.Context) (string, error) {
 		return "", err
 	}
 	data, headers, err := p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/token", "", p.state.AccessToken, nil)
+	if api, ok := err.(*ProviderError); ok && (api.Status == 401 || api.Status == 403) {
+		// Existing accounts may need Guardian activation even when status
+		// advertises limited bandwidth. Never reject before this official step.
+		_, _, err = p.request(ctx, "POST", p.guardianURL+"/api/v1/fpn/activate", "", p.state.AccessToken, nil)
+		if err == nil {
+			data, headers, err = p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/token", "", p.state.AccessToken, nil)
+		}
+	}
 	if err != nil {
 		return "", err
 	}
