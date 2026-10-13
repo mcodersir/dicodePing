@@ -1,6 +1,7 @@
 package com.v2ray.ang.core
 
 import androidx.test.platform.app.InstrumentationRegistry
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.handler.MmkvManager
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -16,7 +17,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.6.0"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains(BuildConfig.VERSION_NAME))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
