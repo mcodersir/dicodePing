@@ -227,24 +227,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
 
             var result = await Utils.GetCliWrapOutput(filePath, coreInfo.VersionArg);
             var echo = result ?? "";
-            var version = string.Empty;
-            switch (type)
-            {
-                case ECoreType.v2fly:
-                case ECoreType.Xray:
-                case ECoreType.v2fly_v5:
-                    version = Regex.Match(echo, $"{coreInfo.Match} ([0-9.]+) \\(").Groups[1].Value;
-                    break;
-
-                case ECoreType.mihomo:
-                    version = Regex.Match(echo, $"v[0-9.]+").Groups[0].Value;
-                    break;
-
-                case ECoreType.sing_box:
-                    version = Regex.Match(echo, $"([0-9.]+)").Groups[1].Value;
-                    break;
-            }
-            return new SemanticVersion(version);
+            return CoreRuntimeVersion.Parse(type, echo);
         }
         catch (Exception ex)
         {
@@ -300,7 +283,16 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
                     throw new ArgumentException("Type");
             }
 
-            if (curVersion >= version && version != new SemanticVersion(0, 0, 0))
+            if (version == new SemanticVersion(0, 0, 0))
+            {
+                // The remote tag could not be parsed into a comparable version
+                // (alpha/build metadata such as "v1.15.0-alpha.10"). Presenting
+                // that as an available update would only be noise, because the
+                // bundled runtimes already track the latest usable release.
+                return new UpdateResult(false, message);
+            }
+
+            if (curVersion >= version)
             {
                 return new UpdateResult(false, message);
             }

@@ -70,7 +70,11 @@ public partial class CoreConfigV2rayService
                 // Route both families into the tunnel regardless of EnableIPv6Address. That option only
                 // controls whether the interface gets an IPv6 address; leaving ::/0 out of the routing
                 // table makes IPv6 follow the system default route and bypass the tunnel entirely.
-                tunInbound.settings.autoSystemRoutingTable = ["0.0.0.0/0", "::/0"];
+                // A host without a global IPv6 address is the exception: it has nothing to leak,
+                // and IPv6 sent into the tunnel would have no way back out.
+                tunInbound.settings.autoSystemRoutingTable = context.HasGlobalIPv6Address
+                    ? ["0.0.0.0/0", "::/0"]
+                    : ["0.0.0.0/0"];
                 if (_config.TunModeItem.EnableIPv6Address == true)
                 {
                     var address6 = _config.TunModeItem.IPv6Address.NullIfEmpty() ?? Global.TunIPv6Address.First();
@@ -83,8 +87,19 @@ public partial class CoreConfigV2rayService
                     tunInbound.settings.autoOutboundsInterface = bindInterface;
                 }
                 tunInbound.sniffing = inbound.sniffing;
-                // tunInbound.sniffing.routeOnly = inbound.sniffing.routeOnly;
-                tunInbound.sniffing.routeOnly = true;
+                if (_config.RoutingBasicItem.DomainFilterMode != "off" && _config.RoutingBasicItem.DomainFilterList is { Count: > 0 })
+                    tunInbound.sniffing.routeOnly = true;
+                // PattN: respect the user's Route Only setting in TUN mode (upstream forces true)
+                // tunInbound.sniffing.routeOnly = true;
+
+                if (context.IsWindows && _config.TunModeItem.StrictRoute == true)
+                {
+                    tunInbound.settings.autoSystemWfpBlockLeak = ["dns", "misconfigtun"];
+                }
+                if (context.IsLinux)
+                {
+                    tunInbound.settings.autoSystemDnsToGateway = true;
+                }
 
                 if (_config.TunModeItem.RouteExcludeAddress is { Count: > 0 })
                 {
@@ -95,7 +110,9 @@ public partial class CoreConfigV2rayService
                         .Where(x => x != null).ToList();
 
                     var includeList = new List<IPNetwork2> { wholeInternet };
-                    var includeListV6 = new List<IPNetwork2> { wholeInternetV6 };
+                    var includeListV6 = context.HasGlobalIPv6Address
+                        ? new List<IPNetwork2> { wholeInternetV6 }
+                        : new List<IPNetwork2>();
 
                     foreach (var exclude in excludeList)
                     {
@@ -152,7 +169,8 @@ public partial class CoreConfigV2rayService
         inbound.protocol = nameof(EInboundProtocol.mixed);
         inbound.settings.udp = inItem.UdpEnabled;
         inbound.sniffing.enabled = inItem.SniffingEnabled;
-        inbound.sniffing.destOverride = inItem.DestOverride;
+        // PattN: copy the list; adding "fakedns" below must not leak into the saved settings
+        inbound.sniffing.destOverride = inItem.DestOverride?.ToList();
         inbound.sniffing.routeOnly = inItem.RouteOnly;
 
         if (_config.RoutingBasicItem.DomainFilterMode != "off"
@@ -171,6 +189,11 @@ public partial class CoreConfigV2rayService
             {
                 inbound.sniffing.destOverride.Add("fakedns");
             }
+        }
+        else
+        {
+            // PattN: drop "fakedns" that older builds persisted into the settings while FakeIP was on
+            inbound.sniffing.destOverride?.Remove("fakedns");
         }
 
         return inbound;

@@ -5,7 +5,7 @@
 - `libv2ray.aar` از `patterniha/AndroidLibXrayLite` tag `v26.8.19-P` (commit `87cb97f3...`)
 - خروجی `hev-socks5-tunnel` commit `0428c4e...`
 
-Workflow رسمی این مراحل را pin کرده و APK universal و ABI-specific را تولید می‌کند. APK محلی debug را می‌توان پس از آماده‌سازی nativeها با فرمان زیر ساخت:
+Workflow رسمی این مراحل را pin کرده و چهار APK مخصوص معماری‌های arm64-v8a، armeabi-v7a، x86 و x86_64 را تولید می‌کند. APK محلی debug را می‌توان پس از آماده‌سازی nativeها با فرمان زیر ساخت:
 
 ```bash
 cd apps/android

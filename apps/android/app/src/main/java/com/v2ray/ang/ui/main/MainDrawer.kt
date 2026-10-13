@@ -31,6 +31,7 @@ import com.v2ray.ang.ui.compose.AppDivider
 import com.v2ray.ang.ui.compose.verticalScrollbar
 
 enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRes: Int) {
+    ServerPool(R.drawable.ic_subscriptions_24dp, R.string.title_server_pool),
     Subscriptions(R.drawable.ic_subscriptions_24dp, R.string.title_sub_setting),
     PerAppProxy(R.drawable.ic_per_apps_24dp, R.string.per_app_proxy_settings),
     DomainFilter(R.drawable.ic_routing_24dp, R.string.title_domain_filter),
@@ -47,6 +48,7 @@ enum class MainDestination(@DrawableRes val iconRes: Int, @StringRes val labelRe
 
 private val primaryDrawerItems = listOf(
     MainDestination.Subscriptions,
+    MainDestination.ServerPool,
     MainDestination.PerAppProxy,
     MainDestination.DomainFilter,
     MainDestination.TrafficReport,

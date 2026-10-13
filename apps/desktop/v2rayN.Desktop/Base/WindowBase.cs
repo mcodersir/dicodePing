@@ -12,6 +12,21 @@ public class WindowBase<TViewModel> : ReactiveWindow<TViewModel> where TViewMode
                 CanMinimize = false;
             }
         };
+
+        // Persian reads right-to-left; every other bundled language is LTR.
+        // Layout containers (grids, stacks) mirror with the flow direction, so
+        // navigation rails land on the visual right only for Persian users.
+        try
+        {
+            var language = AppManager.Instance.Config?.UiItem?.CurrentLanguage;
+            FlowDirection = string.Equals(language, "fa", StringComparison.OrdinalIgnoreCase)
+                ? FlowDirection.RightToLeft
+                : FlowDirection.LeftToRight;
+        }
+        catch
+        {
+            FlowDirection = FlowDirection.LeftToRight;
+        }
     }
 
     private void ReactiveWindowBase_Closed(object? sender, EventArgs e)

@@ -8,6 +8,7 @@ public class SingboxConfig
     public List<Outbound4Sbox> outbounds { get; set; }
     public List<Endpoints4Sbox>? endpoints { get; set; }
     public Route4Sbox route { get; set; }
+    public List<HttpClient4Sbox>? http_clients { get; set; }
     public Experimental4Sbox? experimental { get; set; }
 }
 
@@ -24,6 +25,7 @@ public class Dns4Sbox
     public List<Server4Sbox> servers { get; set; }
     public List<Rule4Sbox> rules { get; set; }
     public string? final { get; set; }
+    public bool? optimistic { get; set; }
     public string? strategy { get; set; }
     public bool? disable_cache { get; set; }
     public bool? disable_expire { get; set; }
@@ -94,6 +96,11 @@ public class Rule4Sbox
     public bool? rule_set_ip_cidr_match_source { get; set; }
     public bool? rule_set_ip_cidr_accept_empty { get; set; }
     public bool? tls_record_fragment { get; set; }
+    public string? preferred_by { get; set; }
+    public string? match_response { get; set; } // or bool
+    public string? tag { get; set; }
+    public bool? race { get; set; }
+    public bool? speculative { get; set; }
 }
 
 [Serializable]
@@ -108,7 +115,6 @@ public class Inbound4Sbox
     public int? mtu { get; set; }
     public bool? auto_route { get; set; }
     public bool? strict_route { get; set; }
-    public bool? endpoint_independent_nat { get; set; }
     public string? stack { get; set; }
     public List<User4Sbox> users { get; set; }
     public List<string>? route_exclude_address { get; set; }
@@ -122,8 +128,6 @@ public class User4Sbox
 
 public class Outbound4Sbox : BaseServer4Sbox
 {
-    public string? server { get; set; }
-    public int? server_port { get; set; }
     public List<string>? server_ports { get; set; }
     public string? uuid { get; set; }
     public string? security { get; set; }
@@ -165,6 +169,10 @@ public class Endpoints4Sbox : BaseServer4Sbox
     public string? udp_timeout { get; set; }
     public int? workers { get; set; }
     public List<Peer4Sbox> peers { get; set; }
+    public string? username { get; set; }
+    public string? password { get; set; }
+    public string? path { get; set; }
+    public Dictionary<string, List<string>>? headers { get; set; }
 }
 
 public class Peer4Sbox
@@ -184,6 +192,7 @@ public class Tls4Sbox
     public string? server_name { get; set; }
     public bool? insecure { get; set; }
     public List<string>? alpn { get; set; }
+    public List<string>? cipher_suites { get; set; }
     public Utls4Sbox? utls { get; set; }
     public Reality4Sbox? reality { get; set; }
     public bool? fragment { get; set; }
@@ -265,10 +274,8 @@ public class Server4Sbox : BaseServer4Sbox
     public string? inet4_range { get; set; }
     public string? inet6_range { get; set; }
     public string? client_subnet { get; set; }
-    public string? server { get; set; }
     public new string? domain_resolver { get; set; }
     [JsonPropertyName("interface")] public string? Interface { get; set; }
-    public int? server_port { get; set; }
     public string? path { get; set; }
     public Headers4Sbox? headers { get; set; }
 
@@ -318,9 +325,11 @@ public class Ruleset4Sbox
     public string? format { get; set; }
     public string? path { get; set; }
     public string? url { get; set; }
-    public string? download_detour { get; set; }
+    public string? http_client { get; set; }
     public string? update_interval { get; set; }
 }
+
+public class HttpClient4Sbox : BaseServer4Sbox;
 
 public abstract class DialFields4Sbox
 {
@@ -351,4 +360,6 @@ public abstract class BaseServer4Sbox : DialFields4Sbox
 {
     public string type { get; set; }
     public string tag { get; set; }
+    public string? server { get; set; }
+    public int? server_port { get; set; }
 }

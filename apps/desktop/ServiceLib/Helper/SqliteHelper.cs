@@ -4,6 +4,14 @@ namespace ServiceLib.Helper;
 
 public sealed class SQLiteHelper
 {
+    public Task ReplaceServerPoolAsync(string poolId, List<ProfileItem> profiles, string? selectedId) =>
+        _dbAsync.RunInTransactionAsync(db =>
+        {
+            // Preserve an actively selected profile until the user switches away.
+            db.Execute("DELETE FROM ProfileItem WHERE Subid = ? AND IndexId != ?", poolId, selectedId ?? "");
+            db.InsertAll(profiles);
+        });
+
     private static readonly Lazy<SQLiteHelper> _instance = new(() => new());
     public static SQLiteHelper Instance => _instance.Value;
     private readonly string _connstr;
@@ -75,15 +83,28 @@ public sealed class SQLiteHelper
 
     public async Task DisposeDbConnectionAsync()
     {
-        await Task.Factory.StartNew(() =>
+        await Task.Run(() =>
         {
-            _db?.Close();
-            _db?.Dispose();
-            _db = null;
+            try
+            {
+                _db?.Close();
+                _db?.Dispose();
+            }
+            finally
+            {
+                _db = null;
+            }
 
-            _dbAsync?.GetConnection()?.Close();
-            _dbAsync?.GetConnection()?.Dispose();
-            _dbAsync = null;
+            try
+            {
+                var conn = _dbAsync?.GetConnection();
+                conn?.Close();
+                conn?.Dispose();
+            }
+            finally
+            {
+                _dbAsync = null;
+            }
         });
     }
 }

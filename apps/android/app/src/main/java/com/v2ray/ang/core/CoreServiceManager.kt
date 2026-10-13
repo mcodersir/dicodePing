@@ -18,6 +18,7 @@ import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
+import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
@@ -31,7 +32,6 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.launch
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
@@ -333,25 +333,14 @@ object CoreServiceManager {
                 }
             }
 
+            val endpoint = if (time >= 0) SpeedtestManager.getRemoteIPInfo() else null
             val result = ConnectionTestResult(
                 delayMillis = time,
                 errorMessage = errorStr,
+                country = endpoint?.country,
+                ipAddress = endpoint?.ipAddress,
             )
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_MEASURE_DELAY_RESULT, result)
-
-            // Only fetch IP info if the delay test was successful
-            if (time >= 0) {
-                SpeedtestManager.getRemoteIPInfo()?.let { ip ->
-                    MessageHelper.sendMsg2UI(
-                        service,
-                        AppConfig.MSG_MEASURE_DELAY_RESULT,
-                        result.copy(
-                            country = ip.country,
-                            ipAddress = ip.ipAddress,
-                        ),
-                    )
-                }
-            }
         }
     }
 
@@ -373,6 +362,7 @@ object CoreServiceManager {
          * @return 0 for success, any other value for failure.
          */
         override fun startup(): Long {
+            LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback startup")
             return 0
         }
 
@@ -381,14 +371,8 @@ object CoreServiceManager {
          * @return 0 for success, any other value for failure.
          */
         override fun shutdown(): Long {
-            val serviceControl = serviceControl?.get() ?: return -1
-            return try {
-                serviceControl.stopService()
-                0
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop service", e)
-                -1
-            }
+            LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback shutdown")
+            return 0
         }
 
         /**
@@ -398,6 +382,7 @@ object CoreServiceManager {
          * @return Always returns 0.
          */
         override fun onEmitStatus(l: Long, s: String?): Long {
+            LogUtil.i(AppConfig.TAG, "StartCore-Manager: CoreCallback onEmitStatus $s")
             return 0
         }
     }
