@@ -72,7 +72,20 @@ public static class CoreConfigHandler
             File.Copy(addressFileName, fileName);
             File.SetAttributes(fileName, FileAttributes.Normal); //Copy will keep the attributes of addressFileName, so we need to add write permissions to fileName just in case of addressFileName is a read-only file.
 
-            if (FoxProfiles.Read(node) is not null && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject foxRoot) { foxRoot.Remove("dicodeFox"); await File.WriteAllTextAsync(fileName, foxRoot.ToJsonString()); }
+            if (node.CoreType is null or ECoreType.Xray && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject root)
+            {
+                root.Remove("dicodeFox");
+                if (config.GuiItem.EnableStatistics || config.GuiItem.DisplayRealTimeSpeed || FoxProfiles.Read(node) is not null)
+                {
+                    root["stats"] = new JsonObject();
+                    root["metrics"] = new JsonObject { ["listen"] = $"{Global.Loopback}:{AppManager.Instance.StatePort}" };
+                    var policy = root["policy"] as JsonObject ?? new JsonObject();
+                    var system = policy["system"] as JsonObject ?? new JsonObject();
+                    system["statsOutboundUplink"] = true; system["statsOutboundDownlink"] = true;
+                    policy["system"] = system; root["policy"] = policy;
+                }
+                await File.WriteAllTextAsync(fileName, root.ToJsonString());
+            }
             ApplyDomainFilterToCustomConfig(config, fileName);
 
             //check again

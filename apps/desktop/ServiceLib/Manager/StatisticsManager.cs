@@ -7,7 +7,7 @@ public class StatisticsManager
 
     private Config _config;
     private ServerStatItem? _serverStatItem;
-    private List<ServerStatItem> _lstServerStat;
+    private List<ServerStatItem> _lstServerStat = [];
     private Func<ServerSpeedItem, Task>? _updateFunc;
 
     private StatisticsXrayService? _statisticsXray;

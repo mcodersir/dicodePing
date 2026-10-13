@@ -171,6 +171,26 @@ func TestSOCKSUsesRealHTTP2ConnectAndClosesOnCancellation(t *testing.T) {
 	if string(body) != "real HTTP2 proxy data" || requests.Load() != 1 || connects.Load() != 1 {
 		t.Fatal("request bypassed proxy", string(body), requests.Load(), connects.Load())
 	}
+	// Startup / encrypted DNS uses HTTP Transport's cancellable dial context.
+	viaTunnel := p.dohClient()
+	for i := 0; i < 2; i++ {
+		response, err := viaTunnel.Get(target.URL)
+		if err != nil {
+			cancel()
+			t.Fatalf("HTTP-over-CONNECT failed: %v", err)
+		}
+		payload, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || string(payload) != "real HTTP2 proxy data" {
+			cancel()
+			t.Fatal(string(payload), err)
+		}
+	}
+	viaTunnel.CloseIdleConnections()
+	if requests.Load() != 3 {
+		cancel()
+		t.Fatal("missing proxied requests", requests.Load())
+	}
 	cancel()
 	select {
 	case <-done:

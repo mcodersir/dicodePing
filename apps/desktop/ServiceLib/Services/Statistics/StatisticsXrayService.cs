@@ -5,7 +5,7 @@ public class StatisticsXrayService
     private const long linkBase = 1024;
     private ServerSpeedItem _serverSpeedItem = new();
     private readonly Config _config;
-    private CancellationTokenSource? _cts;
+    private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
     private string Url => $"{Global.HttpProtocol}{Global.Loopback}:{AppManager.Instance.StatePort}/debug/vars";
     private static readonly string _tag = "StatisticsXrayService";
@@ -22,9 +22,7 @@ public class StatisticsXrayService
     {
         try
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
+            _cts.Cancel();
         }
         catch (Exception ex)
         {
@@ -34,15 +32,14 @@ public class StatisticsXrayService
 
     private async Task Run()
     {
-        Close();
-        _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+        while (!token.IsCancellationRequested)
         {
             try
             {
+                if (!await timer.WaitForNextTickAsync(token).ConfigureAwait(false)) break;
                 if (AppManager.Instance.RunningCoreType != ECoreType.Xray)
                 {
                     continue;
@@ -61,7 +58,8 @@ public class StatisticsXrayService
             }
             catch
             {
-                await Task.Delay(3000, token).ConfigureAwait(false);
+                try { await Task.Delay(3000, token).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
             }
         }
     }
@@ -86,6 +84,7 @@ public class StatisticsXrayService
                 }
                 var state = JsonUtils.Deserialize<V2rayMetricsVarsLink>(value.ToString());
 
+                if (state is null) continue;
                 if (key.StartsWith(Global.ProxyTag))
                 {
                     server.ProxyUp += state.uplink / linkBase;
@@ -98,10 +97,10 @@ public class StatisticsXrayService
                 }
             }
 
-            if (server.DirectDown < _serverSpeedItem.DirectDown || server.ProxyDown < _serverSpeedItem.ProxyDown)
+            if (server.DirectDown < _serverSpeedItem.DirectDown || server.ProxyDown < _serverSpeedItem.ProxyDown
+                || server.DirectUp < _serverSpeedItem.DirectUp || server.ProxyUp < _serverSpeedItem.ProxyUp)
             {
                 _serverSpeedItem = new();
-                return null;
             }
 
             ServerSpeedItem curItem = new()

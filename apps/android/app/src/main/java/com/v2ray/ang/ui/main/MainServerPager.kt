@@ -407,6 +407,8 @@ private fun ServerListItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            if (row.subscriptionUsage.isNotBlank()) Text(row.subscriptionUsage,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(

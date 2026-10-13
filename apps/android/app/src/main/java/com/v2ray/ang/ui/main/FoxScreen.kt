@@ -105,6 +105,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                     if (adding && current != null) TextButton(onClick = { adding = false; password = "" }, enabled = !busy) { Text(stringResource(R.string.fox_back_accounts)) }
                     if (ready) current?.let { account ->
                         val max = account.info.optLong("quota_max", -1); val remaining = account.info.optLong("quota_remaining", -1)
+                        Text(if (max >= 0 && remaining >= 0) (if (fa) "مصرف‌شده: " else "Used: ") + String.format("%.2f GB · ", (max - remaining).coerceAtLeast(0) / 1e9) else "")
                         Text(if (max >= 0 && remaining >= 0) (if (fa) "باقی‌مانده: " else "Remaining: ") + String.format("%.2f / %.2f GB", remaining / 1e9, max / 1e9) else stringResource(R.string.fox_quota_unknown))
                         val reset = account.info.optLong("quota_reset", 0)
                         if (reset in 1..253402300799L) Text((if (fa) "بازنشانی: " else "Reset: ") + DateFormat.getDateInstance().format(Date(reset * 1000)))

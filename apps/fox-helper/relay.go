@@ -19,11 +19,16 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		return "", err
 	}
 	candidates, err := p.locations(ctx)
-	if err != nil {
-		return "", err
-	}
+	country = strings.ToUpper(strings.TrimSpace(country))
 	if country == "" {
 		country = "REC"
+	}
+	if err != nil && country != "REC" {
+		return "", err
+	}
+	if country == "REC" {
+		// FoxyVPN's REC endpoint is the provider anycast route, not the first country.
+		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
 	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
 	reached := false
@@ -157,9 +162,29 @@ func (c *tunnelConn) SetDeadline(t time.Time) error {
 }
 func (c *tunnelConn) SetReadDeadline(t time.Time) error  { return c.SetDeadline(t) }
 func (c *tunnelConn) SetWriteDeadline(t time.Time) error { return c.SetDeadline(t) }
+func (p *provider) openDialTunnel(ctx context.Context, address string) (net.Conn, error) {
+	life, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	stop := context.AfterFunc(ctx, cancel)
+	conn, err := p.openTunnel(life, address)
+	if !stop() || err != nil {
+		cancel()
+		if conn != nil {
+			conn.Close()
+		}
+		if err == nil {
+			err = ctx.Err()
+		}
+		return nil, err
+	}
+	original := conn.(*tunnelConn).cancel
+	conn.(*tunnelConn).cancel = func() { original(); cancel() }
+	return conn, nil
+}
 func (p *provider) dohClient() *http.Client {
 	return &http.Client{Timeout: 12 * time.Second, Transport: &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		return p.openTunnel(ctx, address)
+		// net/http cancels its DialContext after acquiring a connection. That
+		// cancellation must not destroy the established HTTP/2 CONNECT stream.
+		return p.openDialTunnel(ctx, address)
 	}, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12}}}
 }
 func (p *provider) serve(ctx context.Context) error {

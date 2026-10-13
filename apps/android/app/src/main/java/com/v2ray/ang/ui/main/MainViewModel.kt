@@ -574,7 +574,12 @@ class MainViewModel(
                 server = server,
                 subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty(),
                 aetherProtocolLabel = aetherProtocolLabel,
-            )
+            ).copy(subscriptionUsage = dataSource.getSubscriptionItem(server.profile.subscriptionId)?.let { sub ->
+                if (!sub.url.startsWith("dicode-fox://") || sub.totalBytes <= 0) ""
+                else dataSource.getString(R.string.fox_subscription_usage,
+                    (sub.uploadBytes + sub.downloadBytes).coerceAtLeast(0) / 1e9,
+                    (sub.totalBytes - sub.uploadBytes - sub.downloadBytes).coerceAtLeast(0) / 1e9)
+            }.orEmpty())
         }
     }
 

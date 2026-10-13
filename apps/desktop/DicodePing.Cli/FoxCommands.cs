@@ -12,7 +12,7 @@ internal static class FoxCommands
         {
             case "accounts":
                 // Public fields only: never serialize a token-bearing FoxAccount.
-                Console.WriteLine(JsonSerializer.Serialize((await FoxAccounts.ListAsync()).Select(a => new { id = a.Id, email = a.Email, country = a.Country, verificationRequired = a.Pending, quota = a.Info }), new JsonSerializerOptions { WriteIndented = true }));
+                Console.WriteLine(JsonSerializer.Serialize((await FoxAccounts.ListAsync()).Select(a => new { id = a.Id, email = a.Email, country = a.Country, verificationRequired = a.Pending, quota = a.Info, usedBytes = a.Info["quota_max"] is not null && a.Info["quota_remaining"] is not null ? Math.Max(0, a.Info["quota_max"]!.GetValue<long>() - a.Info["quota_remaining"]!.GetValue<long>()) : (long?)null }), new JsonSerializerOptions { WriteIndented = true }));
                 break;
             case "locations":
                 Console.WriteLine((await FoxAccounts.RequestAsync(new JsonObject { ["operation"] = "locations" }, token))["locations"]?.ToJsonString()); break;

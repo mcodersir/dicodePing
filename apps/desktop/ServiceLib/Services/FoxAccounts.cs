@@ -84,6 +84,16 @@ public static class FoxAccounts
             current.State = state.DeepClone().AsObject(); if (info is not null) current.Info = info.DeepClone().AsObject(); await WriteAsync(all);
         } finally { Gate.Release(); }
     }
+    private static async Task UpdateQuotaAsync(string id, JsonObject info)
+    {
+        await Gate.WaitAsync();
+        try {
+            var all = Read(); var account = all.FirstOrDefault(a => a.Id == id);
+            if (account is null) return;
+            account.Info = info.DeepClone().AsObject(); await WriteAsync(all);
+        } finally { Gate.Release(); }
+        await FoxProfiles.UpdateQuotaAsync(await GetAsync(id));
+    }
     public static async Task RemoveAsync(string id)
     {
         await Gate.WaitAsync();
@@ -130,8 +140,10 @@ public static class FoxAccounts
         try {
             var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
                 if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { await UpdateSessionAsync(id, state); }
+                if (message["event"]?.ToString() == "quota" && message["account"] is JsonObject info) await UpdateQuotaAsync(id, info);
             }, token);
             await UpdateSessionAsync(id, result["state"]!.AsObject(), result["account"] as JsonObject);
+            await FoxProfiles.UpdateQuotaAsync(await GetAsync(id));
             return process;
         } catch { await process.StopAsync(); process.Dispose(); throw; }
     }
@@ -162,13 +174,27 @@ public static class FoxProfiles
         ["outbounds"] = new JsonArray(new JsonObject { ["tag"] = "proxy", ["protocol"] = "socks", ["settings"] = new JsonObject { ["servers"] = new JsonArray(new JsonObject { ["address"] = "127.0.0.1", ["port"] = helperPort }) } }, new JsonObject { ["tag"] = "block", ["protocol"] = "blackhole" }),
         ["routing"] = new JsonObject { ["rules"] = new JsonArray(new JsonObject { ["type"] = "field", ["network"] = "udp", ["port"] = "443", ["outboundTag"] = "block" }) }
     }.ToJsonString();
+    public static async Task UpdateQuotaAsync(FoxAccount account)
+    {
+        var sub = (await AppManager.Instance.SubItems()).FirstOrDefault(s => s.Url == "dicode-fox://" + account.Id);
+        if (sub is null) return;
+        ApplyQuota(sub, account);
+        await ConfigHandler.AddSubItem(AppManager.Instance.Config, sub);
+        AppEvents.FoxQuotaUpdated.Publish(RxVoid.Default);
+    }
+    private static void ApplyQuota(SubItem sub, FoxAccount account)
+    {
+        sub.TotalBytes = account.Info["quota_max"]?.GetValue<long>() ?? 0;
+        var remaining = account.Info["quota_remaining"]?.GetValue<long>();
+        sub.UploadBytes = 0;
+        sub.DownloadBytes = remaining is not null && sub.TotalBytes > 0 ? Math.Clamp(sub.TotalBytes - remaining.Value, 0, sub.TotalBytes) : 0;
+        sub.UpdateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+    }
     public static async Task SyncAsync(FoxAccount account)
     {
         var config = AppManager.Instance.Config; var sub = (await AppManager.Instance.SubItems()).FirstOrDefault(s => s.Url == "dicode-fox://" + account.Id)
             ?? new SubItem { Id = Guid.NewGuid().ToString("N"), Url = "dicode-fox://" + account.Id, Remarks = ResUI.DicodeFoxTitle + " · " + account.Email, AutoUpdateInterval = 0 };
-        sub.TotalBytes = account.Info["quota_max"]?.GetValue<long>() ?? 0;
-        var remaining = account.Info["quota_remaining"]?.GetValue<long>(); if (remaining is not null && sub.TotalBytes > 0) sub.DownloadBytes = Math.Max(0, sub.TotalBytes - remaining.Value);
-        sub.UpdateTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(); await ConfigHandler.AddSubItem(config, sub);
+        ApplyQuota(sub, account); await ConfigHandler.AddSubItem(config, sub);
         var nodes = await AppManager.Instance.ProfileItems(sub.Id) ?? []; var existing = nodes.FirstOrDefault();
         var privatePort = existing?.PreSocksPort ?? Utils.GetFreePort(AppManager.Instance.GetLocalPort(EInboundProtocol.mixed) + 100);
         var helperPort = Read(existing)?.HelperPort ?? Utils.GetFreePort(privatePort + 100);

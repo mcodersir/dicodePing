@@ -326,6 +326,8 @@ public partial class ProfilesViewModel : MyReactiveObject
 
         #region AppEvents
 
+        AppEvents.FoxQuotaUpdated.AsObservable().ObserveOn(RxSchedulers.MainThreadScheduler)
+            .SubscribeAsync(async _ => { await RefreshSubscriptions(); await RefreshServers(); });
         AppEvents.DispatcherStatisticsRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
@@ -588,7 +590,9 @@ public partial class ProfilesViewModel : MyReactiveObject
     {
         if (sub is null || sub.TotalBytes <= 0) return string.Empty;
         var used = Math.Max(0, sub.UploadBytes + sub.DownloadBytes);
-        return $"{Utils.HumanFy(used / 1024)} / {Utils.HumanFy(sub.TotalBytes / 1024)}";
+        var remaining = Math.Max(0, sub.TotalBytes - used);
+        return $"{Utils.HumanFy(used / 1024)} / {Utils.HumanFy(sub.TotalBytes / 1024)} · {Utils.HumanFy(remaining / 1024)} "
+            + ((ResUI.Culture ?? System.Globalization.CultureInfo.CurrentUICulture).TwoLetterISOLanguageName == "fa" ? "باقی‌مانده" : "remaining");
     }
 
     #endregion Servers && Groups

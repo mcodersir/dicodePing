@@ -1,8 +1,8 @@
-name: Release 4.7.0 Stable
+name: Release 4.7.1 Stable
 
 on:
   push:
-    tags: ['v4.7.0']
+    tags: ['v4.7.1']
   workflow_dispatch:
 
 permissions:
@@ -11,6 +11,16 @@ permissions:
   id-token: write
 
 jobs:
+  fox-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.2
+          cache: false
+      - run: go test -race ./...
+        working-directory: apps/fox-helper
   desktop:
     strategy:
       fail-fast: false
@@ -75,7 +85,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.7.0
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.7.1
       - name: Render desktop layout on Linux
         if: runner.os == 'Linux'
         run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -88,7 +98,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.0 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.1 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
@@ -177,7 +187,7 @@ jobs:
         run: |
           $versions = @{}
           $checks = @(
-            @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.7.0' },
+            @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.7.1' },
             @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.9' },
             @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
             @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.3.0' },
@@ -199,7 +209,7 @@ jobs:
       - name: Publish independent CLI with verified runtimes
         shell: pwsh
         run: |
-          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.0 -o cli-publish
+          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.1 -o cli-publish
           if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
           Copy-Item publish/bin cli-publish/bin -Recurse -Force
           Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -225,7 +235,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.7.0-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.7.1-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -299,8 +309,8 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.7.0
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.7.0
+          ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.7.1
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.7.1
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -323,7 +333,7 @@ jobs:
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [desktop, android]
+    needs: [fox-regression, desktop, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -337,11 +347,11 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.7.0 — Stable
+          name: DicodePing 4.7.1 — Stable
           prerelease: false
           make_latest: true
           generate_release_notes: false
-          body_path: docs/RELEASE-4.7.0.md
+          body_path: docs/RELEASE-4.7.1.md
           files: artifacts/*
 
   website:

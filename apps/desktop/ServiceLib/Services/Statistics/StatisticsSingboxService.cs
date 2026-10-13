@@ -5,7 +5,7 @@ namespace ServiceLib.Services.Statistics;
 public class StatisticsSingboxService
 {
     private readonly Config _config;
-    private CancellationTokenSource? _cts;
+    private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
     private string Url => $"ws://{Global.Loopback}:{AppManager.Instance.StatePort2}/traffic";
     private static readonly string _tag = "StatisticsSingboxService";
@@ -22,9 +22,7 @@ public class StatisticsSingboxService
     {
         try
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
+            _cts.Cancel();
         }
         catch (Exception ex)
         {
@@ -34,8 +32,6 @@ public class StatisticsSingboxService
 
     private async Task Run()
     {
-        Close();
-        _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         while (!token.IsCancellationRequested)
@@ -78,8 +74,8 @@ public class StatisticsSingboxService
                     {
                         await _updateFunc.Invoke(new ServerSpeedItem
                         {
-                            ProxyUp = (long)(up / 1000),
-                            ProxyDown = (long)(down / 1000),
+                            ProxyUp = (long)(up / 1024),
+                            ProxyDown = (long)(down / 1024),
                         }).ConfigureAwait(false);
                     }
                 }
@@ -90,7 +86,8 @@ public class StatisticsSingboxService
             }
             catch
             {
-                await Task.Delay(3000, token).ConfigureAwait(false);
+                try { await Task.Delay(3000, token).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
             }
         }
     }

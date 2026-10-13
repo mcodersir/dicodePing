@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.7.0"
+const version = "4.7.1"
 
 type State struct {
 	Email              string `json:"email"`
@@ -127,6 +127,26 @@ func main() {
 			opcancel()
 			output(Response{OK: true, Event: "ready", State: &p.state, Account: &p.info, Country: p.selected.CountryCode, Listen: listener})
 			p.onState = func(s State) { output(Response{OK: true, Event: "state", State: &s}) }
+			p.onAccount = func(info AccountInfo) { output(Response{OK: true, Event: "quota", Account: &info}) }
+			// Refresh allowance independently of the active stream. Network failures
+			// leave the working tunnel intact; never rewrite the selected profile.
+			go func() {
+				ticker := time.NewTicker(time.Minute)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+						refreshCtx, finish := context.WithTimeout(ctx, 15*time.Second)
+						p.mutex.Lock()
+						p.passExpiry = 0
+						_, _ = p.proxyPassLocked(refreshCtx)
+						p.mutex.Unlock()
+						finish()
+					}
+				}
+			}()
 			// A parent's private pipe closing ends the child, including after a crash.
 			go func() {
 				var ignored any

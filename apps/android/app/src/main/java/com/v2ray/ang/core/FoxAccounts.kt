@@ -124,12 +124,28 @@ internal object FoxAccounts {
         .put("dicodeFox", JSONObject().put("accountId", id).put("country", country))
         .put("inbounds", JSONArray())
         .put("outbounds", JSONArray().put(JSONObject().put("tag", "proxy").put("protocol", "socks").put("settings", JSONObject().put("servers", JSONArray().put(JSONObject().put("address", "127.0.0.1").put("port", 1080)))))).toString()
+    fun updateQuota(context: Context, id: String, info: JSONObject? = null) {
+        val account = locked(context) {
+            val all = read(context); val current = all.firstOrNull { it.id == id } ?: return@locked null
+            if (info != null) { current.info = info; write(context, all) }
+            current
+        } ?: return
+        val cache = MmkvManager.decodeSubscriptions().firstOrNull { it.subscription.url == "dicode-fox://$id" } ?: return
+        applyQuota(cache.subscription, account)
+        MmkvManager.encodeSubscription(cache.guid, cache.subscription)
+        com.v2ray.ang.helper.MessageHelper.sendMsg2UI(context, com.v2ray.ang.AppConfig.MSG_SERVERS_CHANGED, "")
+    }
+    private fun applyQuota(sub: SubscriptionItem, account: FoxAccount) {
+        sub.totalBytes = account.info.optLong("quota_max", 0)
+        val remaining = account.info.optLong("quota_remaining", -1)
+        sub.uploadBytes = 0
+        sub.downloadBytes = if (remaining >= 0 && sub.totalBytes > 0) (sub.totalBytes - remaining).coerceIn(0, sub.totalBytes) else 0
+        sub.lastUpdated = System.currentTimeMillis()
+    }
     fun sync(context: Context, account: FoxAccount): String {
         val cache = MmkvManager.decodeSubscriptions().firstOrNull { it.subscription.url == "dicode-fox://${account.id}" }
         val sub = cache?.subscription ?: SubscriptionItem(remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · ${account.email}", url = "dicode-fox://${account.id}", autoUpdate = false)
-        sub.totalBytes = account.info.optLong("quota_max", 0); val remaining = account.info.optLong("quota_remaining", -1)
-        if (remaining >= 0 && sub.totalBytes > 0) sub.downloadBytes = (sub.totalBytes - remaining).coerceAtLeast(0)
-        sub.lastUpdated = System.currentTimeMillis(); val group = MmkvManager.encodeSubscription(cache?.guid.orEmpty(), sub)
+        applyQuota(sub, account); val group = MmkvManager.encodeSubscription(cache?.guid.orEmpty(), sub)
         val nodes = MmkvManager.decodeServerList(group); val guid = nodes.firstOrNull().orEmpty()
         val node = ProfileItem(configType = EConfigType.CUSTOM, subscriptionId = group, remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · Firefox VPN · ${account.country}")
         val stored = MmkvManager.encodeServerConfigWithRaw(guid, node, template(account.id, account.country))
@@ -169,10 +185,12 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
         val result = response(reader)
         FoxAccounts.updateSession(context, id, result.getJSONObject("state"), result.optJSONObject("account"))
+        FoxAccounts.updateQuota(context, id)
         thread(isDaemon = true, name = "FoxSessionEvents") {
             runCatching { reader.useLines { lines -> lines.forEach { line ->
                 val event = JSONObject(line)
                 if (event.optString("event") == "state") { FoxAccounts.updateSession(context, id, event.getJSONObject("state")) }
+                if (event.optString("event") == "quota") { FoxAccounts.updateQuota(context, id, event.getJSONObject("account")) }
             } } }
             runCatching { process?.waitFor() }; if (!stopped) onExit?.invoke()
         }

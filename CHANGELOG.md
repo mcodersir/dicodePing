@@ -1,3 +1,7 @@
+# 4.7.1
+
+Firefox tunnel lifetime, REC, TUN bridge, custom-profile metrics and live subscription allowance fixes. See [release notes](docs/RELEASE-4.7.1.md).
+
 # 4.7.0
 
 Guided Fox login, Guardian activation recovery, consistent Persian/English UI and CLI, and refreshed responsive downloads. See [release notes](docs/RELEASE-4.7.0.md).

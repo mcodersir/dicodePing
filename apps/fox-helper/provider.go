@@ -64,6 +64,7 @@ type provider struct {
 	listener                          net.Listener
 	streams                           *http.Transport
 	onState                           func(State)
+	onAccount                         func(AccountInfo)
 }
 
 func newProvider(s State) *provider {
@@ -360,6 +361,9 @@ func (p *provider) proxyPassLocked(ctx context.Context) (string, error) {
 	}
 	if p.info.QuotaRemaining != nil && *p.info.QuotaRemaining <= 0 {
 		return "", &ProviderError{Code: "quota_exceeded", Message: "This account has no remaining VPN allowance. Wait for its reset date."}
+	}
+	if p.onAccount != nil {
+		p.onAccount(p.info)
 	}
 	return token, nil
 }

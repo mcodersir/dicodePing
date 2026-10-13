@@ -664,7 +664,7 @@ public partial class MainWindowViewModel : MyReactiveObject
             if (anySuccess)
             {
                 var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
-                if (DicodePingBootstrap.ShouldPrepare(_config, primary) && (string.IsNullOrEmpty(_config.SubIndexId) || _config.SubIndexId == primary!.Id))
+                if (primary is not null && DicodePingBootstrap.ShouldPrepare(_config, primary) && (string.IsNullOrEmpty(_config.SubIndexId) || _config.SubIndexId == primary!.Id))
                 {
                     ProfilesViewModel.IsRefreshing = false;
                     await ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, await AppManager.Instance.ProfileItems(primary!.Id) ?? [], cancellation.Token);
@@ -786,6 +786,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
     private int _unexpectedExitRecovery;
+    private long _lastRecoveryIntent = -1;
 
     private async Task StartConnectionAsync()
     {
@@ -811,12 +812,14 @@ public partial class MainWindowViewModel : MyReactiveObject
 
     private async Task RecoverUnexpectedCoreExitAsync(int exitCode)
     {
-        if (!_connectionDesired || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)
+        if (!_connectionDesired || Volatile.Read(ref _lastRecoveryIntent) == Volatile.Read(ref _connectionIntentVersion)
+            || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)
         {
             return;
         }
         try
         {
+            Interlocked.Exchange(ref _lastRecoveryIntent, Volatile.Read(ref _connectionIntentVersion));
             Logging.SaveLog($"TUN watchdog: unexpected core exit {exitCode}; recovering the requested connection.");
             await Task.Delay(1200);
             if (_connectionDesired && !CoreManager.Instance.IsRunning)

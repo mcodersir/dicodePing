@@ -875,5 +875,6 @@
     <string name="pool_ui_10">توقف اسکرول</string>
     <string name="pool_ui_11">دنبال‌کردن</string>
     <string name="pool_ui_12">هنوز سروری ذخیره نشده است؛ جمع‌آوری را شروع کنید.</string>
-    <string name="fox_recommended">پیشنهادی · اولین مسیر در دسترس</string>
+    <string name="fox_recommended">پیشنهادی · مسیر خودکار Mozilla</string>
+    <string name="fox_subscription_usage">مصرف‌شده: %1$.2f GB · باقی‌مانده: %2$.2f GB</string>
 </resources>

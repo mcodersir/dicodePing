@@ -24,7 +24,7 @@ public static class FoxUi
     {
         var maximum = account.Info["quota_max"]?.GetValue<long>(); var remaining = account.Info["quota_remaining"]?.GetValue<long>();
         var text = maximum is null || remaining is null ? T("سهمیه هنوز توسط سرویس گزارش نشده است.", "The provider has not reported an allowance yet.")
-            : T($"باقی‌مانده: {remaining / 1e9:0.##} از {maximum / 1e9:0.##} GB", $"Remaining: {remaining / 1e9:0.##} of {maximum / 1e9:0.##} GB");
+            : T($"مصرف‌شده: {Math.Max(0, maximum.Value - remaining.Value) / 1e9:0.##} GB · باقی‌مانده: {remaining / 1e9:0.##} از {maximum / 1e9:0.##} GB", $"Used: {Math.Max(0, maximum.Value - remaining.Value) / 1e9:0.##} GB · Remaining: {remaining / 1e9:0.##} of {maximum / 1e9:0.##} GB");
         if (account.Info["quota_reset"]?.GetValue<long>() is > 0 and <= 253402300799L and var reset) text += " · " + T("بازنشانی: ", "Reset: ") + DateTimeOffset.FromUnixTimeSeconds(reset).ToLocalTime().ToString("yyyy-MM-dd");
         return text;
     }
@@ -42,7 +42,7 @@ public sealed class FoxWindow : Window
         var code = new TextBox { PlaceholderText = FoxUi.T("کد تأیید حساب", "Account verification code"), FlowDirection = FlowDirection.LeftToRight, IsVisible = false };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
-        country.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => new TextBlock { Text = value == "REC" ? FoxUi.T("پیشنهادی · اولین مسیر در دسترس", "Recommended · first working route") : new System.Globalization.RegionInfo(value!).DisplayName + " · " + value });
+        country.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => new TextBlock { Text = value == "REC" ? FoxUi.T("پیشنهادی · مسیر خودکار Mozilla", "Recommended · Mozilla anycast route") : new System.Globalization.RegionInfo(value!).DisplayName + " · " + value });
         var login = new Button { Content = FoxUi.T("ورود و افزودن حساب", "Sign in and add account"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var verify = new Button { Content = FoxUi.T("تأیید کد", "Verify code"), IsVisible = false };
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
@@ -53,7 +53,7 @@ public sealed class FoxWindow : Window
         var credentialsPanel = new StackPanel { Spacing = 12, Children = { email, password, login } };
         var verificationPanel = new StackPanel { Spacing = 12, Children = { code, verify } };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
-            quota, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, refresh, remove } };
+            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, refresh, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
         var adding = false; bool busy = false;
