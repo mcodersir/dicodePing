@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,17 +32,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.AppConfig.BUILTIN_OUTBOUND_TAGS
 import com.v2ray.ang.AppConfig.TAG_PROXY
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.RulesetItem
 import com.v2ray.ang.extension.nullIfBlank
-import com.v2ray.ang.extension.toast
-import com.v2ray.ang.extension.toastSuccess
-import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.apppicker.AppPickerActivity
 import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.EditorLoading
+import com.v2ray.ang.ui.base.EditorOutcomeEffect
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
 import com.v2ray.ang.ui.compose.FormDropdownField
@@ -49,74 +51,88 @@ import com.v2ray.ang.ui.compose.FormTextField
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.verticalScrollbar
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.UUID
 
 private val ROUTING_NETWORK_OPTIONS = listOf("tcp", "udp", "tcp,udp")
+
+/** PattNG: where the editor keeps the id of its rule, to find the rule again should its process be gone before it is back. */
+private const val KEY_RULE_ID = "routing_edit_rule_id"
+
+/** PattNG: the id of the rule the routing list opened the editor on, by which the editor finds it. */
+internal const val EXTRA_RULE_ID = "rule_id"
 
 class RoutingEditActivity : BaseComponentActivity() {
     private val position by lazy { intent.getIntExtra("position", -1) }
 
-    private var initial: RulesetItem? = null
-    private lateinit var outboundSuggestions: List<String>
-    private var canUseProcess: Boolean = false
+    /**
+     * PattNG: the id of the rule the editor is on, as its saved state kept it, see [onSaveInstanceState], or as the list
+     * that opened it named it.
+     */
+    private var reopenedRuleId: String? = null
+
+    /**
+     * PattNG: the save and the delete, which outlive this activity when it is recreated, see [RoutingEditViewModel], and
+     * the rule the editor opened on, read once, off the main thread, see [openedRule].
+     */
+    private val viewModel: RoutingEditViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                RoutingEditViewModel(application, RoutingEditRepository(), position, reopenedRuleId)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        initial = SettingsManager.getRoutingRuleset(position)
-        val profileRemarks = SettingsManager.getProfileRemarks()
-        outboundSuggestions = (BUILTIN_OUTBOUND_TAGS.toList() + profileRemarks).distinct()
-        canUseProcess = SettingsManager.canUseProcessRouting()
+        reopenedRuleId = savedInstanceState?.getString(KEY_RULE_ID) ?: intent.getStringExtra(EXTRA_RULE_ID)?.takeIf { it.isNotEmpty() }
     }
 
     @Composable
     override fun ScreenContent() {
+        val opened by viewModel.opened.collectAsStateWithLifecycle()
+        EditorOutcomeEffect(
+            viewModel = viewModel,
+            onSaved = { finish() },
+            onDeleted = { finish() }
+        )
+        // PattNG: the rule, the names of the profiles and whether a rule can match the app a connection comes from are
+        // read off the main thread; until they are, the screen waits.
+        val rule = opened
+        if (rule == null) {
+            EditorLoading(stringResource(R.string.routing_settings_rule_title)) { finish() }
+            return
+        }
         RoutingEditScreen(
-            position = position,
-            initial = initial,
-            outboundSuggestions = outboundSuggestions,
-            canUseProcess = canUseProcess,
+            initial = rule.rule,
+            outboundSuggestions = rule.outboundSuggestions,
+            canUseProcess = rule.canUseProcess,
             onBackClick = { finish() },
-            onSave = { saveServer(it) },
-            onDelete = { deleteServer() }
+            onSave = { viewModel.save(it) },
+            onDelete = { viewModel.delete() }
         )
     }
 
-    private fun saveServer(rulesetItem: RulesetItem): Boolean {
-        if (rulesetItem.remarks.isNullOrEmpty()) {
-            toast(R.string.sub_setting_remarks)
-            return false
-        }
-        if (position < 0 && rulesetItem.id.isEmpty()) {
-            rulesetItem.id = UUID.randomUUID().toString()
-        }
-        SettingsManager.saveRoutingRuleset(position, rulesetItem)
-        toastSuccess(R.string.toast_success)
-        finish()
-        return true
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // PattNG: while the rule is read, the id it is read by.
+        (viewModel.ruleId ?: reopenedRuleId)?.takeIf { it.isNotEmpty() }?.let { outState.putString(KEY_RULE_ID, it) }
     }
 
-    private fun deleteServer(): Boolean {
-        if (position >= 0) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                SettingsManager.removeRoutingRuleset(position)
-                withContext(Dispatchers.Main) { finish() }
-            }
-        }
-        return true
+    /**
+     * PattNG: the screen closes only once the save or the delete that runs has written, telling the screen it returns
+     * to what it did, see [com.v2ray.ang.ui.base.EditorViewModel.leaveScreen].
+     */
+    override fun finish() {
+        if (viewModel.leaveScreen()) super.finish()
     }
 }
 
 @Composable
 fun RoutingEditScreen(
-    position: Int,
     initial: RulesetItem?,
     outboundSuggestions: List<String>,
     canUseProcess: Boolean,
     onBackClick: () -> Unit,
-    onSave: (RulesetItem) -> Boolean,
+    onSave: (RulesetItem) -> Unit,
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
@@ -124,6 +140,7 @@ fun RoutingEditScreen(
     val scrollState = rememberScrollState()
 
     var remarks by rememberSaveable { mutableStateOf(initial?.remarks ?: "") }
+    var isRemarksError by rememberSaveable { mutableStateOf(false) }
     var locked by rememberSaveable { mutableStateOf(initial?.locked == true) }
     var domain by rememberSaveable { mutableStateOf(initial?.domain?.joinToString(",") ?: "") }
     var ip by rememberSaveable { mutableStateOf(initial?.ip?.joinToString(",") ?: "") }
@@ -146,8 +163,9 @@ fun RoutingEditScreen(
         }
     }
 
+    // The rule as the screen opened with it, read by the activity, with what this screen edits set on it.
     fun buildRuleset(): RulesetItem {
-        val rulesetItem = SettingsManager.getRoutingRuleset(position) ?: RulesetItem()
+        val rulesetItem = initial?.copy() ?: RulesetItem()
         rulesetItem.apply {
             this.remarks = remarks
             this.locked = locked
@@ -185,7 +203,9 @@ fun RoutingEditScreen(
                 title = stringResource(R.string.routing_settings_rule_title),
                 onBackClick = onBackClick,
                 actions = {
-                    if (position >= 0) {
+                    // PattNG: a rule the editor found, by its id, or at its position before rules had ids; one gone by
+                    // then opens as a new one, with none to delete.
+                    if (initial != null) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
                             Icon(
                                 painterResource(R.drawable.ic_delete_24dp),
@@ -193,7 +213,15 @@ fun RoutingEditScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { onSave(buildRuleset()) }) {
+                    IconButton(onClick = {
+                        val remarksErr = remarks.isBlank()
+                        isRemarksError = remarksErr
+
+                        val hasError = remarksErr
+                        if (!hasError) {
+                            onSave(buildRuleset())
+                        }
+                    }) {
                         Icon(
                             painterResource(R.drawable.ic_fab_check),
                             contentDescription = stringResource(R.string.acc_save)
@@ -216,7 +244,8 @@ fun RoutingEditScreen(
             FormTextField(
                 label = stringResource(R.string.sub_setting_remarks),
                 value = remarks,
-                onValueChange = { remarks = it }
+                onValueChange = { remarks = it },
+                isError = isRemarksError
             )
             SettingsSwitchItem(
                 title = stringResource(R.string.routing_settings_locked),
@@ -309,6 +338,7 @@ fun RoutingEditScreen(
         if (showDeleteConfirm) {
             DeleteConfirmDialog(
                 message = stringResource(R.string.confirm_delete_routing_rule),
+                itemName = initial?.remarks.orEmpty(),
                 onConfirm = onDelete,
                 onDismiss = { showDeleteConfirm = false }
             )

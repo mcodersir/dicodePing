@@ -18,7 +18,7 @@ public partial class RoutingSettingWindow : WindowBase<RoutingSettingViewModel>
 
         cmbdomainStrategy.ItemsSource = Global.DomainStrategies;
         cmbdomainStrategy4Singbox.ItemsSource = Global.DomainStrategies4Sbox;
-        cmbDomainFilterMode.ItemsSource = new[] { "خاموش", "عبور مستقیم دامنه‌های مشخص‌شده", "استفاده از VPN فقط برای دامنه‌های مشخص‌شده" };
+        cmbDomainFilterMode.ItemsSource = new[] { ResUI.DicodeDomainFilterOff, ResUI.DicodeDomainFilterBypassMode, ResUI.DicodeDomainFilterOnlyMode };
 
         this.WhenActivated(disposables =>
         {

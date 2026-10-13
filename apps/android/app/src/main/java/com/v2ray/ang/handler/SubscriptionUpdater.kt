@@ -82,11 +82,15 @@ object SubscriptionUpdater {
      * Update the last updated timestamp and reschedule the task.
      * This is used to reset the periodic timer and prevent rapid rescheduling loops.
      */
-    fun updateLastUpdatedAndReschedule(context: Context = AngApplication.application, subId: String) {
-        val subItem = MmkvManager.decodeSubscription(subId) ?: return
-        subItem.lastUpdated = System.currentTimeMillis()
-        MmkvManager.encodeSubscription(subId, subItem)
+    fun updateLastUpdatedAndReschedule(context: Context = AngApplication.application, subId: String): Boolean {
+        // PattNG: on the subscription as stored now, which keeps what an edit wrote; one removed is not listed again, and
+        // its task, which a schedule around its removal can leave behind, stops. Whether it is still stored.
+        if (!MmkvManager.trySetSubscriptionUpdated(subId, System.currentTimeMillis())) {
+            cancelOne(context, subId)
+            return false
+        }
         syncOne(context, subId)
+        return true
     }
 
     // -------------------------------------------------------------------------
@@ -176,7 +180,8 @@ object SubscriptionUpdater {
                 return Result.success()
             }
 
-            updateLastUpdatedAndReschedule(applicationContext, subId)
+            // PattNG: a subscription gone has nothing to update.
+            if (!updateLastUpdatedAndReschedule(applicationContext, subId)) return Result.success()
 
             MessageHelper.sendMsg2SubscriptionService(
                 applicationContext,

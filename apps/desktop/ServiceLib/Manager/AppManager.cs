@@ -68,6 +68,7 @@ public sealed class AppManager
         }
 
         Logging.Setup();
+        var freshInstall = !File.Exists(Utils.GetConfigPath(Global.ConfigFileName));
         var config = ConfigHandler.LoadConfig();
         if (config == null)
         {
@@ -94,7 +95,7 @@ public sealed class AppManager
 #pragma warning restore CS0618
         // Provision the DicodePing source before the desktop view models are created. This is
         // deliberately synchronous only during startup; subsequent downloading stays async.
-        Task.Run(async () => await DicodePingBootstrap.EnsureDefaultsAsync(_config)).GetAwaiter().GetResult();
+        Task.Run(async () => await DicodePingBootstrap.EnsureDefaultsAsync(_config, freshInstall)).GetAwaiter().GetResult();
         return true;
     }
 

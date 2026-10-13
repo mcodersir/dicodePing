@@ -38,8 +38,10 @@ public sealed class CountryFlagIcon : Control
     private static string ExtractCode(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return "";
-        var match = Regex.Match(value, @"(?<![A-Za-z])[A-Za-z]{2}(?![A-Za-z])");
-        return match.Success ? match.Value.ToUpperInvariant() : "";
+        var known = new HashSet<string> { "JP", "SG", "US", "DE", "IR", "NL", "RU", "FR", "IT", "IE", "BE", "AE", "TR", "CH", "GB", "FI", "SE", "UA" };
+        foreach (Match match in Regex.Matches(value, @"(?<![A-Za-z])[A-Za-z]{2}(?![A-Za-z])"))
+            if (known.Contains(match.Value.ToUpperInvariant())) return match.Value.ToUpperInvariant();
+        return "";
     }
 
     private static void DrawFlag(DrawingContext c, Rect r, string code)
@@ -73,6 +75,10 @@ public sealed class CountryFlagIcon : Control
                 for (var i = 0; i < 7; i++) c.DrawRectangle(B(i % 2 == 0 ? "#B22234" : "#FFFFFF"), null, new Rect(r.X, r.Y + i * r.Height / 7, r.Width, r.Height / 7));
                 c.DrawRectangle(B("#3C3B6E"), null, new Rect(r.X, r.Y, r.Width * .42, r.Height * .55));
                 break;
+            case "UA":
+                c.DrawRectangle(B("#0057B7"), null, new Rect(r.X, r.Y, r.Width, r.Height / 2));
+                c.DrawRectangle(B("#FFD700"), null, new Rect(r.X, r.Center.Y, r.Width, r.Height / 2));
+                break;
             case "DE": H("#111111", "#DD0000", "#FFCE00"); break;
             case "IR": H("#239F40", "#FFFFFF", "#DA0000"); break;
             case "NL": H("#AE1C28", "#FFFFFF", "#21468B"); break;
@@ -87,7 +93,13 @@ public sealed class CountryFlagIcon : Control
             case "GB": c.DrawRectangle(B("#012169"), null, r); c.DrawRectangle(B("#FFFFFF"), null, new Rect(r.X, r.Y + r.Height * .39, r.Width, r.Height * .22)); c.DrawRectangle(B("#FFFFFF"), null, new Rect(r.X + r.Width * .42, r.Y, r.Width * .16, r.Height)); c.DrawRectangle(B("#C8102E"), null, new Rect(r.X, r.Y + r.Height * .44, r.Width, r.Height * .12)); c.DrawRectangle(B("#C8102E"), null, new Rect(r.X + r.Width * .46, r.Y, r.Width * .08, r.Height)); break;
             case "FI": c.DrawRectangle(B("#FFFFFF"), null, r); c.DrawRectangle(B("#003580"), null, new Rect(r.X, r.Y + r.Height * .4, r.Width, r.Height * .2)); c.DrawRectangle(B("#003580"), null, new Rect(r.X + r.Width * .32, r.Y, r.Width * .14, r.Height)); break;
             case "SE": c.DrawRectangle(B("#006AA7"), null, r); c.DrawRectangle(B("#FECC00"), null, new Rect(r.X, r.Y + r.Height * .4, r.Width, r.Height * .2)); c.DrawRectangle(B("#FECC00"), null, new Rect(r.X + r.Width * .32, r.Y, r.Width * .14, r.Height)); break;
-            default: H("#607D8B", "#ECEFF1", "#455A64"); break;
+            default:
+                c.DrawRectangle(B("#334155"), null, r);
+                var pen = new Pen(B("#CBD5E1"), 1);
+                c.DrawEllipse(null, pen, r.Center, r.Height * .34, r.Height * .34);
+                c.DrawLine(pen, new Point(r.Center.X - r.Height * .34, r.Center.Y), new Point(r.Center.X + r.Height * .34, r.Center.Y));
+                c.DrawEllipse(null, pen, r.Center, r.Height * .15, r.Height * .34);
+                break;
         }
     }
 }
