@@ -25,3 +25,7 @@ coverage/
 # UI verification output
 /desktop-qa/
 /web-qa-*.png
+
+__pycache__/
+*.pyc
+web-qa-*.png
