@@ -1,5 +1,7 @@
 package com.v2ray.ang.ui.main
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
