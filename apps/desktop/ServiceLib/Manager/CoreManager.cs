@@ -250,7 +250,7 @@ public class CoreManager
         await _updateFunc?.Invoke(notify, msg);
     }
 
-    private static async Task WaitForProxyPort(CoreConfigContext? preContext, int timeoutMs = 5000)
+    private static async Task WaitForProxyPort(CoreConfigContext? preContext)
     {
         if (preContext is null)
         {
@@ -261,7 +261,7 @@ public class CoreManager
             return;
         }
 
-        using var rootCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeoutMs));
+        using var rootCts = new CancellationTokenSource(Global.LocalFetch);
         var rootToken = rootCts.Token;
 
         var port = preContext.Node.Port;
@@ -373,11 +373,37 @@ public class CoreManager
             environmentVars[kv.Key] = string.Format(kv.Value, coreInfo.AbsolutePath ? Utils.GetBinConfigPath(configPath).AppendQuotes() : configPath);
         }
 
+        // Belt and braces: some cores resolve geo assets next to their own exe even
+        // though XRAY_LOCATION_ASSET points at bin/. Copy the files down so a missing
+        // asset can never be the reason a core dies on startup.
+        try
+        {
+            var coreDir = Path.GetDirectoryName(fileName);
+            if (!coreDir.IsNullOrEmpty())
+            {
+                foreach (var geo in new[] { "geoip.dat", "geosite.dat" })
+                {
+                    var source = Utils.GetBinPath(geo);
+                    var target = Path.Combine(coreDir, geo);
+                    if (File.Exists(source) && !File.Exists(target))
+                    {
+                        File.Copy(source, target);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Copy geo assets", ex);
+        }
+
         var procService = new ProcessService(
             fileName: fileName,
             arguments: string.Format(coreInfo.Arguments, coreInfo.AbsolutePath ? Utils.GetBinConfigPath(configPath).AppendQuotes() : configPath),
             workingDirectory: Utils.GetBinConfigPath(),
-            displayLog: displayLog,
+            // Always capture output: the gui log must contain the core's own
+            // diagnostics, otherwise "see the report" points at an empty page.
+            displayLog: true,
             redirectInput: false,
             environmentVars: environmentVars,
             updateFunc: _updateFunc
@@ -389,7 +415,8 @@ public class CoreManager
 
         if (procService is null or { HasExited: true })
         {
-            throw new Exception(ResUI.FailedToRunCore);
+            var recent = procService?.RecentOutput;
+            throw new Exception(ResUI.FailedToRunCore + (recent.IsNullOrEmpty() ? string.Empty : Environment.NewLine + recent));
         }
         AddProcessJob(procService.Handle);
 

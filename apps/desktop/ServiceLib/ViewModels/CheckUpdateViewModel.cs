@@ -138,7 +138,7 @@ public partial class CheckUpdateViewModel : MyReactiveObject
 
             if (item.IsGeoFile || item.CoreType == null)
             {
-                await UpdateView(item.CoreType, "GeoFile آمادهٔ دریافت آخرین داده‌های رسمی است");
+                await UpdateView(item.CoreType, ResUI.DicodeGeoFileReady);
                 continue;
             }
 

@@ -3,17 +3,29 @@ namespace ServiceLib.Handler;
 public static class ConnectionHandler
 {
     private static readonly string _tag = "ConnectionHandler";
-    private static readonly string[] SanctionsProbeUrls =
-    [
-        "https://gemini.google.com/",
-        "https://flow.google/",
-        "https://firebase.google.com/",
-        "https://dart.dev/",
-        "https://flutter.dev/"
-    ];
 
-    public static async Task<(bool Accessible, int Passed, int Total)> TestSanctionsAccess(IWebProxy webProxy)
+    public record SanctionProbeResult(bool Accessible, int Passed, int Total, List<(string Name, bool Ok)> Details);
+
+    public static List<SanctionServiceItem> GetSanctionServices()
     {
+        var configured = AppManager.Instance.Config.SanctionsItem?.Services;
+        return configured is { Count: > 0 }
+            ? configured.Where(s => s.Enabled && s.Name.IsNotEmpty() && s.Url.IsNotEmpty()).ToList()
+            : SanctionsDefaults.Services;
+    }
+
+    public static SanctionProbeResult TestSanctionsAccess(IWebProxy webProxy)
+    {
+        return TestSanctionsAccessAsync(webProxy).GetAwaiter().GetResult();
+    }
+
+    public static async Task<SanctionProbeResult> TestSanctionsAccessAsync(IWebProxy webProxy, CancellationToken cancellationToken = default)
+    {
+        var services = GetSanctionServices();
+        var timeout = AppManager.Instance.Config.SanctionsItem?.TimeoutSeconds is > 0 and <= 30
+            ? AppManager.Instance.Config.SanctionsItem.TimeoutSeconds
+            : 9;
+
         using var handler = new HttpClientHandler
         {
             Proxy = webProxy,
@@ -21,34 +33,46 @@ public static class ConnectionHandler
             AllowAutoRedirect = true,
             AutomaticDecompression = DecompressionMethods.All
         };
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(9) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("DicodePing/3.0 sanctions-probe");
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(timeout) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("DicodePing/4.0 sanctions-probe");
 
-        async Task<bool> Probe(string url)
+        async Task<(string Name, bool Ok)> Probe(SanctionServiceItem service)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-                return (int)response.StatusCode is >= 200 and < 500
+                using var request = new HttpRequestMessage(HttpMethod.Get, service.Url);
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                var ok = (int)response.StatusCode is >= 200 and < 500
                     && response.StatusCode != HttpStatusCode.Forbidden
                     && response.StatusCode != HttpStatusCode.UnavailableForLegalReasons;
+                return (service.Name, ok);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch
             {
-                return false;
+                return (service.Name, false);
             }
         }
 
-        var results = await Task.WhenAll(SanctionsProbeUrls.Select(Probe));
-        var passed = results.Count(value => value);
-        // At least one restricted Google AI surface and most developer surfaces
-        // must be reachable; a single generic Google response is not enough.
-        return ((results[0] || results[1]) && passed >= 3, passed, results.Length);
+        var details = (await Task.WhenAll(services.Select(Probe))).ToList();
+        var total = details.Count;
+        var passed = details.Count(d => d.Ok);
+        if (total == 0)
+        {
+            return new SanctionProbeResult(false, 0, 0, []);
+        }
+
+        // Strict services (the most reliable sanctions indicators) must pass and
+        // the overall pass ratio has to clear two thirds before the exit counts
+        // as sanction-free. A single generic success is not enough.
+        var strictNames = new HashSet<string>(services.Where(s => s.Strict).Select(s => s.Name), StringComparer.OrdinalIgnoreCase);
+        var strictFailed = details.Any(d => !d.Ok && strictNames.Contains(d.Name));
+        var accessible = !strictFailed && passed * 3 >= total * 2;
+        return new SanctionProbeResult(accessible, passed, total, details);
     }
 
     /// <summary>
-    /// Runs ping and IP checks and returns a formatted result string.
+    /// Runs ping and IP checks.
     /// </summary>
     public static async Task<string> RunAvailabilityCheck()
     {
@@ -115,34 +139,42 @@ public static class ConnectionHandler
     /// <summary>
     /// Measures response time by sending HTTP requests through proxy.
     /// </summary>
-    public static async Task<int> GetRealPingTime(IWebProxy? webProxy, int downloadTimeout = 9)
+    public static async Task<int> GetRealPingTime(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var url = AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl;
         var responseTime = -1;
         try
         {
-            using var cts = new CancellationTokenSource();
-            cts.CancelAfter(TimeSpan.FromSeconds(downloadTimeout));
+            using var timeoutCts = new CancellationTokenSource();
+            timeoutCts.CancelAfter(Global.LocalFetch);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            var linkedToken = linkedCts.Token;
             using var client = new HttpClient(new SocketsHttpHandler()
             {
                 Proxy = webProxy,
                 UseProxy = webProxy != null,
-                ConnectTimeout = TimeSpan.FromSeconds(3)
+                ConnectTimeout = Global.LocalFetch,
             });
 
             List<int> oneTime = [];
             for (var i = 0; i < 2; i++)
             {
                 var timer = Stopwatch.StartNew();
-                await client.GetAsync(url, cts.Token).ConfigureAwait(false);
+                await client.GetAsync(url, linkedToken).ConfigureAwait(false);
                 timer.Stop();
                 oneTime.Add((int)timer.Elapsed.TotalMilliseconds);
-                await Task.Delay(100, cts.Token);
+                await Task.Delay(100, linkedToken);
             }
             responseTime = oneTime.Where(x => x > 0).OrderBy(x => x).FirstOrDefault();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch
         {
+            // Ignore
         }
         return responseTime;
     }
@@ -150,7 +182,7 @@ public static class ConnectionHandler
     /// <summary>
     /// Gets IP and country information through specified proxy.
     /// </summary>
-    public static async Task<IpInfoResult?> GetIPInfo(IWebProxy? webProxy)
+    public static async Task<IpInfoResult?> GetIPInfo(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -166,7 +198,7 @@ public static class ConnectionHandler
                 .Distinct();
             foreach (var url in urls)
             {
-                var result = await downloadHandle.TryDownloadString(url, webProxy, "");
+                var result = await downloadHandle.TryDownloadString(url, webProxy, "", cancellationToken);
                 var ipInfo = result.IsNotEmpty() ? JsonUtils.Deserialize<IPAPIInfo>(result) : null;
                 if (ipInfo == null)
                 {
@@ -180,6 +212,10 @@ public static class ConnectionHandler
                 }
             }
             return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {

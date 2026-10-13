@@ -1860,4 +1860,116 @@
   <data name="LvCustomCoreType" xml:space="preserve">
     <value>Ядро пользовательской конфигурации</value>
   </data>
+<data name="menuCheckAndUpdate" xml:space="preserve">
+    <value>Проверить и обновить</value>
+  </data>
+
+<data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+
+<data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+
+<data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
+
+<data name="TbSettingsEnableUpdateViaProxy" xml:space="preserve">
+    <value>Обновлять через прокси</value>
+  </data>
+
+<data name="LvOverrideAddress" xml:space="preserve">
+    <value>Заменить адрес</value>
+  </data>
+
+<data name="LvOverridePort" xml:space="preserve">
+    <value>Заменить порт</value>
+  </data>
+
+<data name="TipOverrideAddress" xml:space="preserve">
+    <value>Оставьте пустым, чтобы сохранить адрес из подписки</value>
+  </data>
+
+<data name="TipOverridePort" xml:space="preserve">
+    <value>Оставьте пустым, чтобы сохранить порт из подписки</value>
+  </data>
+
+<data name="TbSettingsMux4RayConcurrency" xml:space="preserve">
+    <value>Лимит дочерних соединений Mux для Xray</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpConcurrency" xml:space="preserve">
+    <value>Лимит дочерних XUDP-соединений Mux для Xray</value>
+  </data>
+
+<data name="TbSettingsMux4RayXudpProxyUDP443" xml:space="preserve">
+    <value>Обработка UDP443 (QUIC) в Mux для Xray</value>
+  </data>
+
+<data name="menuDelaytest" xml:space="preserve">
+    <value>Тест задержки</value>
+  </data>
+
+<data name="menuRegionalPresetsChina" xml:space="preserve">
+    <value>Китай</value>
+  </data>
+
+<data name="TbXrayOnly" xml:space="preserve">
+    <value>Только Xray</value>
+  </data>
+
+<data name="TbBlockAAAAQueries" xml:space="preserve">
+    <value>Блокировать DNS-запросы AAAA</value>
+  </data>
+
+<data name="TbBlockAAAAQueriesTips" xml:space="preserve">
+    <value>При включении блокирует DNS-запросы IPv6</value>
+  </data>
+
+<data name="TbDNS" xml:space="preserve">
+    <value>DNS</value>
+  </data>
+
+<data name="TbSettingsMux4Ray" xml:space="preserve">
+    <value>Настройки Mux для Xray</value>
+  </data>
+
+<data name="LvRequestHeaders" xml:space="preserve">
+    <value>HTTP-заголовки (JSON)</value>
+  </data>
+
+<data name="SubRequestHeadersTips" xml:space="preserve">
+    <value>Необязательно. Пример: {"X-hwid": "my_device"}. Заданные значения переопределяют заголовки по умолчанию для всех URL этой группы, включая сервис конвертации подписок</value>
+  </data>
+
+<data name="SubRequestHeadersInvalid" xml:space="preserve">
+    <value>Некорректные HTTP-заголовки. Используйте JSON-объект с уникальными именами заголовков и строковыми значениями. Имена и значения заголовков не должны содержать переносов строк</value>
+  </data>
+
+<data name="TbSortingProcess" xml:space="preserve">
+    <value>Процесс</value>
+  </data>
+
+<data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+
+<data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>Для EchOutbound требуется EchConfigList</value>
+  </data>
+
+<data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>У EchOutbound должен быть непустой "tag", отличный от direct и block и не начинающийся с proxy</value>
+  </data>
+
+<data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>Тег "{0}" в EchOutbound уже используется другим outbound</value>
+  </data>
+
+<data name="menuAddMasqueServer" xml:space="preserve">
+    <value>Добавить сервер [MASQUE]</value>
+  </data>
+
 </root>

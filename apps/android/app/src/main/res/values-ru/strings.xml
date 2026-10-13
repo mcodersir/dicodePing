@@ -102,7 +102,7 @@
     <string name="server_lab_local_address">Локальный адрес (необязательно, IPv4/IPv6 через запятую)</string>
     <string name="server_lab_local_mtu">MTU (необязательно, по умолчанию 1420)</string>
     <string name="server_lab_kcp_mtu">mKCP MTU (необязательно, по умолчанию 1350)</string>
-    <string name="server_lab_kcp_tti">mKCP TTI (необязательно, по умолчанию 50)</string>
+    <string name="server_lab_kcp_tti">mKCP TTI (необязательно, по умолчанию 50 мс)</string>
     <string name="toast_success">Успешно</string>
     <string name="toast_failure">Ошибка</string>
     <string name="toast_none_data">Ничего нет</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">Режим XHTTP</string>
     <string name="server_lab_xhttp_extra">Необработанный JSON XHTTP Extra, формат: { XHTTPObject }</string>
     <string name="server_lab_final_mask">Необработанный JSON FinalMask, формат: { FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">Проверять сертификат узла по имени</string>
     <string name="server_lab_pinned_ca256">Отпечаток сертификата (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">Настройки VPN</string>
     <string name="title_pref_per_app_proxy">Прокси для выбранных приложений</string>
     <string name="summary_pref_per_app_proxy">Основной: выбранное приложение соединяется через прокси, не выбранное — напрямую;\nРежим обхода: выбранное приложение соединяется напрямую, не выбранное — через прокси.\nВ меню можно автоматически выбрать приложения, которые должны использовать прокси.</string>
-    <string name="title_pref_is_booted">Автоподключение при запуске</string>
-    <string name="summary_pref_is_booted">Автоматически подключаться к выбранному серверу при запуске приложения (может оказаться неудачным)</string>
+    <string name="title_pref_is_booted">Подключаться после загрузки устройства</string>
+    <string name="summary_pref_is_booted">Автоматически подключаться к выбранному серверу после загрузки устройства. Android может ограничивать запуск в фоне.</string>
+    <string name="title_system_vpn_settings">Системные настройки VPN</string>
+    <string name="summary_system_vpn_settings">Открыть настройки VPN в Android для включения постоянного VPN-подключения, если устройство его поддерживает.</string>
+    <string name="toast_system_vpn_settings_unavailable">Системные настройки VPN недоступны.</string>
 
 
     <string name="subscription_updater_job_tips">Задача будет выполняться в фоновом режиме, информация о ходе выполнения будет отображаться в уведомлении.</string>
@@ -284,6 +288,7 @@
     <string name="title_about">О приложении</string>
     <string name="title_source_code">Исходный код</string>
     <string name="title_oss_license">Лицензии открытого исходного кода</string>
+    <string name="title_translators">Переводчики</string>
     <string name="title_tg_channel">Telegram-канал</string>
 
     <string name="title_pref_promotion">Предложения</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">Заголовки запроса (формат JSON)</string>
     <string name="sub_setting_filter">Фильтр названий (регулярное выражение)</string>
+    <string name="sub_setting_override_address">Заменить адрес</string>
+    <string name="sub_setting_override_port">Заменить порт</string>
+    <string name="sub_setting_override_tip">Оставьте пустым, чтобы сохранить значение из подписки</string>
     <string name="sub_setting_enable">Включить обновление</string>
     <string name="sub_auto_update">Использовать автообновление</string>
     <string name="sub_allow_insecure_url">Разрешать незащищённые HTTP-адреса</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">Выбранный прокси добавляется перед каждым профилем подписки и становится входным звеном цепочки прокси для этого профиля.</string>
     <string name="sub_setting_exit_proxy_tip">Выбранный прокси добавляется после каждого профиля подписки и становится выходным звеном цепочки прокси для этого профиля.</string>
     <string name="toast_invalid_update_interval">Неправильный интервал обновления. Минимум 15 минут.</string>
+    <string name="toast_invalid_override_port">Недопустимый порт замены. Укажите значение от 1 до 65535.</string>
     <string name="title_sub_update">Обновить подписку</string>
     <string name="title_ping_all_server">Проверить TCP-задержку (TCPing)</string>
     <string name="title_real_ping_all_server">Проверить реальную задержку</string>

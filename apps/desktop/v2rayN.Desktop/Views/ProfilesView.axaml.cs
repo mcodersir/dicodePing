@@ -366,7 +366,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
             column.Width = tag switch
             {
                 "Remarks" => new DataGridLength(2.3, DataGridLengthUnitType.Star),
-                "IpInfo" => new DataGridLength(2.1, DataGridLengthUnitType.Star),
+                "IpInfo" => new DataGridLength(1.5, DataGridLengthUnitType.Star),
                 "SubRemarks" => new DataGridLength(1.5, DataGridLengthUnitType.Star),
                 "SecurityInfo" or "SanctionsInfo" => new DataGridLength(1.35, DataGridLengthUnitType.Star),
                 _ => new DataGridLength(1, DataGridLengthUnitType.Star)
@@ -375,9 +375,9 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
             {
                 "Address" or "Port" or "Network" or "StreamSecurity" or "TotalUp" or "TotalDown" => false,
                 "IpInfo" => !_config.UiItem.HideColumnIpInfo,
-                "SecurityInfo" or "SanctionsInfo" => width >= 1180,
+                "SecurityInfo" or "SanctionsInfo" or "SpeedVal" => true,
                 "TodayUp" or "TodayDown" => width >= 1450 && _config.GuiItem.EnableStatistics,
-                "SpeedVal" or "SubRemarks" => width >= 980,
+                "SubRemarks" => width >= 1180,
                 _ => true
             };
         }

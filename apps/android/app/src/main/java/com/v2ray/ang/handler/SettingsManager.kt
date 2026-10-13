@@ -52,7 +52,7 @@ object SettingsManager {
     private fun initRoutingRulesets(context: Context) {
         val exist = MmkvManager.decodeRoutingRulesets()
         if (exist.isNullOrEmpty()) {
-            val rulesetList = getPresetRoutingRulesets(context)
+            val rulesetList = getPresetRoutingRulesets(context, RoutingType.WHITE_IRAN)
             MmkvManager.encodeRoutingRulesets(rulesetList)
         }
     }
@@ -176,7 +176,7 @@ object SettingsManager {
      * @return True if bypassing LAN, false otherwise.
      */
     fun routingRulesetsBypassLan(): Boolean {
-        val vpnBypassLan = MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_BYPASS_LAN) ?: "1"
+        val vpnBypassLan = MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_BYPASS_LAN, AppConfig.DEFAULT_VPN_BYPASS_LAN)
         if (vpnBypassLan == "1") {
             return true
         } else if (vpnBypassLan == "2") {
@@ -259,7 +259,8 @@ object SettingsManager {
     fun getSocksPort(): Int {
         val port =
             if (IsDynamicSocksPort()) {
-                runtimeSocksPort ?: refreshRuntimeSocksPort()
+                MmkvManager.decodeSettingsString("dicode_runtime_socks_port")?.toIntOrNull()
+                    ?: runtimeSocksPort ?: refreshRuntimeSocksPort()
             } else {
                 Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PORT), AppConfig.PORT_SOCKS.toInt())
             }
@@ -270,6 +271,8 @@ object SettingsManager {
     fun refreshRuntimeSocksPort(): Int? {
         if (IsDynamicSocksPort()) {
             runtimeSocksPort = generateRandomSocksPort()
+            // VPN and UI run in different processes; both must use the same port.
+            MmkvManager.encodeSettings("dicode_runtime_socks_port", runtimeSocksPort.toString())
             return runtimeSocksPort
         }
         return null
@@ -467,7 +470,7 @@ object SettingsManager {
         ensureDefaultValue(AppConfig.PREF_IP_API_URL, AppConfig.IP_API_URL)
         ensureDefaultValue(AppConfig.PREF_HEV_TUNNEL_RW_TIMEOUT, AppConfig.HEVTUN_RW_TIMEOUT)
         ensureDefaultValue(AppConfig.PREF_MUX_CONCURRENCY, "8")
-        ensureDefaultValue(AppConfig.PREF_MUX_XUDP_CONCURRENCY, "8")
+        ensureDefaultValue(AppConfig.PREF_MUX_XUDP_CONCURRENCY, AppConfig.DEFAULT_MUX_XUDP_CONCURRENCY)
         ensureDefaultValue(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
         ensureDefaultValue(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
         ensureDefaultValue(AppConfig.PREF_FRAGMENT_MAXSPLIT, "10")

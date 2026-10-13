@@ -38,8 +38,13 @@ class AngApplication : Application() {
 
         MmkvManager.initialize(this)
 
-        // The product source is authoritative and is created once without
-        // replacing any subscriptions the user adds later.
+        // Retire the built-in aggregation subscription on both fresh installs and upgrades.
+        MmkvManager.decodeSubscriptions().filter {
+            it.guid == AppConfig.DICODE_SPO_SUBSCRIPTION_ID ||
+                it.subscription.url == AppConfig.DICODE_SPO_SUBSCRIPTION_URL ||
+                it.subscription.remarks.startsWith("DicodeSpo", ignoreCase = true)
+        }.forEach { MmkvManager.removeSubscription(it.guid) }
+
         if (MmkvManager.decodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) == null) {
             MmkvManager.encodeSubscription(
                 AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID,
@@ -52,6 +57,17 @@ class AngApplication : Application() {
                 ),
             )
         }
+
+        val primary = MmkvManager.decodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
+        if (primary != null) {
+            primary.remarks = "Dicode Config Checker"
+            primary.url = AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL
+            MmkvManager.encodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, primary)
+        }
+        val subscriptionOrder = MmkvManager.decodeSubsList()
+        subscriptionOrder.remove(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
+        subscriptionOrder.add(0, AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
+        MmkvManager.encodeSubsList(subscriptionOrder)
 
         AppLocaleManager.initialize(this)
 

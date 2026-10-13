@@ -59,6 +59,16 @@ public class ProfileItem
         return Network.TrimEx();
     }
 
+    /// <summary>
+    /// PattN: the Xray outbound targetStrategy chosen for this profile, or null when it is blank or
+    /// AsIs (Xray's default), so that such a profile stores nothing and its outbound carries no field.
+    /// </summary>
+    public string? GetTargetStrategy()
+    {
+        var value = TargetStrategy?.Trim();
+        return value.IsNullOrEmpty() || value.Equals(Global.AsIs, StringComparison.OrdinalIgnoreCase) ? null : value;
+    }
+
     public bool IsComplex()
     {
         return ConfigType.IsComplexType();
@@ -183,6 +193,9 @@ public class ProfileItem
     public string AllowInsecure { get; set; }
     public string Sni { get; set; }
     public string Alpn { get; set; } = string.Empty;
+    public string CipherSuites { get; set; } = string.Empty;
+    public string DialMode { get; set; } = string.Empty;
+    public string TargetStrategy { get; set; } = string.Empty;
     public string Fingerprint { get; set; }
     public string PublicKey { get; set; }
     public string ShortId { get; set; }
@@ -196,6 +209,7 @@ public class ProfileItem
     public string Cert { get; set; }
     public string CertSha { get; set; }
     public string EchConfigList { get; set; }
+    public string EchOutbound { get; set; }
     public string VerifyPeerCertByName { get; set; }
     public string Finalmask { get; set; }
 

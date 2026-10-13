@@ -585,6 +585,15 @@
   <data name="TbAlterId" xml:space="preserve">
     <value>ID supplémentaire (alterId)</value>
   </data>
+  <data name="TbCipherSuites" xml:space="preserve">
+    <value>Cipher Suites</value>
+  </data>
+  <data name="TbDialMode" xml:space="preserve">
+    <value>dialMode</value>
+  </data>
+  <data name="TbTargetStrategy" xml:space="preserve">
+    <value>targetStrategy</value>
+  </data>
   <data name="TbFingerprint" xml:space="preserve">
     <value>Empreinte</value>
   </data>
@@ -715,7 +724,7 @@
     <value>Activer Mux multiplex</value>
   </data>
   <data name="TbSettingsN" xml:space="preserve">
-    <value>Paramètres v2rayN</value>
+    <value>Paramètres PattN</value>
   </data>
   <data name="TbSettingsPass" xml:space="preserve">
     <value>Mot de passe d’authentification</value>
@@ -890,6 +899,18 @@
   </data>
   <data name="LvFilter" xml:space="preserve">
     <value>Filtrage par alias (regex)</value>
+  </data>
+  <data name="LvOverrideAddress" xml:space="preserve">
+    <value>Remplacer l'adresse</value>
+  </data>
+  <data name="LvOverridePort" xml:space="preserve">
+    <value>Remplacer le port</value>
+  </data>
+  <data name="TipOverrideAddress" xml:space="preserve">
+    <value>Laisser vide pour conserver l'adresse de l'abonnement</value>
+  </data>
+  <data name="TipOverridePort" xml:space="preserve">
+    <value>Laisser vide pour conserver le port de l'abonnement</value>
   </data>
   <data name="TbDisplayLog" xml:space="preserve">
     <value>Afficher les logs</value>
@@ -1212,7 +1233,7 @@
   <data name="menuModeRule" xml:space="preserve">
     <value>Règle</value>
   </data>
-  <data name="menuProxiesDelaytest" xml:space="preserve">
+  <data name="menuDelaytest" xml:space="preserve">
     <value>Test de latence</value>
   </data>
   <data name="menuProxiesDelaytestPart" xml:space="preserve">
@@ -1750,7 +1771,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>PreSharedKey</value>
   </data>
   <data name="menuExport2InnerUri" xml:space="preserve">
-    <value>Exporter le lien interne v2rayN vers le presse-papiers</value>
+    <value>Exporter le lien interne PattN vers le presse-papiers</value>
   </data>
   <data name="MsgCheckUpdateHasNewVersion" xml:space="preserve">
     <value>{0} a une nouvelle version disponible: {1}</value>
@@ -1766,5 +1787,17 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
   </data>
   <data name="menuNewUpdate" xml:space="preserve">
     <value>Nouvelle MAJ</value>
+  </data>
+  <data name="TbEchOutbound" xml:space="preserve">
+    <value>EchOutbound</value>
+  </data>
+  <data name="MsgEchOutboundNeedsEchConfigList" xml:space="preserve">
+    <value>EchOutbound nécessite EchConfigList</value>
+  </data>
+  <data name="MsgEchOutboundInvalidTag" xml:space="preserve">
+    <value>EchOutbound doit avoir un "tag" non vide, différent de direct et block, et qui ne commence pas par proxy</value>
+  </data>
+  <data name="MsgEchOutboundTagConflict" xml:space="preserve">
+    <value>Le tag "{0}" de EchOutbound est déjà utilisé par un autre outbound</value>
   </data>
 </root>
