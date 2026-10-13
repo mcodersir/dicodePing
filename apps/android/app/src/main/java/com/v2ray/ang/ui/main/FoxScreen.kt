@@ -39,6 +39,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
     var adding by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
     val current = accounts.firstOrNull { it.id == selected }
+    fun countryLabel(value: String) = if (value == "REC") context.getString(R.string.fox_recommended) else java.util.Locale("", value).getDisplayCountry(context.resources.configuration.locales[0]) + " · " + value
     val signIn = adding || current == null
     val pending = !adding && current?.pending == true
     val ready = !adding && current != null && !current.pending
@@ -97,7 +98,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                     Text(stringResource(R.string.fox_hint))
                     Box {
                         OutlinedButton(onClick = { expandedAccounts = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(current?.email ?: stringResource(R.string.fox_accounts)) }
-                        DropdownMenu(expandedAccounts, { expandedAccounts = false }) { accounts.forEach { account -> DropdownMenuItem(text = { Text(account.email) }, onClick = { selected = account.id; country = account.country; expandedAccounts = false }) } }
+                        DropdownMenu(expandedAccounts, { expandedAccounts = false }) { accounts.forEach { account -> DropdownMenuItem(text = { Text(account.email) }, onClick = { selected = account.id; country = account.country; adding = false; expandedAccounts = false }) } }
                     }
                     Text(stringResource(if (signIn) R.string.fox_step_login else if (pending) R.string.fox_step_verify else R.string.fox_step_connect), style = MaterialTheme.typography.titleMedium)
                     if (current != null && !adding) TextButton(onClick = { adding = true; email = ""; code = ""; status = "" }, enabled = !busy) { Text(stringResource(R.string.fox_add_account)) }
@@ -109,8 +110,8 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                         if (reset in 1..253402300799L) Text((if (fa) "بازنشانی: " else "Reset: ") + DateFormat.getDateInstance().format(Date(reset * 1000)))
                     }
                     if (ready) Box {
-                        OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(stringResource(R.string.fox_location) + " · " + country) }
-                        DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(value) }, onClick = { country = value; expandedCountries = false }) } }
+                        OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(countryLabel(country)) }
+                        DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false }) } }
                     }
                     if (signIn) {
                     OutlinedTextField(email, { email = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)

@@ -875,4 +875,5 @@
     <string name="pool_ui_10">Pause scrolling</string>
     <string name="pool_ui_11">Follow log</string>
     <string name="pool_ui_12">No servers saved yet. Start collecting.</string>
+    <string name="fox_recommended">Recommended · first working route</string>
 </resources>

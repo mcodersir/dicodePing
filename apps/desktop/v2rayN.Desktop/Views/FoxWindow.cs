@@ -42,6 +42,7 @@ public sealed class FoxWindow : Window
         var code = new TextBox { PlaceholderText = FoxUi.T("کد تأیید حساب", "Account verification code"), FlowDirection = FlowDirection.LeftToRight, IsVisible = false };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
+        country.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => new TextBlock { Text = value == "REC" ? FoxUi.T("پیشنهادی · اولین مسیر در دسترس", "Recommended · first working route") : new System.Globalization.RegionInfo(value!).DisplayName + " · " + value });
         var login = new Button { Content = FoxUi.T("ورود و افزودن حساب", "Sign in and add account"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var verify = new Button { Content = FoxUi.T("تأیید کد", "Verify code"), IsVisible = false };
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };

@@ -2,7 +2,7 @@
 
 کلاینت اتصال برای **Windows، Linux، macOS و Android**، همراه نسخهٔ مستقل **CLI**. پروفایل‌ها را مدیریت کنید، کیفیت مسیر را با درخواست واقعی بسنجید و از فهرست سرورها متصل شوید.
 
-**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۶.۰](docs/RELEASE-4.7.0.md)** · **[راهنمای CLI](docs/CLI.md)**
+**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۷.۰](docs/RELEASE-4.7.0.md)** · **[راهنمای CLI](docs/CLI.md)**
 
 ## روباه 🦊
 
