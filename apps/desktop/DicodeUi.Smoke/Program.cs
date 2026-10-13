@@ -122,7 +122,7 @@ foreach (var dark in new[] { false, true }) {
         var item = FoxUi.CountryTemplate().Build(code);
         if (item is not TextBlock) throw new Exception("Fox country template failed to render a recycled/null item");
     }
-    var countries = fox.FindControl<ComboBox>("FoxCountrySelector")!;
+    var countries = fox.GetVisualDescendants().OfType<ComboBox>().Single(c => c.Name == "FoxCountrySelector");
     countries.ItemsSource = Enumerable.Range(0, 60).Select(i => new[] { "REC", "DE", "NL", "ZZ" }[i % 4]).ToArray();
     countries.SelectedIndex = 1; countries.IsDropDownOpen = true; Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     countries.SelectedItem = null; countries.ItemsSource = new[] { "REC", "JP" }; Avalonia.Threading.Dispatcher.UIThread.RunJobs();
