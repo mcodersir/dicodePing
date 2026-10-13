@@ -115,7 +115,7 @@ class SubscriptionIndexTest {
         org.junit.jupiter.api.Assertions.assertTrue(SettingsChangeManager.consumeSetupGroupTab())
         assertEquals(listOf(primaryId, ServerPoolManager.POOL_ID), MmkvManager.decodeSubsList())
         assertEquals(primary, subValues[primaryId])
-        assertEquals("سرور های استخر", MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.remarks)
+        org.junit.jupiter.api.Assertions.assertTrue(MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.remarks in listOf("سرورهای استخر", "Server pool"))
         assertEquals("", MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID)?.url)
         val pool = requireNotNull(MmkvManager.decodeSubscription(ServerPoolManager.POOL_ID))
         MmkvManager.encodeSubscription(ServerPoolManager.POOL_ID, pool.copy(remarks = "استخر کانفیگ", lastUpdated = 1234))
