@@ -30,14 +30,14 @@ public class NativeRuntimeTests
             Assert.StartsWith("GET /routed", header.ToString());
             await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\ntunnel-ok"), ct);
         }, ct);
-        await File.WriteAllTextAsync(xfile, $$"""
-        {"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":{{xrayPort}},"protocol":"socks","settings":{"auth":"noauth"}}],
-         "outbounds":[{"tag":"proxy","protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":{{fixturePort}}}]}}],
-         "stats":{},"metrics":{"listen":"127.0.0.1:{{metricsPort}}"},"policy":{"system":{"statsOutboundUplink":true,"statsOutboundDownlink":true}}}
+        await File.WriteAllTextAsync(xfile, $$$$"""
+        {"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":{{{{xrayPort}}}},"protocol":"socks","settings":{"auth":"noauth"}}],
+         "outbounds":[{"tag":"proxy","protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":{{{{fixturePort}}}}}]}}],
+         "stats":{},"metrics":{"listen":"127.0.0.1:{{{{metricsPort}}}}"},"policy":{"system":{"statsOutboundUplink":true,"statsOutboundDownlink":true}}}
         """, ct);
-        await File.WriteAllTextAsync(sfile, $$"""
-        {"log":{"level":"info"},"inbounds":[{"type":"tun","interface_name":"{{name}}","address":["172.30.250.1/30"],"mtu":1500,"auto_route":true,"route_address":["198.18.0.1/32"],"strict_route":false,"stack":"system"}],
-         "outbounds":[{"type":"socks","tag":"proxy","server":"127.0.0.1","server_port":{{xrayPort}}}],"route":{"auto_detect_interface":true}}
+        await File.WriteAllTextAsync(sfile, $$$$"""
+        {"log":{"level":"info"},"inbounds":[{"type":"tun","interface_name":"{{{{name}}}}","address":["172.30.250.1/30"],"mtu":1500,"auto_route":true,"route_address":["198.18.0.1/32"],"strict_route":false,"stack":"system"}],
+         "outbounds":[{"type":"socks","tag":"proxy","server":"127.0.0.1","server_port":{{{{xrayPort}}}}}],"route":{"auto_detect_interface":true}}
         """, ct);
         var xbinary = Path.Combine(root!, "bin", "xray", "xray.exe"); var sbinary = Path.Combine(root!, "bin", "sing_box", "sing-box.exe");
         using var xray = new ProcessService(xbinary, "run -c " + xfile.AppendQuotes(), Path.GetDirectoryName(xbinary)!, true, false, null, (_,_)=>Task.CompletedTask);
