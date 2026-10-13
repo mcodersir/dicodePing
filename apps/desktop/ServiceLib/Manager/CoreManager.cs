@@ -419,9 +419,10 @@ public class CoreManager
     {
         string fileName; string msg;
         try { fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out msg); }
-        catch (Exception error) { await UpdateFunc(mayNeedSudo, error.Message); return null; }
+        catch (Exception error) { LastStartupError = error.Message; await UpdateFunc(mayNeedSudo, error.Message); return null; }
         if (fileName.IsNullOrEmpty())
         {
+            LastStartupError = msg;
             await UpdateFunc(false, msg);
             return null;
         }
@@ -429,6 +430,15 @@ public class CoreManager
         try
         {
             NativeLaunchPolicy.Validate(fileName);
+            if (coreInfo?.CoreType == ECoreType.sing_box) {
+                var path = Utils.GetBinConfigPath(configPath);
+                if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
+                    var log = root["log"] as JsonObject ?? new JsonObject();
+                    log["level"] = "info"; log["disabled"] = false; log.Remove("output"); root["log"] = log;
+                    await File.WriteAllTextAsync(path, root.ToJsonString());
+                }
+                if (Utils.IsWindows() && isTunLaunch) WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
+            }
             if (mayNeedSudo
                 && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())
                 && !Utils.IsAdministrator())
@@ -459,15 +469,6 @@ public class CoreManager
 
     private async Task<ProcessService?> RunProcessNormal(string fileName, CoreInfo? coreInfo, string configPath, bool displayLog, bool isTunLaunch = false)
     {
-        if (coreInfo?.CoreType == ECoreType.sing_box) {
-            var path = Utils.GetBinConfigPath(configPath);
-            if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
-                var log = root["log"] as JsonObject ?? new JsonObject();
-                log["level"] = "info"; log["disabled"] = false; log.Remove("output"); root["log"] = log;
-                await File.WriteAllTextAsync(path, root.ToJsonString());
-            }
-            if (Utils.IsWindows() && isTunLaunch) WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
-        }
         var environmentVars = new Dictionary<string, string>();
         foreach (var kv in coreInfo.Environment)
         {

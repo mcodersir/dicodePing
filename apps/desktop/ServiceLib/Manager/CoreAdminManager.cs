@@ -65,7 +65,11 @@ public class CoreAdminManager
             throw new Exception(ResUI.FailedToRunCore);
         }
         _linuxSudoPid = procService.Id;
-
+        try {
+            if (coreInfo.CoreType == ECoreType.sing_box) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
+        } catch {
+            await KillProcessAsLinuxSudo(); await procService.StopAsync(); procService.Dispose(); throw;
+        }
         return procService;
     }
 
