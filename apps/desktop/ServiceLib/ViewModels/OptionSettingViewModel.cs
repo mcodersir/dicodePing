@@ -22,10 +22,14 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
     [Reactive] public partial string DefUserAgent { get; set; }
     [Reactive] public partial string SendThrough { get; set; }
     [Reactive] public partial string BindInterface { get; set; }
+    [Reactive] public partial int? Mux4RayConcurrency { get; set; }
+    [Reactive] public partial int? Mux4RayXudpConcurrency { get; set; }
+    [Reactive] public partial string Mux4RayXudpProxyUDP443 { get; set; }
     [Reactive] public partial string Mux4SboxProtocol { get; set; }
     [Reactive] public partial bool EnableCacheFile4Sbox { get; set; }
     [Reactive] public partial int? HyUpMbps { get; set; }
     [Reactive] public partial int? HyDownMbps { get; set; }
+    [Reactive] public partial bool SniBlockBypass { get; set; }
     [Reactive] public partial bool EnableFragment { get; set; }
     [Reactive] public partial bool EnableFinalFragment { get; set; }
     [Reactive] public partial string FragmentPackets { get; set; }
@@ -37,6 +41,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
 
     #region UI
 
+    [Reactive] public partial bool AutoTestDefaultSubscription { get; set; }
     [Reactive] public partial bool AutoRun { get; set; }
     [Reactive] public partial bool EnableStatistics { get; set; }
     [Reactive] public partial bool KeepOlderDedupl { get; set; }
@@ -110,6 +115,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
     [Reactive] public partial string CoreType6 { get; set; }
     [Reactive] public partial string CoreType7 { get; set; }
     [Reactive] public partial string CoreType9 { get; set; }
+    [Reactive] public partial string CoreType14 { get; set; }
 
     #endregion CoreType
 
@@ -152,10 +158,14 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
         DefUserAgent = _config.CoreBasicItem.DefUserAgent;
         SendThrough = _config.CoreBasicItem.SendThrough ?? string.Empty;
         BindInterface = _config.CoreBasicItem.BindInterface ?? string.Empty;
+        Mux4RayConcurrency = _config.Mux4RayItem.Concurrency;
+        Mux4RayXudpConcurrency = _config.Mux4RayItem.XudpConcurrency;
+        Mux4RayXudpProxyUDP443 = _config.Mux4RayItem.XudpProxyUDP443 ?? string.Empty;
         Mux4SboxProtocol = _config.Mux4SboxItem.Protocol;
         EnableCacheFile4Sbox = _config.CoreBasicItem.EnableCacheFile4Sbox;
         HyUpMbps = _config.HysteriaItem.UpMbps;
         HyDownMbps = _config.HysteriaItem.DownMbps;
+        SniBlockBypass = _config.CoreBasicItem.SniBlockBypass;
         EnableFragment = _config.CoreBasicItem.EnableFragment;
         EnableFinalFragment = _config.CoreBasicItem.EnableFinalFragment;
         FragmentPackets = _config.Fragment4RayItem?.Packets;
@@ -167,6 +177,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
 
         #region UI
 
+        AutoTestDefaultSubscription = _config.GuiItem.AutoTestDefaultSubscription;
         AutoRun = _config.GuiItem.AutoRun;
         EnableStatistics = _config.GuiItem.EnableStatistics;
         DisplayRealTimeSpeed = _config.GuiItem.DisplayRealTimeSpeed;
@@ -277,6 +288,10 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
                 case 9:
                     CoreType9 = type;
                     break;
+
+                case 14:
+                    CoreType14 = type;
+                    break;
             }
         });
         await Task.CompletedTask;
@@ -327,10 +342,14 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
         _config.CoreBasicItem.DefUserAgent = DefUserAgent;
         _config.CoreBasicItem.SendThrough = SendThrough.TrimEx();
         _config.CoreBasicItem.BindInterface = BindInterface.TrimEx();
+        _config.Mux4RayItem.Concurrency = Mux4RayConcurrency > 0 ? Mux4RayConcurrency : null;
+        _config.Mux4RayItem.XudpConcurrency = Mux4RayXudpConcurrency > 0 ? Mux4RayXudpConcurrency : null;
+        _config.Mux4RayItem.XudpProxyUDP443 = Mux4RayXudpProxyUDP443.NullIfEmpty();
         _config.Mux4SboxItem.Protocol = Mux4SboxProtocol;
         _config.CoreBasicItem.EnableCacheFile4Sbox = EnableCacheFile4Sbox;
         _config.HysteriaItem.UpMbps = HyUpMbps ?? 0;
         _config.HysteriaItem.DownMbps = HyDownMbps ?? 0;
+        _config.CoreBasicItem.SniBlockBypass = SniBlockBypass;
         _config.CoreBasicItem.EnableFragment = EnableFragment;
         _config.CoreBasicItem.EnableFinalFragment = EnableFinalFragment;
         _config.Fragment4RayItem ??= new();
@@ -339,6 +358,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
         _config.Fragment4RayItem.Delays = fragmentDelays;
         _config.Fragment4RayItem.MaxSplit = FragmentMaxSplit;
 
+        _config.GuiItem.AutoTestDefaultSubscription = AutoTestDefaultSubscription;
         _config.GuiItem.AutoRun = AutoRun;
         _config.GuiItem.EnableStatistics = EnableStatistics;
         _config.GuiItem.DisplayRealTimeSpeed = DisplayRealTimeSpeed;
@@ -440,6 +460,10 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
 
                 case 9:
                     type = CoreType9;
+                    break;
+
+                case 14:
+                    type = CoreType14;
                     break;
 
                 default:

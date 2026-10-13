@@ -33,6 +33,7 @@ public static class CoreConfigHandler
         {
             return result;
         }
+        if (result.Data is string content) result.Data = EntryHopConfiguration.Apply(content, context);
         if (fileName.IsNotEmpty() && result.Data != null)
         {
             await File.WriteAllTextAsync(fileName, result.Data.ToString());
@@ -71,6 +72,20 @@ public static class CoreConfigHandler
             File.Copy(addressFileName, fileName);
             File.SetAttributes(fileName, FileAttributes.Normal); //Copy will keep the attributes of addressFileName, so we need to add write permissions to fileName just in case of addressFileName is a read-only file.
 
+            if (node.CoreType is null or ECoreType.Xray && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject root)
+            {
+                root.Remove("dicodeFox");
+                if (config.GuiItem.EnableStatistics || config.GuiItem.DisplayRealTimeSpeed || FoxProfiles.Read(node) is not null)
+                {
+                    root["stats"] = new JsonObject();
+                    root["metrics"] = new JsonObject { ["listen"] = $"{Global.Loopback}:{AppManager.Instance.StatePort}" };
+                    var policy = root["policy"] as JsonObject ?? new JsonObject();
+                    var system = policy["system"] as JsonObject ?? new JsonObject();
+                    system["statsOutboundUplink"] = true; system["statsOutboundDownlink"] = true;
+                    policy["system"] = system; root["policy"] = policy;
+                }
+                await File.WriteAllTextAsync(fileName, root.ToJsonString());
+            }
             ApplyDomainFilterToCustomConfig(config, fileName);
 
             //check again
@@ -188,7 +203,13 @@ public static class CoreConfigHandler
         var port = Utils.GetFreePort(initPort + testItem.QueueNum);
         testItem.Port = port;
 
-        if (context.RunCoreType == ECoreType.sing_box)
+        if (context.Node.ConfigType == EConfigType.Custom)
+        {
+            var source = context.Node.Address;
+            if (!File.Exists(source)) source = Utils.GetConfigPath(source);
+            result = new RetResult { Success = true, Data = CustomProbeConfiguration.Build(await File.ReadAllTextAsync(source), context.RunCoreType, port) };
+        }
+        else if (context.RunCoreType == ECoreType.sing_box)
         {
             result = new CoreConfigSingboxService(context).GenerateClientSpeedtestConfig(port);
         }
@@ -201,6 +222,7 @@ public static class CoreConfigHandler
             return result;
         }
 
+        result.Data = EntryHopConfiguration.Apply(result.Data.ToString(), context);
         await File.WriteAllTextAsync(fileName, result.Data.ToString());
         return result;
     }

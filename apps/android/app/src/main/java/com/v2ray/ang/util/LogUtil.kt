@@ -7,7 +7,7 @@ import java.util.Locale
 
 object LogUtil {
 
-    private const val DEFAULT_LEVEL = "warning"
+    private const val DEFAULT_LEVEL = "info"
     private const val CACHE_UNSET = Int.MIN_VALUE
 
     @Volatile

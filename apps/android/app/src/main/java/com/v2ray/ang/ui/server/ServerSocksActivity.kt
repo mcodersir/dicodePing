@@ -13,7 +13,7 @@ class ServerSocksActivity : BaseServerActivity() {
     override val serverConfigType: EConfigType = EConfigType.SOCKS
 
     @Composable
-    override fun ScreenContent() {
+    override fun EditorContent() {
         val scope = rememberCoroutineScope()
         val uiState = rememberSaveable(saver = ServerUiState.Saver) {
             ServerUiState.from(
@@ -29,6 +29,8 @@ class ServerSocksActivity : BaseServerActivity() {
         ) {
             CommonBasicFields(uiState)
             SocksProtocolFields(uiState)
+            CommonDialModeField(uiState)
+            CommonTargetStrategyField(uiState)
 
         }
     }
