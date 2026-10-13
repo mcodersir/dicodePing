@@ -47,6 +47,7 @@ class FoxNativeTest {
                 val header = StringBuilder()
                 while (!header.endsWith("\r\n\r\n") && header.length < 8192) header.append(input.readUnsignedByte().toChar())
                 check(header.startsWith("GET ")); requests.incrementAndGet()
+                Thread.sleep(25) // Keep the measured success distinguishable from a zero/error result.
                 output.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK".toByteArray()); output.flush()
             }
         }
