@@ -203,7 +203,7 @@ public class CoreManager
     private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem, CancellationToken token)
     {
         // An isolated test owns its inbound/helper port, never the active profile's 7854 or remote server port.
-        testItem.Port = Utils.GetFreePort();
+        testItem.Port = Utils.GetFreePort(AppManager.Instance.GetLocalPort(EInboundProtocol.speedtest) + testItem.QueueNum);
         var node = testItem.Profile;
         if (node is null)
         {

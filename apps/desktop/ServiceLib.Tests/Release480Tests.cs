@@ -4,6 +4,22 @@ namespace ServiceLib.Tests;
 public class Release480Tests
 {
     [Fact]
+    public async Task RejectedFoxProbeGetsAnIndependentPortAndLeavesTheActiveEndpointAvailable()
+    {
+        var config = CoreConfigTestFactory.CreateConfig(); CoreConfigTestFactory.BindAppManagerConfig(config);
+        var active = new TcpListener(IPAddress.Loopback, FoxProfiles.LocalPort); active.Start();
+        try {
+            var node = new ProfileItem { ConfigType = EConfigType.SOCKS, CoreType = ECoreType.sing_box, Address = "127.0.0.1", Port = FoxProfiles.LocalPort };
+            node.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = Guid.NewGuid().ToString("N"), FoxCountry = "REC" });
+            var item = new ServerTestItem { Profile = node, ConfigType = EConfigType.SOCKS, Port = FoxProfiles.LocalPort };
+            var error = await Assert.ThrowsAsync<FoxException>(() => CoreManager.Instance.LoadCoreConfigSpeedtest(item));
+            Assert.Equal("login_required", error.Code); Assert.NotEqual(FoxProfiles.LocalPort, item.Port); Assert.InRange(item.Port, 1, 65535);
+            Assert.Equal(FoxProfiles.LocalPort, node.Port);
+            using var client = new TcpClient(); await client.ConnectAsync(IPAddress.Loopback, FoxProfiles.LocalPort);
+            using var accepted = await active.AcceptTcpClientAsync(); Assert.True(accepted.Connected);
+        } finally { active.Stop(); }
+    }
+    [Fact]
     public void SmallTrafficSamplesAreRecordedWithoutRoundingAwayEverySecond()
     {
         var counter = new ServiceLib.Services.Statistics.TrafficKiBAccumulator(); long up = 0, down = 0;
