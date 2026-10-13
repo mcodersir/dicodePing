@@ -33,6 +33,7 @@ public static class CoreConfigHandler
         {
             return result;
         }
+        if (result.Data is string content) result.Data = EntryHopConfiguration.Apply(content, context);
         if (fileName.IsNotEmpty() && result.Data != null)
         {
             await File.WriteAllTextAsync(fileName, result.Data.ToString());
@@ -71,6 +72,7 @@ public static class CoreConfigHandler
             File.Copy(addressFileName, fileName);
             File.SetAttributes(fileName, FileAttributes.Normal); //Copy will keep the attributes of addressFileName, so we need to add write permissions to fileName just in case of addressFileName is a read-only file.
 
+            if (FoxProfiles.Read(node) is not null && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject foxRoot) { foxRoot.Remove("dicodeFox"); await File.WriteAllTextAsync(fileName, foxRoot.ToJsonString()); }
             ApplyDomainFilterToCustomConfig(config, fileName);
 
             //check again
@@ -188,7 +190,13 @@ public static class CoreConfigHandler
         var port = Utils.GetFreePort(initPort + testItem.QueueNum);
         testItem.Port = port;
 
-        if (context.RunCoreType == ECoreType.sing_box)
+        if (context.Node.ConfigType == EConfigType.Custom)
+        {
+            var source = context.Node.Address;
+            if (!File.Exists(source)) source = Utils.GetConfigPath(source);
+            result = new RetResult { Success = true, Data = CustomProbeConfiguration.Build(await File.ReadAllTextAsync(source), context.RunCoreType, port) };
+        }
+        else if (context.RunCoreType == ECoreType.sing_box)
         {
             result = new CoreConfigSingboxService(context).GenerateClientSpeedtestConfig(port);
         }
@@ -201,6 +209,7 @@ public static class CoreConfigHandler
             return result;
         }
 
+        result.Data = EntryHopConfiguration.Apply(result.Data.ToString(), context);
         await File.WriteAllTextAsync(fileName, result.Data.ToString());
         return result;
     }

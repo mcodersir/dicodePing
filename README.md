@@ -1,225 +1,29 @@
-# DicodePing 4
+# DicodePing 4.7.0
 
-<div align="center">
-<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/cf8274f6-8361-4c79-b6f3-8e29e435c85d" />
+کلاینت اتصال برای **Windows، Linux، macOS و Android**، همراه نسخهٔ مستقل **CLI**. پروفایل‌ها را مدیریت کنید، کیفیت مسیر را با درخواست واقعی بسنجید و از فهرست سرورها متصل شوید.
 
-> وضعیت: `3.0.5` — نسخهٔ پایدار کلاینت مستقل TUN-only برای Windows، Linux، macOS و Android.
+**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۷.۰](docs/RELEASE-4.7.0.md)** · **[راهنمای CLI](docs/CLI.md)**
 
-### یک کلاینت هوشمند Xray برای تست، رتبه‌بندی و استفاده واقعی از کانفیگ‌ها
+## روباه 🦊
 
-**Windows • Linux • macOS • Android**
+از آیکون روباه بالای برنامه وارد شوید و حساب Mozilla خود را اضافه کنید. برای هر حساب یک ساب با یک پروفایل ساخته می‌شود؛ تازه‌سازی همان پروفایل را به‌روز می‌کند. ورود، تأیید کد، انتخاب کشور و نمایش سهمیهٔ گزارش‌شدهٔ سرویس در اندروید، دسکتاپ و CLI پشتیبانی می‌شوند.
 
-[![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+رمز عبور ذخیره نمی‌شود؛ نشست‌ها به‌صورت رمزگذاری‌شده روی دستگاه می‌مانند. انتخاب بین حساب‌های خودتان دستی است. ساب حذف‌شده به‌صورت خودکار برنمی‌گردد.
 
-</div>
+روباه اتصال غیررسمی Firefox VPN است. مجوز و سهمیه را Mozilla تعیین می‌کند و اتصال تضمین‌شده نیست. TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود.
 
----
+## اتصال و آزمون
 
-## معرفی
+- مدیریت پروفایل‌ها و ساب‌ها با رابط فارسی و انگلیسی، تم روشن و تیره.
+- پینگ واقعی، موقعیت IP خروجی و مرتب‌سازی مسیرهای موفق پیش از ناموفق‌ها.
+- آماده‌سازی ساب پیش‌فرض قبل از خانه، در صورت فعال بودن آن و تنظیم مربوطه.
+- بسته‌های دسکتاپ و CLI همراه Xray، sing-box، Mihomo و ابزارهای اتصال لازم.
+- برنامهٔ اندروید با APKهای امضاشده برای چهار معماری و Universal.
 
-**DicodePing** یک کلاینت چندسکویی مبتنی بر Xray است که برای بررسی کیفیت واقعی کانفیگ‌ها، اسکن هم‌زمان، مدیریت اتصال و اجرای تونل امن طراحی شده است.
+**ویندوز ۱۰ یا جدیدتر، ۶۴ بیتی** برای بستهٔ Windows لازم است. TUN به مجوز سیستم عامل نیاز دارد. روش روباه با اعتبارسنجی TLS و آزمون واقعی مسیر شروع می‌شود و در صورت خرابی به مسیر مستقیم پنهانی تغییر نمی‌کند.
 
-برخلاف ابزارهایی که فقط IP سرور را Ping می‌کنند، DicodePing مسیر واقعی ترافیک را بررسی می‌کند؛ یعنی هر کانفیگ از داخل تونل خودش تست می‌شود تا مشخص شود آیا واقعاً توانایی عبور ترافیک دارد یا خیر.
+## توسعه و مجوز
 
-> نسخه فعلی: **3.0.5**
-> کلاینت مستقل با معماری **TUN-only** برای Desktop و Android
+برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه از سورس همین نسخه در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.7.0.json` ثبت شده‌اند.
 
----
-
-# چرا پینگ DicodePing واقعی است؟
-
-بسیاری از ابزارها برای نمایش سرعت کانفیگ فقط یک ICMP Ping یا زمان اتصال TCP به IP سرور را اندازه‌گیری می‌کنند. این مقدار معمولاً کیفیت واقعی یک تونل را نشان نمی‌دهد.
-
-DicodePing برای هر کانفیگ یک مسیر مستقل Xray ایجاد می‌کند و سپس از داخل همان تونل، درخواست واقعی ارسال می‌کند.
-
-نتیجه بر اساس چند معیار محاسبه می‌شود:
-
-* **Median**
-  زمان میانه درخواست کامل از داخل تونل
-
-* **Jitter**
-  میزان نوسان بین تست‌ها
-
-* **Loss**
-  درصد درخواست‌های ناموفق
-
-* **Score**
-  امتیاز ترکیبی پایداری و سرعت
-
-این روش نسبت به Fake Ping زمان بیشتری نیاز دارد، اما نتیجه آن نشان می‌دهد یک کانفیگ در شرایط واقعی شبکه چگونه عمل می‌کند.
-
----
-
-# قابلیت‌ها
-
-## اسکن و مدیریت کانفیگ
-
-* پشتیبانی از:
-
-  * VMess
-  * VLESS
-  * Trojan
-  * Shadowsocks
-  * SOCKS
-  * HTTP
-  * Hysteria2
-
-* Import مستقیم لینک و Subscription
-
-* اسکن هم‌زمان تعداد زیادی کانفیگ
-
-* حذف خودکار موارد تکراری
-
-* مرتب‌سازی بر اساس کیفیت واقعی اتصال
-
-* محاسبه سرعت، پایداری و وضعیت هر کانفیگ
-
----
-
-## پشتیبانی کامل Xray
-
-پشتیبانی از:
-
-* REALITY
-* TLS
-* WebSocket
-* gRPC
-* HTTPUpgrade
-* XHTTP
-
-همراه با اعتبارسنجی TLS و جلوگیری از فعال بودن تنظیمات ناامن به‌صورت پیش‌فرض.
-
----
-
-# Desktop Client
-
-پشتیبانی از:
-
-* Windows
-* Linux
-* macOS
-
-ویژگی‌ها:
-
-* معماری مستقل Avalonia/.NET
-* اجرای TUN بدون نیاز به کلاینت‌های جانبی
-* اجرای Administrator برای مدیریت شبکه
-* کنترل کامل Proxy و اتصال
-* نمایش Log و وضعیت لحظه‌ای
-
----
-
-# Android Client
-
-نسخه Android بر پایه:
-
-* Android VpnService
-* libv2ray
-* hev-socks5-tunnel
-
-ساخته شده است.
-
-ویژگی‌ها:
-
-* اجرای مستقیم تونل VPN
-* مصرف بهینه منابع
-* مدیریت اتصال در پس‌زمینه
-* سازگار با ساختار AndroidLibXrayLite
-
-راهنمای ساخت:
-
-[Android Build Guide](https://github.com/mcodersir/dicodePing/blob/main/docs/ANDROID.md)
-
----
-
-# Subscription پیش‌فرض
-
-DicodePing به‌صورت پیش‌فرض منبع رسمی DicodeConfigChecker را دارد:
-
-```text
-https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt
-```
-
-منابع اضافه‌شده توسط کاربر مستقل هستند و این منبع را حذف یا جایگزین نمی‌کنند.
-
----
-
-# نصب و دریافت
-
-آخرین نسخه‌ها:
-
-[Download Releases](https://github.com/mcodersir/dicodePing/releases)
-
-نسخه‌های منتشرشده شامل:
-
-* Desktop Builds
-* Android APK
-* فایل‌های وابسته Xray
-* بررسی SHA-256 فایل‌های runtime
-
----
-
-
-# معماری
-
-مستندات فنی:
-
-* [Architecture](https://github.com/mcodersir/dicodePing/blob/main/docs/ARCHITECTURE.md)
-
-* [Real Ping Model](https://github.com/mcodersir/dicodePing/blob/main/docs/REAL_PING.md)
-
-* [Security](https://github.com/mcodersir/dicodePing/blob/main/SECURITY.md)
-
-* [Privacy](https://github.com/mcodersir/dicodePing/blob/main/PRIVACY.md)
-
-* [Third Party Notices](https://github.com/mcodersir/dicodePing/blob/main/THIRD_PARTY_NOTICES.md)
-
----
-
-# امنیت و حریم خصوصی
-
-DicodePing:
-
-* اطلاعات کانفیگ‌ها را به سرور خارجی ارسال نمی‌کند.
-* تست‌ها را از مسیر واقعی هر کانفیگ انجام می‌دهد.
-* اجرای TLS ناامن را به‌صورت پیش‌فرض فعال نمی‌کند.
-* اجزای runtime را با checksum بررسی می‌کند.
-
----
-
-# License
-
-این پروژه تحت مجوز:
-
-```
-GPL-3.0-or-later
-```
-
-منتشر شده است.
-
-بخش Android از پروژه‌های متن‌باز مرتبط با v2rayNG/PattNG مشتق شده و attribution کامل در فایل:
-
-```
-THIRD_PARTY_NOTICES.md
-```
-
-قرار دارد.
-
-Xray-core به‌صورت runtime جداگانه و تحت مجوز:
-
-```
-MPL-2.0
-```
-
-استفاده می‌شود.
-
----
-
-<div align="center">
-
-ساخته شده با تمرکز روی تست واقعی شبکه و تجربه ساده کاربر
-
-**DicodePing**
-
-</div>
+DicodePing تحت [GPL-3.0](LICENSE) منتشر می‌شود. مجوز اجزای مستقل و وابستگی‌ها همراه آن‌ها حفظ شده است. اقتباس پروتکل FoxyVPN تحت MIT انجام شده؛ [مجوز](apps/fox-helper/LICENSE-FoxyVPN.txt) و [توضیح](apps/fox-helper/NOTICE.md) همراه بستهٔ روباه قرار دارند. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.

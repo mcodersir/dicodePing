@@ -26,7 +26,7 @@ public class CoreAdminManager
 
     private async Task UpdateFunc(bool notify, string msg)
     {
-        await _updateFunc?.Invoke(notify, msg);
+        await (_updateFunc?.Invoke(notify, msg) ?? Task.CompletedTask);
     }
 
     public async Task<ProcessService?> RunProcessAsLinuxSudo(string fileName, CoreInfo coreInfo, string configPath)

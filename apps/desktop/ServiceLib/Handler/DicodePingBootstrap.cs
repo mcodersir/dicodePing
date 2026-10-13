@@ -1,38 +1,37 @@
 namespace ServiceLib.Handler;
 
-/// <summary>
-/// Supplies the single first-run subscription and removes the old placeholder named
-/// "Default". Network work is intentionally left to the UI startup task so launching
-/// the client never blocks on an unreachable subscription endpoint.
-/// </summary>
+/// <summary>Idempotent built-in subscription migration; user subscriptions keep their identity.</summary>
 public static class DicodePingBootstrap
 {
-    public const string DefaultSubscriptionUrl =
-        "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt";
+    public const string DefaultSubscriptionUrl = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt";
+    public const string SecondarySubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt";
+    public const string LegacySourcesUrl = "https://dicodeping.local/dicode-spo/sources";
 
-    public static async Task EnsureDefaultsAsync(Config config)
+    public static async Task EnsureDefaultsAsync(Config config, bool freshInstall = false)
     {
         var subscriptions = await AppManager.Instance.SubItems() ?? [];
-
-        foreach (var obsolete in subscriptions.Where(item =>
-                     string.Equals(item.Remarks, "Default", StringComparison.OrdinalIgnoreCase)))
-        {
-            await ConfigHandler.DeleteSubItem(config, obsolete.Id);
-        }
+        foreach (var item in subscriptions.Where(item =>
+                     string.Equals(item.Url, LegacySourcesUrl, StringComparison.OrdinalIgnoreCase)
+                     || (item.Remarks?.StartsWith("DicodeSpo", StringComparison.OrdinalIgnoreCase) ?? false)))
+            await ConfigHandler.DeleteSubItem(config, item.Id);
 
         subscriptions = await AppManager.Instance.SubItems() ?? [];
-        if (subscriptions.Any(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
+        var checker = subscriptions.FirstOrDefault(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
+        if (checker is null && !freshInstall) return;
+        checker ??= new SubItem { Id = string.Empty, Enabled = true, AutoUpdateInterval = 1 };
+        ConfigurePrimarySubscription(checker);
+        await ConfigHandler.AddSubItem(config, checker);
+    }
 
-        await ConfigHandler.AddSubItem(config, new SubItem
-        {
-            Id = string.Empty,
-            Remarks = "Dicode Config Checker",
-            Url = DefaultSubscriptionUrl,
-            Enabled = true,
-            AutoUpdateInterval = 1,
-        });
+    public static bool ShouldPrepare(Config config, SubItem? primary) =>
+        config.GuiItem.AutoTestDefaultSubscription && primary?.Enabled == true;
+
+    public static void ConfigurePrimarySubscription(SubItem checker)
+    {
+        checker.Remarks = "Dicode Config Checker";
+        checker.Url = DefaultSubscriptionUrl;
+        checker.Sort = 0;
+        checker.MoreUrl = string.Join(",", (checker.MoreUrl ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Append(SecondarySubscriptionUrl).Distinct(StringComparer.OrdinalIgnoreCase));
     }
 }

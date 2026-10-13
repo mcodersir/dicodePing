@@ -1,0 +1,90 @@
+<UserControl
+    x:Class="v2rayN.Desktop.Views.SanctionsServicesView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:resx="clr-namespace:ServiceLib.Resx;assembly=ServiceLib"
+    xmlns:vm="clr-namespace:ServiceLib.ViewModels;assembly=ServiceLib"
+    x:DataType="vm:SanctionsServicesViewModel"
+    d:DesignHeight="560"
+    d:DesignWidth="760"
+    mc:Ignorable="d">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="14">
+        <StackPanel Spacing="6">
+            <TextBlock FontSize="24" FontWeight="SemiBold" Text="{x:Static resx:ResUI.DicodeSanctionsServices}" />
+            <TextBlock Opacity="0.72" Text="{x:Static resx:ResUI.DicodeSanctionsServicesDesc}" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+            <Button x:Name="btnAdd" Content="{x:Static resx:ResUI.DicodeSanctionsAddService}" />
+            <Button
+                Grid.Column="1"
+                x:Name="btnEnableAll"
+                Content="{x:Static resx:ResUI.DicodeSanctionsEnableAll}" />
+            <TextBox
+                Grid.Column="2"
+                x:Name="txtSearch"
+                MinWidth="220"
+                VerticalContentAlignment="Center"
+                PlaceholderText="{x:Static resx:ResUI.DicodeSanctionsSearch}"
+                Text="{Binding SearchText, Mode=TwoWay}" />
+            <Button
+                Grid.Column="3"
+                x:Name="btnReset"
+                Content="{x:Static resx:ResUI.DicodeSanctionsResetDefaults}" />
+        </Grid>
+
+        <Border Grid.Row="2" Classes="DicodeCard" Padding="10">
+            <ScrollViewer>
+                <ItemsControl x:Name="lstRows">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SanctionServiceRow">
+                            <Border
+                                Margin="0,2"
+                                Padding="10,8"
+                                Background="{DynamicResource DicodeSurfaceElevated}"
+                                BorderBrush="{DynamicResource DicodeBorder}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                                <Grid ColumnDefinitions="Auto,1.1*,2*,Auto,Auto" ColumnSpacing="10">
+                                    <CheckBox
+                                        MinWidth="0"
+                                        VerticalAlignment="Center"
+                                        IsChecked="{Binding Enabled}" />
+                                    <TextBox
+                                        Grid.Column="1"
+                                        VerticalContentAlignment="Center"
+                                        Text="{Binding Name}"
+                                        PlaceholderText="YouTube" />
+                                    <TextBox
+                                        Grid.Column="2"
+                                        VerticalContentAlignment="Center"
+                                        Text="{Binding Url}"
+                                        PlaceholderText="https://www.youtube.com/" />
+                                    <CheckBox
+                                        Grid.Column="3"
+                                        MinWidth="0"
+                                        VerticalAlignment="Center"
+                                        IsChecked="{Binding Strict}" />
+                                    <Button
+                                        Grid.Column="4"
+                                        MinWidth="36"
+                                        Padding="8,4"
+                                        Command="{Binding $parent[ItemsControl].((vm:SanctionsServicesViewModel)DataContext).DeleteRowCmd}"
+                                        CommandParameter="{Binding}"
+                                        Content="✕" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="3" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="10">
+            <Button x:Name="btnCancel" Content="{x:Static resx:ResUI.DicodeCancel}" />
+            <Button x:Name="btnSave" Content="{x:Static resx:ResUI.DicodeSaveApply}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

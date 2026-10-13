@@ -14,10 +14,12 @@ public class CoreManager
 
     private ProcessService? _processService;
     private ProcessService? _processPreService;
+    private ProcessService? _foxProcess;
     private string? _activeConfigHash;
     private int _intentionalStopDepth;
     private bool _linuxSudo = false;
     private Func<bool, string, Task>? _updateFunc;
+    private readonly SemaphoreSlim _probeLaunchLock = new(1, 1);
     private const string _tag = "CoreHandler";
 
     public bool IsRunning => _processService is { HasExited: false };
@@ -35,7 +37,7 @@ public class CoreManager
             var toPath = Utils.GetBinPath("");
             if (fromPath != toPath)
             {
-                FileUtils.CopyDirectory(fromPath, toPath, true, false);
+                await BundledRuntimeInstaller.InstallAsync(fromPath, toPath, Utils.GetVersionInfo());
             }
         }
 
@@ -84,8 +86,9 @@ public class CoreManager
             return;
         }
 
-        var generatedConfigHash = Convert.ToHexString(
-            SHA256.HashData(await File.ReadAllBytesAsync(fileName)));
+        var fox = FoxProfiles.Read(mainContext.Node);
+        var generatedConfigHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            await File.ReadAllTextAsync(fileName) + (fox is null ? "" : $"|fox:{fox.AccountId}:{fox.Country}"))));
         if (IsRunning && string.Equals(_activeConfigHash, generatedConfigHash, StringComparison.Ordinal))
         {
             Logging.SaveLog("CoreHandler: identical generated configuration; keeping the active TUN process.");
@@ -95,16 +98,19 @@ public class CoreManager
         await UpdateFunc(false, $"{node.GetSummary()}");
         await UpdateFunc(false, $"{Utils.GetRuntimeInfo()}");
         await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
-        await CoreStop();
+        await CoreStop(keepEntryHop: true);
+        await EntryHopService.EnsureReadyAsync(mainContext);
         await Task.Delay(250);
 
-        if (Utils.IsWindows() && (mainContext?.IsTunEnabled == true || preContext?.IsTunEnabled == true))
-        {
-            await Task.Delay(100);
-            await WindowsUtils.RemoveTunDevice();
+        if (fox is not null) {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token);
+            _foxProcess = helper;
+            helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code); };
         }
-
         await CoreStart(mainContext);
+        if (_processService is null) { await CoreStop(); return; }
+        if (_foxProcess is { HasExited: true }) { await CoreStop(); throw new FoxException("helper", "Firefox proxy stopped during startup"); }
         await WaitForProxyPort(preContext);
         await CoreStartPreService(preContext);
 
@@ -119,6 +125,51 @@ public class CoreManager
 
     public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
     {
+        await _probeLaunchLock.WaitAsync();
+        try { return await ReadyProbe(await StartProbeBatch(selecteds), selecteds.Where(x => x.AllowTest).Select(x => x.Port)); }
+        finally { _probeLaunchLock.Release(); }
+    }
+
+    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem item, CancellationToken token = default)
+    {
+        await _probeLaunchLock.WaitAsync(token);
+        try { return await ReadyProbe(await StartProbeItem(item, token), [item.Port], token); }
+        finally { _probeLaunchLock.Release(); }
+    }
+
+    private static async Task<ProcessService?> ReadyProbe(ProcessService? process, IEnumerable<int> ports, CancellationToken token = default)
+    {
+        if (process is null) return null;
+        var portList = ports.ToList();
+        try
+        {
+            foreach (var port in portList)
+            {
+                var ready = false;
+                for (var attempt = 0; attempt < 100 && !process.HasExited; attempt++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        using var client = new TcpClient();
+                        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        deadline.CancelAfter(TimeSpan.FromMilliseconds(150));
+                        await client.ConnectAsync(Global.Loopback, port, deadline.Token);
+                        ready = true; break;
+                    }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                    catch (Exception) { await Task.Delay(50, token); }
+                }
+                if (!ready) { await process.StopAsync(); process.Dispose(); return null; }
+            }
+            return process;
+        }
+        catch { await process.StopAsync(); process.Dispose(); throw; }
+    }
+
+    private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
+    {
+        if (selecteds.Any(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile))) return null;
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
@@ -133,20 +184,26 @@ public class CoreManager
         await UpdateFunc(false, configPath);
 
         var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
+        var process = await RunProcess(coreInfo, fileName, true, false);
+        if (process is not null) process.TemporaryConfigPath = configPath;
+        else if (File.Exists(configPath)) File.Delete(configPath);
+        return process;
     }
 
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(ServerTestItem testItem)
+    private async Task<ProcessService?> StartProbeItem(ServerTestItem testItem, CancellationToken token)
     {
-        var node = await AppManager.Instance.GetProfileItem(testItem.IndexId);
+        var node = testItem.Profile;
         if (node is null)
         {
             return null;
         }
 
+        if (FoxProfiles.Read(node) is { } fox)
+            return await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, testItem.Port, token);
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
         var (context, _) = await CoreConfigContextBuilder.Build(_config, node);
+        await EntryHopService.EnsureReadyAsync(context, token);
         var result = await CoreConfigHandler.GenerateClientSpeedtestConfig(_config, context, testItem, configPath);
         if (result.Success != true)
         {
@@ -155,11 +212,15 @@ public class CoreManager
 
         var coreType = context.RunCoreType;
         var coreInfo = CoreInfoManager.Instance.GetCoreInfo(coreType);
-        return await RunProcess(coreInfo, fileName, true, false);
+        var process = await RunProcess(coreInfo, fileName, true, false);
+        if (process is not null) process.TemporaryConfigPath = configPath;
+        else if (File.Exists(configPath)) File.Delete(configPath);
+        return process;
     }
 
-    public async Task CoreStop()
+    public async Task CoreStop(bool keepEntryHop = false)
     {
+        if (!keepEntryHop) await EntryHopService.StopAsync();
         Interlocked.Increment(ref _intentionalStopDepth);
         try
         {
@@ -182,6 +243,7 @@ public class CoreManager
                 _processPreService.Dispose();
                 _processPreService = null;
             }
+            if (_foxProcess is not null) { await _foxProcess.StopAsync(); _foxProcess.Dispose(); _foxProcess = null; }
             _activeConfigHash = null;
         }
         catch (Exception ex)
@@ -238,19 +300,33 @@ public class CoreManager
                 var proc = await RunProcess(coreInfo, Global.CorePreConfigFileName, true, true, preContext.IsTunEnabled);
                 if (proc is null)
                 {
-                    return;
+                    await CoreStop();
+                    throw new IOException("Could not start the proxy/TUN bridge");
                 }
                 _processPreService = proc;
+                proc.Exited += code => {
+                    if (ReferenceEquals(_processPreService, proc) && !proc.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0)
+                        _ = StopAfterBridgeFailureAsync(code);
+                };
             }
         }
     }
 
-    private async Task UpdateFunc(bool notify, string msg)
+    private async Task StopAfterBridgeFailureAsync(int code)
     {
-        await _updateFunc?.Invoke(notify, msg);
+        try {
+            Logging.SaveLog($"CoreHandler: proxy/TUN bridge exited with code {code}; stopping the full chain.");
+            await CoreStop();
+            if (UnexpectedExit is { } handler) await handler(code);
+        } catch (Exception error) { Logging.SaveLog("Bridge failure cleanup", error); }
     }
 
-    private static async Task WaitForProxyPort(CoreConfigContext? preContext, int timeoutMs = 5000)
+    private async Task UpdateFunc(bool notify, string msg)
+    {
+        await (_updateFunc?.Invoke(notify, msg) ?? Task.CompletedTask);
+    }
+
+    private static async Task WaitForProxyPort(CoreConfigContext? preContext)
     {
         if (preContext is null)
         {
@@ -261,7 +337,7 @@ public class CoreManager
             return;
         }
 
-        using var rootCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeoutMs));
+        using var rootCts = new CancellationTokenSource(Global.LocalFetch);
         var rootToken = rootCts.Token;
 
         var port = preContext.Node.Port;
@@ -338,7 +414,9 @@ public class CoreManager
 
     private async Task<ProcessService?> RunProcess(CoreInfo? coreInfo, string configPath, bool displayLog, bool mayNeedSudo, bool isTunLaunch = false)
     {
-        var fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out var msg);
+        string fileName; string msg;
+        try { fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out msg); }
+        catch (Exception error) { await UpdateFunc(mayNeedSudo, error.Message); return null; }
         if (fileName.IsNullOrEmpty())
         {
             await UpdateFunc(false, msg);
@@ -347,8 +425,10 @@ public class CoreManager
 
         try
         {
+            NativeLaunchPolicy.Validate(fileName);
             if (mayNeedSudo
-                && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows()))
+                && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())
+                && !Utils.IsAdministrator())
             {
                 _linuxSudo = true;
                 await CoreAdminManager.Instance.Init(_config, _updateFunc);
@@ -359,8 +439,10 @@ public class CoreManager
         }
         catch (Exception ex)
         {
-            Logging.SaveLog(_tag, ex);
-            await UpdateFunc(mayNeedSudo, ex.Message);
+            if (NativeLaunchPolicy.RecordLoaderFailure(fileName, ex)) {
+                Logging.SaveLog("Core loader rejected the executable; automatic repeated launches disabled.");
+                try { NativeLaunchPolicy.Validate(fileName); } catch (Exception failure) { await UpdateFunc(mayNeedSudo, failure.Message); }
+            } else await UpdateFunc(mayNeedSudo, ex.Message);
             return null;
         }
     }
@@ -373,11 +455,39 @@ public class CoreManager
             environmentVars[kv.Key] = string.Format(kv.Value, coreInfo.AbsolutePath ? Utils.GetBinConfigPath(configPath).AppendQuotes() : configPath);
         }
 
+        // Belt and braces: some cores resolve geo assets next to their own exe even
+        // though XRAY_LOCATION_ASSET points at bin/. Copy the files down so a missing
+        // asset can never be the reason a core dies on startup.
+        try
+        {
+            var coreDir = Path.GetDirectoryName(fileName);
+            if (!coreDir.IsNullOrEmpty())
+            {
+                foreach (var geo in new[] { "geoip.dat", "geosite.dat" })
+                {
+                    var source = Utils.GetBinPath(geo);
+                    var target = Path.Combine(coreDir, geo);
+                    if (File.Exists(source) && Path.GetFullPath(source) != Path.GetFullPath(target)
+                        && (!File.Exists(target) || new FileInfo(source).Length != new FileInfo(target).Length
+                            || File.GetLastWriteTimeUtc(source) > File.GetLastWriteTimeUtc(target)))
+                    {
+                        File.Copy(source, target, true);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Copy geo assets", ex);
+        }
+
         var procService = new ProcessService(
             fileName: fileName,
             arguments: string.Format(coreInfo.Arguments, coreInfo.AbsolutePath ? Utils.GetBinConfigPath(configPath).AppendQuotes() : configPath),
             workingDirectory: Utils.GetBinConfigPath(),
-            displayLog: displayLog,
+            // Always capture output: the gui log must contain the core's own
+            // diagnostics, otherwise "see the report" points at an empty page.
+            displayLog: true,
             redirectInput: false,
             environmentVars: environmentVars,
             updateFunc: _updateFunc
@@ -389,7 +499,9 @@ public class CoreManager
 
         if (procService is null or { HasExited: true })
         {
-            throw new Exception(ResUI.FailedToRunCore);
+            var recent = procService?.RecentOutput;
+            procService?.Dispose();
+            throw new Exception(ResUI.FailedToRunCore + (recent.IsNullOrEmpty() ? string.Empty : Environment.NewLine + recent));
         }
         AddProcessJob(procService.Handle);
 
