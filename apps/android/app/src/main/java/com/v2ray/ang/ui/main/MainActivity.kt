@@ -336,7 +336,7 @@ class MainActivity : HelperBaseComponentActivity() {
         val node = com.v2ray.ang.handler.MmkvManager.decodeServerConfig(guid)
         val managedFox = com.v2ray.ang.core.FoxAccounts.profile(node) != null ||
             com.v2ray.ang.handler.MmkvManager.decodeServerRaw(guid)?.let { com.v2ray.ang.core.FoxAccounts.profile(it) } != null
-        if (managedFox) {
+        if (managedFox && (guid != selected || !com.v2ray.ang.core.CoreServiceManager.isServiceRunning())) {
             LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
         } else if (guid != selected) {
             LauncherManager.restartService(this)
