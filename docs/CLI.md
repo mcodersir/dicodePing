@@ -34,3 +34,6 @@ Snell، AnyTLS، SSH، OpenVPN و Cisco/OpenConnect از طریق JSON بومی 
 - `fox remove <id>`: delete the local account and its subscription.
 
 Use `profiles` to find its profile ID, then `connect <profile-id>` for the foreground session. Account selection is manual. The Fox route supports TCP and encrypted DNS, not arbitrary UDP. Eligibility and allowance are controlled by Mozilla; this is an unofficial integration. Deleted subscriptions return only after explicit synchronization.
+
+برای آمار واقعی ترافیک از `connect <id> --stats` استفاده کنید؛ خروجی JSON هر ثانیه، سرعت و مجموع مصرف را با واحد KiB نشان می‌دهد.
+Use `connect <id> --stats` for live JSON upload/download rates and accumulated KiB traffic.

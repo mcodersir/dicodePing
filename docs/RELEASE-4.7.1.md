@@ -2,7 +2,8 @@
 
 - Correct HTTP/2 CONNECT lifetime for Firefox startup checks and encrypted DNS.
 - REC uses the FoxyVPN Mozilla anycast endpoint before location fallback.
-- Fox custom profiles use the sing-box TUN bridge even when legacy protection is off.
+- Fox custom profiles use the sing-box TUN bridge in TUN and proxy modes, even when legacy protection is off.
+- CLI `connect <id> --stats` emits real traffic counters as JSON.
 - Live upload/download metrics for Xray custom profiles; consistent KiB units and safe counter resets.
 - Provider-reported used/remaining allowance updates the existing subscription every minute without replacing profiles or restarting the tunnel.
 - Used and remaining quota shown on desktop and Android profile rows; clearer Fox account page.

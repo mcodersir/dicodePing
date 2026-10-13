@@ -6,9 +6,11 @@ namespace ServiceLib.Tests;
 public class Release471Tests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task FoxProfileFromServerListAlwaysGetsATunBridgeAndMetrics(bool legacy)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task FoxProfileFromServerListAlwaysGetsATunBridgeAndMetrics(bool tun, bool legacy)
     {
         var folder = Path.Combine(Path.GetTempPath(), "dicode-471-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
@@ -16,7 +18,7 @@ public class Release471Tests
             var source = Path.Combine(folder, "fox.json"); var output = Path.Combine(folder, "running.json");
             await File.WriteAllTextAsync(source, FoxProfiles.Template(Guid.NewGuid().ToString("N"), "REC", 20001, 20002));
             var config = CoreConfigTestFactory.CreateConfig();
-            config.TunModeItem.EnableTun = true; config.TunModeItem.EnableLegacyProtect = legacy;
+            config.TunModeItem.EnableTun = tun; config.TunModeItem.EnableLegacyProtect = legacy;
             CoreConfigTestFactory.BindAppManagerConfig(config);
             var node = new ProfileItem { ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, Address = source, PreSocksPort = 20001 };
             var bridge = ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray);

@@ -6,7 +6,7 @@ root=args.root.resolve();command=([args.dotnet,str(root/'dicodeping.dll')] if ar
 def freeport():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
 class Handler(http.server.BaseHTTPRequestHandler):
- def do_GET(self): self.send_response(200);self.end_headers();self.wfile.write(b'Dicode CLI native test')
+ def do_GET(self): self.send_response(200);self.end_headers();self.wfile.write(b'Dicode CLI native test'+b'x'*8192)
  def log_message(self,*_):pass
 http=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);threading.Thread(target=http.serve_forever,daemon=True).start()
 with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
  profiles=json.loads(call('profiles'));assert profiles[0]['name']=='good' and profiles[0]['latency']>0 and profiles[1]['latency']<=0,profiles
  log=pathlib.Path(folder)/'connect.log'
  with log.open('w') as stderr:
-  process=subprocess.Popen(command+['connect','--best','--data',str(data),'--verbose'],stdout=subprocess.PIPE,stderr=stderr,start_new_session=True)
+  process=subprocess.Popen(command+['connect','--best','--stats','--data',str(data),'--verbose'],stdout=subprocess.PIPE,stderr=stderr,start_new_session=True)
   try:
    deadline=time.monotonic()+30
    while 'Running good.' not in log.read_text():
@@ -50,7 +50,10 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
    proxyport=config['Inbound'][0]['LocalPort']
    result=subprocess.run(['curl','--noproxy','','--fail','--max-time','10','--socks5-hostname',f'127.0.0.1:{proxyport}',f'http://127.0.0.1:{http.server_port}/'],capture_output=True,text=True)
    assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr
+   time.sleep(2)
    process.send_signal(signal.SIGINT);process.wait(timeout=15)
+   samples=[json.loads(line) for line in process.stdout.read().decode().splitlines() if line.startswith('{')]
+   assert any(sample.get('downloadedKiB',0)>0 for sample in samples),samples
    assert process.returncode in (0,130),log.read_text()
    for port in [serverport,proxyport]:
     with socket.socket() as s:assert s.connect_ex(('127.0.0.1',port))!=0,'Core listener survived Ctrl+C'

@@ -113,12 +113,21 @@ try
             }
             var node = await AppManager.Instance.GetProfileItem(selectedId) ?? throw new InvalidOperationException(CliText.T("شناسه سرور یا --best را انتخاب کنید", "Select a profile ID or --best"));
             if (args.Contains("--tun") && !Utils.IsAdministrator()) throw new InvalidOperationException(CliText.T("برای --tun برنامه را با دسترسی مدیر اجرا کنید", "Run the CLI as administrator/root for --tun"));
+            config.IndexId = node.IndexId;
             config.TunModeItem.EnableTun = args.Contains("--tun");
+            if (args.Contains("--stats")) { config.GuiItem.EnableStatistics = true; config.GuiItem.DisplayRealTimeSpeed = true; }
             config.SystemProxyItem.SysProxyType = args.Contains("--system-proxy") ? ESysProxyType.ForcedChange : ESysProxyType.ForcedClear;
             var contexts = await CoreConfigContextBuilder.BuildAll(config, node);
             if (!contexts.Success) throw new InvalidOperationException(CliText.T("اعتبارسنجی سرور ناموفق بود", "Profile validation failed"));
             await CoreManager.Instance.LoadCore(contexts.MainResult.Context, contexts.PreSocksResult?.Context);
             if (!CoreManager.Instance.IsRunning) throw new InvalidOperationException(CliText.T("هسته اجرا نشد", "Core did not start"));
+            if (args.Contains("--stats")) await StatisticsManager.Instance.Init(config, traffic => {
+                Console.WriteLine(JsonSerializer.Serialize(new {
+                    type = "traffic", profileId = traffic.IndexId,
+                    uploadKiBps = traffic.ProxyUp, downloadKiBps = traffic.ProxyDown,
+                    uploadedKiB = traffic.TotalUp, downloadedKiB = traffic.TotalDown
+                })); return Task.CompletedTask;
+            });
             if (args.Contains("--system-proxy")) await SysProxyHandler.UpdateSysProxy(config, false);
             Console.Error.WriteLine(CliText.T($"{node.Remarks} فعال است. برای توقف Ctrl+C را بزنید.", $"Running {node.Remarks}. Press Ctrl+C to stop."));
             while (!cancellation.IsCancellationRequested && CoreManager.Instance.IsRunning) await Task.Delay(500, cancellation.Token);
@@ -132,6 +141,7 @@ catch (OperationCanceledException) when (cancellation.IsCancellationRequested) {
 catch (Exception error) { Console.Error.WriteLine(args.Contains("--verbose") ? error.ToString() : CliText.Error(error)); return 1; }
 finally
 {
+    if (args.Contains("--stats")) { StatisticsManager.Instance.Close(); await StatisticsManager.Instance.SaveTo(); }
     await CoreManager.Instance.CoreStop();
     if (AppManager.Instance.Config is { } config && args.Contains("--system-proxy")) await SysProxyHandler.UpdateSysProxy(config, true);
 }
