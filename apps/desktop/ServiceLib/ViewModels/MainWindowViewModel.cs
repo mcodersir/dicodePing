@@ -790,6 +790,7 @@ public partial class MainWindowViewModel : MyReactiveObject
 
     private async Task StartConnectionAsync()
     {
+        await ProfilesViewModel.StopDiagnosticsAsync();
         _connectionDesired = true;
         Interlocked.Increment(ref _connectionIntentVersion);
         await Reload(forceStart: true);

@@ -90,6 +90,15 @@ public sealed class FoxWindow : Window
             catch (Exception error) { status.Text = FoxUi.Error(error); await Load((accounts.SelectedItem as FoxAccount)?.Id); }
             finally { password.Text = ""; busy = false; Render(); }
         }
+        country.SelectionChanged += async (_, _) => {
+            if (busy || adding || accounts.SelectedItem is not FoxAccount account || account.Pending
+                || country.SelectedItem is not string chosen || chosen == account.Country) return;
+            await Run(async () => {
+                account.Country = chosen; await FoxAccounts.SaveAsync(account); await FoxProfiles.SyncAsync(account);
+                await main.ProfilesViewModel.RefreshSubscriptions(); await main.ProfilesViewModel.RefreshServersBiz();
+                status.Text = FoxUi.T("کشور برای اتصال بعدی ذخیره شد؛ از فهرست سرورها هم می‌توانید وصل شوید.", "Location saved for your next connection. You can also connect from the server list.");
+            });
+        };
         async Task RefreshViews() { await main.ProfilesViewModel.RefreshSubscriptions(); await main.ProfilesViewModel.RefreshServersBiz(); }
         login.Click += async (_, _) => await Run(async () => {
             var account = await FoxAccounts.LoginAsync(email.Text ?? "", password.Text ?? "", cts.Token); await Load(account.Id); await RefreshViews();

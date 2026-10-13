@@ -112,7 +112,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                     }
                     if (ready) Box {
                         OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(countryLabel(country)) }
-                        DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false }) } }
+                        DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
                     }
                     if (signIn) {
                     OutlinedTextField(email, { email = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
