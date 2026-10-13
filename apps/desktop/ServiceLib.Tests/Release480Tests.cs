@@ -4,6 +4,14 @@ namespace ServiceLib.Tests;
 public class Release480Tests
 {
     [Fact]
+    public void SmallTrafficSamplesAreRecordedWithoutRoundingAwayEverySecond()
+    {
+        var counter = new ServiceLib.Services.Statistics.TrafficKiBAccumulator(); long up = 0, down = 0;
+        for (var i = 0; i < 16; i++) { var sample = counter.Add(64, 128); up += sample.Up; down += sample.Down; }
+        Assert.Equal(1, up); Assert.Equal(2, down);
+        counter.Add(900, 900); counter.Reset(); Assert.Equal((0L, 0L), counter.Add(124, 124));
+    }
+    [Fact]
     public void ManagedFoxProbeOwnsItsHelperWhilePlainSocksDoesNot()
     {
         var config = CoreConfigTestFactory.CreateConfig();

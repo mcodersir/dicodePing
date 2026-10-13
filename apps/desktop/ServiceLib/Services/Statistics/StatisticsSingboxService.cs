@@ -5,6 +5,8 @@ namespace ServiceLib.Services.Statistics;
 public class StatisticsSingboxService
 {
     private readonly Config _config;
+    private readonly TrafficKiBAccumulator _traffic = new();
+    private string? _profileId;
     private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
     private string Url => $"ws://{Global.Loopback}:{AppManager.Instance.StatePort2}/traffic";
@@ -72,10 +74,12 @@ public class StatisticsSingboxService
 
                     if (_updateFunc != null)
                     {
+                        if (_profileId != _config.IndexId) { _traffic.Reset(); _profileId = _config.IndexId; }
+                        var sample = _traffic.Add(up, down);
                         await _updateFunc.Invoke(new ServerSpeedItem
                         {
-                            ProxyUp = (long)(up / 1024),
-                            ProxyDown = (long)(down / 1024),
+                            ProxyUp = sample.Up,
+                            ProxyDown = sample.Down,
                         }).ConfigureAwait(false);
                     }
                 }
