@@ -17,9 +17,20 @@ public static class FoxUi
         "missing_helper" => T("هسته روباه پیدا نشد؛ بسته کامل برنامه را نصب کنید.", "Fox helper is missing. Install the complete package."),
         "quota_exceeded" => T("سهمیه یا سقف درخواست حساب تمام شده؛ زمان بازنشانی را بررسی کنید.", "Account allowance or request limit reached. Check its reset date."),
         "verification_required" => T("حساب به تأیید در سایت Mozilla نیاز دارد. تأیید را کامل کنید و دوباره تلاش کنید.", "Complete Mozilla's interactive account verification, then retry."),
+        "port_in_use" => T("پورت 7854 در اختیار پروکسی دیگری است؛ آن را ببندید یا کانفیگ SOCKS آن را انتخاب کنید.", "Port 7854 is occupied by another proxy. Stop it or use its SOCKS profile."),
         "unreachable" => T("هیچ مسیر روباه از آزمون واقعی عبور نکرد؛ اتصال مستقیم جایگزین نمی‌شود.", "No Firefox route passed the real traffic test; there is no direct fallback."),
         _ => T("عملیات روباه ناموفق بود؛ اطلاعات ورودی و اتصال را بررسی کنید.", f.Message)
     } : e.Message;
+    public static string CountryLabel(string? value)
+    {
+        var code = value?.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(code)) return string.Empty; // Avalonia recycles containers with null content.
+        if (code == "REC") return T("پیشنهادی · مسیر خودکار Mozilla", "Recommended · Mozilla anycast route");
+        try { return new System.Globalization.RegionInfo(code).DisplayName + " · " + code; }
+        catch (ArgumentException) { return code; }
+    }
+    public static Avalonia.Controls.Templates.FuncDataTemplate<string> CountryTemplate() =>
+        new((value, _) => new TextBlock { Text = CountryLabel(value) });
     public static string Quota(FoxAccount account)
     {
         var maximum = account.Info["quota_max"]?.GetValue<long>(); var remaining = account.Info["quota_remaining"]?.GetValue<long>();
@@ -42,18 +53,19 @@ public sealed class FoxWindow : Window
         var code = new TextBox { PlaceholderText = FoxUi.T("کد تأیید حساب", "Account verification code"), FlowDirection = FlowDirection.LeftToRight, IsVisible = false };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
-        country.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) => new TextBlock { Text = value == "REC" ? FoxUi.T("پیشنهادی · مسیر خودکار Mozilla", "Recommended · Mozilla anycast route") : new System.Globalization.RegionInfo(value!).DisplayName + " · " + value });
+        country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
         var login = new Button { Content = FoxUi.T("ورود و افزودن حساب", "Sign in and add account"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var verify = new Button { Content = FoxUi.T("تأیید کد", "Verify code"), IsVisible = false };
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var copyProxy = new Button { Content = FoxUi.T("کپی لینک SOCKS روباه · 127.0.0.1:7854", "Copy Fox SOCKS link · 127.0.0.1:7854"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var remove = new Button { Content = FoxUi.T("حذف حساب و ساب از برنامه", "Remove local account and subscription") };
-        foreach (var button in new[] { login, verify, refresh, connect, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
+        foreach (var button in new[] { login, verify, refresh, connect, copyProxy, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
         var credentialsPanel = new StackPanel { Spacing = 12, Children = { email, password, login } };
         var verificationPanel = new StackPanel { Spacing = 12, Children = { code, verify } };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
-            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, refresh, remove } };
+            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, copyProxy, refresh, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
         var adding = false; bool busy = false;
@@ -119,6 +131,10 @@ public sealed class FoxWindow : Window
             var sub = (await AppManager.Instance.SubItems()).First(s => s.Url == "dicode-fox://" + account.Id); var node = (await AppManager.Instance.ProfileItems(sub.Id)).Single();
             await main.ProfilesViewModel.SetDefaultServer(node.IndexId); await main.ConnectPoolProfileAsync(node.IndexId, cts.Token);
             status.Text = CoreManager.Instance.IsRunning ? FoxUi.T("روباه فعال شد؛ جزئیات و ترافیک در خانه دیده می‌شوند.", "Fox is active; connection details and traffic are shown on Home.") : FoxUi.T("اتصال برقرار نشد؛ گزارش را بررسی کنید.", "Connection did not start; check the log.");
+        });
+        copyProxy.Click += async (_, _) => await Run(async () => {
+            if (Clipboard is { } clipboard) await clipboard.SetTextAsync(FoxProfiles.ShareUri);
+            status.Text = FoxUi.T("لینک کپی شد؛ هنگام اتصال روباه، پروکسی محلی فعال است.", "Link copied; the local proxy is active while Fox is connected.");
         });
         remove.Click += async (_, _) => await Run(async () => {
             if (accounts.SelectedItem is not FoxAccount account) return;

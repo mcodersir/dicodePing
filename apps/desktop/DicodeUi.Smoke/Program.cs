@@ -118,6 +118,15 @@ foreach (var dark in new[] { false, true }) {
     var owner = new MainWindow();
     var fox = new FoxWindow(owner.ViewModel!) { Width = width, Height = 500, FlowDirection = rtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight };
     fox.Show();
+    foreach (var code in new string?[] { null, "", " ", "REC", "de", "NL", "ZZ", "invalid" }) {
+        var item = FoxUi.CountryTemplate().Build(code);
+        if (item is not TextBlock) throw new Exception("Fox country template failed to render a recycled/null item");
+    }
+    var countries = fox.FindControl<ComboBox>("FoxCountrySelector")!;
+    countries.ItemsSource = Enumerable.Range(0, 60).Select(i => new[] { "REC", "DE", "NL", "ZZ" }[i % 4]).ToArray();
+    countries.SelectedIndex = 1; countries.IsDropDownOpen = true; Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    countries.SelectedItem = null; countries.ItemsSource = new[] { "REC", "JP" }; Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    countries.IsDropDownOpen = false; countries.SelectedIndex = 0;
     Application.Current!.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
     typeof(v2rayN.Desktop.ViewModels.ThemeSettingViewModel).GetMethod("ApplyDicodePalette", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { Application.Current, dark ? "Dark" : "Light", dark });
     fox.Measure(new Size(width,500)); fox.Arrange(new Rect(0,0,width,500)); Avalonia.Threading.Dispatcher.UIThread.RunJobs();

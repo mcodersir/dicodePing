@@ -2,6 +2,8 @@ namespace ServiceLib.Models.Entities;
 
 public record ProtocolExtraItem
 {
+    public string? FoxAccountId { get; init; }
+    public string? FoxCountry { get; init; }
     public bool? Uot { get; init; }
     public string? CongestionControl { get; init; }
 

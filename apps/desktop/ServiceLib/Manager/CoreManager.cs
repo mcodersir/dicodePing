@@ -22,7 +22,11 @@ public class CoreManager
     private readonly SemaphoreSlim _probeLaunchLock = new(1, 1);
     private const string _tag = "CoreHandler";
 
-    public bool IsRunning => _processService is { HasExited: false };
+    public string? LastStartupError { get; private set; }
+    private bool _chainReady;
+    public bool IsRunning => _chainReady && _processService is { HasExited: false }
+        && (_processPreService is null || !_processPreService.HasExited)
+        && (_foxProcess is null || !_foxProcess.HasExited);
     public event Func<int, Task>? UnexpectedExit;
 
     public async Task Init(Config config, Func<bool, string, Task> updateFunc)
@@ -99,6 +103,7 @@ public class CoreManager
         await UpdateFunc(false, $"{Utils.GetRuntimeInfo()}");
         await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
         await CoreStop(keepEntryHop: true);
+        try {
         await EntryHopService.EnsureReadyAsync(mainContext);
         await Task.Delay(250);
 
@@ -118,9 +123,10 @@ public class CoreManager
 
         if (_processService != null)
         {
-            _activeConfigHash = generatedConfigHash;
+            _activeConfigHash = generatedConfigHash; _chainReady = true;
             await UpdateFunc(true, $"{node.GetSummary()}");
         }
+        } catch { await CoreStop(); throw; }
     }
 
     public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
@@ -244,7 +250,7 @@ public class CoreManager
                 _processPreService = null;
             }
             if (_foxProcess is not null) { await _foxProcess.StopAsync(); _foxProcess.Dispose(); _foxProcess = null; }
-            _activeConfigHash = null;
+            _activeConfigHash = null; _chainReady = false;
         }
         catch (Exception ex)
         {
@@ -266,10 +272,7 @@ public class CoreManager
 
         var displayLog = node.ConfigType != EConfigType.Custom || node.DisplayLog;
         var proc = await RunProcess(coreInfo, Global.CoreConfigFileName, displayLog, true, context.IsTunEnabled);
-        if (proc is null)
-        {
-            return;
-        }
+        if (proc is null) throw new IOException(LastStartupError ?? "Could not start the connection core");
         _processService = proc;
         proc.Exited += exitCode =>
         {
@@ -301,7 +304,7 @@ public class CoreManager
                 if (proc is null)
                 {
                     await CoreStop();
-                    throw new IOException("Could not start the proxy/TUN bridge");
+                    throw new IOException(LastStartupError ?? "Could not start the proxy/TUN bridge");
                 }
                 _processPreService = proc;
                 proc.Exited += code => {
@@ -435,10 +438,17 @@ public class CoreManager
                 return await CoreAdminManager.Instance.RunProcessAsLinuxSudo(fileName, coreInfo, configPath);
             }
 
-            return await RunProcessNormal(fileName, coreInfo, configPath, displayLog);
+            try { return await RunProcessNormal(fileName, coreInfo, configPath, displayLog, isTunLaunch); }
+            catch (Exception startup) when (Utils.IsWindows() && isTunLaunch && coreInfo.CoreType == ECoreType.sing_box
+                && WindowsTunRuntime.IsMissingInterfaceFailure(startup.Message)) {
+                if (!WindowsTunRuntime.PrepareRetry(Utils.GetBinConfigPath(configPath))) throw;
+                Logging.SaveLog("TUN adapter was not registered; retrying once with a fresh DicodePing-owned interface.");
+                return await RunProcessNormal(fileName, coreInfo, configPath, displayLog, isTunLaunch);
+            }
         }
         catch (Exception ex)
         {
+            LastStartupError = ex.Message;
             if (NativeLaunchPolicy.RecordLoaderFailure(fileName, ex)) {
                 Logging.SaveLog("Core loader rejected the executable; automatic repeated launches disabled.");
                 try { NativeLaunchPolicy.Validate(fileName); } catch (Exception failure) { await UpdateFunc(mayNeedSudo, failure.Message); }
@@ -447,8 +457,17 @@ public class CoreManager
         }
     }
 
-    private async Task<ProcessService?> RunProcessNormal(string fileName, CoreInfo? coreInfo, string configPath, bool displayLog)
+    private async Task<ProcessService?> RunProcessNormal(string fileName, CoreInfo? coreInfo, string configPath, bool displayLog, bool isTunLaunch = false)
     {
+        if (coreInfo?.CoreType == ECoreType.sing_box) {
+            var path = Utils.GetBinConfigPath(configPath);
+            if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
+                var log = root["log"] as JsonObject ?? new JsonObject();
+                log["level"] = "info"; log["disabled"] = false; log.Remove("output"); root["log"] = log;
+                await File.WriteAllTextAsync(path, root.ToJsonString());
+            }
+            if (Utils.IsWindows() && isTunLaunch) WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
+        }
         var environmentVars = new Dictionary<string, string>();
         foreach (var kv in coreInfo.Environment)
         {
@@ -493,18 +512,13 @@ public class CoreManager
             updateFunc: _updateFunc
         );
 
-        await procService.StartAsync();
-
-        await Task.Delay(100);
-
-        if (procService is null or { HasExited: true })
-        {
-            var recent = procService?.RecentOutput;
-            procService?.Dispose();
-            throw new Exception(ResUI.FailedToRunCore + (recent.IsNullOrEmpty() ? string.Empty : Environment.NewLine + recent));
-        }
-        AddProcessJob(procService.Handle);
-
+        try {
+            await procService.StartAsync();
+            AddProcessJob(procService.Handle);
+            if (coreInfo.CoreType == ECoreType.sing_box) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
+            else await Task.Delay(100);
+            if (procService.HasExited) throw new IOException(ResUI.FailedToRunCore + Environment.NewLine + procService.RecentOutput);
+        } catch { await procService.StopAsync(); procService.Dispose(); throw; }
         return procService;
     }
 

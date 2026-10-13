@@ -152,9 +152,19 @@ public static class FoxAccounts
 public record FoxProfile(string AccountId, string Country, int HelperPort);
 public static class FoxProfiles
 {
+    public const int LocalPort = 7854;
+    public const string ShareUri = "socks5://127.0.0.1:7854#Firefox-VPN";
     public static FoxProfile? Read(ProfileItem? node)
     {
-        if (node?.ConfigType != EConfigType.Custom) return null;
+        if (node is null) return null;
+        if (node.ConfigType == EConfigType.SOCKS && node.GetProtocolExtra().FoxAccountId is { } accountId) {
+            var country = node.GetProtocolExtra().FoxCountry ?? "REC";
+            if (!Guid.TryParseExact(accountId, "N", out _) || node.Address != Global.Loopback || node.Port != LocalPort
+                || !(country == "REC" || (country.Length == 2 && country.All(char.IsAsciiLetter))))
+                throw new FoxException("input", "Invalid managed Fox SOCKS profile");
+            return new FoxProfile(accountId, country.ToUpperInvariant(), LocalPort);
+        }
+        if (node.ConfigType != EConfigType.Custom) return null;
         var path = File.Exists(node.Address) ? node.Address : Utils.GetConfigPath(node.Address);
         if (!File.Exists(path)) return null;
         try {
@@ -166,6 +176,16 @@ public static class FoxProfiles
             return new FoxProfile(id!, country.ToUpperInvariant(), number);
         }
         catch (JsonException) { return null; }
+    }
+    public static ProfileItem ForConnection(ProfileItem node)
+    {
+        if (Read(node) is not { } fox) return node;
+        var runtime = JsonUtils.DeepCopy(node);
+        runtime.ConfigType = EConfigType.SOCKS; runtime.CoreType = ECoreType.sing_box;
+        runtime.Address = Global.Loopback; runtime.Port = LocalPort; runtime.PreSocksPort = null;
+        runtime.Username = runtime.Password = runtime.StreamSecurity = runtime.Network = string.Empty;
+        runtime.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = fox.AccountId, FoxCountry = fox.Country });
+        return runtime;
     }
     public static string Template(string id, string country, int privatePort, int helperPort) => new JsonObject {
         ["dicodeFox"] = new JsonObject { ["accountId"] = id, ["country"] = country, ["helperPort"] = helperPort },
@@ -196,13 +216,11 @@ public static class FoxProfiles
             ?? new SubItem { Id = Guid.NewGuid().ToString("N"), Url = "dicode-fox://" + account.Id, Remarks = ResUI.DicodeFoxTitle + " · " + account.Email, AutoUpdateInterval = 0 };
         ApplyQuota(sub, account); await ConfigHandler.AddSubItem(config, sub);
         var nodes = await AppManager.Instance.ProfileItems(sub.Id) ?? []; var existing = nodes.FirstOrDefault();
-        var privatePort = existing?.PreSocksPort ?? Utils.GetFreePort(AppManager.Instance.GetLocalPort(EInboundProtocol.mixed) + 100);
-        var helperPort = Read(existing)?.HelperPort ?? Utils.GetFreePort(privatePort + 100);
-        var path = Utils.GetTempPath("fox-" + account.Id + ".json"); await File.WriteAllTextAsync(path, Template(account.Id, account.Country, privatePort, helperPort));
-        try {
-            var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, PreSocksPort = privatePort, Remarks = ResUI.DicodeFoxTitle + " · " + account.Country, Address = path, DisplayLog = true, Subid = sub.Id, IsSub = true };
-            if (await ConfigHandler.AddCustomServer(config, node, true) != 0) throw new IOException("Could not save Fox profile");
-            foreach (var duplicate in nodes.Skip(1)) await ConfigHandler.RemoveServers(config, [duplicate]);
-        } finally { if (File.Exists(path)) File.Delete(path); }
+        var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.SOCKS, CoreType = ECoreType.sing_box,
+            Remarks = ResUI.DicodeFoxTitle + " · Firefox VPN · " + account.Country, Address = Global.Loopback, Port = LocalPort,
+            DisplayLog = true, Subid = sub.Id, IsSub = true };
+        node.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = account.Id, FoxCountry = account.Country });
+        if (await ConfigHandler.AddSocksServer(config, node) != 0) throw new IOException("Could not save Fox SOCKS profile");
+        foreach (var duplicate in nodes.Skip(1)) await ConfigHandler.RemoveServers(config, [duplicate]);
     }
 }

@@ -36,6 +36,8 @@ internal data class FoxAccount(val id: String, var country: String, var state: J
 }
 internal data class FoxProfile(val accountId: String, val country: String)
 internal object FoxAccounts {
+    const val LOCAL_PORT = 7854
+    const val SHARE_URI = "socks5://127.0.0.1:7854#Firefox-VPN"
     private const val KEY = "dicode.fox.accounts.v1"
     private val lock = Any()
     private fun file(context: Context) = AtomicFile(File(context.noBackupFilesDir, "fox-accounts.enc"))
@@ -112,6 +114,14 @@ internal object FoxAccounts {
         if (syncProfile) sync(context, get(context, id))
         return account
     }
+    fun profile(node: ProfileItem?): FoxProfile? {
+        val id = node?.foxAccountId ?: return null
+        val country = node.foxCountry ?: "REC"
+        if (!id.matches(Regex("[a-fA-F0-9]{32}")) || !(country == "REC" || country.matches(Regex("[A-Za-z]{2}")))
+            || node.configType != EConfigType.SOCKS || node.server != "127.0.0.1" || node.serverPort != LOCAL_PORT.toString())
+            throw FoxError("input", "Invalid managed Fox SOCKS profile")
+        return FoxProfile(id, country.uppercase(java.util.Locale.ROOT))
+    }
     fun profile(raw: String): FoxProfile? {
         val json = runCatching { JSONObject(raw) }.getOrNull() ?: return null
         if (!json.has("dicodeFox")) return null
@@ -147,7 +157,8 @@ internal object FoxAccounts {
         val sub = cache?.subscription ?: SubscriptionItem(remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · ${account.email}", url = "dicode-fox://${account.id}", autoUpdate = false)
         applyQuota(sub, account); val group = MmkvManager.encodeSubscription(cache?.guid.orEmpty(), sub)
         val nodes = MmkvManager.decodeServerList(group); val guid = nodes.firstOrNull().orEmpty()
-        val node = ProfileItem(configType = EConfigType.CUSTOM, subscriptionId = group, remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · Firefox VPN · ${account.country}")
+        val node = ProfileItem(configType = EConfigType.SOCKS, server = "127.0.0.1", serverPort = LOCAL_PORT.toString(),
+            foxAccountId = account.id, foxCountry = account.country, subscriptionId = group, remarks = "${context.getString(com.v2ray.ang.R.string.fox_title)} · Firefox VPN · ${account.country}")
         val stored = MmkvManager.encodeServerConfigWithRaw(guid, node, template(account.id, account.country))
         nodes.drop(1).forEach(MmkvManager::removeServer)
         return stored
@@ -185,6 +196,12 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
         val result = response(reader)
         FoxAccounts.updateSession(context, id, result.getJSONObject("state"), result.optJSONObject("account"))
+        java.net.Socket().use { socket ->
+            socket.connect(InetSocketAddress("127.0.0.1", port), 3000); socket.soTimeout = 3000
+            socket.getOutputStream().write(byteArrayOf(5, 1, 0)); socket.getOutputStream().flush()
+            val input = java.io.DataInputStream(socket.getInputStream())
+            if (input.readUnsignedByte() != 5 || input.readUnsignedByte() != 0) throw FoxError("helper", "Fox SOCKS handshake failed")
+        }
         FoxAccounts.updateQuota(context, id)
         thread(isDaemon = true, name = "FoxSessionEvents") {
             runCatching { reader.useLines { lines -> lines.forEach { line ->

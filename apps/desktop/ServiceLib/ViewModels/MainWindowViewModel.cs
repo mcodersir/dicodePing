@@ -783,6 +783,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     private bool _hasNextReloadJob = false;
     private bool _connectionDesired;
     public bool IsConnectionRequested => _connectionDesired;
+    public string? LastConnectionError { get; private set; }
     private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
     private int _unexpectedExitRecovery;
@@ -807,6 +808,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         await _reloadSemaphore.WaitAsync(token);
         _reloadSemaphore.Release();
         token.ThrowIfCancellationRequested();
+        if (!CoreManager.Instance.IsRunning) throw new IOException(LastConnectionError ?? "The complete Fox/TUN connection did not start; see the report.");
         await PoolNetwork.WaitForListenerAsync(() => AppManager.Instance.GetLocalPort(EInboundProtocol.socks), token);
         await ProfilesViewModel.RefreshServers();
     }
@@ -956,7 +958,18 @@ public partial class MainWindowViewModel : MyReactiveObject
                     .ToTask();
             }
 
+            LastConnectionError = null;
             ReloadResult(showClashUI);
+        }
+        catch (Exception error)
+        {
+            LastConnectionError = error.Message; _connectionDesired = false; _hasNextReloadJob = false;
+            await CoreManager.Instance.CoreStop();
+            Logging.SaveLog("Connection startup", error);
+            NoticeManager.Instance.SendMessageAndEnqueue(error.Message);
+            RxSchedulers.MainThreadScheduler.Schedule(() => {
+                ProfilesViewModel.IsConnected = false; ProfilesViewModel.ConnectionStatusText = ResUI.DicodeTunConnect;
+            });
         }
         finally
         {

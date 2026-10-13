@@ -27,6 +27,7 @@ import java.util.Date
 
 @Composable
 internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: (String) -> Unit) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var accounts by remember { mutableStateOf<List<FoxAccount>>(emptyList()) }
@@ -55,6 +56,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
         "input" -> "اطلاعات واردشده معتبر نیست؛ ایمیل و کد تأیید را بررسی کنید."
         "quota_exceeded" -> "سهمیه یا سقف درخواست حساب تمام شده؛ زمان بازنشانی را بررسی کنید."
         "verification_required" -> "تأیید تعاملی حساب را در سایت Mozilla کامل کنید و دوباره تلاش کنید."
+        "port_in_use" -> "پورت 7854 در اختیار پروکسی دیگری است؛ آن را ببندید یا کانفیگ SOCKS آن را انتخاب کنید."
         "unreachable" -> "هیچ مسیر روباه از آزمون واقعی عبور نکرد؛ اتصال مستقیم جایگزین نمی‌شود."
         else -> "عملیات روباه ناموفق بود؛ اطلاعات ورودی و اتصال را بررسی کنید."
     } else e.message.orEmpty()
@@ -126,6 +128,10 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                     if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.primary)
                     if (ready) {
+                    if (ready) OutlinedButton(onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(FoxAccounts.SHARE_URI))
+                        status = if (fa) "لینک SOCKS کپی شد؛ هنگام اتصال روباه پروکسی محلی فعال است." else "SOCKS link copied; the local proxy is active while Fox is connected."
+                    }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "کپی لینک SOCKS روباه · 127.0.0.1:7854" else "Copy Fox SOCKS link · 127.0.0.1:7854") }
                     OutlinedButton(onClick = { current?.let { account -> run { account.country = country; FoxAccounts.save(context, account); FoxAccounts.refresh(context, account.id, true).id } } }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_refresh)) }
                     Button(onClick = {
                         current?.let { account ->

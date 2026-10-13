@@ -40,7 +40,7 @@ object CoreConfigManager {
                     guid = guid,
                     errorMessage = "Failed to build config context"
                 )
-            if (configContext.isCustom) {
+            if (configContext.isCustom || FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid)) != null) {
                 return buildV2rayCustomConfig(configContext, routeAether = true)
             }
             val unresolved = configContext.resolvedOutbounds.firstNotNullOfOrNull { it.unresolvedHop } ?: configContext.unresolvedTarget
@@ -92,7 +92,7 @@ object CoreConfigManager {
                     guid = guid,
                     errorMessage = "Failed to build config context"
                 )
-            if (configContext.isCustom) {
+            if (configContext.isCustom || FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid)) != null) {
                 return buildV2rayCustomConfig(configContext, forTest = true)
             }
             // Only the primary outbound is measured, beside the fallback a group that is the primary names.
@@ -136,7 +136,8 @@ object CoreConfigManager {
         forTest: Boolean = false,
     ): ConfigResult {
         val context = configContext.context
-        val raw = MmkvManager.decodeServerRaw(configContext.guid)
+        val managedFox = FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid))
+        val raw = managedFox?.let { FoxAccounts.template(it.accountId, it.country) } ?: MmkvManager.decodeServerRaw(configContext.guid)
             ?: return ConfigResult(
                 status = false,
                 guid = configContext.guid,
@@ -146,7 +147,7 @@ object CoreConfigManager {
 
         val fox = FoxAccounts.profile(raw)
         val json = if (fox != null) {
-            val port = Utils.findRandomFreePort(); result.foxAccountId = fox.accountId; result.foxCountry = fox.country; result.foxPort = port
+            val port = if (forTest) Utils.findRandomFreePort() else FoxAccounts.LOCAL_PORT; result.foxAccountId = fox.accountId; result.foxCountry = fox.country; result.foxPort = port
             SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
         } else if (SingBoxConfig.isConfig(raw)) {
             val port = Utils.findRandomFreePort()
@@ -165,6 +166,9 @@ object CoreConfigManager {
         } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         if (fox != null) {
+            json.getAsJsonObject("routing").getAsJsonArray("rules").add(JsonObject().apply {
+                addProperty("type", "field"); addProperty("network", "udp"); addProperty("port", "443"); addProperty("outboundTag", "block")
+            })
             val inbound = json.getAsJsonArray("inbounds")[0].asJsonObject
             if (!forTest && MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)) inbound.addProperty("listen", "0.0.0.0")
             val user = SettingsManager.getSocksUsername(); val password = SettingsManager.getSocksPassword()

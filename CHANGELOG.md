@@ -1,3 +1,7 @@
+# 4.7.2
+
+Fix Fox country dropdown recycling, native SOCKS integration and Windows TUN initialization/readiness. See [release notes](docs/RELEASE-4.7.2.md).
+
 # 4.7.1
 
 Firefox tunnel lifetime, REC, TUN bridge, custom-profile metrics and live subscription allowance fixes. See [release notes](docs/RELEASE-4.7.1.md).

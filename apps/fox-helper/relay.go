@@ -72,7 +72,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	}
 	p.listener, err = net.Listen("tcp", listen)
 	if err != nil {
-		return "", err
+		return "", &ProviderError{Code: "port_in_use", Message: "The Fox local SOCKS port is occupied. Stop the other proxy or use its SOCKS profile."}
 	}
 	return p.listener.Addr().String(), nil
 }

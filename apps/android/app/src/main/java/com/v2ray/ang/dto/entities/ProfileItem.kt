@@ -12,6 +12,8 @@ data class ProfileItem(
 
     var remarks: String = "",
     var description: String? = null,
+    var foxAccountId: String? = null,
+    var foxCountry: String? = null,
     var server: String? = null,
     var serverPort: String? = null,
 

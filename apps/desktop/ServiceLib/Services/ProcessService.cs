@@ -9,6 +9,8 @@ public class ProcessService : IDisposable
     private readonly Queue<string> _recentOutput = new();
     private readonly object _outputLock = new();
 
+    private int _startupCompleted;
+    public bool StartupCompleted => Volatile.Read(ref _startupCompleted) == 1;
     public int Id => _process.Id;
     public IntPtr Handle => _process.Handle;
     public bool HasExited => _process.HasExited;
@@ -117,6 +119,15 @@ public class ProcessService : IDisposable
         return result;
     }
 
+    public async Task WaitForStartupAsync(TimeSpan timeout)
+    {
+        using var deadline = new CancellationTokenSource(timeout);
+        while (!StartupCompleted && !HasExited) {
+            try { await Task.Delay(50, deadline.Token); }
+            catch (OperationCanceledException) { throw new TimeoutException("TUN/core startup timed out. " + RecentOutput); }
+        }
+        if (HasExited) throw new IOException("TUN/core startup failed. " + RecentOutput);
+    }
     public async Task StopAsync()
     {
         StopRequested = true;
@@ -176,6 +187,7 @@ public class ProcessService : IDisposable
         {
             if (e.Data.IsNotEmpty())
             {
+                if (e.Data.Contains("sing-box started", StringComparison.OrdinalIgnoreCase)) Interlocked.Exchange(ref _startupCompleted, 1);
                 lock (_outputLock)
                 {
                     _recentOutput.Enqueue(e.Data);

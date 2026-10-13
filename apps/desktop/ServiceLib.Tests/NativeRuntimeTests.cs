@@ -12,12 +12,36 @@ public class NativeRuntimeTests
     {
         var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
         if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Windows driver loading is validated in Windows release CI.");
-        foreach (var relative in new[] { "wintun.dll", Path.Combine("bin", "xray", "wintun.dll") })
+        foreach (var relative in new[] { "wintun.dll", Path.Combine("bin", "xray", "wintun.dll"), Path.Combine("bin", "sing_box", "wintun.dll") })
         {
             var handle = System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(root!, relative));
             try { Assert.NotEqual(IntPtr.Zero, System.Runtime.InteropServices.NativeLibrary.GetExport(handle, "WintunCreateAdapter")); }
             finally { System.Runtime.InteropServices.NativeLibrary.Free(handle); }
         }
+    }
+
+    [Fact]
+    public async Task WindowsTunActuallyStartsAndGetsItsIpBeforeReportingReady()
+    {
+        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Live Windows TUN is exercised in release CI.");
+        var name = "DicodePing_CI_" + Guid.NewGuid().ToString("N")[..8];
+        var path = Path.Combine(Path.GetTempPath(), name + ".json");
+        await File.WriteAllTextAsync(path, new JsonObject {
+            ["log"] = new JsonObject { ["level"] = "info" },
+            ["inbounds"] = new JsonArray(new JsonObject { ["type"] = "tun", ["tag"] = "tun", ["interface_name"] = name,
+                ["address"] = new JsonArray("172.30.250.1/30"), ["mtu"] = 1500, ["auto_route"] = false, ["strict_route"] = false, ["stack"] = "system" }),
+            ["outbounds"] = new JsonArray(new JsonObject { ["type"] = "direct", ["tag"] = "direct" })
+        }.ToJsonString());
+        var binary = Path.Combine(root!, "bin", "sing_box", "sing-box.exe");
+        using var child = new ProcessService(binary, "run -c " + path.AppendQuotes(), Path.GetDirectoryName(binary)!, true, false, null, (_, _) => Task.CompletedTask);
+        try {
+            await child.StartAsync(); await child.WaitForStartupAsync(TimeSpan.FromSeconds(35));
+            Assert.True(child.StartupCompleted); Assert.False(child.HasExited);
+            var adapter = NetworkInterface.GetAllNetworkInterfaces().Single(n => n.Name == name);
+            Assert.Contains(adapter.GetIPProperties().UnicastAddresses, a => a.Address.ToString() == "172.30.250.1");
+            await Task.Delay(1500); Assert.False(child.HasExited);
+        } finally { await child.StopAsync(); File.Delete(path); }
     }
 
     [Fact]

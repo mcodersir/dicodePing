@@ -24,7 +24,7 @@ def build(goos, arch, output, android=False):
     output = output.resolve(); output.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([go, 'build', '-trimpath', '-ldflags=-s -w -buildid=', *extra, '-o', str(output), '.'], cwd=ROOT/'apps/fox-helper', env=env, check=True)
     output.chmod(0o755)
-    versions[str(output.relative_to(args.output.resolve()))] = {'version':'4.7.1', 'go':'1.27.2', 'sha256':hashlib.sha256(output.read_bytes()).hexdigest()}
+    versions[str(output.relative_to(args.output.resolve()))] = {'version':'4.7.2', 'go':'1.27.2', 'sha256':hashlib.sha256(output.read_bytes()).hexdigest()}
 if args.android:
     for abi, arch in [('arm64-v8a','arm64'),('armeabi-v7a','arm'),('x86_64','amd64'),('x86','386')]: build('android', arch, args.output/abi/'libdicodefox.so', True)
     legal = ROOT/'apps/android/app/src/main/assets/fox'; legal.mkdir(parents=True, exist_ok=True)
@@ -37,4 +37,4 @@ goroot = pathlib.Path(subprocess.check_output([go, 'env', 'GOROOT'], text=True).
 shutil.copy2(goroot/'LICENSE', legal/'LICENSE-Go.txt')
 shutil.copy2(ROOT/'LICENSE', legal/'LICENSE-DicodePing.txt')
 (legal/'runtime-versions.json').write_text(json.dumps(versions, indent=2)+'\n')
-print('Built Fox 4.7.1:', ', '.join(versions))
+print('Built Fox 4.7.2:', ', '.join(versions))

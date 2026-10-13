@@ -33,7 +33,16 @@ public static class CoreConfigHandler
         {
             return result;
         }
-        if (result.Data is string content) result.Data = EntryHopConfiguration.Apply(content, context);
+        if (result.Data is string content) {
+            if (context.RunCoreType == ECoreType.sing_box && FoxProfiles.Read(context.Node) is not null
+                && JsonNode.Parse(content) is JsonObject foxRoot) {
+                var route = foxRoot["route"] as JsonObject ?? new JsonObject();
+                var rules = route["rules"] as JsonArray ?? new JsonArray();
+                rules.Insert(0, new JsonObject { ["network"] = "udp", ["port"] = new JsonArray(443), ["action"] = "reject" });
+                route["rules"] = rules; foxRoot["route"] = route; content = foxRoot.ToJsonString();
+            }
+            result.Data = EntryHopConfiguration.Apply(content, context);
+        }
         if (fileName.IsNotEmpty() && result.Data != null)
         {
             await File.WriteAllTextAsync(fileName, result.Data.ToString());

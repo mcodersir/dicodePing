@@ -35,6 +35,7 @@ public class CoreConfigContextBuilder
     /// </summary>
     public static async Task<CoreConfigContextBuilderResult> Build(Config config, ProfileItem node)
     {
+        node = FoxProfiles.ForConnection(node);
         var runCoreType = AppManager.Instance.GetCoreType(node, node.ConfigType);
         var coreType = runCoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var context = new CoreConfigContext
