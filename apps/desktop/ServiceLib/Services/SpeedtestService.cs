@@ -206,7 +206,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunLocationBatchAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct)
     {
-        var isolated = selecteds.Where(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        var isolated = selecteds.Where(x => CoreManager.RequiresIsolatedProbe(_config, x)).ToList();
         await Parallel.ForEachAsync(isolated, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (item, token) =>
         {
             ProcessService? single = null;
@@ -338,7 +338,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     {
         // Custom configurations and entry hops require an owned, isolated core.
         // The shared batch builder cannot execute them, including a single item.
-        var isolated = lstSelected.Where(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        var isolated = lstSelected.Where(x => CoreManager.RequiresIsolatedProbe(_config, x)).ToList();
         if (isolated.Count > 0)
         {
             await RunMixedTestAsync(isolated, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct);

@@ -174,9 +174,12 @@ public class CoreManager
         catch { await process.StopAsync(); process.Dispose(); throw; }
     }
 
+    public static bool RequiresIsolatedProbe(Config config, ServerTestItem item) =>
+        item.ConfigType == EConfigType.Custom || FoxProfiles.Read(item.Profile) is not null || config.EntryHopItem.Applies(item.Profile);
+
     private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
     {
-        if (selecteds.Any(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile))) return null;
+        if (selecteds.Any(x => RequiresIsolatedProbe(_config, x))) return null;
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
