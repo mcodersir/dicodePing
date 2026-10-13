@@ -788,7 +788,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConnectProfileAsync(best.IndexId);
     }
 
-    private async Task ConnectProfileAsync(string? indexId)
+    public async Task ConnectProfileAsync(string? indexId)
     {
         if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
         try
@@ -797,7 +797,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             {
                 if (StopConnection is not null) await StopConnection();
                 else ConnectionStopRequested.Publish();
-                return;
+                if (indexId == _config.IndexId) return;
             }
             if (indexId.IsNullOrEmpty() || await AppManager.Instance.GetProfileItem(indexId) is null)
             { NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer); return; }

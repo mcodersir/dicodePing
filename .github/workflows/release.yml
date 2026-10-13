@@ -1,8 +1,8 @@
-name: Release 4.7.2 Stable
+name: Release 4.8.0 Stable
 
 on:
   push:
-    tags: ['v4.7.2']
+    tags: ['v4.8.0']
   workflow_dispatch:
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           - runner: windows-latest
             rid: win-x64
             xray_asset: Xray-windows-64.zip
-            xray_sha256: 2e7d8e0db9025a036509c882432a396442c21bb732c5bcdce931e1d901f6957b
+            xray_sha256: c4a457bf5c9ffbfb782c9f2503950a89b458acccd5e7ba7065c0b87a2f1fb57c
             xray_binary: xray.exe
             mihomo_asset: mihomo-windows-amd64-v1-v1.19.32.zip
             mihomo_binary: mihomo.exe
@@ -41,7 +41,7 @@ jobs:
           - runner: ubuntu-latest
             rid: linux-x64
             xray_asset: Xray-linux-64.zip
-            xray_sha256: 29a63570a83262ad5b2e734704040f440b3133c39b56ecab94028e13c67a6ca3
+            xray_sha256: 7eb7fc19e36ab171ed7a26e7701a9374f6c3eb4238c414c92d590c3cff1d07e1
             xray_binary: xray
             mihomo_asset: mihomo-linux-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
@@ -53,7 +53,7 @@ jobs:
           - runner: macos-14
             rid: osx-x64
             xray_asset: Xray-macos-64.zip
-            xray_sha256: 354fb9c662d403258f23b17da820bd90ef28d892a4c764475318b5f0d2d69cd0
+            xray_sha256: f173590c4a39337f6407da25dbadbae411870f0147a7c5f0d1f419c7f329fe21
             xray_binary: xray
             mihomo_asset: mihomo-darwin-amd64-v1-v1.19.32.gz
             mihomo_binary: mihomo
@@ -65,7 +65,7 @@ jobs:
           - runner: macos-14
             rid: osx-arm64
             xray_asset: Xray-macos-arm64-v8a.zip
-            xray_sha256: 9ddb835f249cc0b4457e711fe23ec4e56d1e04cb1a58d12d5af4f405929c9d61
+            xray_sha256: 8e1ba4b9b0b991970dc4e047ea3f97fe17bdca020b1776cb76a4c01d2a93ff5f
             xray_binary: xray
             mihomo_asset: mihomo-darwin-arm64-v1.19.32.gz
             mihomo_binary: mihomo
@@ -85,7 +85,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.7.2
+        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.8.0
       - name: Render desktop layout on Linux
         if: runner.os == 'Linux'
         run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -98,11 +98,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
       - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.2 -o publish
+        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.8.0 -o publish
       - name: Bundle verified Xray and sing-box runtimes
         shell: pwsh
         run: |
-          $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.9/${{ matrix.xray_asset }}"
+          $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.13/${{ matrix.xray_asset }}"
           Invoke-WebRequest -Uri $url -OutFile xray.zip
           $expected = '${{ matrix.xray_sha256 }}'
           $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
@@ -188,8 +188,8 @@ jobs:
         run: |
           $versions = @{}
           $checks = @(
-            @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.7.2' },
-            @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.9' },
+            @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.8.0' },
+            @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.13' },
             @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
             @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.3.0' },
             @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = '1.19.32' }
@@ -210,7 +210,7 @@ jobs:
       - name: Publish independent CLI with verified runtimes
         shell: pwsh
         run: |
-          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.7.2 -o cli-publish
+          dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.8.0 -o cli-publish
           if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
           Copy-Item publish/bin cli-publish/bin -Recurse -Force
           Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -236,7 +236,7 @@ jobs:
         run: |
           choco install innosetup --no-progress --yes
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-4.7.2-windows-x64-installer.exe
+          $installer = Get-Item dist\DicodePing-4.8.0-windows-x64-installer.exe
           Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
       - uses: actions/upload-artifact@v7
         with:
@@ -310,8 +310,8 @@ jobs:
           echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
           export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
           chmod +x gradlew
-          ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.7.2
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.7.2
+          ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.8.0
+          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.8.0
       - name: Stage APK and checksums
         run: |
           mkdir -p dist-android
@@ -348,11 +348,11 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: DicodePing 4.7.2 — Stable
+          name: DicodePing 4.8.0 — Stable
           prerelease: false
           make_latest: true
           generate_release_notes: false
-          body_path: docs/RELEASE-4.7.2.md
+          body_path: docs/RELEASE-4.8.0.md
           files: artifacts/*
 
 # Download pages deploy through website.yml on the authorized Pages branch.

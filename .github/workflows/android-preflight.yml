@@ -2,7 +2,7 @@ name: Android 4.7 preflight
 on:
   push:
     branches:
-    - codex/release-4.7.2
+    - codex/release-4.8.0
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
 
         chmod +x gradlew
 
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.7.2'
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.8.0'
 
     - name: Enable hardware acceleration for the test emulator
       run: |

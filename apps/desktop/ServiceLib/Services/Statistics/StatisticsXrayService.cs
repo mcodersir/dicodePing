@@ -5,6 +5,7 @@ public class StatisticsXrayService
     private const long linkBase = 1024;
     private ServerSpeedItem _serverSpeedItem = new();
     private readonly Config _config;
+    private readonly HttpClient _metricsClient = new(new SocketsHttpHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(3) };
     private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
     private string Url => $"{Global.HttpProtocol}{Global.Loopback}:{AppManager.Instance.StatePort}/debug/vars";
@@ -45,7 +46,7 @@ public class StatisticsXrayService
                     continue;
                 }
 
-                var result = await HttpClientHelper.Instance.TryGetAsync(Url, token);
+                var result = await _metricsClient.GetStringAsync(Url, token);
                 if (result != null)
                 {
                     var server = ParseOutput(result) ?? new ServerSpeedItem();

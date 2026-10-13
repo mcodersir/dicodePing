@@ -312,7 +312,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
     private async void ConnectProfile(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null || sender is not Button { DataContext: ProfileItemModel item }) return;
-        try { await ViewModel.SetDefaultServer(item.IndexId); } catch (Exception ex) { Logging.SaveLog(_tag, ex); }
+        try { await ViewModel.ConnectProfileAsync(item.IndexId); } catch (Exception ex) { Logging.SaveLog(_tag, ex); }
         e.Handled = true;
     }
     private async void EditProfile(object? sender, RoutedEventArgs e)

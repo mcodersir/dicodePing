@@ -75,7 +75,7 @@ class RealPingWorkerService(
                 runningCount.incrementAndGet()
                 try {
                     val sanctions = if (sanctionsOnly) startSanctionsCheck(guid) else null
-                    val result = if (locationOnly || sanctionsOnly) -1L else if (onlyTcp) startTcping(guid) else startRealPing(guid)
+                    val result = if (locationOnly || sanctionsOnly) -1L else if (onlyTcp && !isFoxProfile(guid)) startTcping(guid) else startRealPing(guid)
                     val location = if (locationOnly) startLocationInfo(guid) else null
                     if (scope.isActive) {
                         onEvent(RealPingEvent.Result(guid, result, location?.country, location?.ipAddress, sanctions?.first, sanctions?.second ?: 0, sanctions?.third ?: 0))
@@ -285,6 +285,10 @@ class RealPingWorkerService(
             SanctionService("JetBrains", "https://www.jetbrains.com/", false)
         )
     }
+
+    private fun isFoxProfile(guid: String): Boolean =
+        com.v2ray.ang.core.FoxAccounts.profile(MmkvManager.decodeServerConfig(guid)) != null ||
+            MmkvManager.decodeServerRaw(guid)?.let { com.v2ray.ang.core.FoxAccounts.profile(it) } != null
 
     private fun startTcping(guid: String): Long {
         val retFailure = -1L

@@ -8,6 +8,51 @@ namespace ServiceLib.Tests;
 public class NativeRuntimeTests
 {
     [Fact]
+    public async Task WindowsTunRoutesHttpThroughXrayAndCountsBothDirections()
+    {
+        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Routed Windows TUN traffic is validated in release CI.");
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(50)); var ct = deadline.Token;
+        var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+        var fixturePort = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var xrayPort = Utils.GetFreePort(24000); var metricsPort = Utils.GetFreePort(xrayPort + 1);
+        var name = "DicodePing_CI_" + Guid.NewGuid().ToString("N")[..8];
+        var xfile = Path.Combine(Path.GetTempPath(), name + "-xray.json"); var sfile = Path.Combine(Path.GetTempPath(), name + "-tun.json");
+        var fixture = Task.Run(async () => {
+            using var client = await listener.AcceptTcpClientAsync(ct); var stream = client.GetStream();
+            var hello = new byte[2]; await stream.ReadExactlyAsync(hello, ct); Assert.Equal(5, hello[0]);
+            await stream.ReadExactlyAsync(new byte[hello[1]], ct); await stream.WriteAsync(new byte[] { 5, 0 }, ct);
+            var request = new byte[4]; await stream.ReadExactlyAsync(request, ct); Assert.Equal(1, request[1]);
+            var length = request[3] switch { 1 => 4, 4 => 16, 3 => stream.ReadByte(), _ => throw new IOException("Invalid address") };
+            await stream.ReadExactlyAsync(new byte[length + 2], ct); await stream.WriteAsync(new byte[] { 5, 0, 0, 1, 127, 0, 0, 1, 0, 0 }, ct);
+            var header = new StringBuilder(); var one = new byte[1];
+            while (!header.ToString().EndsWith("\r\n\r\n")) { await stream.ReadExactlyAsync(one, ct); header.Append((char)one[0]); }
+            Assert.StartsWith("GET /routed", header.ToString());
+            await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\ntunnel-ok"), ct);
+        }, ct);
+        await File.WriteAllTextAsync(xfile, $$"""
+        {"log":{"loglevel":"warning"},"inbounds":[{"listen":"127.0.0.1","port":{{xrayPort}},"protocol":"socks","settings":{"auth":"noauth"}}],
+         "outbounds":[{"tag":"proxy","protocol":"socks","settings":{"servers":[{"address":"127.0.0.1","port":{{fixturePort}}}]}}],
+         "stats":{},"metrics":{"listen":"127.0.0.1:{{metricsPort}}"},"policy":{"system":{"statsOutboundUplink":true,"statsOutboundDownlink":true}}}
+        """, ct);
+        await File.WriteAllTextAsync(sfile, $$"""
+        {"log":{"level":"info"},"inbounds":[{"type":"tun","interface_name":"{{name}}","address":["172.30.250.1/30"],"mtu":1500,"auto_route":true,"route_address":["198.18.0.1/32"],"strict_route":false,"stack":"system"}],
+         "outbounds":[{"type":"socks","tag":"proxy","server":"127.0.0.1","server_port":{{xrayPort}}}],"route":{"auto_detect_interface":true}}
+        """, ct);
+        var xbinary = Path.Combine(root!, "bin", "xray", "xray.exe"); var sbinary = Path.Combine(root!, "bin", "sing_box", "sing-box.exe");
+        using var xray = new ProcessService(xbinary, "run -c " + xfile.AppendQuotes(), Path.GetDirectoryName(xbinary)!, true, false, null, (_,_)=>Task.CompletedTask);
+        using var tun = new ProcessService(sbinary, "run -c " + sfile.AppendQuotes(), Path.GetDirectoryName(sbinary)!, true, false, null, (_,_)=>Task.CompletedTask);
+        try {
+            await xray.StartAsync(); await Task.Delay(500, ct); Assert.False(xray.HasExited, xray.RecentOutput);
+            await tun.StartAsync(); await tun.WaitForStartupAsync(TimeSpan.FromSeconds(35));
+            using var http = new HttpClient(new SocketsHttpHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(10) };
+            Assert.Equal("tunnel-ok", await http.GetStringAsync("http://198.18.0.1:18080/routed", ct)); await fixture;
+            var metrics = JsonNode.Parse(await http.GetStringAsync($"http://127.0.0.1:{metricsPort}/debug/vars", ct))!;
+            Assert.True(metrics["stats"]!["outbound"]!["proxy"]!["uplink"]!.GetValue<long>() > 0);
+            Assert.True(metrics["stats"]!["outbound"]!["proxy"]!["downlink"]!.GetValue<long>() > 0);
+        } finally { await tun.StopAsync(); await xray.StopAsync(); listener.Stop(); File.Delete(sfile); File.Delete(xfile); }
+    }
+    [Fact]
     public void WindowsTunDriverCanBeLoaded()
     {
         var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
@@ -77,7 +122,7 @@ public class NativeRuntimeTests
             using var process = new Process { StartInfo = new ProcessStartInfo(alias, "version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false } };
             process.Start(); var output = process.StandardOutput.ReadToEndAsync(); using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try { await process.WaitForExitAsync(timeout.Token); } catch { process.Kill(true); throw; }
-            Assert.Equal(0,process.ExitCode); Assert.Contains("26.10.9", await output);
+            Assert.Equal(0,process.ExitCode); Assert.Contains("26.10.13", await output);
         } finally { Directory.Delete(folder,true); }
     }
 

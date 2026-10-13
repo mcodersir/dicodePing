@@ -143,7 +143,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         for (var i = 0; i < selecteds.Count; i++)
         {
             var it = selecteds[i];
-            if (it.ConfigType == EConfigType.Custom && (actionType is ESpeedActionType.Tcping or ESpeedActionType.UdpTest || it.CoreType is not (ECoreType.Xray or ECoreType.sing_box))) continue;
+            if (it.ConfigType == EConfigType.Custom && FoxProfiles.Read(it) is null && (actionType is ESpeedActionType.Tcping or ESpeedActionType.UdpTest || it.CoreType is not (ECoreType.Xray or ECoreType.sing_box))) continue;
 
             if (it.ConfigType != EConfigType.Custom && !it.ConfigType.IsComplexType() && it.Port <= 0)
             {
@@ -206,7 +206,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunLocationBatchAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct)
     {
-        var isolated = selecteds.Where(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        var isolated = selecteds.Where(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile)).ToList();
         await Parallel.ForEachAsync(isolated, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (item, token) =>
         {
             ProcessService? single = null;
@@ -292,6 +292,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunTcpingAsync(List<ServerTestItem> selecteds,
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct = default)
     {
+        var fox = selecteds.Where(x => FoxProfiles.Read(x.Profile) is not null).ToList();
+        if (fox.Count > 0) await RunMixedTestAsync(fox, completedIds, 2, false, ct);
+        selecteds = selecteds.Except(fox).ToList();
+        if (selecteds.Count == 0) return;
         var pageSize = Math.Min(selecteds.Count, _speedTestPageSize);
         var lstBatch = GetTestBatchItem(selecteds, pageSize);
 
@@ -334,7 +338,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     {
         // Custom configurations and entry hops require an owned, isolated core.
         // The shared batch builder cannot execute them, including a single item.
-        var isolated = lstSelected.Where(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile)).ToList();
+        var isolated = lstSelected.Where(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile)).ToList();
         if (isolated.Count > 0)
         {
             await RunMixedTestAsync(isolated, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct);

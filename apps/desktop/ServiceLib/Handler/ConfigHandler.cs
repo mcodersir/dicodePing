@@ -1620,7 +1620,7 @@ public static class ConfigHandler
         if (node.ConfigType != EConfigType.Custom
             && coreType != ECoreType.sing_box
             && config.TunModeItem.EnableTun
-            && enableLegacyProtect)
+            && (enableLegacyProtect || Utils.IsWindows()))
         {
             itemSocks = new ProfileItem()
             {

@@ -332,8 +332,13 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun setSelectServer(guid: String) {
         val selected = mainViewModel.uiState.value.selectedGuid
-        if (guid != selected) {
-            mainViewModel.updateSelectedGuid(guid)
+        mainViewModel.updateSelectedGuid(guid)
+        val node = com.v2ray.ang.handler.MmkvManager.decodeServerConfig(guid)
+        val managedFox = com.v2ray.ang.core.FoxAccounts.profile(node) != null ||
+            com.v2ray.ang.handler.MmkvManager.decodeServerRaw(guid)?.let { com.v2ray.ang.core.FoxAccounts.profile(it) } != null
+        if (managedFox) {
+            LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
+        } else if (guid != selected) {
             LauncherManager.restartService(this)
         }
     }

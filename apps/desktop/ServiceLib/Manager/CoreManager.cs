@@ -119,7 +119,8 @@ public class CoreManager
         await WaitForProxyPort(preContext);
         await CoreStartPreService(preContext);
 
-        AppManager.Instance.RunningCoreType = preContext?.RunCoreType ?? mainContext.RunCoreType;
+        AppManager.Instance.RunningCoreType = mainContext.Node.ConfigType == EConfigType.Custom
+            ? preContext?.RunCoreType ?? mainContext.RunCoreType : mainContext.RunCoreType;
 
         if (_processService != null)
         {
@@ -175,7 +176,7 @@ public class CoreManager
 
     private async Task<ProcessService?> StartProbeBatch(List<ServerTestItem> selecteds)
     {
-        if (selecteds.Any(x => x.ConfigType == EConfigType.Custom || _config.EntryHopItem.Applies(x.Profile))) return null;
+        if (selecteds.Any(x => x.ConfigType == EConfigType.Custom || FoxProfiles.Read(x.Profile) is not null || _config.EntryHopItem.Applies(x.Profile))) return null;
         var coreType = selecteds.FirstOrDefault()?.CoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);

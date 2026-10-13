@@ -1,3 +1,7 @@
+# 4.8.0
+
+Windows Xray connections use the sing-box TUN bridge with native route readiness; profile connection buttons start the connection; Fox tests own their helper; primary Xray traffic metrics bypass system proxy. Desktop Xray pinned to v26.10.13, as bundled by the new PattN release. See [release notes](docs/RELEASE-4.8.0.md).
+
 # 4.7.2
 
 Fix Fox country dropdown recycling, native SOCKS integration and Windows TUN initialization/readiness. See [release notes](docs/RELEASE-4.7.2.md).
