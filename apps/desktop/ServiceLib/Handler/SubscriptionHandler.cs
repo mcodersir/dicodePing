@@ -2,23 +2,24 @@ namespace ServiceLib.Handler;
 
 public static class SubscriptionHandler
 {
-    public static async Task UpdateProcess(Config config, string subId, bool blProxy, Func<bool, string, Task> updateFunc)
+    public static async Task UpdateProcess(Config config, string subId, bool blProxy, Func<bool, string, Task> updateFunc, CancellationToken cancellationToken = default)
     {
-        await ProfileOperationCoordinator.Gate.WaitAsync();
+        await ProfileOperationCoordinator.Gate.WaitAsync(cancellationToken);
         try
         {
-        await updateFunc?.Invoke(false, ResUI.MsgUpdateSubscriptionStart);
+        await (updateFunc?.Invoke(false, ResUI.MsgUpdateSubscriptionStart) ?? Task.CompletedTask);
         var subItem = await AppManager.Instance.SubItems();
 
         if (subItem is not { Count: > 0 })
         {
-            await updateFunc?.Invoke(false, ResUI.MsgNoValidSubscription);
+            await (updateFunc?.Invoke(false, ResUI.MsgNoValidSubscription) ?? Task.CompletedTask);
             return;
         }
 
         var successCount = 0;
         foreach (var item in subItem)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 if (!IsValidSubscription(item, subId))
@@ -29,35 +30,43 @@ public static class SubscriptionHandler
                 var hashCode = $"{item.Remarks}->";
                 if (item.Enabled == false)
                 {
-                    await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgSkipSubscriptionUpdate}");
+                    await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgSkipSubscriptionUpdate}") ?? Task.CompletedTask);
                     continue;
                 }
 
+                if (item.Url.StartsWith("dicode-fox://", StringComparison.Ordinal)) {
+                    var id = item.Url["dicode-fox://".Length..];
+                    await FoxAccounts.RefreshAsync(id, true, cancellationToken);
+                    await (updateFunc?.Invoke(false, item.Remarks + " · Fox account updated") ?? Task.CompletedTask);
+                    successCount++; continue;
+                }
                 // Create download handler
-                var downloadHandle = CreateDownloadHandler(hashCode, updateFunc);
-                await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgStartGettingSubscriptions}");
+                var downloadHandle = CreateDownloadHandler(item, hashCode, updateFunc);
+                await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgStartGettingSubscriptions}") ?? Task.CompletedTask);
 
                 // Get all subscription content (main subscription + additional subscriptions)
-                var result = await DownloadAllSubscriptions(config, item, blProxy, downloadHandle);
+                var result = await DownloadAllSubscriptions(config, item, blProxy, downloadHandle, cancellationToken);
 
                 // Process download result
+                cancellationToken.ThrowIfCancellationRequested();
                 if (await ProcessDownloadResult(config, item.Id, result, hashCode, updateFunc))
                 {
                     successCount++;
                 }
 
-                await updateFunc?.Invoke(false, "-------------------------------------------------------");
+                await (updateFunc?.Invoke(false, "-------------------------------------------------------") ?? Task.CompletedTask);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 var hashCode = $"{item.Remarks}->";
                 Logging.SaveLog("UpdateSubscription", ex);
-                await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgFailedImportSubscription}: {ex.Message}");
-                await updateFunc?.Invoke(false, "-------------------------------------------------------");
+                await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgFailedImportSubscription}: {ex.Message}") ?? Task.CompletedTask);
+                await (updateFunc?.Invoke(false, "-------------------------------------------------------") ?? Task.CompletedTask);
             }
         }
 
-        await updateFunc?.Invoke(successCount > 0, $"{ResUI.MsgUpdateSubscriptionEnd}");
+        await (updateFunc?.Invoke(successCount > 0, $"{ResUI.MsgUpdateSubscriptionEnd}") ?? Task.CompletedTask);
         }
         finally
         {
@@ -88,9 +97,18 @@ public static class SubscriptionHandler
         return true;
     }
 
-    private static DownloadService CreateDownloadHandler(string hashCode, Func<bool, string, Task> updateFunc)
+    private static DownloadService CreateDownloadHandler(SubItem item, string hashCode, Func<bool, string, Task> updateFunc)
     {
-        var downloadHandle = new DownloadService();
+        if (!HttpRequestHeadersHelper.TryParse(item.RequestHeaders, out var requestHeaders))
+        {
+            throw new FormatException(ResUI.SubRequestHeadersInvalid);
+        }
+
+        var downloadHandle = new DownloadService
+        {
+            AcceptHeader = "*/*",
+            RequestHeaders = requestHeaders
+        };
         downloadHandle.Error += (sender2, args) =>
         {
             updateFunc?.Invoke(false, $"{hashCode}{args.GetException().Message}");
@@ -98,34 +116,34 @@ public static class SubscriptionHandler
         return downloadHandle;
     }
 
-    private static async Task<string> DownloadSubscriptionContent(DownloadService downloadHandle, string url, bool blProxy, string userAgent)
+    private static async Task<string> DownloadSubscriptionContent(DownloadService downloadHandle, string url, bool blProxy, string userAgent, CancellationToken cancellationToken)
     {
-        var result = await downloadHandle.TryDownloadString(url, blProxy, userAgent);
+        var result = await downloadHandle.TryDownloadString(url, blProxy, userAgent, cancellationToken);
 
         // If download with proxy fails, try direct connection
         if (blProxy && result.IsNullOrEmpty())
         {
-            result = await downloadHandle.TryDownloadString(url, false, userAgent);
+            result = await downloadHandle.TryDownloadString(url, false, userAgent, cancellationToken);
         }
 
         return result ?? string.Empty;
     }
 
-    private static async Task<string> DownloadAllSubscriptions(Config config, SubItem item, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadAllSubscriptions(Config config, SubItem item, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         // Download main subscription content
-        var result = await DownloadMainSubscription(config, item, blProxy, downloadHandle);
+        var result = await DownloadMainSubscription(config, item, blProxy, downloadHandle, cancellationToken);
 
         // Process additional subscription links (if any)
         if (item.ConvertTarget.IsNullOrEmpty() && item.MoreUrl.TrimEx().IsNotEmpty())
         {
-            result = await DownloadAdditionalSubscriptions(item, result, blProxy, downloadHandle);
+            result = await DownloadAdditionalSubscriptions(item, result, blProxy, downloadHandle, cancellationToken);
         }
 
         return result;
     }
 
-    private static async Task<string> DownloadMainSubscription(Config config, SubItem item, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadMainSubscription(Config config, SubItem item, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         // Prepare subscription URL and download directly
         var url = Utils.GetPunycode(item.Url.TrimEx());
@@ -151,7 +169,7 @@ public static class SubscriptionHandler
         }
 
         // Download and return result directly
-        var content = await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent);
+        var content = await DownloadSubscriptionContent(downloadHandle, url, blProxy, item.UserAgent, cancellationToken);
         if (item.ConvertTarget.IsNullOrEmpty()
             && downloadHandle.LastResponseHeaders.TryGetValue("subscription-userinfo", out var userInfo))
         {
@@ -173,7 +191,7 @@ public static class SubscriptionHandler
         item.ExpireUnix = values.GetValueOrDefault("expire");
     }
 
-    private static async Task<string> DownloadAdditionalSubscriptions(SubItem item, string mainResult, bool blProxy, DownloadService downloadHandle)
+    private static async Task<string> DownloadAdditionalSubscriptions(SubItem item, string mainResult, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)
     {
         var result = mainResult;
 
@@ -193,7 +211,7 @@ public static class SubscriptionHandler
                 continue;
             }
 
-            var additionalResult = await DownloadSubscriptionContent(downloadHandle, url2, blProxy, item.UserAgent);
+            var additionalResult = await DownloadSubscriptionContent(downloadHandle, url2, blProxy, item.UserAgent, cancellationToken);
 
             if (additionalResult.IsNotEmpty())
             {
@@ -216,22 +234,23 @@ public static class SubscriptionHandler
     {
         if (result.IsNullOrEmpty())
         {
-            await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgSubscriptionDecodingFailed}");
+            await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgSubscriptionDecodingFailed}") ?? Task.CompletedTask);
             return false;
         }
 
-        await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgGetSubscriptionSuccessfully}");
+        await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgGetSubscriptionSuccessfully}") ?? Task.CompletedTask);
 
         // If result is too short, display content directly
         if (result.Length < 99)
         {
-            await updateFunc?.Invoke(false, $"{hashCode}{result}");
+            await (updateFunc?.Invoke(false, $"{hashCode}{result}") ?? Task.CompletedTask);
         }
 
-        await updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgStartParsingSubscription}");
+        await (updateFunc?.Invoke(false, $"{hashCode}{ResUI.MsgStartParsingSubscription}") ?? Task.CompletedTask);
 
         // Add servers to configuration
         var ret = await ConfigHandler.AddBatchServers(config, result, id, true);
+        if (ret > 0) await ConfigHandler.DedupServerList(config, id);
         if (ret <= 0)
         {
             Logging.SaveLog("FailedImportSubscription");
@@ -239,9 +258,9 @@ public static class SubscriptionHandler
         }
 
         // Update completion message
-        await updateFunc?.Invoke(false, ret > 0
+        await (updateFunc?.Invoke(false, ret > 0
                 ? $"{hashCode}{ResUI.MsgUpdateSubscriptionEnd}"
-                : $"{hashCode}{ResUI.MsgFailedImportSubscription}");
+                : $"{hashCode}{ResUI.MsgFailedImportSubscription}") ?? Task.CompletedTask);
 
         return ret > 0;
     }

@@ -15,6 +15,15 @@ object CustomFmt : FmtBase() {
     fun parse(str: String): ProfileItem {
         val config = ProfileItem.create(EConfigType.CUSTOM)
 
+        if (com.v2ray.ang.core.SingBoxConfig.isConfig(str)) {
+            val json = com.google.gson.JsonParser.parseString(str).asJsonObject
+            val outbound = json.getAsJsonArray("outbounds")?.firstOrNull { it.asJsonObject.has("server") }?.asJsonObject
+                ?: json.getAsJsonArray("endpoints")?.firstOrNull()?.asJsonObject
+            config.remarks = json.get("remarks")?.asString ?: "sing-box"
+            config.server = outbound?.get("server")?.asString
+            config.serverPort = outbound?.get("server_port")?.asString
+            return config
+        }
         val fullConfig = JsonUtil.fromJson(str, V2rayConfig::class.java)
         val outbound = fullConfig?.getProxyOutbound()
 

@@ -1,5 +1,7 @@
 package com.v2ray.ang.ui.main
 
+import androidx.compose.ui.res.stringResource
+
 import android.content.Intent
 import android.net.VpnService
 import android.os.Build
@@ -38,6 +40,7 @@ import com.v2ray.ang.ui.logcat.LogcatActivity
 import com.v2ray.ang.ui.perappproxy.PerAppProxyActivity
 import com.v2ray.ang.ui.routing.RoutingSettingActivity
 import com.v2ray.ang.ui.server.ProfileEditorResult
+import com.v2ray.ang.ui.server.ServerAetherActivity
 import com.v2ray.ang.ui.server.ServerCustomConfigActivity
 import com.v2ray.ang.ui.server.ServerGroupActivity
 import com.v2ray.ang.ui.server.ServerHttpActivity
@@ -105,6 +108,12 @@ class MainActivity : HelperBaseComponentActivity() {
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
     }
 
+    override fun onStart() {
+        super.onStart()
+        // The service can have gone away while the screen was not shown, without a word if its process died.
+        mainViewModel.onAction(MainAction.RefreshServiceState)
+    }
+
     @Composable
     override fun ScreenContent() {
         val promptCount = remember {
@@ -140,16 +149,16 @@ class MainActivity : HelperBaseComponentActivity() {
         if (showTelegramPrompt.value) {
             AlertDialog(
                 onDismissRequest = ::dismissTelegramPrompt,
-                title = { Text("کانال دیکد پینگ") },
-                text = { Text("برای اطلاع از نسخه‌ها و خبرهای جدید، به کانال رسمی دیکد پینگ بپیوندید.") },
+                title = { Text(stringResource(R.string.dicode_channel_title)) },
+                text = { Text(stringResource(R.string.dicode_channel_hint)) },
                 confirmButton = {
                     TextButton(onClick = {
                         Utils.openUri(this, AppConfig.TG_CHANNEL_URL)
                         dismissTelegramPrompt()
-                    }) { Text("عضویت در کانال") }
+                    }) { Text(stringResource(R.string.dicode_channel_join)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = ::dismissTelegramPrompt) { Text("بعداً") }
+                    TextButton(onClick = ::dismissTelegramPrompt) { Text(stringResource(R.string.dicode_channel_later)) }
                 }
             )
         }
@@ -170,6 +179,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun navigateTo(destination: MainDestination) {
         val intent = when (destination) {
+            MainDestination.ServerPool -> Intent(this, com.v2ray.ang.ui.serverpool.ServerPoolActivity::class.java)
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.DomainFilter -> Intent(this, DomainFilterActivity::class.java)
@@ -195,6 +205,9 @@ class MainActivity : HelperBaseComponentActivity() {
     private fun handleFabAction() {
         if (mainViewModel.uiState.value.isRunning) {
             LauncherManager.stopService(this)
+            // A service whose process died takes no stop and answers nothing; asking for its state right
+            // after lets that silence show the screen as stopped instead of leaving it connected.
+            mainViewModel.onAction(MainAction.RefreshServiceState)
         } else {
             requestServiceStart()
         }
@@ -232,12 +245,12 @@ class MainActivity : HelperBaseComponentActivity() {
             toast(R.string.title_file_chooser)
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN &&
-            MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN
         ) {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
-        LauncherManager.startService(this)
+        if (mainViewModel.isLoading.value) return
+        mainViewModel.prepareAetherConnection { LauncherManager.startService(this) }
     }
 
     private fun importManually(createConfigType: Int) {
@@ -252,6 +265,7 @@ class MainActivity : HelperBaseComponentActivity() {
             EConfigType.TROJAN.value -> Intent(this, ServerTrojanActivity::class.java)
             EConfigType.WIREGUARD.value -> Intent(this, ServerWireguardActivity::class.java)
             EConfigType.HYSTERIA2.value -> Intent(this, ServerHysteria2Activity::class.java)
+            EConfigType.AETHER.value -> Intent(this, ServerAetherActivity::class.java)
             else -> Intent(this, ServerHttpActivity::class.java).apply {
                 putExtra("createConfigType", createConfigType)
             }
@@ -304,6 +318,7 @@ class MainActivity : HelperBaseComponentActivity() {
             EConfigType.TROJAN -> ServerTrojanActivity::class.java
             EConfigType.WIREGUARD -> ServerWireguardActivity::class.java
             EConfigType.HYSTERIA2 -> ServerHysteria2Activity::class.java
+            EConfigType.AETHER -> ServerAetherActivity::class.java
             else -> ServerHttpActivity::class.java
         }
         val intent = Intent(this, activityClass).apply {
@@ -317,15 +332,21 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun setSelectServer(guid: String) {
         val selected = mainViewModel.uiState.value.selectedGuid
-        if (guid != selected) {
-            mainViewModel.updateSelectedGuid(guid)
+        mainViewModel.updateSelectedGuid(guid)
+        val node = com.v2ray.ang.handler.MmkvManager.decodeServerConfig(guid)
+        val managedFox = com.v2ray.ang.core.FoxAccounts.profile(node) != null ||
+            com.v2ray.ang.handler.MmkvManager.decodeServerRaw(guid)?.let { com.v2ray.ang.core.FoxAccounts.profile(it) } != null
+        if (managedFox && (guid != selected || !com.v2ray.ang.core.CoreServiceManager.isServiceRunning())) {
+            LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
+        } else if (guid != selected) {
             LauncherManager.restartService(this)
         }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            moveTaskToBack(false)
+            // Let the visible drawer/dialog consume gamepad BACK before the main task is backgrounded.
+            onBackPressedDispatcher.onBackPressed()
             return true
         }
         return super.onKeyDown(keyCode, event)

@@ -1,7 +1,9 @@
 <Project>
 
     <PropertyGroup>
-    <Version>3.0.6</Version>
+    <Version>4.8.0</Version>
+    <FileVersion>4.8.0.1</FileVersion>
+    <InformationalVersion>4.8.0-r1</InformationalVersion>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -19,7 +21,7 @@
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <DebugType>embedded</DebugType>
         <EventSourceSupport>false</EventSourceSupport>
-        <StackTraceSupport>false</StackTraceSupport>
+        <StackTraceSupport>true</StackTraceSupport>
         <MetricsSupport>false</MetricsSupport>
         <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
         <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>

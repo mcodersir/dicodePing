@@ -7,7 +7,7 @@ public class StatisticsManager
 
     private Config _config;
     private ServerStatItem? _serverStatItem;
-    private List<ServerStatItem> _lstServerStat;
+    private List<ServerStatItem> _lstServerStat = [];
     private Func<ServerSpeedItem, Task>? _updateFunc;
 
     private StatisticsXrayService? _statisticsXray;
@@ -123,7 +123,7 @@ public class StatisticsManager
         server.TodayDown = _serverStatItem.TodayDown;
         server.TotalUp = _serverStatItem.TotalUp;
         server.TotalDown = _serverStatItem.TotalDown;
-        await _updateFunc?.Invoke(server);
+        await (_updateFunc?.Invoke(server) ?? Task.CompletedTask);
     }
 
     private async Task GetServerStatItem(string indexId)

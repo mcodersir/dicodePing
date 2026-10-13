@@ -1,8 +1,7 @@
 package com.v2ray.ang.ui.server
 
-import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,18 +23,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.v2ray.ang.AppConfig.BUILTIN_OUTBOUND_TAGS
-import com.v2ray.ang.AppConfig.TAG_PROXY
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.v2ray.ang.R
-import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BalancerStrategyType
 import com.v2ray.ang.enums.EConfigType
-import com.v2ray.ang.extension.isNotNullEmpty
-import com.v2ray.ang.extension.toast
-import com.v2ray.ang.extension.toastSuccess
-import com.v2ray.ang.handler.MmkvManager
-import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.EditorLoading
+import com.v2ray.ang.ui.base.EditorOutcomeEffect
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
 import com.v2ray.ang.ui.compose.FormDropdownField
@@ -46,163 +42,100 @@ import com.v2ray.ang.ui.compose.SettingsSwitchItem
 class ServerGroupActivity : BaseComponentActivity() {
 
     private val editGuid by lazy { intent.getStringExtra("guid").orEmpty() }
-    private val isRunning by lazy {
-        intent.getBooleanExtra("isRunning", false)
-                && editGuid.isNotEmpty()
-                && editGuid == MmkvManager.getSelectServer()
-    }
     private val subscriptionId by lazy { intent.getStringExtra("subscriptionId") }
-    private val subIds = mutableListOf<String>()
-    private val subDisplay = mutableListOf<String>()
-    private lateinit var fallbackSuggestions: List<String>
 
-    private lateinit var initialRemarks: String
-    private lateinit var initialFilter: String
-    private var initialType: Int = 0
-    private var initialSubIndex: Int = 0
-    private var initialTestOutbounds: Boolean = false
-    private lateinit var initialFallbackTag: String
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        val config = MmkvManager.decodeServerConfig(editGuid)
-        populateSubscriptionSpinner()
-        fallbackSuggestions = (
-                BUILTIN_OUTBOUND_TAGS + SettingsManager.getProfileRemarks(
-                    excludeConfigTypes = setOf(EConfigType.CUSTOM, EConfigType.POLICYGROUP)
-                )
-                ).filter { it != TAG_PROXY }
-
-        initialRemarks = config?.remarks ?: ""
-        initialFilter = config?.policyGroupFilter ?: ""
-        initialType = config?.policyGroupType?.toIntOrNull() ?: 0
-        initialTestOutbounds = config == null || config.policyGroupTestOutbounds != false ||
-                !BalancerStrategyType.from(config.policyGroupType).supportsObservatory
-        initialFallbackTag = config?.policyGroupFallbackTag.orEmpty()
-        initialSubIndex = if (config != null) {
-            subIds.indexOf(config.policyGroupSubscriptionId ?: "").let { if (it >= 0) it else 0 }
-        } else if (subscriptionId.isNotNullEmpty()) {
-            subIds.indexOf(subscriptionId).let { if (it >= 0) it else 0 }
-        } else 0
+    /** PattNG: the save, which outlives this activity when it is recreated, see [ServerGroupViewModel]. */
+    private val viewModel: ServerGroupViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                ServerGroupViewModel(application, ProfileEditorRepository(), editGuid, subscriptionId, intent.getBooleanExtra("isRunning", false))
+            }
+        }
     }
 
     @Composable
     override fun ScreenContent() {
+        // PattNG: read off the main thread, see ProfileEditorViewModel.isRunning; no delete is offered until it is known.
+        val running by viewModel.isRunning.collectAsStateWithLifecycle()
+        val opened by viewModel.opened.collectAsStateWithLifecycle()
+        EditorOutcomeEffect(
+            viewModel = viewModel,
+            onSaved = { guid ->
+                ProfileEditorResult.run {
+                    finishSaved(
+                        guid = guid,
+                        restartService = viewModel.isRunning.value == true
+                    )
+                }
+            },
+            onDeleted = {
+                ProfileEditorResult.run {
+                    finishDeleted(editGuid)
+                }
+            }
+        )
+        // PattNG: the group, the subscriptions and the names of the profiles are read off the main thread; until they are,
+        // the screen waits.
+        val group = opened
+        if (group == null) {
+            EditorLoading(EConfigType.POLICYGROUP.toString()) { finish() }
+            return
+        }
+        val all = stringResource(R.string.filter_config_all)
+        val numbered = stringResource(R.string.label_numbered)
+        val subscriptions = remember(group, all, numbered) {
+            policyGroupSubscriptions(all = all, subscriptions = group.subscriptions, numbered = { name, number -> numbered.format(name, number) })
+        }
         ServerGroupScreen(
             editGuid = editGuid,
-            isRunning = isRunning,
-            subDisplay = subDisplay,
-            initialRemarks = initialRemarks,
-            initialFilter = initialFilter,
-            initialType = initialType,
-            initialSubIndex = initialSubIndex,
-            initialTestOutbounds = initialTestOutbounds,
-            initialFallbackTag = initialFallbackTag,
-            fallbackSuggestions = fallbackSuggestions,
+            isRunning = running != false,
+            subscriptions = subscriptions,
+            initialRemarks = group.remarks,
+            initialFilter = group.filter,
+            initialType = group.type,
+            // PattNG: the subscription is picked by its key: a group of a subscription gone, or a new one, starts on all.
+            initialSubscriptionId = subscriptions.pick(group.pickedSubscription).id,
+            initialTestOutbounds = group.testOutbounds,
+            initialFallbackTag = group.fallbackTag,
+            fallbackSuggestions = group.fallbackSuggestions,
             onBackClick = { finish() },
-            onSave = { remarks, filter, typeIdx, subIdx, testOutbounds, fallbackTag ->
-                saveServer(remarks, filter, typeIdx, subIdx, testOutbounds, fallbackTag)
+            onSave = { remarks, filter, typeIdx, subscription, testOutbounds, fallbackTag ->
+                saveServer(subscriptions, remarks, filter, typeIdx, subscription, testOutbounds, fallbackTag)
             },
-            onDelete = { deleteServer() }
+            onDelete = { viewModel.delete() }
         )
+    }
+
+    /**
+     * PattNG: the screen closes only once the save or the delete that runs has written, telling the screen it returns
+     * to what it did, see [com.v2ray.ang.ui.base.EditorViewModel.leaveScreen].
+     */
+    override fun finish() {
+        if (viewModel.leaveScreen()) super.finish()
     }
 
     private fun saveServer(
+        subscriptions: List<PolicyGroupSubscription>,
         remarks: String,
         filter: String,
         typeIdx: Int,
-        subIdx: Int,
+        subscriptionId: String,
         testOutbounds: Boolean,
         fallbackTag: String,
-    ): Boolean {
-        if (remarks.isBlank()) {
-            toast(R.string.server_lab_remarks)
-            return false
-        }
-
-        val config =
-            MmkvManager.decodeServerConfig(editGuid)
-                ?: ProfileItem.create(EConfigType.POLICYGROUP)
-
-        config.remarks = remarks.trim()
-        config.policyGroupFilter = filter.trim()
-        config.policyGroupType = typeIdx.toString()
-        config.policyGroupSubscriptionId =
-            subIds.getOrNull(subIdx)
-        config.policyGroupTestOutbounds = testOutbounds
-        config.policyGroupFallbackTag = fallbackTag.trim().takeIf { it.isNotEmpty() }
-
-        if (
-            config.subscriptionId.isEmpty() &&
-            !subscriptionId.isNullOrEmpty()
-        ) {
-            config.subscriptionId = subscriptionId.orEmpty()
-        }
-
-        val typeDisplay =
-            stringArrayPolicyGroupType()
-                .getOrNull(typeIdx)
-                .orEmpty()
-
-        config.description = buildString {
-            append(typeDisplay)
-            append(" - ")
-            append(subDisplay.getOrNull(subIdx).orEmpty())
-            append(" - ")
-            append(config.policyGroupFilter)
-        }
-
-        val savedGuid = MmkvManager.encodeServerConfig(
-            editGuid,
-            config
-        )
-
-        toastSuccess(R.string.toast_success)
-
-        ProfileEditorResult.run {
-            finishSaved(
-                guid = savedGuid,
-                restartService = isRunning
+    ) {
+        val subscription = subscriptions.pick(subscriptionId)
+        viewModel.save(
+            PolicyGroupEdit(
+                remarks = remarks,
+                filter = filter,
+                type = typeIdx,
+                typeLabel = stringArrayPolicyGroupType().getOrNull(typeIdx).orEmpty(),
+                subscriptionId = subscription.id,
+                subscriptionLabel = subscription.label,
+                testOutbounds = testOutbounds,
+                fallbackTag = fallbackTag,
             )
-        }
-
-        return true
-    }
-
-    private fun deleteServer(): Boolean {
-        if (editGuid.isEmpty()) {
-            return false
-        }
-
-        if (editGuid == MmkvManager.getSelectServer()) {
-            toast(R.string.toast_action_not_allowed)
-            return false
-        }
-
-        MmkvManager.removeServer(editGuid)
-
-        ProfileEditorResult.run {
-            finishDeleted(editGuid)
-        }
-
-        return true
-    }
-
-    private fun populateSubscriptionSpinner() {
-        val subs = MmkvManager.decodeSubscriptions()
-        subIds.clear()
-        subDisplay.clear()
-        subDisplay.add(getString(R.string.filter_config_all))
-        subIds.add("")
-        subs.forEach { sub ->
-            val name = when {
-                sub.subscription.remarks.isNotBlank() -> sub.subscription.remarks
-                else -> sub.guid
-            }
-            subDisplay.add(name)
-            subIds.add(sub.guid)
-        }
+        )
     }
 
     private fun stringArrayPolicyGroupType(): Array<String> =
@@ -213,24 +146,27 @@ class ServerGroupActivity : BaseComponentActivity() {
 fun ServerGroupScreen(
     editGuid: String,
     isRunning: Boolean,
-    subDisplay: List<String>,
+    subscriptions: List<PolicyGroupSubscription>,
     initialRemarks: String,
     initialFilter: String,
     initialType: Int,
-    initialSubIndex: Int,
+    initialSubscriptionId: String,
     initialTestOutbounds: Boolean,
     initialFallbackTag: String,
     fallbackSuggestions: List<String>,
     onBackClick: () -> Unit,
-    onSave: (String, String, Int, Int, Boolean, String) -> Boolean,
+    onSave: (String, String, Int, String, Boolean, String) -> Unit,
     onDelete: () -> Unit
 ) {
     val typeEntries = stringArrayResource(R.array.policy_group_type).toList()
 
     var remarks by rememberSaveable { mutableStateOf(initialRemarks) }
+    var isRemarksError by rememberSaveable { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf(initialFilter) }
     var typeValue by rememberSaveable { mutableStateOf(typeEntries.getOrNull(initialType).orEmpty()) }
-    var subValue by rememberSaveable { mutableStateOf(subDisplay.getOrNull(initialSubIndex).orEmpty()) }
+    // PattNG: the subscription picked, by its key; the list shows it by its label.
+    var subscriptionId by rememberSaveable { mutableStateOf(initialSubscriptionId) }
+    val pickedSubscription = subscriptions.pick(subscriptionId)
     var testOutbounds by rememberSaveable { mutableStateOf(initialTestOutbounds) }
     var fallbackTag by rememberSaveable { mutableStateOf(initialFallbackTag) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -251,9 +187,14 @@ fun ServerGroupScreen(
                         }
                     }
                     IconButton(onClick = {
-                        val typeIdx = typeEntries.indexOf(typeValue).coerceAtLeast(0)
-                        val subIdx = subDisplay.indexOf(subValue).coerceAtLeast(0)
-                        onSave(remarks, filter, typeIdx, subIdx, testOutbounds, fallbackTag)
+                        val remarksErr = remarks.isBlank()
+                        isRemarksError = remarksErr
+
+                        val hasError = remarksErr
+                        if (!hasError) {
+                            val typeIdx = typeEntries.indexOf(typeValue).coerceAtLeast(0)
+                            onSave(remarks, filter, typeIdx, pickedSubscription.id, testOutbounds, fallbackTag)
+                        }
                     }) {
                         Icon(painterResource(R.drawable.ic_fab_check), contentDescription = stringResource(R.string.acc_save))
                     }
@@ -270,7 +211,12 @@ fun ServerGroupScreen(
                 .padding(vertical = 8.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            FormTextField(stringResource(R.string.server_lab_remarks), remarks, { remarks = it })
+            FormTextField(
+                label = stringResource(R.string.server_lab_remarks),
+                value = remarks,
+                onValueChange = { remarks = it },
+                isError = isRemarksError
+            )
             FormDropdownField(
                 label = stringResource(R.string.title_policy_group_type),
                 value = typeValue,
@@ -279,9 +225,9 @@ fun ServerGroupScreen(
             )
             FormDropdownField(
                 label = stringResource(R.string.title_policy_group_subscription_id),
-                value = subValue,
-                options = subDisplay,
-                onValueChange = { subValue = it }
+                value = pickedSubscription.label,
+                options = subscriptions.map { it.label },
+                onValueChange = { label -> subscriptions.firstOrNull { it.label == label }?.let { subscriptionId = it.id } }
             )
             FormTextField(stringResource(R.string.title_policy_group_subscription_filter), filter, { filter = it })
             if (supportsObservatory) {
@@ -307,6 +253,7 @@ fun ServerGroupScreen(
     if (showDeleteConfirm) {
         DeleteConfirmDialog(
             message = stringResource(R.string.confirm_delete_policy_group),
+            itemName = initialRemarks,
             onConfirm = onDelete,
             onDismiss = { showDeleteConfirm = false }
         )
