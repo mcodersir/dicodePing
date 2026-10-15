@@ -11,6 +11,7 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: write
   pages: write
   id-token: write
