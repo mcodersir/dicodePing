@@ -351,6 +351,25 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Require source and Android device checks for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 60); do
+            runs=$(gh run list --repo "${{ github.repository }}" --commit "$RELEASE_SHA" --limit 30 --json workflowName,status,conclusion)
+            result=$(echo "$runs" | jq -r '
+              ["Verify", "Android 4.9 preflight"] as $required |
+              [$required[] as $name | [.[] | select(.workflowName == $name)][0] // {status:"pending"}] |
+              if any(.[]; .status == "completed" and .conclusion != "success") then "failed"
+              elif all(.[]; .status == "completed" and .conclusion == "success") then "passed"
+              else "pending" end')
+            if [ "$result" = passed ]; then exit 0; fi
+            if [ "$result" = failed ]; then echo "Source/device checks failed; release will not be published."; exit 1; fi
+            sleep 30
+          done
+          echo "Source/device checks did not complete; no release tag was created."
+          exit 1
       - name: Create the immutable tag only after successful builds
         if: github.event_name == 'workflow_dispatch'
         env:
