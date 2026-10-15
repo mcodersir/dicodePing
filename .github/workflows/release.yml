@@ -358,10 +358,10 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           for attempt in $(seq 1 60); do
-            runs=$(gh run list --repo "${{ github.repository }}" --commit "$RELEASE_SHA" --limit 30 --json workflowName,status,conclusion)
+            runs=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$RELEASE_SHA&per_page=30" --jq '.workflow_runs')
             result=$(echo "$runs" | jq -r '
-              ["Verify", "Android 4.9 preflight"] as $required |
-              [$required[] as $name | [.[] | select(.workflowName == $name)][0] // {status:"pending"}] |
+              [".github/workflows/ci.yml", ".github/workflows/android-preflight.yml"] as $required |
+              [$required[] as $path | [.[] | select(.path == $path)][0] // {status:"pending"}] |
               if any(.[]; .status == "completed" and .conclusion != "success") then "failed"
               elif all(.[]; .status == "completed" and .conclusion == "success") then "passed"
               else "pending" end')
@@ -379,19 +379,48 @@ jobs:
         run: |
           existing=$(gh api repos/${{ github.repository }}/git/ref/tags/v4.9.0 --jq '.object.sha' 2>/dev/null || true)
           if [ -n "$existing" ]; then
-            echo "Release tag already exists; refusing to replace it."
-            exit 1
+            if [ "$existing" != "$RELEASE_SHA" ]; then
+              echo "Release tag points to another commit; refusing to replace it."
+              exit 1
+            fi
+          else
+            gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.0 -f sha="$RELEASE_SHA"
           fi
-          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.0 -f sha="$RELEASE_SHA"
       - uses: softprops/action-gh-release@v2
+        id: draft_release
         with:
           tag_name: v4.9.0
           target_commitish: ${{ github.sha }}
           name: DicodePing 4.9.0 — Stable
+          draft: true
           prerelease: false
-          make_latest: true
+          make_latest: false
           generate_release_notes: false
           body_path: docs/RELEASE-4.9.0.md
           files: artifacts/*
+      - name: Verify every uploaded package before publishing the stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
+          gh release download v4.9.0 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+          python - <<'PYVERIFY'
+          import json, pathlib, re
+          release = json.loads(pathlib.Path('release-metadata.json').read_text())
+          assets = {a['name']: a for a in release['assets']}
+          expected = {'DicodePing-4.9.0-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+          assert len(expected) == 14 and len(assets) == 23 and expected <= assets.keys()
+          checks = {}
+          for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
+              for line in file.read_text(encoding='utf-8-sig').splitlines():
+                  match = re.fullmatch(r'([0-9a-fA-F]{64})\s+\*?(.+)', line.strip())
+                  assert match, (file, line)
+                  checks[match[2]] = match[1].lower()
+          assert set(checks) == expected
+          for name in expected:
+              assert assets[name]['size'] > 0 and assets[name]['digest'] == 'sha256:' + checks[name], name
+          print('All 14 packages and 9 checksum files verified; safe to publish.')
+          PYVERIFY
+          gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
 
 # Download pages deploy through website.yml on the authorized Pages branch.
