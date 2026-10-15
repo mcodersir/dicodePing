@@ -373,6 +373,7 @@ class MainViewModel(
             }
 
             MainAction.ToggleService,
+            is MainAction.ConnectServer,
             MainAction.TestCurrentServer,
             MainAction.ImportQRcode,
             MainAction.ImportClipboard,
