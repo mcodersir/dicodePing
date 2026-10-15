@@ -792,6 +792,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     private async Task StartConnectionAsync()
     {
         await ProfilesViewModel.StopDiagnosticsAsync();
+        _config.TunModeItem.EnableTun = true;
+        await ConfigHandler.SaveConfig(_config);
         _connectionDesired = true;
         Interlocked.Increment(ref _connectionIntentVersion);
         await Reload(forceStart: true);
@@ -872,8 +874,14 @@ public partial class MainWindowViewModel : MyReactiveObject
         }
 
         var intentVersion = Interlocked.Read(ref _connectionIntentVersion);
-        //If there are unfinished reload job, marked with next job.
-        if (!await _reloadSemaphore.WaitAsync(0))
+        // Explicit connection callers await the actual replacement, including when a
+        // background reload already owns the gate. Returning early reports a false
+        // connection failure and lets a second start race the queued replacement.
+        if (forceStart)
+        {
+            await _reloadSemaphore.WaitAsync();
+        }
+        else if (!await _reloadSemaphore.WaitAsync(0))
         {
             _hasNextReloadJob = true;
             return;

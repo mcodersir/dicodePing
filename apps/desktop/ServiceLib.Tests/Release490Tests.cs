@@ -5,6 +5,22 @@ namespace ServiceLib.Tests;
 
 public class Release490Tests
 {
+    [Fact]
+    public async Task ExplicitConnectWaitsForAnInFlightReloadInsteadOfReportingAnEarlyFailure()
+    {
+        // Exercise the real reload queue without constructing unrelated UI commands/services.
+        var model = (ServiceLib.ViewModels.MainWindowViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(ServiceLib.ViewModels.MainWindowViewModel));
+        model.DesignMode = true;
+        using var gate = new SemaphoreSlim(1, 1);
+        typeof(ServiceLib.ViewModels.MainWindowViewModel).GetField("_reloadSemaphore", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(model, gate);
+        await gate.WaitAsync();
+        var connection = model.Reload(forceStart: true);
+        try { Assert.False(connection.IsCompleted); }
+        finally { gate.Release(); }
+        await connection.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(1, gate.CurrentCount);
+    }
+
     [Theory]
     [InlineData("WARP", "Cloudflare WARP Adapter", false)]
     [InlineData("Ethernet", "WireGuard Tunnel", false)]
