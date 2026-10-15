@@ -459,7 +459,7 @@ public class CoreManager
     {
         string fileName; string msg;
         try { fileName = CoreInfoManager.Instance.GetCoreExecFile(coreInfo, out msg); }
-        catch (Exception error) { LastStartupError = error.Message; await UpdateFunc(mayNeedSudo, error.Message); return null; }
+        catch (Exception error) { LastStartupError = error.Message; await UpdateFunc(false, error.Message); return null; }
         if (fileName.IsNullOrEmpty())
         {
             LastStartupError = msg;
@@ -504,8 +504,8 @@ public class CoreManager
             LastStartupError = ex.Message;
             if (NativeLaunchPolicy.RecordLoaderFailure(fileName, ex)) {
                 Logging.SaveLog("Core loader rejected the executable; automatic repeated launches disabled.");
-                try { NativeLaunchPolicy.Validate(fileName); } catch (Exception failure) { await UpdateFunc(mayNeedSudo, failure.Message); }
-            } else await UpdateFunc(mayNeedSudo, ex.Message);
+                try { NativeLaunchPolicy.Validate(fileName); } catch (Exception failure) { await UpdateFunc(false, failure.Message); }
+            } else await UpdateFunc(false, ex.Message);
             return null;
         }
     }

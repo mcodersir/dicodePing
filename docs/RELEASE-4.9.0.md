@@ -1,5 +1,6 @@
 # DicodePing 4.9.0
 
+- Desktop startup failures are reported once by the connection flow; failed background probe launches stay in diagnostic logs.
 - Desktop core starts, replacements and stops are serialized. The Best action locks its complete test/select/connect operation; diagnostics keep independent ports. If the requested mixed listener port is occupied, the runtime chooses a free local port and system-proxy consumers follow that active port.
 - Main and TUN bridge configurations are compared together before reusing a connection. Settings snapshots keep bridge and main listener ports consistent.
 - Each Windows sing-box TUN launch uses a fresh DicodePing-owned adapter name. The reported stale-adapter create/open collision gets one bounded retry. Other VPN adapters and routes are never removed.
