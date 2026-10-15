@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math/bits"
 	"net"
 	"syscall"
 	"testing"
@@ -29,7 +28,7 @@ func TestWindowsSocketPinsTheRequestedAdapter(t *testing.T) {
 		t.Fatal("No active adapter on Windows runner")
 	}
 	for _, v6 := range []bool{false, true} {
-		family, level, network, expected := syscall.AF_INET, syscall.IPPROTO_IP, "tcp4", int(bits.ReverseBytes32(uint32(nic.Index)))
+		family, level, network, expected := syscall.AF_INET, syscall.IPPROTO_IP, "tcp4", nic.Index
 		if v6 {
 			family, level, network, expected = syscall.AF_INET6, syscall.IPPROTO_IPV6, "tcp6", nic.Index
 		}
