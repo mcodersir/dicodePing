@@ -40,6 +40,7 @@ public partial class CoreConfigSingboxService
             var tag = string.Format(Global.SingboxDirectDNSTagTemplate, i + 1);
             directDns.tag = tag;
             directDns.domain_resolver = Global.SingboxLocalDNSTag;
+            directDns.bind_interface = DnsBindInterface(directDns);
         }
 
         var remoteDnsList = ParseDnsAddresses(simpleDnsItem.RemoteDNS ?? Global.DomainRemoteDNSAddress.First());
@@ -138,10 +139,18 @@ public partial class CoreConfigSingboxService
         }
     }
 
+    private string? DnsBindInterface(Server4Sbox server)
+    {
+        if (server.type is not ("udp" or "tcp" or "tls" or "https" or "quic" or "h3")) return null;
+        if (server.server == "localhost" || (IPAddress.TryParse(server.server, out var ip) && IPAddress.IsLoopback(ip))) return null;
+        return _config.CoreBasicItem.BindInterface.NullIfEmpty();
+    }
+
     private Server4Sbox GenBootstrapDns()
     {
         var finalDns = ParseDnsAddress(context.SimpleDnsItem?.BootstrapDNS ?? Global.DomainPureIPDNSAddress.First());
         finalDns.tag = Global.SingboxLocalDNSTag;
+        finalDns.bind_interface = DnsBindInterface(finalDns);
         _coreConfig.dns ??= new Dns4Sbox();
         _coreConfig.dns.servers ??= [];
         _coreConfig.dns.servers.Add(finalDns);

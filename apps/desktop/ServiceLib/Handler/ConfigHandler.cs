@@ -1627,7 +1627,7 @@ public static class ConfigHandler
                 CoreType = ECoreType.sing_box,
                 ConfigType = EConfigType.SOCKS,
                 Address = Global.Loopback,
-                Port = AppManager.Instance.GetLocalPort(EInboundProtocol.socks)
+                Port = (config.Inbound.FirstOrDefault(i => i.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 10808)
             };
         }
         else if (node.ConfigType == EConfigType.Custom

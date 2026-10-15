@@ -6,10 +6,9 @@ public class StatisticsSingboxService
 {
     private readonly Config _config;
     private readonly TrafficKiBAccumulator _traffic = new();
-    private string? _profileId;
     private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
-    private string Url => $"ws://{Global.Loopback}:{AppManager.Instance.StatePort2}/traffic";
+
     private static readonly string _tag = "StatisticsSingboxService";
 
     public StatisticsSingboxService(Config config, Func<ServerSpeedItem, Task> updateFunc)
@@ -45,8 +44,16 @@ public class StatisticsSingboxService
                     await Task.Delay(1000, token).ConfigureAwait(false);
                     continue;
                 }
+                var runtime = CoreManager.Instance;
+                var session = runtime.SessionId;
+                var profileId = runtime.ActiveProfileId;
+                if (!runtime.IsRunning || profileId is null) { await Task.Delay(250, token); continue; }
+                _traffic.Reset();
                 using var ws = new ClientWebSocket();
-                await ws.ConnectAsync(new Uri(Url), token).ConfigureAwait(false);
+                ws.Options.Proxy = null;
+                using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+                connectTimeout.CancelAfter(TimeSpan.FromSeconds(3));
+                await ws.ConnectAsync(new Uri($"ws://{Global.Loopback}:{runtime.StatisticsPort}/traffic"), connectTimeout.Token).ConfigureAwait(false);
 
                 var buffer = new byte[1024];
                 while (ws.State == WebSocketState.Open
@@ -70,14 +77,15 @@ public class StatisticsSingboxService
                     {
                         continue;
                     }
+                    if (!runtime.IsRunning || runtime.SessionId != session) break;
                     ParseOutput(result, out var up, out var down);
 
                     if (_updateFunc != null)
                     {
-                        if (_profileId != _config.IndexId) { _traffic.Reset(); _profileId = _config.IndexId; }
                         var sample = _traffic.Add(up, down);
                         await _updateFunc.Invoke(new ServerSpeedItem
                         {
+                            IndexId = profileId,
                             ProxyUp = sample.Up,
                             ProxyDown = sample.Down,
                         }).ConfigureAwait(false);

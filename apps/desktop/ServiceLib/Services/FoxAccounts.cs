@@ -134,11 +134,11 @@ public static class FoxAccounts
         if (addProfile) await FoxProfiles.SyncAsync(await GetAsync(id));
         return account;
     }
-    public static async Task<ProcessService> StartProxyAsync(string id, string country, int port, CancellationToken token = default)
+    public static async Task<ProcessService> StartProxyAsync(string id, string country, int port, CancellationToken token = default, string? bindInterface = null)
     {
         var account = await GetAsync(id); var process = Helper();
         try {
-            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
+            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["bind_interface"] = bindInterface.NullIfEmpty() ?? PhysicalUplink.Find(), ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
                 if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { await UpdateSessionAsync(id, state); }
                 if (message["event"]?.ToString() == "quota" && message["account"] is JsonObject info) await UpdateQuotaAsync(id, info);
             }, token);

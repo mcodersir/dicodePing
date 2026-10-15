@@ -35,6 +35,9 @@ public class CoreConfigContextBuilder
     /// </summary>
     public static async Task<CoreConfigContextBuilderResult> Build(Config config, ProfileItem node)
     {
+        config = JsonUtils.DeepCopy(config);
+        if (Utils.IsWindows() && config.TunModeItem.EnableTun && config.CoreBasicItem.BindInterface.IsNullOrEmpty())
+            config.CoreBasicItem.BindInterface = PhysicalUplink.Find();
         node = FoxProfiles.ForConnection(node);
         var runCoreType = AppManager.Instance.GetCoreType(node, node.ConfigType);
         var coreType = runCoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
@@ -149,7 +152,14 @@ public class CoreConfigContextBuilder
     /// </summary>
     public static async Task<CoreConfigContextBuilderAllResult> BuildAll(Config config, ProfileItem node)
     {
+        config = JsonUtils.DeepCopy(config);
+        var inbound = config.Inbound.First(i => i.Protocol == nameof(EInboundProtocol.socks));
+        var requestedPort = inbound.LocalPort;
+        var runtime = CoreManager.Instance;
+        inbound.LocalPort = runtime.IsRunning && runtime.RequestedLocalPort == requestedPort
+            ? runtime.ActiveLocalPort : Utils.GetFreePort(requestedPort);
         var mainResult = await Build(config, node);
+        mainResult = mainResult with { Context = mainResult.Context with { RequestedLocalPort = requestedPort } };
         if (!mainResult.Success)
         {
             return new CoreConfigContextBuilderAllResult(mainResult, null);
@@ -174,8 +184,7 @@ public class CoreConfigContextBuilder
             && mainResult.Context.AppConfig.TunModeItem.StrictRoute)
         {
             var appConfig = JsonUtils.DeepCopy(mainResult.Context.AppConfig);
-            appConfig.CoreBasicItem.BindInterface = string.Empty;
-            appConfig.CoreBasicItem.SendThrough = string.Empty;
+            // Keep the resolved hardware uplink: clearing it lets another VPN become the core's default route.
             resolvedMainResult = resolvedMainResult with
             {
                 Context = resolvedMainResult.Context with

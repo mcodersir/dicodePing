@@ -104,7 +104,9 @@ public class StatisticsManager
 
     private async Task UpdateServerStat(ServerSpeedItem server)
     {
-        await GetServerStatItem(_config.IndexId);
+        var profileId = server.IndexId;
+        if (profileId.IsNullOrEmpty()) return;
+        await GetServerStatItem(profileId);
 
         if (_serverStatItem is null)
         {
@@ -118,7 +120,7 @@ public class StatisticsManager
             _serverStatItem.TotalDown += server.ProxyDown;
         }
 
-        server.IndexId = _config.IndexId;
+        server.IndexId = profileId;
         server.TodayUp = _serverStatItem.TodayUp;
         server.TodayDown = _serverStatItem.TodayDown;
         server.TotalUp = _serverStatItem.TotalUp;

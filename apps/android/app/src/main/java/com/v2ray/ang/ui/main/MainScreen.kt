@@ -65,7 +65,7 @@ fun MainScreen(
         autoConnectPending = false
         autoConnectStarted = false
         val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-        if (best != null) { mainViewModel.selectForConnection(best.guid); onAction(MainAction.ToggleService) }
+        if (best != null) { onAction(MainAction.ConnectServer(best.guid)) }
     }
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
@@ -216,7 +216,7 @@ fun MainScreen(
                         if (isRunning) onAction(MainAction.ToggleService)
                         else {
                             val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-                            if (best != null) { mainViewModel.selectForConnection(best.guid); onAction(MainAction.ToggleService) }
+                            if (best != null) { onAction(MainAction.ConnectServer(best.guid)) }
                             else { autoConnectPending = true; autoConnectStarted = false; onAction(MainAction.TestRealAllServers) }
                         }
                     },

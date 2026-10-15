@@ -2,6 +2,7 @@ namespace ServiceLib.Services.Statistics;
 
 public class StatisticsXrayService
 {
+    private long _sessionId = -1;
     private const long linkBase = 1024;
     private ServerSpeedItem _serverSpeedItem = new();
     private readonly Config _config;
@@ -46,10 +47,16 @@ public class StatisticsXrayService
                     continue;
                 }
 
-                var result = await _metricsClient.GetStringAsync(Url, token);
+                var runtime = CoreManager.Instance;
+                if (!runtime.IsRunning || runtime.ActiveProfileId is not { } profileId) continue;
+                var session = runtime.SessionId;
+                if (_sessionId != session) { _serverSpeedItem = new(); _sessionId = session; }
+                var result = await _metricsClient.GetStringAsync($"http://{Global.Loopback}:{runtime.StatisticsPort}/debug/vars", token);
+                if (!runtime.IsRunning || runtime.SessionId != session) continue;
                 if (result != null)
                 {
                     var server = ParseOutput(result) ?? new ServerSpeedItem();
+                    server.IndexId = profileId;
                     await _updateFunc!.Invoke(server);
                 }
             }

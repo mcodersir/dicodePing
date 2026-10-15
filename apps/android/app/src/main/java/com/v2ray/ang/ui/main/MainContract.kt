@@ -52,6 +52,7 @@ sealed interface MainAction {
     data object RefreshServiceState : MainAction
     data object RefreshGroups : MainAction
     data object ToggleService : MainAction
+    data class ConnectServer(val guid: String) : MainAction
     data object TestCurrentServer : MainAction
     data object TestAllServers : MainAction
     data object TestRealAllServers : MainAction

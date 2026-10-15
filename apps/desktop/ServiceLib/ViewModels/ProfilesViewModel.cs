@@ -773,7 +773,9 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ConnectBestAsync()
     {
-        if (CoreManager.Instance.IsRunning) { await ConnectProfileAsync(_config.IndexId); return; }
+        if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
+        try {
+        if (CoreManager.Instance.IsRunning) { await ConnectProfileExclusiveAsync(_config.IndexId); return; }
         if (IsRefreshing) return;
         if (!ProfileItems.Any(item => item.Delay > 0))
         {
@@ -785,12 +787,19 @@ public partial class ProfilesViewModel : MyReactiveObject
         var best = ProfileItems.Where(item => item.Delay > 0).OrderBy(item => item.Delay).FirstOrDefault();
         if (best is null) { NoticeManager.Instance.Enqueue(ResUI.DicodeNoReachable); return; }
         SelectedProfile = best;
-        await ConnectProfileAsync(best.IndexId);
+        await ConnectProfileExclusiveAsync(best.IndexId);
+        } finally { _connectGate.Release(); }
     }
 
     public async Task ConnectProfileAsync(string? indexId)
     {
         if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
+        try { await ConnectProfileExclusiveAsync(indexId); }
+        finally { _connectGate.Release(); }
+    }
+
+    private async Task ConnectProfileExclusiveAsync(string? indexId)
+    {
         try
         {
             if (CoreManager.Instance.IsRunning)
@@ -818,7 +827,6 @@ public partial class ProfilesViewModel : MyReactiveObject
             Logging.SaveLog("Connect selected profile", ex);
             NoticeManager.Instance.Enqueue(ResUI.DicodeTunFailedNotice);
         }
-        finally { _connectGate.Release(); }
     }
 
     public async Task ShareServerAsync()

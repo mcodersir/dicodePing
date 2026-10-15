@@ -130,6 +130,12 @@ class MainActivity : HelperBaseComponentActivity() {
             onAction = { action ->
                 when (action) {
                     MainAction.ToggleService -> handleFabAction()
+                    is MainAction.ConnectServer -> {
+                        mainViewModel.cancelAllPing()
+                        mainViewModel.selectForConnection(action.guid)
+                        // An explicit connect must not toggle off a session that finished starting after the tap.
+                        LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
+                    }
                     MainAction.TestCurrentServer -> handleLayoutTestClick()
                     MainAction.ImportQRcode -> importQRcode()
                     MainAction.ImportClipboard -> importClipboard()

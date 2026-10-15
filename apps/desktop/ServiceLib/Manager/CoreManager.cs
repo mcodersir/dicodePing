@@ -19,6 +19,12 @@ public class CoreManager
     private int _intentionalStopDepth;
     private bool _linuxSudo = false;
     private Func<bool, string, Task>? _updateFunc;
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    public long SessionId { get; private set; }
+    public string? ActiveProfileId { get; private set; }
+    public int StatisticsPort { get; private set; }
+    public int ActiveLocalPort { get; private set; }
+    public int RequestedLocalPort { get; private set; }
     private readonly SemaphoreSlim _probeLaunchLock = new(1, 1);
     private const string _tag = "CoreHandler";
 
@@ -75,6 +81,13 @@ public class CoreManager
     /// <param name="preContext">Optional pre-socks context passed to <see cref="CoreStartPreService"/>.</param>
     public async Task LoadCore(CoreConfigContext? mainContext, CoreConfigContext? preContext)
     {
+        await _lifecycleGate.WaitAsync();
+        try { await LoadCoreExclusive(mainContext, preContext); }
+        finally { _lifecycleGate.Release(); }
+    }
+
+    private async Task LoadCoreExclusive(CoreConfigContext? mainContext, CoreConfigContext? preContext)
+    {
         if (mainContext == null)
         {
             await UpdateFunc(false, ResUI.CheckServerSettings);
@@ -90,9 +103,15 @@ public class CoreManager
             return;
         }
 
+        var preFileName = Utils.GetBinConfigPath(Global.CorePreConfigFileName);
+        if (preContext is not null) {
+            var preResult = await CoreConfigHandler.GenerateClientConfig(preContext, preFileName);
+            if (!preResult.Success) throw new IOException(preResult.Msg ?? "Could not generate the TUN bridge configuration");
+        }
+        var preJson = preContext is null ? "" : await File.ReadAllTextAsync(preFileName);
         var fox = FoxProfiles.Read(mainContext.Node);
         var generatedConfigHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            await File.ReadAllTextAsync(fileName) + (fox is null ? "" : $"|fox:{fox.AccountId}:{fox.Country}"))));
+            await File.ReadAllTextAsync(fileName) + "|bridge:" + preJson + (fox is null ? "" : $"|fox:{fox.AccountId}:{fox.Country}"))));
         if (IsRunning && string.Equals(_activeConfigHash, generatedConfigHash, StringComparison.Ordinal))
         {
             Logging.SaveLog("CoreHandler: identical generated configuration; keeping the active TUN process.");
@@ -102,20 +121,20 @@ public class CoreManager
         await UpdateFunc(false, $"{node.GetSummary()}");
         await UpdateFunc(false, $"{Utils.GetRuntimeInfo()}");
         await UpdateFunc(false, string.Format(ResUI.StartService, DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")));
-        await CoreStop(keepEntryHop: true);
+        await CoreStopExclusive(keepEntryHop: true);
         try {
         await EntryHopService.EnsureReadyAsync(mainContext);
         await Task.Delay(250);
 
         if (fox is not null) {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
-            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token);
+            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token, mainContext.AppConfig.CoreBasicItem.BindInterface);
             _foxProcess = helper;
             helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code); };
         }
         await CoreStart(mainContext);
-        if (_processService is null) { await CoreStop(); return; }
-        if (_foxProcess is { HasExited: true }) { await CoreStop(); throw new FoxException("helper", "Firefox proxy stopped during startup"); }
+        if (_processService is null) { await CoreStopExclusive(); return; }
+        if (_foxProcess is { HasExited: true }) { await CoreStopExclusive(); throw new FoxException("helper", "Firefox proxy stopped during startup"); }
         await WaitForProxyPort(preContext);
         await CoreStartPreService(preContext);
 
@@ -124,10 +143,17 @@ public class CoreManager
 
         if (_processService != null)
         {
-            _activeConfigHash = generatedConfigHash; _chainReady = true;
+            _activeConfigHash = generatedConfigHash;
+            StatisticsPort = AppManager.Instance.RunningCoreType == ECoreType.sing_box
+                ? AppManager.Instance.GetStatePort2(mainContext.AppConfig.TunModeItem.EnableTun) : AppManager.Instance.StatePort;
+            ActiveProfileId = mainContext.AppConfig.IndexId.NullIfEmpty() ?? mainContext.Node.IndexId;
+            ActiveLocalPort = mainContext.AppConfig.Inbound.First(i => i.Protocol == nameof(EInboundProtocol.socks)).LocalPort;
+            RequestedLocalPort = mainContext.RequestedLocalPort;
+            SessionId++;
+            _chainReady = true;
             await UpdateFunc(true, $"{node.GetSummary()}");
         }
-        } catch { await CoreStop(); throw; }
+        } catch { await CoreStopExclusive(); throw; }
     }
 
     public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
@@ -232,6 +258,15 @@ public class CoreManager
 
     public async Task CoreStop(bool keepEntryHop = false)
     {
+        await _lifecycleGate.WaitAsync();
+        try { await CoreStopExclusive(keepEntryHop); }
+        finally { _lifecycleGate.Release(); }
+    }
+
+    private async Task CoreStopExclusive(bool keepEntryHop = false)
+    {
+        _chainReady = false;
+        ActiveProfileId = null;
         if (!keepEntryHop) await EntryHopService.StopAsync();
         Interlocked.Increment(ref _intentionalStopDepth);
         try
@@ -302,15 +337,14 @@ public class CoreManager
         {
             var preCoreType = preContext?.Node?.CoreType ?? ECoreType.sing_box;
             var fileName = Utils.GetBinConfigPath(Global.CorePreConfigFileName);
-            var result = await CoreConfigHandler.GenerateClientConfig(preContext, fileName);
-            if (!result.Success) throw new IOException(result.Msg ?? "Could not generate the TUN bridge configuration");
-            if (result.Success)
+            // Already generated and hashed with the main config under the lifecycle gate.
+            if (File.Exists(fileName))
             {
                 var coreInfo = CoreInfoManager.Instance.GetCoreInfo(preCoreType);
                 var proc = await RunProcess(coreInfo, Global.CorePreConfigFileName, true, true, preContext.IsTunEnabled);
                 if (proc is null)
                 {
-                    await CoreStop();
+                    await CoreStopExclusive();
                     throw new IOException(LastStartupError ?? "Could not start the proxy/TUN bridge");
                 }
                 _processPreService = proc;
@@ -443,7 +477,10 @@ public class CoreManager
                     log["level"] = "info"; log["disabled"] = false; log.Remove("output"); root["log"] = log;
                     await File.WriteAllTextAsync(path, root.ToJsonString());
                 }
-                if (Utils.IsWindows() && isTunLaunch) WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
+                if (Utils.IsWindows() && isTunLaunch) {
+                    WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
+                    WindowsTunRuntime.PrepareRetry(path);
+                }
             }
             if (mayNeedSudo
                 && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())

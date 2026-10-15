@@ -2,6 +2,7 @@ namespace ServiceLib.Models.CoreConfigs;
 
 public record CoreConfigContext
 {
+    public int RequestedLocalPort { get; init; }
     public bool UseEntryHop { get; init; }
     public required ProfileItem Node { get; init; }
     public required ECoreType RunCoreType { get; init; }

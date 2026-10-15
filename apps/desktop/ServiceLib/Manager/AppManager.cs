@@ -25,9 +25,14 @@ public sealed class AppManager
     {
         get
         {
-            _statePort2 ??= Utils.GetFreePort(GetLocalPort(EInboundProtocol.api2));
-            return _statePort2.Value + (_config.TunModeItem.EnableTun ? 1 : 0);
+            return GetStatePort2(_config.TunModeItem.EnableTun);
         }
+    }
+
+    public int GetStatePort2(bool tunEnabled)
+    {
+        _statePort2 ??= Utils.GetFreePort(GetLocalPort(EInboundProtocol.api2));
+        return _statePort2.Value + (tunEnabled ? 1 : 0);
     }
 
     public string LinuxSudoPwd { get; set; }
@@ -171,6 +176,8 @@ public sealed class AppManager
     public int GetLocalPort(EInboundProtocol protocol)
     {
         var localPort = _config.Inbound.FirstOrDefault(t => t.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 10808;
+        if (CoreManager.Instance.IsRunning && protocol is EInboundProtocol.socks or EInboundProtocol.socks2 or EInboundProtocol.socks3 or EInboundProtocol.pac)
+            localPort = CoreManager.Instance.ActiveLocalPort;
         return localPort + (int)protocol;
     }
 

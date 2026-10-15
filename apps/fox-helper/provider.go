@@ -63,6 +63,7 @@ type provider struct {
 	selected                          Location
 	listener                          net.Listener
 	streams                           *http.Transport
+	bindInterface                     string
 	onState                           func(State)
 	onAccount                         func(AccountInfo)
 }

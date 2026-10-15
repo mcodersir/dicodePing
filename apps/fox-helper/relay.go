@@ -30,7 +30,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		// FoxyVPN's REC endpoint is the provider anycast route, not the first country.
 		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
-	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
+	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: p.relayDialer().DialContext, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
 	reached := false
 	for _, candidate := range candidates {
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {

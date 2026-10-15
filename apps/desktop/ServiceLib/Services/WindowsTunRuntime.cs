@@ -6,7 +6,9 @@ public static class WindowsTunRuntime
     public static bool IsMissingInterfaceFailure(string message) =>
         message.Contains("configure tun interface", StringComparison.OrdinalIgnoreCase)
         && (message.Contains("cannot find the file", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("file specified", StringComparison.OrdinalIgnoreCase));
+            || message.Contains("file specified", StringComparison.OrdinalIgnoreCase)
+            || (message.Contains("already exists", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("Element not found", StringComparison.OrdinalIgnoreCase)));
 
     public static bool PrepareRetry(string configPath)
     {

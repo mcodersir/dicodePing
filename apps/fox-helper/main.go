@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.8.0"
+const version = "4.9.0"
 
 type State struct {
 	Email              string `json:"email"`
@@ -25,14 +25,15 @@ type State struct {
 	VerificationMethod string `json:"verification_method,omitempty"`
 }
 type Request struct {
-	Roots     string `json:"ca_bundle,omitempty"`
-	Operation string `json:"operation"`
-	Email     string `json:"email,omitempty"`
-	Password  string `json:"password,omitempty"`
-	Code      string `json:"code,omitempty"`
-	Country   string `json:"country,omitempty"`
-	Listen    string `json:"listen,omitempty"`
-	State     State  `json:"state"`
+	BindInterface string `json:"bind_interface,omitempty"`
+	Roots         string `json:"ca_bundle,omitempty"`
+	Operation     string `json:"operation"`
+	Email         string `json:"email,omitempty"`
+	Password      string `json:"password,omitempty"`
+	Code          string `json:"code,omitempty"`
+	Country       string `json:"country,omitempty"`
+	Listen        string `json:"listen,omitempty"`
+	State         State  `json:"state"`
 }
 type Response struct {
 	OK                bool         `json:"ok"`
@@ -89,6 +90,10 @@ func main() {
 		os.Exit(2)
 	}
 	p := newProvider(req.State)
+	if err := p.bindUplink(req.BindInterface); err != nil {
+		output(failure(err))
+		os.Exit(2)
+	}
 	if err := p.installRoots(req.Roots); err != nil {
 		output(failure(err))
 		os.Exit(2)
