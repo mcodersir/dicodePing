@@ -808,7 +808,9 @@ object CoreServiceManager {
                 }
 
                 AppConfig.MSG_STATE_STOP -> {
-                    LauncherManager.cancelPendingConnectionRequests()
+                    val requestVersion = intent.getStringExtra("content").orEmpty()
+                    if (requestVersion.isNotEmpty() && !LauncherManager.isConnectionRequestCurrent(requestVersion)) return
+                    if (requestVersion.isEmpty()) LauncherManager.cancelPendingConnectionRequests()
                     LogUtil.i(AppConfig.TAG, "StartCore-Manager: Stop service")
                     serviceControl.stopService()
                 }

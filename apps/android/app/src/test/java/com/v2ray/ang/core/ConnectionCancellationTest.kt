@@ -28,5 +28,9 @@ class ConnectionCancellationTest {
         ui.cancel()
         assertFalse(daemon.isCurrent(restart))
         assertTrue(daemon.isCurrent(ui.version()))
+        val oldStop = ui.version()
+        val newStart = ui.begin()
+        assertFalse(daemon.isCurrent(oldStop))
+        assertTrue(daemon.isCurrent(newStart))
     }
 }

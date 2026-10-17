@@ -4,10 +4,11 @@ package com.v2ray.ang.core
 internal class ConnectionRequests(private val read: () -> String, private val write: (String) -> Unit) {
     fun version(): String = read()
     fun isCurrent(version: String): Boolean = read() == version
-    fun cancel() { write(java.util.UUID.randomUUID().toString()) }
+    fun begin(): String = java.util.UUID.randomUUID().toString().also(write)
+    fun cancel() { begin() }
 
     fun restart(send: (String, (Boolean) -> Unit) -> Unit, startIfStopped: () -> Unit) {
-        val version = version()
+        val version = begin()
         send(version) { handled -> if (!handled && isCurrent(version)) startIfStopped() }
     }
 }

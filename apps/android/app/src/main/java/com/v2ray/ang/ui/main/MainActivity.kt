@@ -224,7 +224,7 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun requestServiceStart() {
-        vpnPermissionRequestVersion = LauncherManager.connectionRequestVersion()
+        vpnPermissionRequestVersion = LauncherManager.beginConnectionRequest()
         if (!SettingsManager.isVpnMode()) {
             startV2Ray()
             return

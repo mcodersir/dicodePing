@@ -30,6 +30,7 @@ object LauncherManager {
     // MMKV is shared with the daemon. A restart delayed in that process must also
     // see a Disconnect tapped in the UI, even after the old receiver unregistered.
     fun connectionRequestVersion(): String = connectionRequests.version()
+    fun beginConnectionRequest(): String = connectionRequests.begin()
     fun isConnectionRequestCurrent(version: String): Boolean = connectionRequests.isCurrent(version)
     fun cancelPendingConnectionRequests() = connectionRequests.cancel()
 
@@ -66,7 +67,7 @@ object LauncherManager {
     fun stopService(context: Context) {
         cancelPendingConnectionRequests()
         //context.toast(R.string.toast_services_stop)
-        MessageHelper.sendMsg2Service(context, AppConfig.MSG_STATE_STOP, "")
+        MessageHelper.sendMsg2Service(context, AppConfig.MSG_STATE_STOP, connectionRequestVersion())
     }
 
     /** Restarts the active daemon without starting a stopped service. */

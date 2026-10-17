@@ -43,6 +43,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     override fun onRevoke() {
+        com.v2ray.ang.core.LauncherManager.cancelPendingConnectionRequests()
         LogUtil.w(AppConfig.TAG, "StartCore-VPN: Permission revoked")
         stopAllService()
     }
