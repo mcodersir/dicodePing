@@ -1001,6 +1001,7 @@ public partial class MainWindowViewModel : MyReactiveObject
             if (intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
             LastConnectionError = error.Message; _connectionDesired = false; _hasNextReloadJob = false;
             await CoreManager.Instance.CoreStop();
+            await SysProxyHandler.UpdateSysProxy(_config, true);
             Logging.SaveLog("Connection startup", error);
             NoticeManager.Instance.SendMessageAndEnqueue(error.Message);
             RxSchedulers.MainThreadScheduler.Schedule(() => {
