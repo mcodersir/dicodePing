@@ -30,8 +30,14 @@ class VpnLifecycleTest {
     private fun exercise(hev: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        fun shell(command: String): String = instrumentation.uiAutomation.executeShellCommand(command).use {
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
+        fun shell(command: String): String {
+            // UiAutomation executes argv directly; it does not interpret quotes
+            // or pipes. Feed the command to a shell's stdin explicitly.
+            val pipes = instrumentation.uiAutomation.executeShellCommandRw("sh")
+            android.os.ParcelFileDescriptor.AutoCloseOutputStream(pipes[1]).use {
+                it.write((command + "\n").toByteArray())
+            }
+            return android.os.ParcelFileDescriptor.AutoCloseInputStream(pipes[0]).bufferedReader().use { it.readText() }
         }
         shell("appops set ${context.packageName} ACTIVATE_VPN allow")
         assertNull("The emulator must grant VPN permission", VpnService.prepare(context))
@@ -42,7 +48,7 @@ class VpnLifecycleTest {
         val selected = MmkvManager.getSelectServer()
         val oldRules = MmkvManager.decodeRoutingRulesets()
         val fixtureRules = oldRules.orEmpty().toMutableList()
-        fixtureRules.add(0, com.v2ray.ang.dto.entities.RulesetItem(outboundTag = "proxy", ip = arrayListOf("198.18.0.10/32")))
+        fixtureRules.add(0, com.v2ray.ang.dto.entities.RulesetItem(outboundTag = "proxy", ip = arrayListOf("192.0.2.10/32")))
         MmkvManager.encodeRoutingRulesets(fixtureRules)
         val events = LinkedBlockingQueue<Int>()
         val receiver = object : BroadcastReceiver() {
@@ -106,7 +112,7 @@ class VpnLifecycleTest {
             assertTrue(requests.get() > 0)
             // Shell UID is included in the VPN, while this app's local fixture is
             // excluded. This request must enter the actual kernel TUN interface.
-            val tunneled = shell("printf 'GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n' | toybox nc -w 8 198.18.0.10 8080")
+            val tunneled = shell("printf 'GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n' | toybox nc -w 8 192.0.2.10 8080")
             assertTrue("No HTTP response through the kernel TUN: $tunneled", tunneled.contains("VPN fixture!"))
             LauncherManager.stopService(context)
             var closed = false
