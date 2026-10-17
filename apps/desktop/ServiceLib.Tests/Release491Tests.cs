@@ -5,6 +5,21 @@ namespace ServiceLib.Tests;
 
 public class Release491Tests
 {
+    [Fact]
+    public async Task ASkippedProfileCannotKeepAnOldSuccessfulLatencyAfterAFreshScan()
+    {
+        var config = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateConfig();
+        ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.BindAppManagerConfig(config);
+        SQLiteHelper.Instance.CreateTable<ProfileItem>();
+        var node = new ProfileItem { IndexId = "491-skipped-probe", ConfigType = EConfigType.Custom, CoreType = ECoreType.v2rayN };
+        ProfileExManager.Instance.SetTestDelay(node.IndexId, 7);
+        var service = new SpeedtestService(config, _ => Task.CompletedTask);
+        var clear = typeof(SpeedtestService).GetMethod("GetClearItem", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var result = await (Task<List<ServerTestItem>>)clear.Invoke(service, [ESpeedActionType.Realping, new List<ProfileItem> { node }])!;
+        Assert.Empty(result);
+        Assert.Equal(0, (await ProfileExManager.Instance.GetProfileExs()).Single(x => x.IndexId == node.IndexId).Delay);
+    }
+
     private static T Uninitialized<T>() => (T)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(T));
 
     [Fact]

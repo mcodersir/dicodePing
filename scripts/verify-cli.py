@@ -59,4 +59,4 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
     with socket.socket() as s:assert s.connect_ex(('127.0.0.1',port))!=0,'Core listener survived Ctrl+C'
   finally:
    if process.poll() is None:os.killpg(process.pid,signal.SIGKILL);process.wait()
-http.shutdown();print('PASS CLI: native JSON import, real HTTP latency, failed-last sorting, cached best, two-core proxy traffic and Ctrl+C cleanup')
+http.shutdown();print('PASS CLI: native JSON import, real HTTP latency, failed-last sorting, fresh best, two-core proxy traffic and Ctrl+C cleanup')

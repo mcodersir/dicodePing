@@ -134,6 +134,11 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task<List<ServerTestItem>> GetClearItem(ESpeedActionType actionType, List<ProfileItem> selecteds)
     {
+        // Clear persisted positives before filtering unsupported/skipped profiles.
+        // Otherwise Best can reuse a stale TCP/old-network result after this scan.
+        if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest)
+            foreach (var id in selecteds.Select(x => x.IndexId).Where(x => x.IsNotEmpty()).Distinct())
+                ProfileExManager.Instance.SetTestDelay(id, 0);
         var lstSelected = new List<ServerTestItem>(selecteds.Count);
         var ids = selecteds.Where(it => !it.IndexId.IsNullOrEmpty()
             && (it.ConfigType == EConfigType.Custom || it.ConfigType.IsComplexType() || it.Port > 0))

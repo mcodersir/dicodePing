@@ -1014,7 +1014,12 @@ public partial class ProfilesViewModel : MyReactiveObject
                 return Task.CompletedTask;
             });
             var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
-            foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) SetMetricBusy(row, actionType, true);
+            foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) {
+                if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest) {
+                    row.Delay = 0; row.DelayVal = "—";
+                }
+                SetMetricBusy(row, actionType, true);
+            }
             var service = new SpeedtestService(_config, result => OnUiAsync(async () => {
                 await ApplyProbeResult(result, actionType);
                 var terminal = actionType switch {

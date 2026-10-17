@@ -857,7 +857,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         _connectionDesired = false;
         Interlocked.Increment(ref _connectionIntentVersion);
         ProfilesViewModel.CancelPendingConnections();
-        _connectionProbeCts?.Cancel();
+        try { _connectionProbeCts?.Cancel(); } catch (ObjectDisposedException) { }
         _hasNextReloadJob = false;
         // Serialize an explicit stop behind any in-flight core replacement. If the
         // user clicks Disconnect during startup, the final state is still stopped.

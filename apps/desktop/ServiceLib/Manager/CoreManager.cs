@@ -30,7 +30,7 @@ public class CoreManager
 
     public string? LastStartupError { get; private set; }
     private bool _chainReady;
-    private bool _trafficVerified;
+    private volatile bool _trafficVerified;
     public bool IsTrafficVerified => _trafficVerified && IsRunning;
     public bool IsRunning => _chainReady && _processService is { HasExited: false }
         && (_processPreService is null || !_processPreService.HasExited)
