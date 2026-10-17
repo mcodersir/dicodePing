@@ -108,13 +108,34 @@ class VpnLifecycleTest {
             // excluded. This request must enter the actual kernel TUN interface.
             val pipes = instrumentation.uiAutomation.executeShellCommandRw("toybox nc -w 8 -W 8 192.0.2.10 8080")
             val request = android.os.ParcelFileDescriptor.AutoCloseOutputStream(pipes[1])
+            val reply = android.os.ParcelFileDescriptor.AutoCloseInputStream(pipes[0])
             val tunneled = try {
-                // Keep stdin open until the response arrives. A pipe that closes
-                // after printf sends an early TCP FIN through the tunnel.
                 request.write("GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n".toByteArray())
                 request.flush()
-                android.os.ParcelFileDescriptor.AutoCloseInputStream(pipes[0]).bufferedReader().use { it.readText() }
-            } finally { request.close() }
+                // UiAutomation closes stdout after its stdin-copy thread ends.
+                // Read the framed response instead of waiting for pipe EOF.
+                val deadline = android.os.SystemClock.elapsedRealtime() + 10000
+                fun readByte(): Char {
+                    val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).toInt()
+                    val descriptor = android.system.StructPollfd().apply {
+                        fd = pipes[0].fileDescriptor
+                        events = android.system.OsConstants.POLLIN.toShort()
+                    }
+                    check(remaining > 0 && android.system.Os.poll(arrayOf(descriptor), remaining) > 0) {
+                        "Timed out reading the TUN HTTP response"
+                    }
+                    val value = reply.read()
+                    check(value >= 0) { "TUN HTTP response ended early" }
+                    return value.toChar()
+                }
+                val response = StringBuilder()
+                while (!response.endsWith("\r\n\r\n")) {
+                    check(response.length < 8192) { "Oversized fixture HTTP header" }
+                    response.append(readByte())
+                }
+                repeat(12) { response.append(readByte()) }
+                response.toString()
+            } finally { request.close(); reply.close() }
             assertTrue("No HTTP response through the kernel TUN: $tunneled", tunneled.contains("VPN fixture!"))
             LauncherManager.stopService(context)
             var closed = false
