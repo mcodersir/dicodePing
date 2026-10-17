@@ -8,7 +8,7 @@ def adb(*args):
     return r
 try:
     adb('shell','getprop')
-    for previous in [None,'4.8.0','4.9.1']:
+    for previous in [None,'4.8.0','4.9.0','4.9.1']:
         adb('uninstall',package)
         if previous:
             r=adb('install','--no-streaming',str(root/(previous+'.apk')))
