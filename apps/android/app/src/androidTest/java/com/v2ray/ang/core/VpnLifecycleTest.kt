@@ -30,14 +30,8 @@ class VpnLifecycleTest {
     private fun exercise(hev: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        fun shell(command: String): String {
-            // UiAutomation executes argv directly; it does not interpret quotes
-            // or pipes. Feed the command to a shell's stdin explicitly.
-            val pipes = instrumentation.uiAutomation.executeShellCommandRw("sh")
-            android.os.ParcelFileDescriptor.AutoCloseOutputStream(pipes[1]).use {
-                it.write((command + "\n").toByteArray())
-            }
-            return android.os.ParcelFileDescriptor.AutoCloseInputStream(pipes[0]).bufferedReader().use { it.readText() }
+        fun shell(command: String): String = instrumentation.uiAutomation.executeShellCommand(command).use {
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
         }
         shell("appops set ${context.packageName} ACTIVATE_VPN allow")
         assertNull("The emulator must grant VPN permission", VpnService.prepare(context))
@@ -112,7 +106,15 @@ class VpnLifecycleTest {
             assertTrue(requests.get() > 0)
             // Shell UID is included in the VPN, while this app's local fixture is
             // excluded. This request must enter the actual kernel TUN interface.
-            val tunneled = shell("printf 'GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n' | toybox nc -w 8 192.0.2.10 8080")
+            val pipes = instrumentation.uiAutomation.executeShellCommandRw("toybox nc -w 8 -W 8 192.0.2.10 8080")
+            val request = android.os.ParcelFileDescriptor.AutoCloseOutputStream(pipes[1])
+            val tunneled = try {
+                // Keep stdin open until the response arrives. A pipe that closes
+                // after printf sends an early TCP FIN through the tunnel.
+                request.write("GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n".toByteArray())
+                request.flush()
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(pipes[0]).bufferedReader().use { it.readText() }
+            } finally { request.close() }
             assertTrue("No HTTP response through the kernel TUN: $tunneled", tunneled.contains("VPN fixture!"))
             LauncherManager.stopService(context)
             var closed = false
