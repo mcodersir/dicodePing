@@ -1,0 +1,22 @@
+{
+  "version": "4.9.2",
+  "revision": 2,
+  "source_commit": "c99ed80c5f8b273edec2f96f1c059d2fe044a327",
+  "certificate_sha256": "0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0",
+  "old_base": 45920000,
+  "new_base": 45920100,
+  "suffixes": {
+    "universal": 0,
+    "arm64-v8a": 1,
+    "armeabi-v7a": 2,
+    "x86_64": 3,
+    "x86": 4
+  },
+  "sha256": {
+    "arm64-v8a": "cb754bdfd38c18a8086588f6ef9e5653cecdab87f617688b4fdfed1150998512",
+    "armeabi-v7a": "af246101cdea83de9d792e804bb64bc98a56f2c031a707f8dad362f8242a2989",
+    "universal": "7f2778b01443de2cb4bd0083e9d331cb392fe3a691fe91efe0e3a67151d37451",
+    "x86": "23dcef49eed482988fe7021c191a65149ced2cb3fadd3e618db070ca2accddff",
+    "x86_64": "a20b556b9eacf3fa789f9317ffab4d6c52f0287b35588e1816a63cf089aa5e26"
+  }
+}

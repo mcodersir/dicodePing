@@ -15,7 +15,8 @@ android {
         // Target the latest STABLE Android (16, API 36). Targeting a preview
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
-        versionCode = 409200
+        // Android package revision 2; the user-facing release remains 4.9.2.
+        versionCode = 409201
         versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.2"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
@@ -52,6 +53,9 @@ android {
                 storePassword = System.getenv("DICODE_KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("DICODE_KEY_ALIAS")
                 keyPassword = System.getenv("DICODE_KEY_PASSWORD")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -109,7 +113,8 @@ android {
                     output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
-                            (100 * variant.versionCode + versionCodes[abi]!!).plus(5000000)
+                            // Switching between Universal and an ABI is not a downgrade.
+                            (100 * variant.versionCode).plus(5000000)
                     } else {
                         return@forEach
                     }

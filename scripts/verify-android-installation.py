@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Exercise the signed public release via Android PackageInstaller (no test/downgrade flags)."""
-import pathlib,subprocess,json
+import argparse,pathlib,subprocess,json,time
+parser=argparse.ArgumentParser()
+parser.add_argument('--candidate',type=pathlib.Path)
+parser.add_argument('--alternate',type=pathlib.Path)
+args=parser.parse_args()
 root=pathlib.Path('install-check'); package='ir.dicode.ping.fdroid'; results=[]
 def adb(*args):
     r=subprocess.run(['adb',*args],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
@@ -8,17 +12,38 @@ def adb(*args):
     return r
 try:
     adb('shell','getprop')
-    for previous in [None,'4.8.0','4.9.0','4.9.1']:
+    if args.candidate:
+        assert args.candidate.is_file()
+        adb('root'); adb('wait-for-device')
+    for previous in [None,'4.8.0','4.9.0','4.9.1']+(['4.9.2'] if args.candidate else []):
         adb('uninstall',package)
+        marker='/data/user/0/'+package+'/files/upgrade-fixture'
         if previous:
             r=adb('install','--no-streaming',str(root/(previous+'.apk')))
             results.append({'scenario':'baseline '+previous,'success':r.returncode==0,'output':r.stdout})
-        r=adb('install','--no-streaming','-r',str(root/'4.9.2.apk'))
+            if args.candidate and r.returncode==0:
+                adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
+                adb('shell','am','force-stop',package)
+                r=adb('shell','sh','-c',f"'mkdir -p {marker.rsplit('/',1)[0]} && echo keep-my-data > {marker}'")
+                assert r.returncode==0,'Cannot create upgrade preservation fixture'
+        r=adb('install','--no-streaming','-r',str(args.candidate or root/'4.9.2.apk'))
         results.append({'scenario':'4.9.2 '+('fresh' if previous is None else 'upgrade from '+previous),'success':r.returncode==0,'output':r.stdout})
         if r.returncode==0:
-            adb('shell','dumpsys','package',package)
-            adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
+            info=adb('shell','dumpsys','package',package)
+            if args.candidate:
+                assert 'versionCode=45920100 ' in info.stdout and 'versionName=4.9.2' in info.stdout
+                if previous:
+                    assert 'keep-my-data' in adb('shell','cat',marker).stdout,'Upgrade lost existing app data'
+            launch=adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
+            if args.candidate:
+                assert launch.returncode==0 and 'Status: ok' in launch.stdout,'Release activity could not start'
+                time.sleep(3)
+                assert adb('shell','pidof',package).returncode==0,'Release crashed after launch'
             adb('shell','am','force-stop',package)
+    if args.alternate:
+        r=adb('install','--no-streaming','-r',str(args.alternate))
+        results.append({'scenario':'switch APK architecture without downgrade','success':r.returncode==0,'output':r.stdout})
+        assert r.returncode==0 and 'keep-my-data' in adb('shell','cat',marker).stdout
 finally:
     (root/'installation-results.json').write_text(json.dumps(results,indent=2))
     log=adb('logcat','-d');(root/'package-manager-logcat.txt').write_text(log.stdout)

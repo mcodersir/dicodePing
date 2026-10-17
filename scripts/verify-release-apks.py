@@ -12,7 +12,7 @@ for abi, suffix in abis.items():
     assert certs and all(c.lower() == expected_cert for c in certs), "APK signing identity changed"
     manifest = subprocess.run([str(tools / "aapt2"), "dump", "badging", str(apk)], check=True, capture_output=True, text=True).stdout
     assert "name='ir.dicode.ping.fdroid'" in manifest, "Android application ID changed"
-    assert "versionName='4.9.2'" in manifest and f"versionCode='{45920000 + suffix}'" in manifest, "APK version mismatch"
+    assert "versionName='4.9.2'" in manifest and "versionCode='45920100'" in manifest, "APK version mismatch"
     assert "targetSdkVersion:'36'" in manifest, "APK targets a preview SDK"
     with zipfile.ZipFile(apk) as archive:
         for item in json.loads(pathlib.Path("scripts/runtime-pins-4.9.2.json").read_text())["android_geodata"]:

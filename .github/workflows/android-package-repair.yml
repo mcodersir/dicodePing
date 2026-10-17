@@ -1,0 +1,118 @@
+name: Android 4.9.2 package revision 2
+on:
+  push:
+    branches: [codex/fix-4.9.2-installation]
+    paths:
+      - .github/workflows/android-package-repair.yml
+      - scripts/*android*installation*
+      - scripts/*android*package*
+      - scripts/publish-android-repair.py
+      - apps/android/app/build.gradle.kts
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v4
+      - name: Install signing tools
+        run: yes | sdkmanager 'build-tools;37.0.0'
+      - name: Repackage immutable app payload with the original signing key
+        env:
+          DICODE_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          export DICODE_KEYSTORE_PATH="$RUNNER_TEMP/dicode-repair.jks"
+          trap 'rm -f "$DICODE_KEYSTORE_PATH"' EXIT
+          python3 - <<'PY'
+          import os,base64,pathlib
+          p=pathlib.Path(os.environ['DICODE_KEYSTORE_PATH'])
+          p.write_bytes(base64.b64decode(os.environ['DICODE_KEYSTORE_BASE64']))
+          p.chmod(0o600)
+          PY
+          python3 -u scripts/repair-android-package.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-revision-2
+          path: dist-install/
+  install:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-revision-2
+          path: dist-install
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v4
+      - name: Download published upgrade baselines
+        run: |
+          mkdir -p install-check
+          for version in 4.8.0 4.9.0 4.9.1 4.9.2; do
+            curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-${{ matrix.apkAbi }}.apk" --output "install-check/$version.apk"
+          done
+      - name: Enable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test actual release installation, retained data and startup
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --candidate dist-install/DicodePing-4.9.2-${{ matrix.apkAbi }}.apk --alternate dist-install/DicodePing-4.9.2-${{ matrix.alternate }}.apk
+      - name: Preserve installation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-installation-${{ matrix.api }}-${{ matrix.apkAbi }}
+          path: |
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-download-page.cjs
+  publish:
+    needs: [package, install, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-revision-2
+          path: dist-install
+      - name: Publish only packages that passed actual installation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -u scripts/publish-android-repair.py
