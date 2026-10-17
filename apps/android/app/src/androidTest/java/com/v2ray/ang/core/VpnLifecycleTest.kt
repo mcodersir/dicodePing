@@ -118,8 +118,8 @@ class VpnLifecycleTest {
                 fun readByte(): Char {
                     val remaining = (deadline - android.os.SystemClock.elapsedRealtime()).toInt()
                     val descriptor = android.system.StructPollfd().apply {
-                        fd = pipes[0].fileDescriptor
-                        events = android.system.OsConstants.POLLIN.toShort()
+                        this.fd = pipes[0].fileDescriptor
+                        this.events = android.system.OsConstants.POLLIN.toShort()
                     }
                     check(remaining > 0 && android.system.Os.poll(arrayOf(descriptor), remaining) > 0) {
                         "Timed out reading the TUN HTTP response"
