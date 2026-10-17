@@ -1859,7 +1859,7 @@
     <value>درباره DicodePing‏</value>
   </data>
   <data name="DicodeAboutText" xml:space="preserve">
-    <value>DicodePing یک کلاینت مستقل فقط TUN بر پایه v2rayN و PattNG است که روی مسیریابی امن و رابط تمیز فارسی/انگلیسی تمرکز دارد.</value>
+    <value>DicodePing یک کلاینت TUN برای مدیریت پروفایل‌ها، بررسی مسیرها و اتصال با رابط فارسی و انگلیسی است.</value>
   </data>
   <data name="DicodeQuickActions" xml:space="preserve">
     <value>دسترسی سریع</value>

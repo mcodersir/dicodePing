@@ -727,7 +727,7 @@
     <value>Mux multipleksləşdirməsini aktiv et</value>
   </data>
   <data name="TbSettingsN" xml:space="preserve">
-    <value>PattN parametrləri</value>
+    <value>DicodePing parametrləri</value>
   </data>
   <data name="TbSettingsPass" xml:space="preserve">
     <value>Doğrulama şifrəsi</value>
@@ -1798,7 +1798,7 @@ Təyin edildikdə sertifikat sabitlənəcək və "Təhlükəsiz olmayan əlaqəy
     <value>Əvvəlcədən paylaşılmış açar</value>
   </data>
   <data name="menuExport2InnerUri" xml:space="preserve">
-    <value>PattN daxili paylaşım keçidini mübadilə buferinə ixrac et</value>
+    <value>DicodePing daxili paylaşım keçidini mübadilə buferinə ixrac et</value>
   </data>
   <data name="MsgCheckUpdateHasNewVersion" xml:space="preserve">
     <value>{0} üçün yeni versiya mövcuddur: {1}</value>
@@ -1864,7 +1864,7 @@ Təyin edildikdə sertifikat sabitlənəcək və "Təhlükəsiz olmayan əlaqəy
     <value>Kök sertifikat təminatçısı</value>
   </data>
   <data name="TbRootCertificateProviderTip" xml:space="preserve">
-    <value>Yalnız PattN qrafik interfeysinin endirmələrinə və şəbəkə sorğularına tətbiq edilir. Nüvənin sertifikat yoxlamasına təsir etmir.</value>
+    <value>Yalnız DicodePing qrafik interfeysinin endirmələrinə və şəbəkə sorğularına tətbiq edilir. Nüvənin sertifikat yoxlamasına təsir etmir.</value>
   </data>
   <data name="TbProxyDialResolveStrategy" xml:space="preserve">
     <value>Proksiyə qoşularkən ünvanın həlli strategiyası</value>

@@ -1859,7 +1859,7 @@ The "Get Certificate" action may fail if a self-signed certificate is used or if
     <value>About DicodePing</value>
   </data>
   <data name="DicodeAboutText" xml:space="preserve">
-    <value>DicodePing is an independent TUN-only client based on v2rayN and PattNG, focused on safe routing and a clean Persian/English interface.</value>
+    <value>DicodePing is a TUN client for managing profiles, checking routes and connecting through a Persian/English interface.</value>
   </data>
   <data name="DicodeQuickActions" xml:space="preserve">
     <value>Quick actions</value>
