@@ -11,6 +11,7 @@ public class Release490Tests
         // Exercise the real reload queue without constructing unrelated UI commands/services.
         var model = (ServiceLib.ViewModels.MainWindowViewModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(ServiceLib.ViewModels.MainWindowViewModel));
         model.DesignMode = true;
+        typeof(ServiceLib.ViewModels.MainWindowViewModel).GetField("_connectionDesired", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(model, true);
         using var gate = new SemaphoreSlim(1, 1);
         typeof(ServiceLib.ViewModels.MainWindowViewModel).GetField("_reloadSemaphore", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(model, gate);
         await gate.WaitAsync();

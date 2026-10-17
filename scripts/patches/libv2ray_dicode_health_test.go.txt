@@ -1,0 +1,32 @@
+package libv2ray
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+)
+
+func TestDicodeProbeRejectsPortalRedirectAndErrors(t *testing.T) {
+	for _, status := range []int{200, 204, 302, 403, 407, 500} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				w.Header().Set("Location", "/success")
+				w.WriteHeader(status)
+				if status != 204 {
+					w.Write([]byte("portal or upstream error"))
+				}
+			}))
+			defer server.Close()
+			delay, err := MeasureOutboundDelay(`{"outbounds":[{"tag":"proxy","protocol":"freedom"}]}`, server.URL+"/generate_204")
+			if (delay > 0 && err == nil) != (status == 204) {
+				t.Fatalf("status=%d delay=%d error=%v", status, delay, err)
+			}
+			if calls.Load() != 2 {
+				t.Fatalf("probe followed a redirect or skipped an attempt: %d", calls.Load())
+			}
+		})
+	}
+}

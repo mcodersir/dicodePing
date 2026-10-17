@@ -16,7 +16,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.0"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.1"))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
@@ -57,6 +57,32 @@ class FoxNativeTest {
             val delay = CoreNativeManager.measureOutboundDelay(config.toString(), "http://fox-fixture.invalid/success")
             assertTrue("Native SOCKS bridge returned $delay", delay > 0); assertEquals(1, requests.get())
         } finally { server.close(); worker.join(1500) }
+    }
+    @Test fun nativePingRejectsCaptivePortalInsteadOfAValid204() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        CoreNativeManager.initCoreEnv(context)
+        for (status in listOf(200, 204)) {
+            val listener = java.net.ServerSocket(0, 8, java.net.InetAddress.getByName("127.0.0.1"))
+            listener.soTimeout = 15000
+            val requests = java.util.concurrent.atomic.AtomicInteger()
+            val worker = kotlin.concurrent.thread {
+                repeat(2) {
+                    listener.accept().use { socket ->
+                        socket.soTimeout = 5000
+                        val input = socket.getInputStream().bufferedReader()
+                        while (!input.readLine().isNullOrEmpty()) { }
+                        requests.incrementAndGet()
+                        val body = if (status == 204) "" else "<html>Network login</html>"
+                        socket.getOutputStream().write("HTTP/1.1 $status Test\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n$body".toByteArray())
+                    }
+                }
+            }
+            try {
+                val delay = CoreNativeManager.measureOutboundDelay("""{"outbounds":[{"tag":"proxy","protocol":"freedom"}]}""", "http://127.0.0.1:${listener.localPort}/generate_204")
+                assertEquals("HTTP $status was classified incorrectly", status == 204, delay > 0)
+                assertEquals(2, requests.get())
+            } finally { listener.close(); worker.join(1500) }
+        }
     }
     @Test fun encryptedMultiAccountVaultAndSingleProfileSurviveUpdatesAndLocalDeletion() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

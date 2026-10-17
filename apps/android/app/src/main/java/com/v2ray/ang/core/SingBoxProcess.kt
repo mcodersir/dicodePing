@@ -42,17 +42,8 @@ internal class SingBoxProcess(private val context: Context) : AutoCloseable {
         close(); error("sing-box did not open its local proxy")
     }
 
-    fun measure(port: Int, url: String): Long {
-        val client = OkHttpClient.Builder().proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port)))
-            .callTimeout(20, TimeUnit.SECONDS).connectTimeout(10, TimeUnit.SECONDS).build()
-        try {
-            val start = System.nanoTime()
-            client.newCall(Request.Builder().url(url).build()).execute().use { response ->
-                if (response.code !in 200..399) return -1
-                return ((System.nanoTime() - start) / 1_000_000).coerceAtLeast(1)
-            }
-        } finally { client.dispatcher.cancelAll(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
-    }
+    fun measure(port: Int, url: String): Long = AetherDelayTester.requestDelay(port, url)
+
     override fun close() {
         stopped = true
         process?.let { p -> p.destroy(); if (!p.waitFor(2, TimeUnit.SECONDS)) { p.destroyForcibly(); p.waitFor(2, TimeUnit.SECONDS) } }

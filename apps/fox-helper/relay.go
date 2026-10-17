@@ -30,7 +30,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		// FoxyVPN's REC endpoint is the provider anycast route, not the first country.
 		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
-	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: p.relayDialer().DialContext, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
+	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: p.relayDialer().DialContext, DialTLSContext: p.dialEdgeTLS, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
 	reached := false
 	for _, candidate := range candidates {
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {
@@ -45,9 +45,10 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		req, _ := http.NewRequestWithContext(probeCtx, "GET", "https://detectportal.firefox.com/success.txt", nil)
 		resp, e := client.Do(req)
 		if e == nil {
-			_, e = io.Copy(io.Discard, io.LimitReader(resp.Body, 8192))
+			var body []byte
+			body, e = io.ReadAll(io.LimitReader(resp.Body, 8193))
 			resp.Body.Close()
-			reached = e == nil && resp.StatusCode >= 200 && resp.StatusCode < 400
+			reached = e == nil && resp.StatusCode == http.StatusOK && strings.TrimSpace(string(body)) == "success"
 		}
 		client.CloseIdleConnections()
 		cancel()
@@ -77,6 +78,9 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	return p.listener.Addr().String(), nil
 }
 func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, error) {
+	return p.openTunnelAttempt(ctx, authority, true)
+}
+func (p *provider) openTunnelAttempt(ctx context.Context, authority string, refresh bool) (net.Conn, error) {
 	p.mutex.Lock()
 	pass, err := p.proxyPassLocked(ctx)
 	p.mutex.Unlock()
@@ -108,6 +112,15 @@ func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, 
 		resp.Body.Close()
 		reader.Close()
 		writer.Close()
+		if refresh && (resp.StatusCode == 401 || resp.StatusCode == 407) {
+			p.mutex.Lock()
+			if p.pass == pass {
+				p.pass = ""
+				p.passExpiry = 0
+			}
+			p.mutex.Unlock()
+			return p.openTunnelAttempt(ctx, authority, false)
+		}
 		code, msg := "unreachable", "Firefox proxy rejected CONNECT"
 		if resp.StatusCode == 429 {
 			code = "quota_exceeded"
@@ -181,7 +194,7 @@ func (p *provider) openDialTunnel(ctx context.Context, address string) (net.Conn
 	return conn, nil
 }
 func (p *provider) dohClient() *http.Client {
-	return &http.Client{Timeout: 12 * time.Second, Transport: &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+	return &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		// net/http cancels its DialContext after acquiring a connection. That
 		// cancellation must not destroy the established HTTP/2 CONNECT stream.
 		return p.openDialTunnel(ctx, address)

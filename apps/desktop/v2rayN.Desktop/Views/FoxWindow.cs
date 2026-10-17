@@ -127,10 +127,11 @@ public sealed class FoxWindow : Window
             await FoxAccounts.RefreshAsync(account.Id, true, cts.Token); await Load(account.Id); await RefreshViews(); status.Text = FoxUi.T("سهمیه و ساب تازه شدند؛ یک سرور برای این حساب باقی می‌ماند.", "Allowance and subscription refreshed; this account retains one profile.");
         });
         connect.Click += async (_, _) => await Run(async () => {
+            var requestVersion = main.ProfilesViewModel.ConnectionRequestVersion;
             if (accounts.SelectedItem is not FoxAccount account || account.Pending) throw new FoxException("login_required", "Complete account sign-in first");
             account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account); await FoxProfiles.SyncAsync(account); await RefreshViews();
             var sub = (await AppManager.Instance.SubItems()).First(s => s.Url == "dicode-fox://" + account.Id); var node = (await AppManager.Instance.ProfileItems(sub.Id)).Single();
-            await main.ProfilesViewModel.SetDefaultServer(node.IndexId); await main.ConnectPoolProfileAsync(node.IndexId, cts.Token);
+            await main.ConnectPoolProfileAsync(node.IndexId, cts.Token, requestVersion);
             status.Text = CoreManager.Instance.IsRunning ? FoxUi.T("روباه فعال شد؛ جزئیات و ترافیک در خانه دیده می‌شوند.", "Fox is active; connection details and traffic are shown on Home.") : FoxUi.T("اتصال برقرار نشد؛ گزارش را بررسی کنید.", "Connection did not start; check the log.");
         });
         copyProxy.Click += async (_, _) => await Run(async () => {

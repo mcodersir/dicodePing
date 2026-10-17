@@ -1,12 +1,8 @@
-name: Android 4.9 preflight
-on:
-  push:
-    branches:
-    - codex/release-4.9.0
+name: Android 4.9.1 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v7
     - uses: actions/setup-go@v6
@@ -23,47 +19,51 @@ jobs:
     - name: Build pinned hev TUN
       env:
         NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
-      run: "git config --global http.version HTTP/1.1\nfor attempt in 1 2 3 4; do\n  if git clone --branch 2.3.10-P63 --depth 1 https://github.com/patterniha/PattNG.git\
-        \ native-upstream; then\n    break\n  fi\n  rm -rf native-upstream\n  test \"$attempt\" -lt 4\n  sleep $((attempt * 5))\ndone\ntest \"$(git -C native-upstream\
-        \ rev-parse HEAD)\" = \"d50168fbcb03daf12706096fb0391347b93d172d\"\nfor attempt in 1 2 3 4; do\n  if git -C native-upstream submodule update --init\
-        \ --recursive --depth 1; then\n    break\n  fi\n  test \"$attempt\" -lt 4\n  sleep $((attempt * 5))\ndone\nbash native-upstream/compile-hevtun.sh\n\
-        cp -r native-upstream/libs apps/android/app/\n"
+      run: |
+        git config --global http.version HTTP/1.1
+        for attempt in 1 2 3 4; do
+          if git clone --branch 2.3.11-P65 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            break
+          fi
+          rm -rf native-upstream
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        test "$(git -C native-upstream rev-parse HEAD)" = "54a14ea662da1a863fe648b95ebdc71c5af56140"
+        for attempt in 1 2 3 4; do
+          if git -C native-upstream submodule update --init --recursive --depth 1; then
+            break
+          fi
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.0
+        git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "873541b81f00f8fd462392fc622adbb8a8cd59b0"
+        git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
+        bash native-upstream/compile-hevtun.sh
+        cp -r native-upstream/libs apps/android/app/
     - name: Bundle verified Android Aether and Psiphon helpers
-      run: 'python scripts/stage-aether.py --android --output apps/android/app/libs
-
+      run: |
+        python scripts/stage-aether.py --android --output apps/android/app/libs
         bash native-upstream/fetch-psiphon-servers.sh
-
         cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
-
-        '
     - name: Build Fox helper for all Android architectures
       run: python scripts/stage-fox.py --android --output apps/android/app/libs
     - name: Bundle verified Android sing-box
       run: python scripts/stage-singbox-android.py
-    - name: Fetch the verified Android Xray runtime
-      run: 'mkdir -p apps/android/app/libs
-
-        CORE_TAG="v26.10.10"
-
-        test "$(git -C native-upstream/AndroidLibXrayLite rev-parse HEAD)" = "807361655e622aab42decd0cebc3b047f66cbee7"
-
-        test -n "$CORE_TAG"
-
-        curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
-
-        echo "33a1dc21022ad4e2c31296a43876b857a9623131a92a60d56ae831690ffc8130  apps/android/app/libs/libv2ray.aar" | sha256sum -c -
-
-        '
+    - name: Build pinned Android runtime with strict HTTP probes
+      run: bash scripts/build-android-core.sh
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
     - name: Compile and test Android before release
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
       working-directory: apps/android
-      run: 'python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
-
+      run: |-
+        python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.9.0'
-
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug --no-daemon -PdicodeVersion=4.9.1
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -88,3 +88,7 @@ jobs:
           apps/android/app/build/reports/androidTests/
           apps/android/app/build/outputs/androidTest-results/
           apps/android/app/build/remote-test-logcat.txt
+'on':
+  push:
+    branches:
+    - codex/release-4.9.1

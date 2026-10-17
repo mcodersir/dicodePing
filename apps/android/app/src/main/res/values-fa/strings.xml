@@ -877,4 +877,5 @@
     <string name="pool_ui_12">هنوز سروری ذخیره نشده است؛ جمع‌آوری را شروع کنید.</string>
     <string name="fox_recommended">پیشنهادی · مسیر خودکار Mozilla</string>
     <string name="fox_subscription_usage">مصرف‌شده: %1$.2f GB · باقی‌مانده: %2$.2f GB</string>
+    <string name="dicode_traffic_verification_failed">هسته اجرا شد، اما آزمون ترافیک موفق نبود. نشانی تست و تنظیمات مسیریابی را بررسی کنید.</string>
 </resources>

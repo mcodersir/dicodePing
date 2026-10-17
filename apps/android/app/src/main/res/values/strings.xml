@@ -877,4 +877,5 @@
     <string name="pool_ui_12">No servers saved yet. Start collecting.</string>
     <string name="fox_recommended">Recommended · Mozilla anycast route</string>
     <string name="fox_subscription_usage">Used: %1$.2f GB · Remaining: %2$.2f GB</string>
+    <string name="dicode_traffic_verification_failed">The core started, but traffic verification failed. Check the test URL and routing settings.</string>
 </resources>

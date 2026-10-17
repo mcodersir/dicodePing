@@ -112,7 +112,8 @@ public sealed class ServerPoolWindow : Window
             Log(string.Format(ResUI.DicodePoolNewRun, Utils.GetVersion(), options.TargetCount, options.TestRounds));
             try
             {
-                await new ServerPoolService().RunAsync((profile, token) => main.ConnectPoolProfileAsync(profile.IndexId, token),
+                var requestVersion = main.ProfilesViewModel.ConnectionRequestVersion;
+                await new ServerPoolService().RunAsync((profile, token) => main.ConnectPoolProfileAsync(profile.IndexId, token, requestVersion),
                     new Progress<PoolProgress>(Update), options, stop.Token, abort.Token);
                 await main.ProfilesViewModel.RefreshSubscriptions();
                 await main.ProfilesViewModel.RefreshServers();

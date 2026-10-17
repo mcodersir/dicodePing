@@ -30,10 +30,23 @@ public class CoreManager
 
     public string? LastStartupError { get; private set; }
     private bool _chainReady;
+    private bool _trafficVerified;
+    public bool IsTrafficVerified => _trafficVerified && IsRunning;
     public bool IsRunning => _chainReady && _processService is { HasExited: false }
         && (_processPreService is null || !_processPreService.HasExited)
         && (_foxProcess is null || !_foxProcess.HasExited);
     public event Func<int, Task>? UnexpectedExit;
+
+    public async Task<bool> VerifyTrafficAsync(CancellationToken token = default)
+    {
+        if (!IsRunning) return false;
+        var session = SessionId;
+        var proxy = new WebProxy($"socks5://{Global.Loopback}:{ActiveLocalPort}");
+        var delay = await ConnectionHandler.GetRealPingTime(proxy, token);
+        if (!IsRunning || session != SessionId) return false;
+        _trafficVerified = delay > 0;
+        return _trafficVerified;
+    }
 
     public async Task Init(Config config, Func<bool, string, Task> updateFunc)
     {
@@ -130,7 +143,7 @@ public class CoreManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
             var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token, mainContext.AppConfig.CoreBasicItem.BindInterface);
             _foxProcess = helper;
-            helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code); };
+            helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code, helper); };
         }
         await CoreStart(mainContext);
         if (_processService is null) { await CoreStopExclusive(); return; }
@@ -266,11 +279,12 @@ public class CoreManager
     private async Task CoreStopExclusive(bool keepEntryHop = false)
     {
         _chainReady = false;
+        _trafficVerified = false;
         ActiveProfileId = null;
-        if (!keepEntryHop) await EntryHopService.StopAsync();
         Interlocked.Increment(ref _intentionalStopDepth);
         try
         {
+            if (!keepEntryHop) await EntryHopService.StopAsync();
             if (_linuxSudo)
             {
                 await CoreAdminManager.Instance.KillProcessAsLinuxSudo();
@@ -350,17 +364,24 @@ public class CoreManager
                 _processPreService = proc;
                 proc.Exited += code => {
                     if (ReferenceEquals(_processPreService, proc) && !proc.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0)
-                        _ = StopAfterBridgeFailureAsync(code);
+                        _ = StopAfterBridgeFailureAsync(code, proc);
                 };
             }
         }
     }
 
-    private async Task StopAfterBridgeFailureAsync(int code)
+    private async Task StopAfterBridgeFailureAsync(int code, ProcessService failedProcess)
     {
         try {
+            await _lifecycleGate.WaitAsync();
+            try {
+            // An exit notification can wait behind a replacement. It must not stop
+            // the new session or resurrect an intentionally stopped one.
+            if (failedProcess.StopRequested || (!ReferenceEquals(_foxProcess, failedProcess)
+                && !ReferenceEquals(_processPreService, failedProcess))) return;
             Logging.SaveLog($"CoreHandler: proxy/TUN bridge exited with code {code}; stopping the full chain.");
-            await CoreStop();
+            await CoreStopExclusive();
+            } finally { _lifecycleGate.Release(); }
             if (UnexpectedExit is { } handler) await handler(code);
         } catch (Exception error) { Logging.SaveLog("Bridge failure cleanup", error); }
     }

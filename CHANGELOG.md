@@ -1,3 +1,7 @@
+# 4.9.1
+
+Home disconnect targets the active session and cancels pending Best, Fox, pool, restart and recovery requests. Best rechecks HTTP reachability on the current network. HTTP errors, redirects and captive-portal responses no longer count as successful connectivity probes. Android removes the direct TCP preflight, updates its native runtime and HEV 2.19.0, and builds strict response checks into the native measurement path. Fox adds secure edge DNS bootstrap with verified TLS identities and one bounded proxy-pass renewal.
+
 # 4.9.0
 
 Serialized connection lifecycle and Best selection, independent Windows TUN adapter generations, physical uplink binding alongside other VPN routes, runtime-bound desktop traffic statistics, and explicit Android Best connection with stale network callback protection. See [release notes](docs/RELEASE-4.9.0.md).

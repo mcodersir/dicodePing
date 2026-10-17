@@ -22,6 +22,14 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 
 object LauncherManager {
+    private const val CANCELLATION_KEY = "dicode_connection_cancellation"
+    // MMKV is shared with the daemon. A restart delayed in that process must also
+    // see a Disconnect tapped in the UI, even after the old receiver unregistered.
+    fun connectionRequestVersion(): String = MmkvManager.decodeSettingsString(CANCELLATION_KEY).orEmpty()
+    fun isConnectionRequestCurrent(version: String): Boolean = connectionRequestVersion() == version
+    fun cancelPendingConnectionRequests() {
+        MmkvManager.encodeSettings(CANCELLATION_KEY, java.util.UUID.randomUUID().toString())
+    }
 
     fun startServiceFromToggle(context: Context): Boolean {
         if (MmkvManager.getSelectServer().isNullOrEmpty()) {
@@ -54,19 +62,21 @@ object LauncherManager {
     }
 
     fun stopService(context: Context) {
+        cancelPendingConnectionRequests()
         //context.toast(R.string.toast_services_stop)
         MessageHelper.sendMsg2Service(context, AppConfig.MSG_STATE_STOP, "")
     }
 
     /** Restarts the active daemon without starting a stopped service. */
     fun restartService(context: Context) {
-        MessageHelper.sendMsg2Service(context, AppConfig.MSG_STATE_RESTART, "")
+        MessageHelper.sendMsg2Service(context, AppConfig.MSG_STATE_RESTART, connectionRequestVersion())
     }
 
     /** Restarts the active daemon, or delegates to the caller's permission-aware start flow. */
     fun restartServiceOrStart(context: Context, startIfStopped: () -> Unit) {
-        MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, "") { handled ->
-            if (!handled) startIfStopped()
+        val version = connectionRequestVersion()
+        MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, version) { handled ->
+            if (!handled && isConnectionRequestCurrent(version)) startIfStopped()
         }
     }
 

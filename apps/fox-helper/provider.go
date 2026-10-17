@@ -64,6 +64,8 @@ type provider struct {
 	listener                          net.Listener
 	streams                           *http.Transport
 	bindInterface                     string
+	edgeCache                         sync.Map
+	edgeResolver                      func(context.Context, string) ([]net.IP, error)
 	onState                           func(State)
 	onAccount                         func(AccountInfo)
 }

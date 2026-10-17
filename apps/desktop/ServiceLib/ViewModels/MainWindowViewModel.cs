@@ -303,6 +303,7 @@ public partial class MainWindowViewModel : MyReactiveObject
 
         ProfilesViewModel.StartConnection = StartConnectionAsync;
         ProfilesViewModel.StopConnection = StopConnectionAsync;
+        ProfilesViewModel.IsConnectionRequested = () => _connectionDesired;
         ProfilesViewModel.ConnectionStartRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await StartConnectionAsync());
@@ -788,28 +789,40 @@ public partial class MainWindowViewModel : MyReactiveObject
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
     private int _unexpectedExitRecovery;
     private long _lastRecoveryIntent = -1;
+    private CancellationTokenSource? _connectionProbeCts;
 
     private async Task StartConnectionAsync()
     {
+        _connectionDesired = true;
+        var intentVersion = Interlocked.Increment(ref _connectionIntentVersion);
         await ProfilesViewModel.StopDiagnosticsAsync();
+        if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
         _config.TunModeItem.EnableTun = true;
         await ConfigHandler.SaveConfig(_config);
-        _connectionDesired = true;
-        Interlocked.Increment(ref _connectionIntentVersion);
+        if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
         await Reload(forceStart: true);
     }
 
-    public async Task ConnectPoolProfileAsync(string indexId, CancellationToken token)
+    public async Task ConnectPoolProfileAsync(string indexId, CancellationToken token, long? requestVersion = null)
     {
+        var version = requestVersion ?? ProfilesViewModel.ConnectionRequestVersion;
+        void CheckRequest()
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfilesViewModel.IsConnectionRequestCurrent(version)) throw new OperationCanceledException("Connection cancelled by user");
+        }
+        CheckRequest();
         token.ThrowIfCancellationRequested();
         // Do not publish two competing start/reload events from the pool window.
         await _reloadSemaphore.WaitAsync(token);
         _reloadSemaphore.Release();
+        CheckRequest();
         await ConfigHandler.SetDefaultServerIndex(_config, indexId);
+        CheckRequest();
         await StartConnectionAsync();
         await _reloadSemaphore.WaitAsync(token);
         _reloadSemaphore.Release();
-        token.ThrowIfCancellationRequested();
+        CheckRequest();
         if (!CoreManager.Instance.IsRunning) throw new IOException(LastConnectionError ?? "The complete Fox/TUN connection did not start; see the report.");
         await PoolNetwork.WaitForListenerAsync(() => AppManager.Instance.GetLocalPort(EInboundProtocol.socks), token);
         await ProfilesViewModel.RefreshServers();
@@ -824,10 +837,11 @@ public partial class MainWindowViewModel : MyReactiveObject
         }
         try
         {
-            Interlocked.Exchange(ref _lastRecoveryIntent, Volatile.Read(ref _connectionIntentVersion));
+            var intentVersion = Volatile.Read(ref _connectionIntentVersion);
+            Interlocked.Exchange(ref _lastRecoveryIntent, intentVersion);
             Logging.SaveLog($"TUN watchdog: unexpected core exit {exitCode}; recovering the requested connection.");
             await Task.Delay(1200);
-            if (_connectionDesired && !CoreManager.Instance.IsRunning)
+            if (_connectionDesired && intentVersion == Volatile.Read(ref _connectionIntentVersion) && !CoreManager.Instance.IsRunning)
             {
                 await Reload(forceStart: true);
             }
@@ -842,6 +856,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     {
         _connectionDesired = false;
         Interlocked.Increment(ref _connectionIntentVersion);
+        ProfilesViewModel.CancelPendingConnections();
+        _connectionProbeCts?.Cancel();
         _hasNextReloadJob = false;
         // Serialize an explicit stop behind any in-flight core replacement. If the
         // user clicks Disconnect during startup, the final state is still stopped.
@@ -849,6 +865,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         try
         {
             await CoreManager.Instance.CoreStop();
+            await SysProxyHandler.UpdateSysProxy(_config, true);
         }
         finally
         {
@@ -864,11 +881,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         // Settings, selection, subscription refreshes and background jobs may ask for a
         // reload.  They are allowed to replace an already-running core, but must never
         // undo an explicit user disconnect.
-        if (forceStart)
-        {
-            _connectionDesired = true;
-        }
-        if (!forceStart && !_connectionDesired && !CoreManager.Instance.IsRunning)
+        if (!_connectionDesired && !CoreManager.Instance.IsRunning)
         {
             return;
         }
@@ -928,6 +941,17 @@ public partial class MainWindowViewModel : MyReactiveObject
                     return;
                 }
                 await LoadCore(allResult.MainResult.Context, allResult.PreSocksResult?.Context);
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+                using var probe = new CancellationTokenSource();
+                _connectionProbeCts = probe;
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) probe.Cancel();
+                try {
+                    if (!await CoreManager.Instance.VerifyTrafficAsync(probe.Token)) {
+                        ProfileExManager.Instance.SetTestDelay(profileItem.IndexId, -1);
+                        throw new IOException(ResUI.DicodeTrafficVerificationFailed);
+                    }
+                } finally { _connectionProbeCts = null; }
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
                 await SysProxyHandler.UpdateSysProxy(_config, false);
                 await Task.Delay(1000);
             });
@@ -937,8 +961,11 @@ public partial class MainWindowViewModel : MyReactiveObject
             }
             RxSchedulers.MainThreadScheduler.Schedule(async () =>
             {
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+                var session = CoreManager.Instance.SessionId;
                 var result = await StatusBarViewModel.TestServerAvailability();
-                if (result == null || profileItem.IndexId.IsNullOrEmpty())
+                if (result == null || profileItem.IndexId.IsNullOrEmpty() || session != CoreManager.Instance.SessionId
+                    || !_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion))
                 {
                     return;
                 }
@@ -971,6 +998,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         }
         catch (Exception error)
         {
+            if (intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
             LastConnectionError = error.Message; _connectionDesired = false; _hasNextReloadJob = false;
             await CoreManager.Instance.CoreStop();
             Logging.SaveLog("Connection startup", error);

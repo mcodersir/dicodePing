@@ -212,10 +212,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
             runCatching { process?.waitFor() }; if (!stopped) onExit?.invoke()
         }
     }
-    fun measure(port: Int, url: String): Long {
-        val client = OkHttpClient.Builder().proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port))).callTimeout(20, TimeUnit.SECONDS).build()
-        try { val started = System.nanoTime(); client.newCall(Request.Builder().url(url).build()).execute().use { response -> return if (response.code in 200..399) ((System.nanoTime()-started)/1_000_000).coerceAtLeast(1) else -1 } }
-        finally { client.dispatcher.cancelAll(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
-    }
+    fun measure(port: Int, url: String): Long = AetherDelayTester.requestDelay(port, url)
+
     override fun close() { stopped = true; process?.let { child -> runCatching { child.outputStream.close() }; child.destroy(); if (!child.waitFor(2, TimeUnit.SECONDS)) { child.destroyForcibly(); child.waitFor(2, TimeUnit.SECONDS) } }; process = null }
 }

@@ -141,42 +141,8 @@ public static class ConnectionHandler
     /// </summary>
     public static async Task<int> GetRealPingTime(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var url = AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl;
-        var responseTime = -1;
-        try
-        {
-            using var timeoutCts = new CancellationTokenSource();
-            timeoutCts.CancelAfter(Global.LocalFetch);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-            var linkedToken = linkedCts.Token;
-            using var client = new HttpClient(new SocketsHttpHandler()
-            {
-                Proxy = webProxy,
-                UseProxy = webProxy != null,
-                ConnectTimeout = Global.LocalFetch,
-            });
-
-            List<int> oneTime = [];
-            for (var i = 0; i < 2; i++)
-            {
-                var timer = Stopwatch.StartNew();
-                await client.GetAsync(url, linkedToken).ConfigureAwait(false);
-                timer.Stop();
-                oneTime.Add((int)timer.Elapsed.TotalMilliseconds);
-                await Task.Delay(100, linkedToken);
-            }
-            responseTime = oneTime.Where(x => x > 0).OrderBy(x => x).FirstOrDefault();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch
-        {
-            // Ignore
-        }
-        return responseTime;
+        return await ProxyHealthProbe.MeasureAsync(AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl,
+            webProxy, Global.LocalFetch, cancellationToken);
     }
 
     /// <summary>

@@ -16,6 +16,15 @@ public partial class ProfilesViewModel : MyReactiveObject
     public EventChannel<RxVoid> RefreshServersRequested { get; } = new();
     public Func<Task>? StartConnection { get; set; }
     public Func<Task>? StopConnection { get; set; }
+    public Func<bool>? IsConnectionRequested { get; set; }
+    private long _connectionRequestVersion;
+    public long ConnectionRequestVersion => Interlocked.Read(ref _connectionRequestVersion);
+    public bool IsConnectionRequestCurrent(long version) => version == ConnectionRequestVersion;
+    public void CancelPendingConnections()
+    {
+        Interlocked.Increment(ref _connectionRequestVersion);
+        foreach (var probe in _probeServices.Values) probe.ExitLoop();
+    }
     private readonly SemaphoreSlim _connectGate = new(1, 1);
 
     #region private prop
@@ -146,8 +155,9 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
-                IsConnected = CoreManager.Instance.IsRunning;
-                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected : ResUI.DicodeTunConnect;
+                IsConnected = CoreManager.Instance.IsTrafficVerified;
+                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected
+                    : IsConnectionRequested?.Invoke() == true ? ResUI.DicodeConnectingSelected : ResUI.DicodeTunConnect;
             });
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
 
@@ -766,6 +776,14 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ConnectSelectedAsync()
     {
+        // Home is a power button for the active session, regardless of the highlighted row.
+        // Also allow Disconnect while a start or a best-route probe owns the connect gate.
+        if (CoreManager.Instance.IsRunning || IsConnectionRequested?.Invoke() == true || _connectGate.CurrentCount == 0)
+        {
+            if (StopConnection is not null) await StopConnection();
+            else ConnectionStopRequested.Publish();
+            return;
+        }
         var selected = SelectedProfile?.IndexId;
         if (selected.IsNullOrEmpty()) selected = _config.IndexId;
         await ConnectProfileAsync(selected);
@@ -773,52 +791,62 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     public async Task ConnectBestAsync()
     {
+        if (CoreManager.Instance.IsRunning || IsConnectionRequested?.Invoke() == true || _connectGate.CurrentCount == 0)
+        {
+            if (StopConnection is not null) await StopConnection();
+            else ConnectionStopRequested.Publish();
+            return;
+        }
+        var requestVersion = ConnectionRequestVersion;
         if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
         try {
-        if (CoreManager.Instance.IsRunning) { await ConnectProfileExclusiveAsync(_config.IndexId); return; }
         if (IsRefreshing) return;
-        if (!ProfileItems.Any(item => item.Delay > 0))
-        {
+        // Cached TCP latency and results from a previous network are not evidence that
+        // this profile can carry traffic now. Best always uses a fresh HTTP probe.
             NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
             await ServerSpeedtest(ESpeedActionType.FastRealping);
             await RefreshServersBiz();
-        }
+        if (!IsConnectionRequestCurrent(requestVersion)) return;
         // A failed or untested server is never presented as the best route.
         var best = ProfileItems.Where(item => item.Delay > 0).OrderBy(item => item.Delay).FirstOrDefault();
         if (best is null) { NoticeManager.Instance.Enqueue(ResUI.DicodeNoReachable); return; }
         SelectedProfile = best;
-        await ConnectProfileExclusiveAsync(best.IndexId);
+        await ConnectProfileExclusiveAsync(best.IndexId, requestVersion);
         } finally { _connectGate.Release(); }
     }
 
     public async Task ConnectProfileAsync(string? indexId)
     {
+        var requestVersion = ConnectionRequestVersion;
         if (IsRefreshing || !await _connectGate.WaitAsync(0)) return;
-        try { await ConnectProfileExclusiveAsync(indexId); }
+        try { await ConnectProfileExclusiveAsync(indexId, requestVersion); }
         finally { _connectGate.Release(); }
     }
 
-    private async Task ConnectProfileExclusiveAsync(string? indexId)
+    private async Task ConnectProfileExclusiveAsync(string? indexId, long requestVersion)
     {
         try
         {
-            if (CoreManager.Instance.IsRunning)
+            if (!IsConnectionRequestCurrent(requestVersion)) return;
+            if (CoreManager.Instance.IsRunning && indexId == CoreManager.Instance.ActiveProfileId)
             {
                 if (StopConnection is not null) await StopConnection();
                 else ConnectionStopRequested.Publish();
-                if (indexId == _config.IndexId) return;
+                return;
             }
             if (indexId.IsNullOrEmpty() || await AppManager.Instance.GetProfileItem(indexId) is null)
             { NoticeManager.Instance.Enqueue(ResUI.PleaseSelectServer); return; }
+            if (!IsConnectionRequestCurrent(requestVersion)) return;
             _config.TunModeItem.EnableTun = true;
             if (await ConfigHandler.SetDefaultServerIndex(_config, indexId) != 0)
             { NoticeManager.Instance.Enqueue(ResUI.CheckServerSettings); return; }
             await ConfigHandler.SaveConfig(_config);
             await StopDiagnosticsAsync();
+            if (!IsConnectionRequestCurrent(requestVersion)) return;
             NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
             if (StartConnection is not null) await StartConnection();
             else ConnectionStartRequested.Publish();
-            IsConnected = CoreManager.Instance.IsRunning;
+            IsConnected = CoreManager.Instance.IsTrafficVerified;
             NoticeManager.Instance.Enqueue(IsConnected ? ResUI.DicodeTunConnectedNotice : ResUI.DicodeTunFailedNotice);
             await RefreshServers();
         }

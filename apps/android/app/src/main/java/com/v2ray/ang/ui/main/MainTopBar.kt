@@ -99,7 +99,7 @@ fun MainTopBar(
                 IconButton(onClick = { onSearchToggle(true) }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
                 }
-                IconButton(onClick = onSmartConnect, modifier = Modifier.remoteFocus(), enabled = !isAutoConnecting) {
+                IconButton(onClick = onSmartConnect, modifier = Modifier.remoteFocus()) {
                     if (isAutoConnecting) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     } else {

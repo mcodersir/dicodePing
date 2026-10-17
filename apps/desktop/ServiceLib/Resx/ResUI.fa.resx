@@ -2431,4 +2431,5 @@ https://t.me/dicodeping‏</value>
 <data name="DicodeUploadLabel" xml:space="preserve"><value>آپلود ↑</value></data>
 <data name="DicodeDownloadLabel" xml:space="preserve"><value>دانلود ↓</value></data>
   <data name="DicodeFoxTitle" xml:space="preserve"><value>روباه · Firefox VPN</value></data>
+  <data name="DicodeTrafficVerificationFailed" xml:space="preserve"><value>هسته اجرا شد، اما آزمون ترافیک از این مسیر موفق نبود. نشانی تست و تنظیمات مسیریابی را بررسی کنید.</value></data>
 </root>

@@ -21,7 +21,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okio.blackholeSink
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -278,6 +277,7 @@ object AetherDelayTester {
         }
         val client = OkHttpClient.Builder()
             .proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress(AppConfig.LOOPBACK, port)))
+            .followRedirects(false).followSslRedirects(false)
             .build()
         return try {
             var best = -1L
@@ -305,9 +305,9 @@ object AetherDelayTester {
     private fun timedRequest(client: OkHttpClient, request: Request, calls: ProbeCalls): Long? = try {
         val started = System.nanoTime()
         calls.start(client.newCall(request)).execute().use { response ->
-            response.body.source().readAll(blackholeSink())
-            if (response.code == 200 || response.code == 204) {
-                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+            val body = response.peekBody(65537).string()
+            if (ProxyHealthResponse.accepts(request.url.toString(), response.code, body)) {
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started).coerceAtLeast(1)
             } else {
                 null
             }

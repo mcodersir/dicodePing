@@ -69,9 +69,12 @@ class MainActivity : HelperBaseComponentActivity() {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
 
+    private var vpnPermissionRequestVersion: String? = null
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (it.resultCode == RESULT_OK) startV2Ray()
+            val version = vpnPermissionRequestVersion
+            vpnPermissionRequestVersion = null
+            if (it.resultCode == RESULT_OK && version != null && LauncherManager.isConnectionRequestCurrent(version)) startV2Ray()
         }
 
     private val profileEditorLauncher =
@@ -210,6 +213,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun handleFabAction() {
         if (mainViewModel.uiState.value.isRunning) {
+            mainViewModel.cancelAllPing()
             LauncherManager.stopService(this)
             // A service whose process died takes no stop and answers nothing; asking for its state right
             // after lets that silence show the screen as stopped instead of leaving it connected.
@@ -220,6 +224,7 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun requestServiceStart() {
+        vpnPermissionRequestVersion = LauncherManager.connectionRequestVersion()
         if (!SettingsManager.isVpnMode()) {
             startV2Ray()
             return
@@ -256,7 +261,10 @@ class MainActivity : HelperBaseComponentActivity() {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
         if (mainViewModel.isLoading.value) return
-        mainViewModel.prepareAetherConnection { LauncherManager.startService(this) }
+        val requestVersion = LauncherManager.connectionRequestVersion()
+        mainViewModel.prepareAetherConnection {
+            if (LauncherManager.isConnectionRequestCurrent(requestVersion)) LauncherManager.startService(this)
+        }
     }
 
     private fun importManually(createConfigType: Int) {

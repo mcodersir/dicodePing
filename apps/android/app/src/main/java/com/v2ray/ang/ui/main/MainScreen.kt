@@ -58,14 +58,26 @@ fun MainScreen(
     val smartConnectServers by remember(mainViewModel, uiState.selectedGroupId) { mainViewModel.serversForGroup(uiState.selectedGroupId) }.collectAsStateWithLifecycle()
     var autoConnectPending by rememberSaveable { mutableStateOf(false) }
     var autoConnectStarted by remember { mutableStateOf(false) }
-    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers) {
+    var autoConnectVersion by remember { mutableStateOf("") }
+    fun dispatchAction(action: MainAction) {
+        if (action is MainAction.ToggleService || action is MainAction.ConnectServer || action is MainAction.RestartService || action is MainAction.SelectServer) {
+            autoConnectPending = false
+            autoConnectStarted = false
+        }
+        onAction(action)
+    }
+
+    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers, isRunning) {
         if (!autoConnectPending) return@LaunchedEffect
+        if (isRunning || !com.v2ray.ang.core.LauncherManager.isConnectionRequestCurrent(autoConnectVersion)) {
+            autoConnectPending = false; autoConnectStarted = false; return@LaunchedEffect
+        }
         if (uiState.isTesting) { autoConnectStarted = true; return@LaunchedEffect }
         if (!autoConnectStarted) return@LaunchedEffect
         autoConnectPending = false
         autoConnectStarted = false
         val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-        if (best != null) { onAction(MainAction.ConnectServer(best.guid)) }
+        if (best != null) { dispatchAction(MainAction.ConnectServer(best.guid)) }
     }
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
@@ -80,7 +92,7 @@ fun MainScreen(
     LaunchedEffect(moveRefusal) {
         if (moveRefusal != null) {
             context.toastError(failureText)
-            onAction(MainAction.MoveRefusalShown(moveRefusal))
+            dispatchAction(MainAction.MoveRefusalShown(moveRefusal))
         }
     }
 
@@ -89,9 +101,9 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
     var showFox by remember { mutableStateOf(false) }
-    if (showFox) FoxScreen(onDismiss = { showFox = false }, onChanged = { mainViewModel.setupGroupTab(forceRefresh = true) }, onConnect = { guid -> mainViewModel.selectForConnection(guid); onAction(MainAction.RestartService) })
+    if (showFox) FoxScreen(onDismiss = { showFox = false }, onChanged = { mainViewModel.setupGroupTab(forceRefresh = true) }, onConnect = { guid -> dispatchAction(MainAction.ConnectServer(guid)) })
     var showNativeMethods by remember { mutableStateOf(false) }
-    if (showNativeMethods) NativeMethodsDialog(onDismiss = { showNativeMethods = false }, onImport = { onAction(MainAction.ImportBatchConfig(it)) })
+    if (showNativeMethods) NativeMethodsDialog(onDismiss = { showNativeMethods = false }, onImport = { dispatchAction(MainAction.ImportBatchConfig(it)) })
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showDelAllConfirm by remember { mutableStateOf(false) }
@@ -106,7 +118,7 @@ fun MainScreen(
         if (confirmRemove) {
             showRemoveConfirm = ServerDeleteTarget(guid, profileName)
         } else {
-            onAction(MainAction.RemoveServer(guid))
+            dispatchAction(MainAction.RemoveServer(guid))
         }
     }
 
@@ -141,7 +153,7 @@ fun MainScreen(
             .collect { page ->
                 val currentGroups = latestGroups
                 if (page in currentGroups.indices) {
-                    onAction(MainAction.SelectGroup(currentGroups[page].id))
+                    dispatchAction(MainAction.SelectGroup(currentGroups[page].id))
                 }
             }
     }
@@ -154,16 +166,16 @@ fun MainScreen(
     MainDialogs(
         showDelAllConfirm = showDelAllConfirm,
         onDismissDelAll = { showDelAllConfirm = false },
-        onConfirmDelAll = { showDelAllConfirm = false; onAction(MainAction.RemoveAllServers) },
+        onConfirmDelAll = { showDelAllConfirm = false; dispatchAction(MainAction.RemoveAllServers) },
         showDelDuplicateConfirm = showDelDuplicateConfirm,
         onDismissDelDuplicate = { showDelDuplicateConfirm = false },
-        onConfirmDelDuplicate = { showDelDuplicateConfirm = false; onAction(MainAction.RemoveDuplicateServers) },
+        onConfirmDelDuplicate = { showDelDuplicateConfirm = false; dispatchAction(MainAction.RemoveDuplicateServers) },
         showDelInvalidConfirm = showDelInvalidConfirm,
         onDismissDelInvalid = { showDelInvalidConfirm = false },
-        onConfirmDelInvalid = { showDelInvalidConfirm = false; onAction(MainAction.RemoveInvalidServers) },
+        onConfirmDelInvalid = { showDelInvalidConfirm = false; dispatchAction(MainAction.RemoveInvalidServers) },
         showRemoveConfirm = showRemoveConfirm,
         onDismissRemove = { showRemoveConfirm = null },
-        onConfirmRemove = { guid -> showRemoveConfirm = null; onAction(MainAction.RemoveServer(guid)) }
+        onConfirmRemove = { guid -> showRemoveConfirm = null; dispatchAction(MainAction.RemoveServer(guid)) }
     )
 
     if (shareTarget != null) {
@@ -173,12 +185,12 @@ fun MainScreen(
             profile = profile,
             more = more,
             onDismiss = { shareTarget = null },
-            onAction = onAction,
+            onAction = ::dispatchAction,
             onRemove = removeServer,
         )
     }
     if (shareQRCodeBitmap != null) {
-        QRCodeDialog(bitmap = shareQRCodeBitmap, onDismiss = { onAction(MainAction.DismissQRCodeDialog) })
+        QRCodeDialog(bitmap = shareQRCodeBitmap, onDismiss = { dispatchAction(MainAction.DismissQRCodeDialog) })
     }
 
     ModalNavigationDrawer(
@@ -202,44 +214,49 @@ fun MainScreen(
                     searchQuery = searchQuery,
                     onSearchQueryChange = { query: String ->
                         searchQuery = query
-                        onAction(MainAction.Search(query))
+                        dispatchAction(MainAction.Search(query))
                     },
                     onSearchClose = {
                         searchQuery = ""
-                        onAction(MainAction.Search(""))
+                        dispatchAction(MainAction.Search(""))
                         showSearch = false
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
                     isAutoConnecting = autoConnectPending,
                     onSmartConnect = {
-                        if (isRunning) onAction(MainAction.ToggleService)
+                        if (isRunning) dispatchAction(MainAction.ToggleService)
                         else {
-                            val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-                            if (best != null) { onAction(MainAction.ConnectServer(best.guid)) }
-                            else { autoConnectPending = true; autoConnectStarted = false; onAction(MainAction.TestRealAllServers) }
+                            if (autoConnectPending) {
+                                autoConnectPending = false; autoConnectStarted = false
+                                dispatchAction(MainAction.CancelTesting)
+                            } else {
+                                autoConnectVersion = com.v2ray.ang.core.LauncherManager.connectionRequestVersion()
+                                autoConnectPending = true; autoConnectStarted = false
+                                dispatchAction(MainAction.TestRealAllServers)
+                            }
                         }
                     },
-                    onAction = onAction,
+                    onAction = ::dispatchAction,
                     onNativeMethods = { showNativeMethods = true },
                     onFox = { showFox = true },
                     onMoreMenuAction = { action ->
                         when (action) {
-                            MainMoreMenuAction.RestartService -> onAction(MainAction.RestartService)
+                            MainMoreMenuAction.RestartService -> dispatchAction(MainAction.RestartService)
                             MainMoreMenuAction.DeleteAll -> showDelAllConfirm = true
                             MainMoreMenuAction.DeleteDuplicate -> showDelDuplicateConfirm = true
                             MainMoreMenuAction.DeleteInvalid -> showDelInvalidConfirm = true
-                            MainMoreMenuAction.ExportAll -> onAction(MainAction.ExportAll)
-                            MainMoreMenuAction.LocateSelected -> onAction(MainAction.LocateSelectedServer)
-                            MainMoreMenuAction.SortByTestResults -> onAction(MainAction.SortByTestResults)
-                            MainMoreMenuAction.TestAll -> onAction(MainAction.TestAllServers)
-                            MainMoreMenuAction.TestAllRealPing -> onAction(MainAction.TestRealAllServers)
-                            MainMoreMenuAction.TestLocationBeta -> onAction(MainAction.TestAllLocations)
-                            MainMoreMenuAction.RescanAether -> onAction(MainAction.RescanAether)
-                            MainMoreMenuAction.DiscoverFinalMask -> onAction(MainAction.DiscoverFinalMask)
-                            MainMoreMenuAction.TestSecurityBeta -> onAction(MainAction.TestAllSecurity)
-                            MainMoreMenuAction.TestSanctionsBeta -> onAction(MainAction.TestAllSanctions)
-                            MainMoreMenuAction.UpdateSubscriptions -> onAction(MainAction.UpdateSubscriptions)
+                            MainMoreMenuAction.ExportAll -> dispatchAction(MainAction.ExportAll)
+                            MainMoreMenuAction.LocateSelected -> dispatchAction(MainAction.LocateSelectedServer)
+                            MainMoreMenuAction.SortByTestResults -> dispatchAction(MainAction.SortByTestResults)
+                            MainMoreMenuAction.TestAll -> dispatchAction(MainAction.TestAllServers)
+                            MainMoreMenuAction.TestAllRealPing -> dispatchAction(MainAction.TestRealAllServers)
+                            MainMoreMenuAction.TestLocationBeta -> dispatchAction(MainAction.TestAllLocations)
+                            MainMoreMenuAction.RescanAether -> dispatchAction(MainAction.RescanAether)
+                            MainMoreMenuAction.DiscoverFinalMask -> dispatchAction(MainAction.DiscoverFinalMask)
+                            MainMoreMenuAction.TestSecurityBeta -> dispatchAction(MainAction.TestAllSecurity)
+                            MainMoreMenuAction.TestSanctionsBeta -> dispatchAction(MainAction.TestAllSanctions)
+                            MainMoreMenuAction.UpdateSubscriptions -> dispatchAction(MainAction.UpdateSubscriptions)
                         }
                     }
                 )
@@ -249,11 +266,11 @@ fun MainScreen(
                     pingText = displayText,
                     locationText = "",
                     trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  ↓ ${uiState.trafficDownlink.toTrafficString()}",
-                    onClick = { onAction(MainAction.TestCurrentServer) }
+                    onClick = { dispatchAction(MainAction.TestCurrentServer) }
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = { onAction(MainAction.ToggleService) }, modifier = Modifier.remoteFocus(), containerColor = MaterialTheme.colorScheme.primary) {
+                FloatingActionButton(onClick = { dispatchAction(MainAction.ToggleService) }, modifier = Modifier.remoteFocus(), containerColor = MaterialTheme.colorScheme.primary) {
                     Icon(painterResource(if (isRunning) R.drawable.ic_stop_24dp else R.drawable.ic_play_24dp), stringResource(if (isRunning) R.string.acc_stop else R.string.fab_manual_connect))
                 }
             },
@@ -300,8 +317,8 @@ fun MainScreen(
                             searchQuery = searchQuery,
                             lazyListStates = lazyListStates,
                             lazyGridStates = lazyGridStates,
-                            onSelectServer = { guid -> onAction(MainAction.SelectServer(guid)) },
-                            onEditServer = { guid, profile -> onAction(MainAction.EditServer(guid, profile)) },
+                            onSelectServer = { guid -> dispatchAction(MainAction.SelectServer(guid)) },
+                            onEditServer = { guid, profile -> dispatchAction(MainAction.EditServer(guid, profile)) },
                             onShareServer = { guid, profile ->
                                 shareTarget = Triple(guid, profile, false)
                             },
