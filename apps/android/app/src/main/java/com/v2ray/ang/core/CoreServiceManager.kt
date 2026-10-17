@@ -830,7 +830,7 @@ object CoreServiceManager {
                             serviceControl.stopService()
                             delay(500L)
                             if (LauncherManager.isConnectionRequestCurrent(requestVersion))
-                                LauncherManager.startService(serviceControl.getService())
+                                LauncherManager.startService(serviceControl.getService(), requestVersion = requestVersion)
                         } finally {
                             pendingResult.finish()
                         }

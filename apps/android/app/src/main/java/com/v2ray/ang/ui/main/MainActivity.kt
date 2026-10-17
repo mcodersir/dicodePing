@@ -263,7 +263,7 @@ class MainActivity : HelperBaseComponentActivity() {
         if (mainViewModel.isLoading.value) return
         val requestVersion = LauncherManager.connectionRequestVersion()
         mainViewModel.prepareAetherConnection {
-            if (LauncherManager.isConnectionRequestCurrent(requestVersion)) LauncherManager.startService(this)
+            if (LauncherManager.isConnectionRequestCurrent(requestVersion)) LauncherManager.startService(this, requestVersion = requestVersion)
         }
     }
 

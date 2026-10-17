@@ -119,6 +119,7 @@ object NotificationManager {
         val restartV2RayIntent = Intent(AppConfig.BROADCAST_ACTION_SERVICE)
         restartV2RayIntent.`package` = AppConfig.ANG_PACKAGE
         restartV2RayIntent.putExtra("key", AppConfig.MSG_STATE_RESTART)
+        restartV2RayIntent.putExtra("content", com.v2ray.ang.core.LauncherManager.connectionRequestVersion())
         val restartV2RayPendingIntent = PendingIntent.getBroadcast(service, NOTIFICATION_PENDING_INTENT_RESTART_V2RAY, restartV2RayIntent, flags)
 
         val channelId = createNotificationChannel()

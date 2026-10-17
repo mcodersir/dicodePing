@@ -23,6 +23,7 @@ import com.v2ray.ang.util.Utils
 
 object LauncherManager {
     private const val CANCELLATION_KEY = "dicode_connection_cancellation"
+    private const val REQUEST_EXTRA = "dicode_connection_request"
     private val connectionRequests = ConnectionRequests(
         { MmkvManager.decodeSettingsString(CANCELLATION_KEY).orEmpty() },
         { MmkvManager.encodeSettings(CANCELLATION_KEY, it); Unit },
@@ -33,6 +34,8 @@ object LauncherManager {
     fun beginConnectionRequest(): String = connectionRequests.begin()
     fun isConnectionRequestCurrent(version: String): Boolean = connectionRequests.isCurrent(version)
     fun cancelPendingConnectionRequests() = connectionRequests.cancel()
+    fun isCurrentStartRequest(intent: Intent?): Boolean = intent == null || intent.action == android.net.VpnService.SERVICE_INTERFACE
+        || intent.getStringExtra(REQUEST_EXTRA)?.let(::isConnectionRequestCurrent) == true
 
     fun startServiceFromToggle(context: Context): Boolean {
         if (MmkvManager.getSelectServer().isNullOrEmpty()) {
@@ -40,7 +43,7 @@ object LauncherManager {
             return false
         }
         try {
-            startContextService(context)
+            startContextService(context, beginConnectionRequest())
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "LauncherManager: ${e.message}", e)
             context.toast(e.message ?: e.javaClass.simpleName)
@@ -49,7 +52,9 @@ object LauncherManager {
         return true
     }
 
-    fun startService(context: Context, guid: String? = null) {
+    fun startService(context: Context, guid: String? = null, requestVersion: String? = null) {
+        val version = requestVersion ?: beginConnectionRequest()
+        if (!isConnectionRequestCurrent(version)) return
         LogUtil.i(AppConfig.TAG, "LauncherManager: startService from ${context::class.java.simpleName}")
 
         if (guid != null) {
@@ -57,7 +62,7 @@ object LauncherManager {
         }
 
         try {
-            startContextService(context)
+            startContextService(context, version)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "LauncherManager: ${e.message}", e)
             context.toast(e.message ?: e.javaClass.simpleName)
@@ -89,7 +94,7 @@ object LauncherManager {
             || Utils.isValidUrl(config.server)
 
     @Throws(Exception::class)
-    private fun startContextService(context: Context) {
+    private fun startContextService(context: Context, requestVersion: String) {
         // Note: isRunning check is removed here to avoid loading Native libraries in the UI process.
         // The check is performed in CoreServiceManager when the service starts in the daemon process.
 
@@ -141,6 +146,8 @@ object LauncherManager {
         }
 
         try {
+            if (!isConnectionRequestCurrent(requestVersion)) return
+            intent.putExtra(REQUEST_EXTRA, requestVersion)
             ContextCompat.startForegroundService(context, intent)
         } catch (e: SecurityException) {
             LogUtil.e(AppConfig.TAG, "LauncherManager: Missing permission to start foreground service", e)

@@ -58,6 +58,15 @@ class FoxNativeTest {
             assertTrue("Native SOCKS bridge returned $delay", delay > 0); assertEquals(1, requests.get())
         } finally { server.close(); worker.join(1500) }
     }
+    @Test fun delayedServiceStartCannotUndoManualDisconnect() {
+        val version = LauncherManager.beginConnectionRequest()
+        val command = android.content.Intent().putExtra("dicode_connection_request", version)
+        assertTrue(LauncherManager.isCurrentStartRequest(command))
+        LauncherManager.cancelPendingConnectionRequests()
+        assertFalse(LauncherManager.isCurrentStartRequest(command))
+        command.putExtra("dicode_connection_request", LauncherManager.beginConnectionRequest())
+        assertTrue(LauncherManager.isCurrentStartRequest(command))
+    }
     @Test fun nativePingRejectsCaptivePortalInsteadOfAValid204() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         CoreNativeManager.initCoreEnv(context)

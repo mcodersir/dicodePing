@@ -84,10 +84,11 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
     }
     fun start(options: ServerPoolOptions, ensureVpnPermission: suspend () -> Boolean) {
         if (state.value.busy) return
+        val requestVersion = LauncherManager.connectionRequestVersion()
         stopRequested.set(false)
         state.update { it.copy(busy = true) }
         val normalized = options.normalized()
-        report(PoolProgress("شروع", PoolStrings.t("اجرای جدید · 4.1.0 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت", "New run · 4.7.0 · target ${normalized.targetCount} servers · ${normalized.testRounds} rounds")))
+        report(PoolProgress("شروع", PoolStrings.t("اجرای جدید · 4.9.1 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت", "New run · 4.9.1 · target ${normalized.targetCount} servers · ${normalized.testRounds} rounds")))
         job = viewModelScope.launch {
             try {
                 val context = getApplication<Application>()
@@ -95,14 +96,19 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
                     withContext(Dispatchers.Main) {
                         if (SettingsManager.isVpnMode())
                             check(ensureVpnPermission()) { PoolStrings.t("برای اتصال fallback ساب پیش‌فرض، مجوز VPN لازم است.", "VPN permission is required for the default fallback.") }
+                        if (!LauncherManager.isConnectionRequestCurrent(requestVersion)) throw kotlinx.coroutines.CancellationException("Connection cancelled")
                         MmkvManager.setSelectServer(guid)
                         // Wait for the daemon's ordered restart acknowledgement before inspecting its port.
                         val acknowledged = withTimeoutOrNull(30_000) {
                             suspendCancellableCoroutine<Unit> { continuation ->
-                                MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, "") { handled ->
+                                MessageHelper.sendMsg2ServiceForResult(context, AppConfig.MSG_STATE_RESTART, requestVersion) { handled ->
                                     if (continuation.isActive) {
-                                        if (!handled) LauncherManager.startService(context, guid)
-                                        continuation.resume(Unit)
+                                        if (!LauncherManager.isConnectionRequestCurrent(requestVersion)) {
+                                            continuation.cancel(kotlinx.coroutines.CancellationException("Connection cancelled"))
+                                        } else {
+                                            if (!handled) LauncherManager.startService(context, guid, requestVersion)
+                                            continuation.resume(Unit)
+                                        }
                                     }
                                 }
                             }
