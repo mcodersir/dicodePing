@@ -25,9 +25,14 @@ public sealed class AppManager
     {
         get
         {
-            _statePort2 ??= Utils.GetFreePort(GetLocalPort(EInboundProtocol.api2));
-            return _statePort2.Value + (_config.TunModeItem.EnableTun ? 1 : 0);
+            return GetStatePort2(_config.TunModeItem.EnableTun);
         }
+    }
+
+    public int GetStatePort2(bool tunEnabled)
+    {
+        _statePort2 ??= Utils.GetFreePort(GetLocalPort(EInboundProtocol.api2));
+        return _statePort2.Value + (tunEnabled ? 1 : 0);
     }
 
     public string LinuxSudoPwd { get; set; }
@@ -68,6 +73,7 @@ public sealed class AppManager
         }
 
         Logging.Setup();
+        var freshInstall = !File.Exists(Utils.GetConfigPath(Global.ConfigFileName));
         var config = ConfigHandler.LoadConfig();
         if (config == null)
         {
@@ -75,6 +81,8 @@ public sealed class AppManager
         }
         _config = config;
         Thread.CurrentThread.CurrentUICulture = new(_config.UiItem.CurrentLanguage);
+        ResUI.Culture = Thread.CurrentThread.CurrentUICulture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ResUI.Culture;
 
         //Under Win10
         if (Utils.IsWindows() && Environment.OSVersion.Version.Major < 10)
@@ -94,7 +102,7 @@ public sealed class AppManager
 #pragma warning restore CS0618
         // Provision the DicodePing source before the desktop view models are created. This is
         // deliberately synchronous only during startup; subsequent downloading stays async.
-        Task.Run(async () => await DicodePingBootstrap.EnsureDefaultsAsync(_config)).GetAwaiter().GetResult();
+        Task.Run(async () => await DicodePingBootstrap.EnsureDefaultsAsync(_config, freshInstall)).GetAwaiter().GetResult();
         return true;
     }
 
@@ -168,6 +176,8 @@ public sealed class AppManager
     public int GetLocalPort(EInboundProtocol protocol)
     {
         var localPort = _config.Inbound.FirstOrDefault(t => t.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 10808;
+        if (CoreManager.Instance.IsRunning && protocol is EInboundProtocol.socks or EInboundProtocol.socks2 or EInboundProtocol.socks3 or EInboundProtocol.pac)
+            localPort = CoreManager.Instance.ActiveLocalPort;
         return localPort + (int)protocol;
     }
 

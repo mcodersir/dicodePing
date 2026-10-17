@@ -8,7 +8,6 @@ import androidx.compose.ui.res.stringResource
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-import com.v2ray.ang.extension.toast
 import com.v2ray.ang.ui.compose.FormDropdownField
 import com.v2ray.ang.ui.compose.FormTextField
 
@@ -17,7 +16,7 @@ class ServerVlessActivity : BaseServerActivity() {
     override val serverConfigType: EConfigType = EConfigType.VLESS
 
     @Composable
-    override fun ScreenContent() {
+    override fun EditorContent() {
         val options = rememberFieldOptions()
         val scope = rememberCoroutineScope()
         val uiState = rememberSaveable(saver = ServerUiState.Saver) {
@@ -36,6 +35,7 @@ class ServerVlessActivity : BaseServerActivity() {
             CommonBasicFields(uiState)
             VlessProtocolFields(uiState, flowOptions)
             CommonNetworkFields(uiState, options)
+            CommonTargetStrategyField(uiState)
             CommonStreamSecurityFields(
                 state = uiState,
                 options = options,
@@ -47,7 +47,6 @@ class ServerVlessActivity : BaseServerActivity() {
 
     override fun validateProtocolConfig(config: ProfileItem): Boolean {
         if (config.password.isNullOrBlank()) {
-            toast(R.string.server_lab_id)
             return false
         }
         return true
@@ -59,9 +58,10 @@ class ServerVlessActivity : BaseServerActivity() {
         flowOptions: List<String>
     ) {
         FormTextField(
-            stringResource(R.string.server_lab_id),
-            state.password,
-            { state.password = it }
+            label = stringResource(R.string.server_lab_id),
+            value = state.password,
+            onValueChange = { state.password = it },
+            isError = state.isPasswordError
         )
         FormTextField(
             stringResource(R.string.server_lab_encryption),

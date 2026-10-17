@@ -35,11 +35,16 @@ public class CoreConfigContextBuilder
     /// </summary>
     public static async Task<CoreConfigContextBuilderResult> Build(Config config, ProfileItem node)
     {
+        config = JsonUtils.DeepCopy(config);
+        if (Utils.IsWindows() && config.TunModeItem.EnableTun && config.CoreBasicItem.BindInterface.IsNullOrEmpty())
+            config.CoreBasicItem.BindInterface = PhysicalUplink.Find();
+        node = FoxProfiles.ForConnection(node);
         var runCoreType = AppManager.Instance.GetCoreType(node, node.ConfigType);
         var coreType = runCoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var context = new CoreConfigContext
         {
             Node = node,
+            UseEntryHop = config.EntryHopItem.Applies(node),
             RunCoreType = runCoreType,
             AllProxiesMap = [],
             AppConfig = config,
@@ -51,6 +56,8 @@ public class CoreConfigContextBuilder
             RoutingItem = await ConfigHandler.GetDefaultRouting(config),
             IsWindows = Utils.IsWindows(),
             IsMacOS = Utils.IsMacOS(),
+            IsLinux = Utils.IsLinux(),
+            HasGlobalIPv6Address = Utils.HasGlobalIPv6Address(),
             ProtectCoreTypeList = config.TunModeItem.EnableTun ? [ECoreType.Xray, ECoreType.sing_box] : []
         };
         var validatorResult = NodeValidatorResult.Empty();
@@ -145,7 +152,14 @@ public class CoreConfigContextBuilder
     /// </summary>
     public static async Task<CoreConfigContextBuilderAllResult> BuildAll(Config config, ProfileItem node)
     {
+        config = JsonUtils.DeepCopy(config);
+        var inbound = config.Inbound.First(i => i.Protocol == nameof(EInboundProtocol.socks));
+        var requestedPort = inbound.LocalPort;
+        var runtime = CoreManager.Instance;
+        inbound.LocalPort = runtime.IsRunning && runtime.RequestedLocalPort == requestedPort
+            ? runtime.ActiveLocalPort : Utils.GetFreePort(requestedPort);
         var mainResult = await Build(config, node);
+        mainResult = mainResult with { Context = mainResult.Context with { RequestedLocalPort = requestedPort } };
         if (!mainResult.Success)
         {
             return new CoreConfigContextBuilderAllResult(mainResult, null);
@@ -170,8 +184,7 @@ public class CoreConfigContextBuilder
             && mainResult.Context.AppConfig.TunModeItem.StrictRoute)
         {
             var appConfig = JsonUtils.DeepCopy(mainResult.Context.AppConfig);
-            appConfig.CoreBasicItem.BindInterface = string.Empty;
-            appConfig.CoreBasicItem.SendThrough = string.Empty;
+            // Keep the resolved hardware uplink: clearing it lets another VPN become the core's default route.
             resolvedMainResult = resolvedMainResult with
             {
                 Context = resolvedMainResult.Context with
@@ -207,6 +220,7 @@ public class CoreConfigContextBuilder
                     ProtectDomainList =
                     [.. nodeContext.ProtectDomainList ?? [], .. preSocksResult.Context.ProtectDomainList ?? []],
                     ProtectCoreTypeList = protectCoreTypeList,
+                    UseEntryHop = false,
                 },
             };
         }
@@ -398,6 +412,23 @@ public class CoreConfigContextBuilder
             }
         }
 
+        // PattN: Xray sends the ECH config query to the DNS server after the "+" (the whole value when there
+        // is none) and resolves that server's domain itself; in TUN mode it would otherwise resolve through
+        // the proxy, whose handshake waits for this query. sing-box never uses that server: it queries the
+        // name protected above through its own DNS.
+        if (context.RunCoreType != ECoreType.sing_box
+            && node.StreamSecurity == Global.StreamSecurity
+            && !node.EchConfigList.IsNullOrEmpty()
+            && node.EchConfigList.Contains("://"))
+        {
+            var idx = node.EchConfigList.IndexOf('+');
+            var echDnsServer = idx > 0 ? node.EchConfigList[(idx + 1)..] : node.EchConfigList;
+            if (Uri.TryCreate(echDnsServer, UriKind.Absolute, out var echDnsUri) && Utils.IsDomain(echDnsUri.IdnHost))
+            {
+                context.ProtectDomainList.Add(echDnsUri.IdnHost);
+            }
+        }
+
         // xhttp downloadSettings address protect
         var xhttpExtra = node.GetTransportExtra().XhttpExtra;
         if (!string.IsNullOrEmpty(xhttpExtra)
@@ -413,7 +444,56 @@ public class CoreConfigContextBuilder
             context.ProtectDomainList.Add(dAddr);
         }
 
+        // PattN: the servers of the ECH outbound, which the ECH config query is sent through
+        if (NodeValidator.ValidateEchOutbound(node, out var echOutbound) == null && echOutbound != null)
+        {
+            foreach (var echServer in GetOutboundServerAddresses(echOutbound).Where(Utils.IsDomain))
+            {
+                context.ProtectDomainList.Add(echServer);
+            }
+        }
+
         return nodeValidatorResult;
+    }
+
+    /// <summary>
+    ///     PattN: the servers an outbound written as JSON connects to: the address of each vnext and
+    ///     servers entry, the address of the flat settings that newer configs use, and the host of each
+    ///     WireGuard peer endpoint.
+    /// </summary>
+    private static IEnumerable<string> GetOutboundServerAddresses(JsonObject outbound)
+    {
+        if (outbound["settings"] is not JsonObject settings)
+        {
+            yield break;
+        }
+        var servers = new List<JsonObject> { settings };
+        foreach (var key in new[] { "vnext", "servers" })
+        {
+            if (settings[key] is JsonArray entries)
+            {
+                servers.AddRange(entries.OfType<JsonObject>());
+            }
+        }
+        foreach (var server in servers)
+        {
+            if (server["address"] is JsonValue address && address.TryGetValue<string>(out var value))
+            {
+                yield return value;
+            }
+        }
+        if (settings["peers"] is JsonArray peers)
+        {
+            foreach (var peer in peers.OfType<JsonObject>())
+            {
+                // host:port, where an IPv6 host is in brackets and so never taken for a domain
+                if (peer["endpoint"] is JsonValue endpoint && endpoint.TryGetValue<string>(out var value))
+                {
+                    var portColon = value.LastIndexOf(':');
+                    yield return portColon > 0 ? value[..portColon] : value;
+                }
+            }
+        }
     }
 
     /// <summary>

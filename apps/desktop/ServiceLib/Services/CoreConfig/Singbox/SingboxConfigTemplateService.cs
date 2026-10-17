@@ -171,7 +171,7 @@ public partial class CoreConfigSingboxService
 
     private static bool ShouldBindNet(Outbound4Sbox outbound)
     {
-        if (outbound.type is "direct" or "block" or "dns" or "selector" or "urltest")
+        if (outbound.type is "block" or "dns" or "selector" or "urltest")
         {
             return false;
         }

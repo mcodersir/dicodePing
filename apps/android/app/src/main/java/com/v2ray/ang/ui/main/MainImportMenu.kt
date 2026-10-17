@@ -23,7 +23,8 @@ private enum class ImportMenuAction(@StringRes val labelRes: Int, val action: Ma
     Http(R.string.menu_item_import_config_manually_http, MainAction.ImportManually(EConfigType.HTTP.value)),
     Trojan(R.string.menu_item_import_config_manually_trojan, MainAction.ImportManually(EConfigType.TROJAN.value)),
     WireGuard(R.string.menu_item_import_config_manually_wireguard, MainAction.ImportManually(EConfigType.WIREGUARD.value)),
-    Hysteria2(R.string.menu_item_import_config_manually_hysteria2, MainAction.ImportManually(EConfigType.HYSTERIA2.value))
+    Hysteria2(R.string.menu_item_import_config_manually_hysteria2, MainAction.ImportManually(EConfigType.HYSTERIA2.value)),
+    Aether(R.string.menu_item_import_config_manually_aether, MainAction.ImportManually(EConfigType.AETHER.value))
 }
 
 enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
@@ -38,6 +39,8 @@ enum class MainMoreMenuAction(@StringRes val labelRes: Int) {
     TestAllRealPing(R.string.title_real_ping_all_server),
     TestLocationBeta(R.string.fab_location_beta),
     TestSecurityBeta(R.string.security_test_beta),
+    DiscoverFinalMask(R.string.dicode_discover_finalmask),
+    RescanAether(R.string.dicode_rescan_aether),
     TestSanctionsBeta(R.string.sanctions_test_beta),
     UpdateSubscriptions(R.string.title_sub_update)
 }
@@ -82,7 +85,7 @@ fun ShareMethodDialog(
     more: Boolean,
     onDismiss: () -> Unit,
     onAction: (MainAction) -> Unit,
-    onRemove: (String) -> Unit,
+    onRemove: (String, String) -> Unit,
 ) {
     val menuActions = serverMenuActions(
         isComplexProfile = profile.configType.isComplexType(),
@@ -98,7 +101,7 @@ fun ShareMethodDialog(
                 ServerMenuAction.ShareClipboard -> onAction(MainAction.ShareClipboard(guid))
                 ServerMenuAction.ShareFullContent -> onAction(MainAction.ShareFullContent(guid))
                 ServerMenuAction.Edit -> onAction(MainAction.EditServer(guid, profile))
-                ServerMenuAction.Delete -> onRemove(guid)
+                ServerMenuAction.Delete -> onRemove(guid, profile.remarks)
             }
         },
         onDismiss = onDismiss

@@ -32,6 +32,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> AddWireguardServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddAnytlsServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddNaiveServerCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> AddMasqueServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddCustomServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddCustomOutboundServerCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> AddPolicyGroupServerCmd { get; }
@@ -54,6 +55,7 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> RoutingSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> DomainFilterSettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> DNSSettingCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> SanctionsServicesCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> FullConfigTemplateCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> GlobalHotkeySettingCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RebootAsAdminCmd { get; }
@@ -66,8 +68,11 @@ public partial class MainWindowViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> RegionalPresetRussiaCmd { get; }
 
     public ReactiveCommand<RxVoid, RxVoid> RegionalPresetIranCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> RegionalPresetChinaCmd { get; }
 
     public ReactiveCommand<RxVoid, RxVoid> ReloadCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> CancelRefreshCmd { get; }
+    private CancellationTokenSource? _refreshCts;
 
     [Reactive]
     public partial bool BlReloadEnabled { get; set; }
@@ -78,6 +83,9 @@ public partial class MainWindowViewModel : MyReactiveObject
     [Reactive]
     public partial int TabMainSelectedIndex { get; set; }
 
+    [Reactive] public partial bool IsPreparing { get; set; }
+    [Reactive] public partial bool IsPreparationRefreshing { get; set; }
+    [Reactive] public partial string PreparationStatus { get; set; } = "";
     [Reactive] public partial bool BlIsWindows { get; set; }
 
     [Reactive] public partial bool BlNewUpdate { get; set; }
@@ -140,6 +148,10 @@ public partial class MainWindowViewModel : MyReactiveObject
         AddNaiveServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await AddServerAsync(EConfigType.Naive);
+        });
+        AddMasqueServerCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await AddServerAsync(EConfigType.MASQUE);
         });
         AddCustomServerCmd = ReactiveCommand.CreateFromTask(async () =>
         {
@@ -209,6 +221,10 @@ public partial class MainWindowViewModel : MyReactiveObject
                 await Reload();
             }
         });
+        SanctionsServicesCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await AppManager.Instance.WindowDialog.ShowDialogAsync(new SanctionsServicesViewModel());
+        });
         DNSSettingCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             await DNSSettingAsync();
@@ -238,9 +254,10 @@ public partial class MainWindowViewModel : MyReactiveObject
             await OpenTheFileLocation();
         });
 
+        CancelRefreshCmd = ReactiveCommand.Create(() => _refreshCts?.Cancel());
         ReloadCmd = ReactiveCommand.CreateFromTask(async () =>
         {
-            await Reload();
+            await RefreshSubscriptionsNow();
         });
 
         RegionalPresetDefaultCmd = ReactiveCommand.CreateFromTask(async () =>
@@ -258,6 +275,11 @@ public partial class MainWindowViewModel : MyReactiveObject
             await ApplyRegionalPreset(EPresetType.Iran);
         });
 
+        RegionalPresetChinaCmd = ReactiveCommand.CreateFromTask(async () =>
+        {
+            await ApplyRegionalPreset(EPresetType.China);
+        });
+
         #endregion WhenAnyValue && ReactiveCommand
 
         #region AppEvents
@@ -265,20 +287,23 @@ public partial class MainWindowViewModel : MyReactiveObject
         AppEvents.AddServerViaClipboardRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async _ => await AddServerViaClipboardAsync(null));
+            .SubscribeAsync(async _ => await AddServerViaClipboardAsync(null));
 
         AppEvents.HasUpdateNotified
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async bl => BlNewUpdate = bl);
+            .Subscribe(bl => BlNewUpdate = bl);
 
         #endregion AppEvents
 
         ProfilesViewModel.RefreshServersRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async _ => await RefreshServers());
+            .SubscribeAsync(async _ => await RefreshServersDispatcherAsync());
 
+        ProfilesViewModel.StartConnection = StartConnectionAsync;
+        ProfilesViewModel.StopConnection = StopConnectionAsync;
+        ProfilesViewModel.IsConnectionRequested = () => _connectionDesired;
         ProfilesViewModel.ConnectionStartRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await StartConnectionAsync());
@@ -297,23 +322,23 @@ public partial class MainWindowViewModel : MyReactiveObject
         {
             reloadRequested
                 .ObserveOn(RxSchedulers.MainThreadScheduler)
-                .Subscribe(async _ => await Reload());
+                .SubscribeAsync(async _ => await Reload());
         }
 
         StatusBarViewModel.AddServerViaScanRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async _ => await AddServerViaScanAsync());
+            .SubscribeAsync(async _ => await AddServerViaScanAsync());
 
         StatusBarViewModel.AddServerViaClipboardRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async _ => await AddServerViaClipboardAsync(null));
+            .SubscribeAsync(async _ => await AddServerViaClipboardAsync(null));
 
         StatusBarViewModel.ShowHideWindowRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async blShow =>
+            .SubscribeAsync(async blShow =>
             {
                 await ShowHideWindowInteraction.HandleSafe(blShow);
             });
@@ -321,12 +346,12 @@ public partial class MainWindowViewModel : MyReactiveObject
         StatusBarViewModel.SetDefaultServerRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async indexId => await ProfilesViewModel.SetDefaultServer(indexId));
+            .SubscribeAsync(async indexId => await ProfilesViewModel.SetDefaultServer(indexId));
 
         StatusBarViewModel.SubscriptionsUpdateRequested
             .AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
-            .Subscribe(async blProxy => await UpdateSubscriptionProcess("", blProxy));
+            .SubscribeAsync(async blProxy => await UpdateSubscriptionProcess("", blProxy));
 
         StatusBarViewModel.ToggleConnectionRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
@@ -360,6 +385,12 @@ public partial class MainWindowViewModel : MyReactiveObject
         await ProfileExManager.Instance.Init();
         await CoreManager.Instance.Init(_config, UpdateHandler);
         CoreManager.Instance.UnexpectedExit += RecoverUnexpectedCoreExitAsync;
+        EntryHopService.Failed += async () => {
+            var selected = await AppManager.Instance.GetProfileItem(_config.IndexId);
+            if (selected is not null && _config.EntryHopItem.Applies(selected)) {
+                await CoreManager.Instance.CoreStop(); await RecoverUnexpectedCoreExitAsync(-1);
+            }
+        };
         await CertPemManager.Instance.Init(_config);
         TaskManager.Instance.RegUpdateTask(_config, UpdateTaskHandler);
 
@@ -392,6 +423,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     private async Task UpdateTaskHandler(bool success, string msg)
     {
         NoticeManager.Instance.SendMessageEx(msg);
+        if (IsRefreshing && msg.IsNotEmpty())
+            RxSchedulers.MainThreadScheduler.Schedule(() => RefreshStatus = msg);
         if (success)
         {
             var indexIdOld = _config.IndexId;
@@ -438,6 +471,8 @@ public partial class MainWindowViewModel : MyReactiveObject
 
     #region Servers && Groups
 
+    private readonly SemaphoreSlim _refreshServersSemaphore = new(1, 1);
+
     private async Task RefreshServers()
     {
         await ProfilesViewModel.RefreshServersBiz();
@@ -449,13 +484,21 @@ public partial class MainWindowViewModel : MyReactiveObject
     private async Task RefreshServersDispatcherAsync()
     {
         //await Observable.Start(async () => await RefreshServers(), RxSchedulers.MainThreadScheduler);
-        await Signal.FromAsync(async () =>
+        await _refreshServersSemaphore.WaitAsync();
+        try
+        {
+            await Signal.FromAsync(async () =>
             {
                 await RefreshServers();
                 return RxVoid.Default;
             })
-            .SubscribeOn(RxSchedulers.MainThreadScheduler)
-            .ToTask();
+                .SubscribeOn(RxSchedulers.MainThreadScheduler)
+                .ToTask();
+        }
+        finally
+        {
+            _refreshServersSemaphore.Release();
+        }
     }
 
     private async Task RefreshSubscriptions()
@@ -599,8 +642,60 @@ public partial class MainWindowViewModel : MyReactiveObject
         }
     }
 
+    [Reactive] public partial bool IsRefreshing { get; set; }
+    [Reactive] public partial string RefreshStatus { get; set; }
+
+    private async Task RefreshSubscriptionsNow()
+    {
+        if (IsRefreshing) return;
+        using var cancellation = new CancellationTokenSource();
+        _refreshCts = cancellation;
+        IsRefreshing = true;
+        ProfilesViewModel.IsRefreshing = true;
+        RefreshStatus = ResUI.DicodeRefreshRunning;
+        try
+        {
+            await ProfilesViewModel.StopDiagnosticsAsync(cancellation.Token);
+            var anySuccess = false;
+            await Task.Run(async () => await SubscriptionHandler.UpdateProcess(_config, _config.SubIndexId ?? "", false, async (success, message) => {
+                anySuccess |= success; await UpdateTaskHandler(success, message);
+            }, cancellation.Token));
+            await ProfilesViewModel.RefreshSubscriptions();
+            await RefreshServersDispatcherAsync();
+            if (anySuccess)
+            {
+                var primary = (await AppManager.Instance.SubItems())?.FirstOrDefault(x => x.Url == DicodePingBootstrap.DefaultSubscriptionUrl);
+                if (primary is not null && DicodePingBootstrap.ShouldPrepare(_config, primary) && (string.IsNullOrEmpty(_config.SubIndexId) || _config.SubIndexId == primary!.Id))
+                {
+                    ProfilesViewModel.IsRefreshing = false;
+                    await ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, await AppManager.Instance.ProfileItems(primary!.Id) ?? [], cancellation.Token);
+                    await ConfigHandler.SortServers(_config, primary.Id, nameof(EServerColName.DelayVal), true);
+                    await RefreshServersDispatcherAsync();
+                }
+            }
+            RefreshStatus = anySuccess ? ResUI.DicodeRefreshFinished : ResUI.DicodeRefreshFailed;
+            NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            RefreshStatus = ResUI.SpeedtestingStop;
+            NoticeManager.Instance.SendMessageAndEnqueue(RefreshStatus);
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Subscription refresh", ex);
+            RefreshStatus = ResUI.DicodeRefreshFailed;
+        }
+        finally { _refreshCts = null; ProfilesViewModel.IsRefreshing = false; IsRefreshing = false; }
+    }
+
     public async Task UpdateSubscriptionProcess(string subId, bool blProxy)
     {
+        if (IsRefreshing || ProfilesViewModel.ProbeRuns.Any(x => x.IsRunning))
+        {
+            NoticeManager.Instance.Enqueue(ResUI.DicodeProbeRunning);
+            return;
+        }
         await Task.Run(async () => await SubscriptionHandler.UpdateProcess(_config, subId, blProxy, UpdateTaskHandler));
     }
 
@@ -688,28 +783,65 @@ public partial class MainWindowViewModel : MyReactiveObject
 
     private bool _hasNextReloadJob = false;
     private bool _connectionDesired;
+    public bool IsConnectionRequested => _connectionDesired;
+    public string? LastConnectionError { get; private set; }
     private long _connectionIntentVersion;
     private readonly SemaphoreSlim _reloadSemaphore = new(1, 1);
     private int _unexpectedExitRecovery;
+    private long _lastRecoveryIntent = -1;
+    private CancellationTokenSource? _connectionProbeCts;
 
     private async Task StartConnectionAsync()
     {
         _connectionDesired = true;
-        Interlocked.Increment(ref _connectionIntentVersion);
+        var intentVersion = Interlocked.Increment(ref _connectionIntentVersion);
+        await ProfilesViewModel.StopDiagnosticsAsync();
+        if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+        _config.TunModeItem.EnableTun = true;
+        await ConfigHandler.SaveConfig(_config);
+        if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
         await Reload(forceStart: true);
+    }
+
+    public async Task ConnectPoolProfileAsync(string indexId, CancellationToken token, long? requestVersion = null)
+    {
+        var version = requestVersion ?? ProfilesViewModel.ConnectionRequestVersion;
+        void CheckRequest()
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfilesViewModel.IsConnectionRequestCurrent(version)) throw new OperationCanceledException("Connection cancelled by user");
+        }
+        CheckRequest();
+        token.ThrowIfCancellationRequested();
+        // Do not publish two competing start/reload events from the pool window.
+        await _reloadSemaphore.WaitAsync(token);
+        _reloadSemaphore.Release();
+        CheckRequest();
+        await ConfigHandler.SetDefaultServerIndex(_config, indexId);
+        CheckRequest();
+        await StartConnectionAsync();
+        await _reloadSemaphore.WaitAsync(token);
+        _reloadSemaphore.Release();
+        CheckRequest();
+        if (!CoreManager.Instance.IsRunning) throw new IOException(LastConnectionError ?? "The complete Fox/TUN connection did not start; see the report.");
+        await PoolNetwork.WaitForListenerAsync(() => AppManager.Instance.GetLocalPort(EInboundProtocol.socks), token);
+        await ProfilesViewModel.RefreshServers();
     }
 
     private async Task RecoverUnexpectedCoreExitAsync(int exitCode)
     {
-        if (!_connectionDesired || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)
+        if (!_connectionDesired || Volatile.Read(ref _lastRecoveryIntent) == Volatile.Read(ref _connectionIntentVersion)
+            || Interlocked.Exchange(ref _unexpectedExitRecovery, 1) == 1)
         {
             return;
         }
         try
         {
+            var intentVersion = Volatile.Read(ref _connectionIntentVersion);
+            Interlocked.Exchange(ref _lastRecoveryIntent, intentVersion);
             Logging.SaveLog($"TUN watchdog: unexpected core exit {exitCode}; recovering the requested connection.");
             await Task.Delay(1200);
-            if (_connectionDesired && !CoreManager.Instance.IsRunning)
+            if (_connectionDesired && intentVersion == Volatile.Read(ref _connectionIntentVersion) && !CoreManager.Instance.IsRunning)
             {
                 await Reload(forceStart: true);
             }
@@ -724,6 +856,8 @@ public partial class MainWindowViewModel : MyReactiveObject
     {
         _connectionDesired = false;
         Interlocked.Increment(ref _connectionIntentVersion);
+        ProfilesViewModel.CancelPendingConnections();
+        try { _connectionProbeCts?.Cancel(); } catch (ObjectDisposedException) { }
         _hasNextReloadJob = false;
         // Serialize an explicit stop behind any in-flight core replacement. If the
         // user clicks Disconnect during startup, the final state is still stopped.
@@ -731,14 +865,15 @@ public partial class MainWindowViewModel : MyReactiveObject
         try
         {
             await CoreManager.Instance.CoreStop();
+            await SysProxyHandler.UpdateSysProxy(_config, true);
         }
         finally
         {
             _reloadSemaphore.Release();
         }
         ProfilesViewModel.IsConnected = false;
-        ProfilesViewModel.ConnectionStatusText = "اتصال TUN";
-        NoticeManager.Instance.Enqueue("اتصال TUN قطع شد");
+        ProfilesViewModel.ConnectionStatusText = ResUI.DicodeTunConnect;
+        NoticeManager.Instance.Enqueue(ResUI.DicodeTunDisconnected);
     }
 
     public async Task Reload(bool forceStart = false)
@@ -746,18 +881,20 @@ public partial class MainWindowViewModel : MyReactiveObject
         // Settings, selection, subscription refreshes and background jobs may ask for a
         // reload.  They are allowed to replace an already-running core, but must never
         // undo an explicit user disconnect.
-        if (forceStart)
-        {
-            _connectionDesired = true;
-        }
-        if (!forceStart && !_connectionDesired && !CoreManager.Instance.IsRunning)
+        if (!_connectionDesired && !CoreManager.Instance.IsRunning)
         {
             return;
         }
 
         var intentVersion = Interlocked.Read(ref _connectionIntentVersion);
-        //If there are unfinished reload job, marked with next job.
-        if (!await _reloadSemaphore.WaitAsync(0))
+        // Explicit connection callers await the actual replacement, including when a
+        // background reload already owns the gate. Returning early reports a false
+        // connection failure and lets a second start race the queued replacement.
+        if (forceStart)
+        {
+            await _reloadSemaphore.WaitAsync();
+        }
+        else if (!await _reloadSemaphore.WaitAsync(0))
         {
             _hasNextReloadJob = true;
             return;
@@ -773,6 +910,13 @@ public partial class MainWindowViewModel : MyReactiveObject
         {
             SetReloadEnabled(false);
 
+            RxSchedulers.MainThreadScheduler.Schedule(() =>
+            {
+                if (TabMainSelectedIndex < 0)
+                {
+                    TabMainSelectedIndex = 0;
+                }
+            });
             var profileItem = await ConfigHandler.GetDefaultServer(_config);
             if (profileItem == null)
             {
@@ -797,6 +941,17 @@ public partial class MainWindowViewModel : MyReactiveObject
                     return;
                 }
                 await LoadCore(allResult.MainResult.Context, allResult.PreSocksResult?.Context);
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+                using var probe = new CancellationTokenSource();
+                _connectionProbeCts = probe;
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) probe.Cancel();
+                try {
+                    if (!await CoreManager.Instance.VerifyTrafficAsync(probe.Token)) {
+                        ProfileExManager.Instance.SetTestDelay(profileItem.IndexId, -1);
+                        throw new IOException(ResUI.DicodeTrafficVerificationFailed);
+                    }
+                } finally { _connectionProbeCts = null; }
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
                 await SysProxyHandler.UpdateSysProxy(_config, false);
                 await Task.Delay(1000);
             });
@@ -806,7 +961,21 @@ public partial class MainWindowViewModel : MyReactiveObject
             }
             RxSchedulers.MainThreadScheduler.Schedule(async () =>
             {
-                await StatusBarViewModel.TestServerAvailability();
+                if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+                var session = CoreManager.Instance.SessionId;
+                var result = await StatusBarViewModel.TestServerAvailability();
+                if (result == null || profileItem.IndexId.IsNullOrEmpty() || session != CoreManager.Instance.SessionId
+                    || !_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion))
+                {
+                    return;
+                }
+
+                await ProfilesViewModel.SetSpeedTestResult(new()
+                {
+                    IndexId = profileItem.IndexId,
+                    IpInfo = result.Ip,
+                    Delay = result.Time > 0 ? result.Time.ToString() : null
+                });
             });
 
             var showClashUI = AppManager.Instance.IsRunningCore(ECoreType.sing_box);
@@ -824,7 +993,20 @@ public partial class MainWindowViewModel : MyReactiveObject
                     .ToTask();
             }
 
+            LastConnectionError = null;
             ReloadResult(showClashUI);
+        }
+        catch (Exception error)
+        {
+            if (intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+            LastConnectionError = error.Message; _connectionDesired = false; _hasNextReloadJob = false;
+            await CoreManager.Instance.CoreStop();
+            await SysProxyHandler.UpdateSysProxy(_config, true);
+            Logging.SaveLog("Connection startup", error);
+            NoticeManager.Instance.SendMessageAndEnqueue(error.Message);
+            RxSchedulers.MainThreadScheduler.Schedule(() => {
+                ProfilesViewModel.IsConnected = false; ProfilesViewModel.ConnectionStatusText = ResUI.DicodeTunConnect;
+            });
         }
         finally
         {
@@ -844,7 +1026,10 @@ public partial class MainWindowViewModel : MyReactiveObject
         RxSchedulers.MainThreadScheduler.Schedule(() =>
         {
             ShowClashUI = showClashUI;
-            TabMainSelectedIndex = showClashUI ? TabMainSelectedIndex : 0;
+            if (!showClashUI || TabMainSelectedIndex < 0)
+            {
+                TabMainSelectedIndex = 0;
+            }
         });
     }
 

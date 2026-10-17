@@ -1,281 +1,428 @@
-name: Release v3
-
-on:
-  push:
-    tags: ['v3.*']
-    branches: ['codex/release-*']
-  workflow_dispatch:
-
+name: Release 4.9.1 Stable
 permissions:
+  actions: read
   contents: write
-
+  pages: write
+  id-token: write
 jobs:
+  fox-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.2
+        cache: false
+    - run: go test -race ./...
+      working-directory: apps/fox-helper
   desktop:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-latest
-            rid: win-x64
-            xray_asset: Xray-windows-64.zip
-            xray_binary: xray.exe
-            mihomo_asset: mihomo-windows-amd64-v1-v1.19.30.zip
-            mihomo_binary: mihomo.exe
-            mihomo_sha256: 8b81fe2c5cd04ca6deb61eec6075150b44cc5ad13ab867750642e2422f7c1278
-            singbox_asset: sing-box-1.13.19-windows-amd64.zip
-            singbox_binary: sing-box.exe
-            singbox_sha256: e011a4def2f5e2b143ed54adb2b1a20a6be407806ab4442f3667f1dd817a2c8d
-            artifact: windows-x64
-          - runner: ubuntu-latest
-            rid: linux-x64
-            xray_asset: Xray-linux-64.zip
-            xray_binary: xray
-            mihomo_asset: mihomo-linux-amd64-v1-v1.19.30.gz
-            mihomo_binary: mihomo
-            mihomo_sha256: cbe553d0319a414bd3a372c5976a252155b2c4882b66bce88a4d6bba9571a553
-            singbox_asset: sing-box-1.13.19-linux-amd64.tar.gz
-            singbox_binary: sing-box
-            singbox_sha256: ef88a9e577d474210867bd708933d042e9b70106529df2656182c9db90106aa1
-            artifact: linux-x64
-          - runner: macos-14
-            rid: osx-x64
-            xray_asset: Xray-macos-64.zip
-            xray_binary: xray
-            mihomo_asset: mihomo-darwin-amd64-v1-v1.19.30.gz
-            mihomo_binary: mihomo
-            mihomo_sha256: b5355135a1446ca1af83c794f46435290a59ddd968dd73f7883b9c7977e14f8b
-            singbox_asset: sing-box-1.13.19-darwin-amd64.tar.gz
-            singbox_binary: sing-box
-            singbox_sha256: 31ee722237d95774e101fbffeae6be6776249c5f7db229ad8ff00b45b22e6a00
-            artifact: macos-x64
-          - runner: macos-14
-            rid: osx-arm64
-            xray_asset: Xray-macos-arm64-v8a.zip
-            xray_binary: xray
-            mihomo_asset: mihomo-darwin-arm64-v1.19.30.gz
-            mihomo_binary: mihomo
-            mihomo_sha256: 2c7f3a7904fa1cee291e124123e630e7b1ebd13765dd9bf26c0a28432004d9f4
-            singbox_asset: sing-box-1.13.19-darwin-arm64.tar.gz
-            singbox_binary: sing-box
-            singbox_sha256: 23bf191906f2dfc9f00e9f0092f274f3426ba9377327e903ff94e636b64d0997
-            artifact: macos-arm64
+        - runner: windows-latest
+          rid: win-x64
+          xray_asset: Xray-windows-64.zip
+          xray_sha256: c4a457bf5c9ffbfb782c9f2503950a89b458acccd5e7ba7065c0b87a2f1fb57c
+          xray_binary: xray.exe
+          mihomo_asset: mihomo-windows-amd64-v1-v1.19.32.zip
+          mihomo_binary: mihomo.exe
+          mihomo_sha256: 00549b347d8e124600e46cac67d59293358454f465e9d86d2511567da56b7029
+          singbox_asset: sing-box-1.14.3-windows-amd64.zip
+          singbox_binary: sing-box.exe
+          singbox_sha256: d8b86ef58936dba9230ec6a57ffa4243933f3c14ef4809828b6c553440ed1518
+          artifact: windows-x64
+        - runner: ubuntu-latest
+          rid: linux-x64
+          xray_asset: Xray-linux-64.zip
+          xray_sha256: 7eb7fc19e36ab171ed7a26e7701a9374f6c3eb4238c414c92d590c3cff1d07e1
+          xray_binary: xray
+          mihomo_asset: mihomo-linux-amd64-v1-v1.19.32.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: 306f81e723e60ce6b828899a6fe83e1d00e9ecefb2dc8d4d849312a5bc00efdc
+          singbox_asset: sing-box-1.14.3-linux-amd64.tar.gz
+          singbox_binary: sing-box
+          singbox_sha256: e2bdf179c15a3652955dc44867e33ca0965c9c9b91b34267dcc5a5d639a5feee
+          artifact: linux-x64
+        - runner: macos-14
+          rid: osx-x64
+          xray_asset: Xray-macos-64.zip
+          xray_sha256: f173590c4a39337f6407da25dbadbae411870f0147a7c5f0d1f419c7f329fe21
+          xray_binary: xray
+          mihomo_asset: mihomo-darwin-amd64-v1-v1.19.32.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: f6eef841308b682e48f9c3e4740af42f5644a53d2f18c4d4bf1ee6f8a7af7c8b
+          singbox_asset: sing-box-1.14.3-darwin-amd64.tar.gz
+          singbox_binary: sing-box
+          singbox_sha256: 6d002b74d03b478547349cc10af89e007868596e5aa931816d45da9f544715a9
+          artifact: macos-x64
+        - runner: macos-14
+          rid: osx-arm64
+          xray_asset: Xray-macos-arm64-v8a.zip
+          xray_sha256: 8e1ba4b9b0b991970dc4e047ea3f97fe17bdca020b1776cb76a4c01d2a93ff5f
+          xray_binary: xray
+          mihomo_asset: mihomo-darwin-arm64-v1.19.32.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: 3312a6780652c622890fd4357c6a853bbf865464fd047ac7b7f52dab8de18652
+          singbox_asset: sing-box-1.14.3-darwin-arm64.tar.gz
+          singbox_binary: sing-box
+          singbox_sha256: 0360ce634a04c26a6b4fd957517987bb4f6c8950f63435ce3c5af2fcae5860c5
+          artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.x
-      - name: Restore and build the independent desktop client
-        run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=3.0.6
-      - name: Run desktop regression tests on isolated Windows
-        if: runner.os == 'Windows'
-        run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
-      - name: Publish DicodePing desktop
-        run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=3.0.6 -o publish
-      - name: Bundle verified Xray and sing-box runtimes
-        shell: pwsh
-        run: |
-          $url = "https://github.com/XTLS/Xray-core/releases/download/v26.7.28/${{ matrix.xray_asset }}"
-          Invoke-WebRequest -Uri $url -OutFile xray.zip
-          Invoke-WebRequest -Uri "$url.dgst" -OutFile xray.zip.dgst
-          $expected = ((Get-Content xray.zip.dgst | Select-String '^SHA2-256=\s+([0-9a-f]{64})$').Matches.Groups[1].Value).ToLower()
-          $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
-          if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
-          Expand-Archive xray.zip -DestinationPath xray-runtime -Force
-          if (-not (Test-Path "xray-runtime/${{ matrix.xray_binary }}")) { throw "Xray binary missing from archive" }
-          $xrayDir = New-Item -ItemType Directory -Force publish/bin/xray
-          $xray = Get-ChildItem xray-runtime -Recurse -File -Filter '${{ matrix.xray_binary }}' | Select-Object -First 1
-          if ($null -eq $xray) { throw "Xray binary missing from archive" }
-          Copy-Item $xray.FullName "$xrayDir/${{ matrix.xray_binary }}" -Force
-          # Routing rules such as geosite:google need Xray's data files beside
-          # the executable root. Without these files the main TUN core cannot
-          # start, even though temporary speed-test cores appear to work.
-          $dataDir = New-Item -ItemType Directory -Force publish/bin
-          foreach ($dataName in @('geosite.dat', 'geoip.dat')) {
-            $dataFile = Get-ChildItem xray-runtime -Recurse -File -Filter $dataName | Select-Object -First 1
-            if ($null -eq $dataFile) { throw "$dataName missing from Xray archive" }
-            Copy-Item $dataFile.FullName "$dataDir/$dataName" -Force
-          }
-          # Replace the archive defaults with the newest verified routing
-          # database release so both the bundled runtime and Geo updater agree.
-          $geoRelease = '202608222215'
-          $geoHashes = @{ 'geoip.dat' = '8ebcb11333f7deed4bf2740f2ce3249aa8997ef03d437150c7ae373c011cd72a'; 'geosite.dat' = '919c19a0918ff774a9f0307bb8de56f17636d12b5bffbc5167bbfd30f7970bbd' }
-          foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
-            $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
-            Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
-            $geoActual = (Get-FileHash "publish/bin/$dataName" -Algorithm SHA256).Hash.ToLower()
-            if ($geoActual -ne $geoHashes[$dataName]) { throw "$dataName SHA-256 verification failed" }
-          }
-          $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/${{ matrix.mihomo_asset }}"
-          Invoke-WebRequest -Uri $mihomoUrl -OutFile mihomo.archive
-          $mihomoActual = (Get-FileHash mihomo.archive -Algorithm SHA256).Hash.ToLower()
-          if ($mihomoActual -ne '${{ matrix.mihomo_sha256 }}') { throw "Mihomo SHA-256 verification failed" }
-          $mihomoDir = New-Item -ItemType Directory -Force publish/bin/mihomo
-          if ('${{ matrix.mihomo_asset }}'.EndsWith('.zip')) {
-            Expand-Archive mihomo.archive -DestinationPath mihomo-runtime -Force
-            $mihomo = Get-ChildItem mihomo-runtime -Recurse -File | Where-Object { $_.Name -like 'mihomo*.exe' } | Select-Object -First 1
-            if ($null -eq $mihomo) { throw "Mihomo binary missing from archive" }
-            Copy-Item $mihomo.FullName "$mihomoDir/${{ matrix.mihomo_binary }}" -Force
-          } else {
-            $input = [IO.File]::OpenRead((Resolve-Path mihomo.archive))
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.2
+        cache: false
+    - uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+    - name: Restore and build the independent desktop client
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.1
+    - name: Render desktop layout on Linux
+      if: runner.os == 'Linux'
+      run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
+    - name: Run desktop regression tests on isolated Windows
+      if: runner.os == 'Windows'
+      env:
+        POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
+      run: |
+        python scripts/check-pool-sources.py "$env:POOL_LIVE_FIXTURES"
+        if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
+        dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+    - name: Publish DicodePing desktop
+      run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
+        true -p:Version=4.9.1 -o publish
+    - name: Bundle verified Xray and sing-box runtimes
+      shell: pwsh
+      run: |
+        $url = "https://github.com/patterniha/Xray-core/releases/download/v26.10.13/${{ matrix.xray_asset }}"
+        Invoke-WebRequest -Uri $url -OutFile xray.zip
+        $expected = '${{ matrix.xray_sha256 }}'
+        $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
+        if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
+        Expand-Archive xray.zip -DestinationPath xray-runtime -Force
+        if (-not (Test-Path "xray-runtime/${{ matrix.xray_binary }}")) { throw "Xray binary missing from archive" }
+        $xrayDir = New-Item -ItemType Directory -Force publish/bin/xray
+        $xray = Get-ChildItem xray-runtime -Recurse -File -Filter '${{ matrix.xray_binary }}' | Select-Object -First 1
+        if ($null -eq $xray) { throw "Xray binary missing from archive" }
+        Copy-Item $xray.FullName "$xrayDir/${{ matrix.xray_binary }}" -Force
+        # Xray loads wintun beside its executable; keep the signed driver from
+        # the checksum-verified upstream archive in every Windows package.
+        if ('${{ matrix.rid }}' -eq 'win-x64') {
+          $wintun = Get-ChildItem xray-runtime -Recurse -File -Filter 'wintun.dll' | Select-Object -First 1
+          if ($null -eq $wintun) { throw 'wintun.dll missing from verified Xray archive' }
+          Copy-Item $wintun.FullName "$xrayDir/wintun.dll" -Force
+          Copy-Item $wintun.FullName 'publish/wintun.dll' -Force
+          Copy-Item 'xray-runtime/LICENSE-Wintun' 'publish/bin/xray/LICENSE-Wintun' -Force
+        }
+        # Routing rules such as geosite:google need Xray's data files beside
+        # the executable root. Without these files the main TUN core cannot
+        # start, even though temporary speed-test cores appear to work.
+        $dataDir = New-Item -ItemType Directory -Force publish/bin
+        foreach ($dataName in @('geosite.dat', 'geoip.dat')) {
+          $dataFile = Get-ChildItem xray-runtime -Recurse -File -Filter $dataName | Select-Object -First 1
+          if ($null -eq $dataFile) { throw "$dataName missing from Xray archive" }
+          Copy-Item $dataFile.FullName "$dataDir/$dataName" -Force
+        }
+        # Replace the archive defaults with the newest verified routing
+        # database release so both the bundled runtime and Geo updater agree.
+        $geoRelease = '202610062207'
+        $geoHashes = @{ 'geoip.dat' = '391b522361c52804e486a98b53d97f3d9c1d3e4e4217bb34954774a0b456b9fd'; 'geosite.dat' = '282b6613f2a09e2c5b2ba357808abb7bb697f7f5c6cc957d8e5dc92bdc27fbbf' }
+        foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
+          $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
+          Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
+          $geoActual = (Get-FileHash "publish/bin/$dataName" -Algorithm SHA256).Hash.ToLower()
+          if ($geoActual -ne $geoHashes[$dataName]) { throw "$dataName SHA-256 verification failed" }
+        }
+        $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.32/${{ matrix.mihomo_asset }}"
+        Invoke-WebRequest -Uri $mihomoUrl -OutFile mihomo.archive
+        $mihomoActual = (Get-FileHash mihomo.archive -Algorithm SHA256).Hash.ToLower()
+        if ($mihomoActual -ne '${{ matrix.mihomo_sha256 }}') { throw "Mihomo SHA-256 verification failed" }
+        $mihomoDir = New-Item -ItemType Directory -Force publish/bin/mihomo
+        if ('${{ matrix.mihomo_asset }}'.EndsWith('.zip')) {
+          Expand-Archive mihomo.archive -DestinationPath mihomo-runtime -Force
+          $mihomo = Get-ChildItem mihomo-runtime -Recurse -File | Where-Object { $_.Name -like 'mihomo*.exe' } | Select-Object -First 1
+          if ($null -eq $mihomo) { throw "Mihomo binary missing from archive" }
+          Copy-Item $mihomo.FullName "$mihomoDir/${{ matrix.mihomo_binary }}" -Force
+        } else {
+          $input = [IO.File]::OpenRead((Resolve-Path mihomo.archive))
+          try {
+            $gzip = [IO.Compression.GZipStream]::new($input, [IO.Compression.CompressionMode]::Decompress)
             try {
-              $gzip = [IO.Compression.GZipStream]::new($input, [IO.Compression.CompressionMode]::Decompress)
-              try {
-                $output = [IO.File]::Create((Join-Path $mihomoDir.FullName '${{ matrix.mihomo_binary }}'))
-                try { $gzip.CopyTo($output) } finally { $output.Dispose() }
-              } finally { $gzip.Dispose() }
-            } finally { $input.Dispose() }
-          }
-          $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/${{ matrix.singbox_asset }}"
-          Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
-          $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
-          if ($singboxActual -ne '${{ matrix.singbox_sha256 }}') { throw "sing-box SHA-256 verification failed" }
-          New-Item -ItemType Directory -Force sing-box-runtime | Out-Null
-          if ('${{ matrix.singbox_asset }}'.EndsWith('.zip')) {
-            Expand-Archive sing-box.archive -DestinationPath sing-box-runtime -Force
-          } else {
-            tar -xzf sing-box.archive -C sing-box-runtime
-          }
-          $singbox = Get-ChildItem sing-box-runtime -Recurse -File -Filter '${{ matrix.singbox_binary }}' | Select-Object -First 1
-          if ($null -eq $singbox) { throw "sing-box binary missing from archive" }
-          $singboxDir = New-Item -ItemType Directory -Force publish/bin/sing_box
-          Copy-Item $singbox.FullName "$singboxDir/${{ matrix.singbox_binary }}" -Force
-          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
-          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
-          if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
-      - name: Execute bundled cores in the ephemeral runner
-        shell: pwsh
-        run: |
-          & (Resolve-Path "publish/bin/xray/${{ matrix.xray_binary }}") version
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled Xray runtime failed its smoke test' }
-          & (Resolve-Path "publish/bin/sing_box/${{ matrix.singbox_binary }}") version
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled sing-box runtime failed its smoke test' }
-          & (Resolve-Path "publish/bin/mihomo/${{ matrix.mihomo_binary }}") -v
-          if ($LASTEXITCODE -ne 0) { throw 'Bundled mihomo runtime failed its smoke test' }
-      - name: Archive and checksum
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          $archive = "dist/DicodePing-3.0.6-${{ matrix.artifact }}-portable.zip"
-          Compress-Archive -Path publish/* -DestinationPath $archive -CompressionLevel Optimal
-          "{0}  {1}" -f (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower(), (Split-Path $archive -Leaf) | Set-Content "dist/SHA256SUMS-${{ matrix.artifact }}.txt"
-      - name: Build Windows installer
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          choco install innosetup --no-progress --yes
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-          $installer = Get-Item dist\DicodePing-3.0.6-windows-x64-installer.exe
-          Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: dist/*
-
+              $output = [IO.File]::Create((Join-Path $mihomoDir.FullName '${{ matrix.mihomo_binary }}'))
+              try { $gzip.CopyTo($output) } finally { $output.Dispose() }
+            } finally { $gzip.Dispose() }
+          } finally { $input.Dispose() }
+        }
+        $singboxUrl = "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/${{ matrix.singbox_asset }}"
+        Invoke-WebRequest -Uri $singboxUrl -OutFile sing-box.archive
+        $singboxActual = (Get-FileHash sing-box.archive -Algorithm SHA256).Hash.ToLower()
+        if ($singboxActual -ne '${{ matrix.singbox_sha256 }}') { throw "sing-box SHA-256 verification failed" }
+        New-Item -ItemType Directory -Force sing-box-runtime | Out-Null
+        if ('${{ matrix.singbox_asset }}'.EndsWith('.zip')) {
+          Expand-Archive sing-box.archive -DestinationPath sing-box-runtime -Force
+        } else {
+          tar -xzf sing-box.archive -C sing-box-runtime
+        }
+        $singbox = Get-ChildItem sing-box-runtime -Recurse -File -Filter '${{ matrix.singbox_binary }}' | Select-Object -First 1
+        if ($null -eq $singbox) { throw "sing-box binary missing from archive" }
+        $singboxDir = New-Item -ItemType Directory -Force publish/bin/sing_box
+        Copy-Item $singbox.FullName "$singboxDir/${{ matrix.singbox_binary }}" -Force
+        if ('${{ matrix.rid }}' -eq 'win-x64') { Copy-Item 'publish/wintun.dll' "$singboxDir/wintun.dll" -Force }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/sing_box/${{ matrix.singbox_binary }}" }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
+    - name: Build Fox helper from source
+      run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
+    - name: Bundle verified Aether and Psiphon helpers
+      run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
+    - name: Execute bundled cores in the ephemeral runner
+      shell: pwsh
+      run: |
+        $versions = @{}
+        $checks = @(
+          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.1' },
+          @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.13' },
+          @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
+          @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.3.0' },
+          @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = '1.19.32' }
+        )
+        foreach ($check in $checks) {
+          $output = (& (Resolve-Path $check.path) $check.arg 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0 -or $output -notmatch [regex]::Escape($check.version)) { throw "Bundled $($check.name) has an incorrect version: $output" }
+          $versions[$check.name] = @{ version = $check.version; sha256 = (Get-FileHash $check.path -Algorithm SHA256).Hash.ToLower(); output = $output.Trim() }
+          Write-Host $output
+        }
+        $versions | ConvertTo-Json -Depth 4 | Set-Content publish/runtime-versions.json
+    - name: Validate generated configurations with bundled native cores
+      shell: pwsh
+      run: |
+        $env:DICODE_RUNTIME_TEST_ROOT = (Resolve-Path publish).Path
+        dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter "FullyQualifiedName~NativeRuntimeTests|FullyQualifiedName~BundledRuntimeAcceptsNativeTemplates"
+        if ($LASTEXITCODE -ne 0) { throw 'Generated configurations failed native core validation' }
+    - name: Publish independent CLI with verified runtimes
+      shell: pwsh
+      run: |
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.9.1 -o cli-publish
+        if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
+        Copy-Item publish/bin cli-publish/bin -Recurse -Force
+        Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
+        if (Test-Path publish/wintun.dll) { Copy-Item publish/wintun.dll cli-publish/wintun.dll }
+        Copy-Item docs/CLI.md cli-publish/README.md
+        Copy-Item LICENSE cli-publish/LICENSE
+        $cli = (Resolve-Path ('cli-publish/dicodeping' + '${{ matrix.rid == 'win-x64' && '.exe' || '' }}')).Path
+        & $cli --version
+        if ($LASTEXITCODE -ne 0) { throw 'CLI version check failed' }
+        & $cli --help
+        if ($LASTEXITCODE -ne 0) { throw 'CLI help check failed' }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/bin/fox/dicode-fox cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/sing_box/sing-box cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
+        python scripts/package-desktop.py --root cli-publish --edition cli --platform ${{ matrix.artifact }}
+        if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed' }
+    - name: Exercise CLI with actual proxy traffic and cleanup
+      if: runner.os == 'Linux'
+      run: python scripts/verify-cli.py --root cli-publish
+    - name: Archive and checksum
+      run: python scripts/package-desktop.py --platform ${{ matrix.artifact }}
+    - name: Build Windows installer
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install innosetup --no-progress --yes
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
+        $installer = Get-Item dist\DicodePing-4.9.1-windows-x64-installer.exe
+        Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
+    - uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact }}
+        path: dist/*
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: android-actions/setup-android@v4
-      - name: Install SDK and NDK
-        run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
-      - name: Build pinned hev TUN
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
-        run: |
-          git config --global http.version HTTP/1.1
-          for attempt in 1 2 3 4; do
-            if git clone --branch 2.3.5-P32 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
-              break
-            fi
-            rm -rf native-upstream
-            test "$attempt" -lt 4
-            sleep $((attempt * 5))
-          done
-          for attempt in 1 2 3 4; do
-            if git -C native-upstream submodule update --init --recursive --depth 1; then
-              break
-            fi
-            test "$attempt" -lt 4
-            sleep $((attempt * 5))
-          done
-          bash native-upstream/compile-hevtun.sh
-          cp -r native-upstream/libs apps/android/app/
-      - name: Fetch the libv2ray pinned by PattNG P32
-        run: |
-          mkdir -p apps/android/app/libs
-          CORE_TAG="$(git -C native-upstream/AndroidLibXrayLite describe --tags --abbrev=0)"
-          test -n "$CORE_TAG"
-          curl -L --fail --retry 4 -o apps/android/app/libs/libv2ray.aar "https://github.com/patterniha/AndroidLibXrayLite/releases/download/$CORE_TAG/libv2ray.aar"
-      - name: Build signed installable APKs
-        env:
-          DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        working-directory: apps/android
-        run: |
-          echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
-          export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
-          chmod +x gradlew
-          ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=3.0.6
-      - name: Stage APK and checksums
-        run: |
-          mkdir -p dist-android
-          find apps/android/app/build/outputs/apk -type f -name '*.apk' -exec cp {} dist-android/ \;
-          # AGP may keep the internal compatibility flavor in the generated
-          # filename; never expose that implementation detail in releases.
-          for apk in dist-android/*-fdroid-*.apk; do
-            [ -e "$apk" ] || continue
-            clean="$(printf '%s' "$apk" | sed 's/-fdroid-/-/')"
-            mv "$apk" "$clean"
-          done
-          cd dist-android
-          sha256sum *.apk > SHA256SUMS-android.txt
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android
-          path: dist-android/*
-
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.2
+        cache: false
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 21
+    - uses: android-actions/setup-android@v4
+    - name: Install SDK and NDK
+      run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
+    - name: Build pinned hev TUN
+      env:
+        NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+      run: |
+        git config --global http.version HTTP/1.1
+        for attempt in 1 2 3 4; do
+          if git clone --branch 2.3.11-P65 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            break
+          fi
+          rm -rf native-upstream
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        test "$(git -C native-upstream rev-parse HEAD)" = "54a14ea662da1a863fe648b95ebdc71c5af56140"
+        for attempt in 1 2 3 4; do
+          if git -C native-upstream submodule update --init --recursive --depth 1; then
+            break
+          fi
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.0
+        git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "873541b81f00f8fd462392fc622adbb8a8cd59b0"
+        git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
+        bash native-upstream/compile-hevtun.sh
+        cp -r native-upstream/libs apps/android/app/
+    - name: Bundle verified Android Aether and Psiphon helpers
+      run: |
+        python scripts/stage-aether.py --android --output apps/android/app/libs
+        bash native-upstream/fetch-psiphon-servers.sh
+        cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
+    - name: Build Fox helper for all Android architectures
+      run: python scripts/stage-fox.py --android --output apps/android/app/libs
+    - name: Bundle verified Android sing-box
+      run: python scripts/stage-singbox-android.py
+    - name: Build pinned Android runtime with strict HTTP probes
+      run: bash scripts/build-android-core.sh
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+    - name: Build signed installable APKs
+      env:
+        POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
+        DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      working-directory: apps/android
+      run: |
+        python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
+        echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
+        export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
+        chmod +x gradlew
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.1
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.1
+    - name: Stage APK and checksums
+      run: |
+        mkdir -p dist-android
+        find apps/android/app/build/outputs/apk -type f -name '*.apk' -exec cp {} dist-android/ \;
+        # AGP may keep the internal compatibility flavor in the generated
+        # filename; never expose that implementation detail in releases.
+        for apk in dist-android/*-fdroid-*.apk; do
+          [ -e "$apk" ] || continue
+          clean="$(printf '%s' "$apk" | sed 's/-fdroid-/-/')"
+          mv "$apk" "$clean"
+        done
+        cd dist-android
+        sha256sum *.apk > SHA256SUMS-android.txt
+    - name: Validate APK identity, signature and bundled native cores
+      run: python scripts/verify-release-apks.py
+    - uses: actions/upload-artifact@v7
+      with:
+        name: android
+        path: dist-android/*
+    timeout-minutes: 60
   publish:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [desktop, android]
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    needs:
+    - fox-regression
+    - desktop
+    - android
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          prerelease: false
-          generate_release_notes: false
-          body: |
-            ## DicodePing 3.0.6 Stable
-
-            نسخهٔ پایدار DicodePing با اتصال TUN پایدار، فیلتر دامنهٔ واقعی و آزمایش تحریم.
-
-            - جلوگیری از قطع/وصل TUN هنگام بروزرسانی اشتراک یا reload تکراری
-            - بازیابی کنترل‌شدهٔ هسته فقط پس از خروج غیرمنتظره و تا زمانی که کاربر اتصال را خواسته باشد
-            - آزمایش تحریم واقعی Gemini، Flow، Firebase، Dart و Flutter برای همهٔ کانفیگ‌ها
-            - نمایش و ذخیرهٔ نتیجهٔ سبز/قرمز آزمایش تحریم بدون پاک‌شدن پینگ و لوکیشن
-            - اصلاح ترتیب sniff و routing برای فیلتر دامنه در Xray، sing-box و کانفیگ سفارشی
-            - جلوگیری از نشت DNS و IPv6 در TUN دسکتاپ و VPN اندروید
-            - پرچم تصویری مینیمال کشورها و ستون‌های خودکار و واکنش‌گرا در دسکتاپ
-            - مرتب‌سازی خودکار کانفیگ‌های اندروید از بهترین تأخیر پس از پایان آزمایش اولیه
-            - پیش‌فرض منطقه‌ای ایران و تکمیل رشته‌های فارسی جدید
-            - رفع خطای 740 اجرای برنامه از پایان نصب‌کنندهٔ ویندوز
-
-            | Platform | Portable / direct | Installer / package |
-            | --- | --- | --- |
-            | Windows x64 | `DicodePing-3.0.6-windows-x64-portable.zip` | `DicodePing-3.0.6-windows-x64-installer.exe` |
-            | Linux x64 | `DicodePing-3.0.6-linux-x64-portable.zip` | — |
-            | macOS Intel | `DicodePing-3.0.6-macos-x64-portable.zip` | — |
-            | macOS Apple Silicon | `DicodePing-3.0.6-macos-arm64-portable.zip` | — |
-            | Android | APKهای Universal و تفکیک‌شدهٔ ABI | — |
-
-            فایل‌های `SHA256SUMS-*` برای کنترل صحت دانلودها موجودند. این نسخه پایدار است.
-          files: artifacts/*
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.2
+        cache: false
+    - uses: actions/download-artifact@v8
+      with:
+        path: artifacts
+        merge-multiple: true
+    - name: Require source and Android device checks for this exact commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_SHA: ${{ github.sha }}
+      run: |
+        for attempt in $(seq 1 60); do
+          runs=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$RELEASE_SHA&per_page=30" --jq '.workflow_runs')
+          result=$(echo "$runs" | jq -r '
+            [".github/workflows/ci.yml", ".github/workflows/android-preflight.yml"] as $required |
+            [$required[] as $path | [.[] | select(.path == $path)][0] // {status:"pending"}] |
+            if any(.[]; .status == "completed" and .conclusion != "success") then "failed"
+            elif all(.[]; .status == "completed" and .conclusion == "success") then "passed"
+            else "pending" end')
+          if [ "$result" = passed ]; then exit 0; fi
+          if [ "$result" = failed ]; then echo "Source/device checks failed; release will not be published."; exit 1; fi
+          sleep 30
+        done
+        echo "Source/device checks did not complete; no release tag was created."
+        exit 1
+    - name: Create the immutable tag only after successful builds
+      if: github.event_name == 'workflow_dispatch'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_SHA: ${{ github.sha }}
+      run: |
+        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.1 > tag-ref.json 2> tag-ref-error.txt; then
+          existing=$(jq -r '.object.sha' tag-ref.json)
+          if [ "$existing" != "$RELEASE_SHA" ]; then
+            echo "Release tag points to another commit; refusing to replace it."
+            exit 1
+          fi
+        elif jq -e '.status == "404" or .status == 404' tag-ref.json > /dev/null; then
+          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.1 -f sha="$RELEASE_SHA"
+        else
+          cat tag-ref-error.txt
+          exit 1
+        fi
+    - uses: softprops/action-gh-release@v2
+      id: draft_release
+      with:
+        tag_name: v4.9.1
+        target_commitish: ${{ github.sha }}
+        name: DicodePing 4.9.1 — Stable
+        draft: true
+        prerelease: false
+        make_latest: false
+        generate_release_notes: false
+        body_path: docs/RELEASE-4.9.1.md
+        files: artifacts/*
+    - name: Verify every uploaded package before publishing the stable release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
+        gh release download v4.9.1 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        python - <<'PYVERIFY'
+        import json, pathlib, re
+        release = json.loads(pathlib.Path('release-metadata.json').read_text())
+        assets = {a['name']: a for a in release['assets']}
+        expected = {'DicodePing-4.9.1-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        assert len(expected) == 14 and len(assets) == 23 and expected <= assets.keys()
+        checks = {}
+        for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
+            for line in file.read_text(encoding='utf-8-sig').splitlines():
+                match = re.fullmatch(r'([0-9a-fA-F]{64})\s+\*?(.+)', line.strip())
+                assert match, (file, line)
+                checks[match[2]] = match[1].lower()
+        assert set(checks) == expected
+        for name in expected:
+            assert assets[name]['size'] > 0 and assets[name]['digest'] == 'sha256:' + checks[name], name
+        print('All 14 packages and 9 checksum files verified; safe to publish.')
+        PYVERIFY
+        gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
+'on':
+  push:
+    tags:
+    - v4.9.1
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish 4.9.1 after every build and native check succeeds
+        type: boolean
+        default: false

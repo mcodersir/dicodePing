@@ -31,9 +31,15 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         NotificationManager.ensureForeground()
+        if (!com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) {
+            if (CoreServiceManager.isServiceRunning()) return START_STICKY
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Service command received")
 
-        if (CoreServiceManager.isRunning()) {
+        // A reload has Xray stopped for a moment; a start on top of it would run beside the reload.
+        if (CoreServiceManager.isServiceRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Proxy: Core is already running")
             return START_STICKY
         }

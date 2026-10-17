@@ -2,49 +2,72 @@ namespace ServiceLib.Services.Statistics;
 
 public class StatisticsXrayService
 {
+    private long _sessionId = -1;
     private const long linkBase = 1024;
     private ServerSpeedItem _serverSpeedItem = new();
     private readonly Config _config;
-    private bool _exitFlag;
+    private readonly HttpClient _metricsClient = new(new SocketsHttpHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(3) };
+    private readonly CancellationTokenSource _cts = new();
     private readonly Func<ServerSpeedItem, Task>? _updateFunc;
     private string Url => $"{Global.HttpProtocol}{Global.Loopback}:{AppManager.Instance.StatePort}/debug/vars";
+    private static readonly string _tag = "StatisticsXrayService";
 
     public StatisticsXrayService(Config config, Func<ServerSpeedItem, Task> updateFunc)
     {
         _config = config;
         _updateFunc = updateFunc;
-        _exitFlag = false;
 
-        _ = Task.Run(Run);
+        Task.Run(Run);
     }
 
     public void Close()
     {
-        _exitFlag = true;
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog(_tag, ex);
+        }
     }
 
     private async Task Run()
     {
-        while (!_exitFlag)
+        var token = _cts.Token;
+
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        while (!token.IsCancellationRequested)
         {
-            await Task.Delay(1000);
             try
             {
+                if (!await timer.WaitForNextTickAsync(token).ConfigureAwait(false)) break;
                 if (AppManager.Instance.RunningCoreType != ECoreType.Xray)
                 {
                     continue;
                 }
 
-                var result = await HttpClientHelper.Instance.TryGetAsync(Url);
+                var runtime = CoreManager.Instance;
+                if (!runtime.IsRunning || runtime.ActiveProfileId is not { } profileId) continue;
+                var session = runtime.SessionId;
+                if (_sessionId != session) { _serverSpeedItem = new(); _sessionId = session; }
+                var result = await _metricsClient.GetStringAsync($"http://{Global.Loopback}:{runtime.StatisticsPort}/debug/vars", token);
+                if (!runtime.IsRunning || runtime.SessionId != session) continue;
                 if (result != null)
                 {
                     var server = ParseOutput(result) ?? new ServerSpeedItem();
-                    await _updateFunc?.Invoke(server);
+                    server.IndexId = profileId;
+                    await _updateFunc!.Invoke(server);
                 }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                break;
             }
             catch
             {
-                // ignored
+                try { await Task.Delay(3000, token).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
             }
         }
     }
@@ -69,6 +92,7 @@ public class StatisticsXrayService
                 }
                 var state = JsonUtils.Deserialize<V2rayMetricsVarsLink>(value.ToString());
 
+                if (state is null) continue;
                 if (key.StartsWith(Global.ProxyTag))
                 {
                     server.ProxyUp += state.uplink / linkBase;
@@ -81,10 +105,10 @@ public class StatisticsXrayService
                 }
             }
 
-            if (server.DirectDown < _serverSpeedItem.DirectDown || server.ProxyDown < _serverSpeedItem.ProxyDown)
+            if (server.DirectDown < _serverSpeedItem.DirectDown || server.ProxyDown < _serverSpeedItem.ProxyDown
+                || server.DirectUp < _serverSpeedItem.DirectUp || server.ProxyUp < _serverSpeedItem.ProxyUp)
             {
                 _serverSpeedItem = new();
-                return null;
             }
 
             ServerSpeedItem curItem = new()

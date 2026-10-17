@@ -1,0 +1,71 @@
+diff --git a/libv2ray_utils.go b/libv2ray_utils.go
+index fcc9e85..e186b87 100644
+--- a/libv2ray_utils.go
++++ b/libv2ray_utils.go
+@@ -7,6 +7,7 @@ import (
+ 	"io"
+ 	"net"
+ 	"net/http"
++	"net/url"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -138,8 +139,9 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 	}
+ 
+ 	client := &http.Client{
+-		Transport: tr,
+-		Timeout:   12 * time.Second,
++		Transport:     tr,
++		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
++		Timeout:       12 * time.Second,
+ 	}
+ 
+ 	var minDuration int64 = -1
+@@ -172,10 +174,10 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 			continue
+ 		}
+ 
+-		_, err = io.Copy(io.Discard, resp.Body)
++		body, err := io.ReadAll(io.LimitReader(resp.Body, 65537))
+ 		resp.Body.Close()
+ 
+-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
++		if !validProbeResponse(url, resp.StatusCode, body) {
+ 			lastErr = fmt.Errorf("invalid status: %s", resp.Status)
+ 			continue
+ 		}
+@@ -185,7 +187,7 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 			continue
+ 		}
+ 
+-		duration := time.Since(start).Milliseconds()
++		duration := max(int64(1), time.Since(start).Milliseconds())
+ 		if !success || duration < minDuration {
+ 			minDuration = duration
+ 		}
+@@ -197,3 +199,24 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 	}
+ 	return minDuration, nil
+ }
++
++// A portal, proxy error or redirect is never a successful generate_204 probe.
++func validProbeResponse(address string, status int, body []byte) bool {
++	if status < 200 || status >= 300 || len(body) > 65536 {
++		return false
++	}
++	u, err := url.Parse(address)
++	if err != nil {
++		return false
++	}
++	if strings.HasSuffix(strings.TrimRight(strings.ToLower(u.Path), "/"), "generate_204") {
++		return status == 204 && len(body) == 0
++	}
++	if strings.EqualFold(u.Hostname(), "www.msftconnecttest.com") && u.Path == "/connecttest.txt" {
++		return status == 200 && strings.TrimSpace(string(body)) == "Microsoft Connect Test"
++	}
++	if strings.EqualFold(u.Hostname(), "www.apple.com") && u.Path == "/library/test/success.html" {
++		return status == 200 && strings.Contains(strings.ToLower(string(body)), "<title>success</title>")
++	}
++	return true
++}

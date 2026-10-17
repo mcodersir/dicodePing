@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Network
 import android.net.ProxyInfo
 import android.net.VpnService
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.os.StrictMode
 import com.v2ray.ang.AppConfig
@@ -21,6 +20,7 @@ import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.root.RootLanSharing
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
@@ -43,6 +43,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     override fun onRevoke() {
+        com.v2ray.ang.core.LauncherManager.cancelPendingConnectionRequests()
         LogUtil.w(AppConfig.TAG, "StartCore-VPN: Permission revoked")
         stopAllService()
     }
@@ -60,6 +61,10 @@ class CoreVpnService : VpnService(), ServiceControl {
         // going through stopAllService() (e.g. when killed unexpectedly). isRunning is
         // set to false at the start of stopAllService(), so this guard prevents a double-close.
         if (isRunning) {
+            // The interface is not all that would outlive the service then: tun2socks, Xray and the
+            // Aether core run on in this process, as the other two services stop them in onDestroy.
+            // The service is going down already, so this is the teardown without stopSelf().
+            stopAllService(isForced = false)
             try {
                 if (::mInterface.isInitialized) {
                     mInterface.close()
@@ -76,6 +81,11 @@ class CoreVpnService : VpnService(), ServiceControl {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         NotificationManager.ensureForeground()
+        if (!com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) {
+            if (CoreServiceManager.isServiceRunning()) return START_STICKY
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         // Always-on VPN restarts from OS deliver intent.action == SERVICE_INTERFACE or null intent.
         // Reset any stuck start lock left by a killed process to allow setupVpnService() to run.
         val isSystemVpnStart = intent == null || intent.action == SERVICE_INTERFACE
@@ -109,6 +119,12 @@ class CoreVpnService : VpnService(), ServiceControl {
         if (!CoreServiceManager.startCoreLoop(mInterface)) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
             stopAllService()
+            return
+        }
+        // tun2socks sets itself up on its own thread while Xray starts and ends without a word when
+        // that fails. This one look, at the end of the start, is what tells; nothing looks again.
+        if (!Tun2SocksControl.startMayGoOn(tun2SocksService) { it.isTun2SocksRunning() }) {
+            failTun2Socks("gave up while setting itself up")
             return
         }
 
@@ -149,8 +165,22 @@ class CoreVpnService : VpnService(), ServiceControl {
             return false
         }
 
-        runTun2socks()
+        if (!runTun2socks()) {
+            failTun2Socks("could not be started")
+            return false
+        }
         return true
+    }
+
+    /**
+     * Ends a start whose tun2socks is not there. The interface is up by then and takes every packet
+     * of the device, so a start that went on would leave Xray, the Aether core and the main screen
+     * connected over a tunnel nothing reads.
+     */
+    private fun failTun2Socks(what: String) {
+        LogUtil.e(AppConfig.TAG, "StartCore-VPN: tun2socks $what, stopping the service, guid=${MmkvManager.getSelectServer()}")
+        MessageHelper.sendMsg2UI(this, AppConfig.MSG_STATE_START_FAILURE, "")
+        stopAllService()
     }
 
     /**
@@ -239,17 +269,14 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     /**
-     * Configures platform-specific VPN features for different Android versions.
+     * Configures the VPN's metering and HTTP proxy.
      *
      * @param builder The VPN Builder to configure
      */
     private fun configurePlatformFeatures(builder: Builder) {
-        // Android Q (API 29) and above: Configure metering and HTTP proxy
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            builder.setMetered(false)
-            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_APPEND_HTTP_PROXY)) {
-                builder.setHttpProxy(ProxyInfo.buildDirectProxy(LOOPBACK, SettingsManager.getHttpPort()))
-            }
+        builder.setMetered(false)
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_APPEND_HTTP_PROXY)) {
+            builder.setHttpProxy(ProxyInfo.buildDirectProxy(LOOPBACK, SettingsManager.getHttpPort()))
         }
     }
 
@@ -302,7 +329,7 @@ class CoreVpnService : VpnService(), ServiceControl {
      * Runs the tun2socks process.
      * Starts the tun2socks process with the appropriate parameters.
      */
-    private fun runTun2socks() {
+    private fun runTun2socks(): Boolean {
         if (SettingsManager.isUsingHevTun()) {
             tun2SocksService = TProxyService(
                 context = applicationContext,
@@ -314,7 +341,7 @@ class CoreVpnService : VpnService(), ServiceControl {
             tun2SocksService = null
         }
 
-        tun2SocksService?.startTun2Socks()
+        return Tun2SocksControl.startMayGoOn(tun2SocksService) { it.startTun2Socks() }
     }
 
     private fun stopAllService(isForced: Boolean = true) {

@@ -40,9 +40,16 @@ class CoreRootService : Service(), ServiceControl {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         NotificationManager.ensureForeground()
+        if (!com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) {
+            if (CoreServiceManager.isServiceRunning()) return START_STICKY
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         LogUtil.i(AppConfig.TAG, "StartCore-Root: command received")
 
-        if (CoreServiceManager.isRunning()) {
+        // A reload has Xray stopped for a moment; a start on top of it would run beside the reload and
+        // take the root rules and the tunnel down to install them again, with the traffic unrouted meanwhile.
+        if (CoreServiceManager.isServiceRunning()) {
             LogUtil.i(AppConfig.TAG, "StartCore-Root: Core is already running")
             return START_STICKY
         }

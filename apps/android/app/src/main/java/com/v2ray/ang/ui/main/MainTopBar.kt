@@ -14,6 +14,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import android.app.UiModeManager
+import android.content.Context
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,8 +50,21 @@ fun MainTopBar(
     isAutoConnecting: Boolean,
     onSmartConnect: () -> Unit,
     onAction: (MainAction) -> Unit,
-    onMoreMenuAction: (MainMoreMenuAction) -> Unit
+    onMoreMenuAction: (MainMoreMenuAction) -> Unit,
+    onNativeMethods: () -> Unit = {},
+    onFox: () -> Unit = {}
 ) {
+    val initialFocus = remember { FocusRequester() }
+    val context = LocalContext.current
+    val inputModeManager = LocalInputModeManager.current
+    LaunchedEffect(Unit) {
+        val television = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        if (television && !showSearch) {
+            // Compose clickable controls reject focus in touch mode. TV starts with remote input.
+            inputModeManager.requestInputMode(InputMode.Keyboard)
+            initialFocus.requestFocus()
+        }
+    }
     var showImportMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val importMenuScrollState = rememberScrollState()
@@ -62,21 +84,22 @@ fun MainTopBar(
         searchPlaceholder = stringResource(R.string.menu_item_search),
         navigationIcon = {
             if (showSearch) {
-                IconButton(onClick = onSearchClose) {
+                IconButton(onClick = onSearchClose, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_arrow_back_24dp), contentDescription = stringResource(R.string.acc_back))
                 }
             } else {
-                IconButton(onClick = onMenuClick) {
+                IconButton(onClick = onMenuClick, modifier = Modifier.remoteFocus().focusRequester(initialFocus)) {
                     Icon(painterResource(R.drawable.ic_menu_24dp), contentDescription = stringResource(R.string.acc_open_menu))
                 }
             }
         },
         actions = {
+            IconButton(onClick = onFox, modifier = Modifier.remoteFocus()) { Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = stringResource(R.string.fox_title)) }
             if (!showSearch) {
-                IconButton(onClick = { onSearchToggle(true) }) {
+                IconButton(onClick = { onSearchToggle(true) }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
                 }
-                IconButton(onClick = onSmartConnect, enabled = !isAutoConnecting) {
+                IconButton(onClick = onSmartConnect, modifier = Modifier.remoteFocus()) {
                     if (isAutoConnecting) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     } else {
@@ -85,7 +108,7 @@ fun MainTopBar(
                 }
             }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { showImportMenu = true }) {
+                IconButton(onClick = { showImportMenu = true }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_add_24dp), contentDescription = stringResource(R.string.acc_add))
                 }
                 DropdownMenu(
@@ -97,6 +120,10 @@ fun MainTopBar(
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(importMenuScrollState)
                 ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { androidx.compose.material3.Text(stringResource(R.string.native_methods_title)) },
+                        onClick = { showImportMenu = false; onNativeMethods() },
+                    )
                     ImportMenuContent(
                         onAction = { action ->
                             showImportMenu = false
@@ -106,7 +133,7 @@ fun MainTopBar(
                 }
             }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { showMenu = true }) {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_more_vert_24dp), contentDescription = stringResource(R.string.acc_more))
                 }
                 DropdownMenu(

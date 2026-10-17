@@ -5,12 +5,12 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.extension.delay
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +27,13 @@ class NetworkMonitor(
     private val connectivity: ConnectivityManager,
     private val onUnderlyingNetworksChanged: (Array<Network>?) -> Unit,
     private val onHandover: () -> Unit,
+    private val requestFactory: () -> NetworkRequest = {
+        NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+            .build()
+    },
 ) {
     private companion object {
         const val HANDOVER_DEBOUNCE_MS = 1000L
@@ -46,12 +53,7 @@ class NetworkMonitor(
      *
      * Source: https://android.googlesource.com/platform/frameworks/base/+/2df4c7d/services/core/java/com/android/server/ConnectivityService.java#887
      */
-    private val request by lazy {
-        NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
-            .build()
-    }
+    private val request by lazy(requestFactory)
 
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -64,11 +66,14 @@ class NetworkMonitor(
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-            // it's a good idea to refresh capabilities
-            onUnderlyingNetworksChanged(arrayOf(network))
+            if (network == upstream && networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN))
+                onUnderlyingNetworksChanged(arrayOf(network))
         }
 
         override fun onLost(network: Network) {
+            if (network != upstream) return
+            upstream = null
+            handoverJob?.cancel()
             onUnderlyingNetworksChanged(null)
         }
     }
@@ -108,7 +113,7 @@ class NetworkMonitor(
         handoverJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 delay(HANDOVER_DEBOUNCE_MS)
-                onHandover()
+                if (upstream == network && registered) onHandover()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

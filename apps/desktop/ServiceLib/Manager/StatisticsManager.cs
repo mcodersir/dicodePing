@@ -7,7 +7,7 @@ public class StatisticsManager
 
     private Config _config;
     private ServerStatItem? _serverStatItem;
-    private List<ServerStatItem> _lstServerStat;
+    private List<ServerStatItem> _lstServerStat = [];
     private Func<ServerSpeedItem, Task>? _updateFunc;
 
     private StatisticsXrayService? _statisticsXray;
@@ -104,7 +104,9 @@ public class StatisticsManager
 
     private async Task UpdateServerStat(ServerSpeedItem server)
     {
-        await GetServerStatItem(_config.IndexId);
+        var profileId = server.IndexId;
+        if (profileId.IsNullOrEmpty()) return;
+        await GetServerStatItem(profileId);
 
         if (_serverStatItem is null)
         {
@@ -118,12 +120,12 @@ public class StatisticsManager
             _serverStatItem.TotalDown += server.ProxyDown;
         }
 
-        server.IndexId = _config.IndexId;
+        server.IndexId = profileId;
         server.TodayUp = _serverStatItem.TodayUp;
         server.TodayDown = _serverStatItem.TodayDown;
         server.TotalUp = _serverStatItem.TotalUp;
         server.TotalDown = _serverStatItem.TotalDown;
-        await _updateFunc?.Invoke(server);
+        await (_updateFunc?.Invoke(server) ?? Task.CompletedTask);
     }
 
     private async Task GetServerStatItem(string indexId)

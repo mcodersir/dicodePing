@@ -7,7 +7,7 @@ public partial class CoreConfigSingboxService
         try
         {
             var listen = "0.0.0.0";
-            var listenPort = AppManager.Instance.GetLocalPort(EInboundProtocol.socks);
+            var listenPort = (_config.Inbound.FirstOrDefault(i => i.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 10808);
             var isUsingLocalMixedPort = _node.Address == Global.Loopback && _node.Port == listenPort;
             _coreConfig.inbounds = [];
 
@@ -63,7 +63,7 @@ public partial class CoreConfigSingboxService
                 }
 
                 var tunInbound = JsonUtils.Deserialize<Inbound4Sbox>(EmbedUtils.GetEmbedText(Global.TunSingboxInboundFileName)) ?? new Inbound4Sbox { };
-                tunInbound.interface_name = context.IsMacOS ? $"utun{new Random().Next(99)}" : "singbox_tun";
+                tunInbound.interface_name = context.IsMacOS ? null : context.IsWindows ? WindowsTunRuntime.InterfaceName : "singbox_tun";
                 tunInbound.mtu = _config.TunModeItem.Mtu;
                 tunInbound.auto_route = _config.TunModeItem.AutoRoute;
                 tunInbound.strict_route = _config.TunModeItem.StrictRoute;
