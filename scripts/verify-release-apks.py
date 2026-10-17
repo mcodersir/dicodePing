@@ -18,6 +18,8 @@ for abi, suffix in abis.items():
         for item in json.loads(pathlib.Path("scripts/runtime-pins-4.9.2.json").read_text())["android_geodata"]:
             content = archive.read("assets/" + item["name"])
             assert hashlib.sha256(content).hexdigest() == item["sha256"], "Missing or altered Android Geo asset: " + item["name"]
+        for notice in ["NOTICE.txt", "LICENSE-GPL-3.0.txt", "LICENSE-CC-BY-SA-4.0.txt"]:
+            assert "assets/routing-data/" + notice in archive.namelist(), "Routing data attribution is missing"
         packaged = [a for a in abis if a != "universal"] if abi == "universal" else [abi]
         for architecture in packaged:
             native = archive.read(f"lib/{architecture}/libsingbox.so")

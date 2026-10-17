@@ -151,7 +151,7 @@ public class CoreManager
             using var upstream = new TcpClient();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             try { await upstream.ConnectAsync(address, node.Port, deadline.Token); }
-            catch (Exception error) { throw new IOException($"Local SOCKS upstream {node.Address}:{node.Port} is not running. Select the managed Fox account profile or start the external proxy first.", error); }
+            catch (Exception error) { throw new IOException(string.Format(ResUI.DicodeLocalSocksMissing, node.Address, node.Port), error); }
         }
         await CoreStart(mainContext);
         if (_processService is null) { await CoreStopExclusive(); return; }

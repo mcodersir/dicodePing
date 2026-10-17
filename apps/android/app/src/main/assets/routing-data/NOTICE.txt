@@ -1,0 +1,13 @@
+Routing databases bundled with DicodePing Android
+
+geoip.dat and geosite.dat: Chocolate4U/Iran-v2ray-rules, release 202610160914.
+Source: https://github.com/Chocolate4U/Iran-v2ray-rules
+License: GPL-3.0, see LICENSE-GPL-3.0.txt.
+
+geoip-only-cn-private.dat: Loyalsoldier/geoip, release 202610160207.
+Source: https://github.com/Loyalsoldier/geoip
+License: CC BY-SA 4.0, see LICENSE-CC-BY-SA-4.0.txt.
+License URL: https://creativecommons.org/licenses/by-sa/4.0/
+
+Files are distributed unmodified. Exact download URLs and SHA-256 checksums
+are recorded in scripts/runtime-pins-4.9.2.json in the DicodePing source.

@@ -6792,6 +6792,7 @@ namespace ServiceLib.Resx {
         public static string DicodeEntryFailureThreshold => ResourceManager.GetString("DicodeEntryFailureThreshold", resourceCulture);
         public static string DicodeUploadLabel => ResourceManager.GetString("DicodeUploadLabel", resourceCulture);
         public static string DicodeDownloadLabel => ResourceManager.GetString("DicodeDownloadLabel", resourceCulture);
+            public static string DicodeLocalSocksMissing => ResourceManager.GetString("DicodeLocalSocksMissing", resourceCulture);
             public static string DicodeTunUnverified => ResourceManager.GetString("DicodeTunUnverified", resourceCulture);
             public static string DicodeTrafficVerificationFailed => ResourceManager.GetString("DicodeTrafficVerificationFailed", resourceCulture);
 }
