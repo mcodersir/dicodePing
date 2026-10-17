@@ -131,6 +131,9 @@ try
                 })); return Task.CompletedTask;
             });
             if (args.Contains("--system-proxy")) await SysProxyHandler.UpdateSysProxy(config, false);
+            Console.WriteLine(JsonSerializer.Serialize(new { type = "connection", profileId = node.IndexId,
+                localAddress = ServiceLib.Global.Loopback, localPort = CoreManager.Instance.ActiveLocalPort,
+                trafficVerified = CoreManager.Instance.IsTrafficVerified }));
             Console.Error.WriteLine(CliText.T($"{node.Remarks} فعال است. برای توقف Ctrl+C را بزنید.", $"Running {node.Remarks}. Press Ctrl+C to stop."));
             while (!cancellation.IsCancellationRequested && CoreManager.Instance.IsRunning) await Task.Delay(500, cancellation.Token);
             if (!cancellation.IsCancellationRequested) throw new IOException(CliText.T("هسته به‌صورت غیرمنتظره متوقف شد", "Core stopped unexpectedly"));

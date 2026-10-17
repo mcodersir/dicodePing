@@ -3,6 +3,12 @@
 import argparse,json,pathlib,subprocess,tempfile,threading,http.server,socket,time,signal,os,sys
 parser=argparse.ArgumentParser();parser.add_argument('--root',required=True,type=pathlib.Path);parser.add_argument('--dotnet');args=parser.parse_args()
 root=args.root.resolve();command=([args.dotnet,str(root/'dicodeping.dll')] if args.dotnet else [str(root/'dicodeping')])
+def activeport(process):
+ for line in process.stdout:
+  if line.startswith(b'{'):
+   status=json.loads(line)
+   if status.get('type')=='connection':return status['localPort']
+ raise RuntimeError('CLI exited without reporting its active listener')
 def freeport():
  with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -47,9 +53,9 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
     if process.poll() is not None or time.monotonic()>deadline:raise RuntimeError(log.read_text())
     time.sleep(.1)
    # Curl performs a SOCKS handshake, then requests actual data through both native cores.
-   proxyport=config['Inbound'][0]['LocalPort']
+   proxyport=activeport(process)
    result=subprocess.run(['curl','--noproxy','','--fail','--max-time','10','--socks5-hostname',f'127.0.0.1:{proxyport}',f'http://127.0.0.1:{http.server_port}/'],capture_output=True,text=True)
-   assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr
+   assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr+'\n'+log.read_text()
    time.sleep(2)
    process.send_signal(signal.SIGINT);process.wait(timeout=15)
    samples=[json.loads(line) for line in process.stdout.read().decode().splitlines() if line.startswith('{')]
@@ -70,8 +76,9 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
     if process.poll() is not None or time.monotonic()>deadline:raise RuntimeError(log.read_text())
     time.sleep(.1)
    assert 'Keeping the connection running' in log.read_text(),log.read_text()
+   proxyport=activeport(process)
    result=subprocess.run(['curl','--noproxy','','--fail','--max-time','10','--socks5-hostname',f'127.0.0.1:{proxyport}',f'http://127.0.0.1:{http.server_port}/'],capture_output=True,text=True)
-   assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr
+   assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr+'\n'+log.read_text()
    process.send_signal(signal.SIGINT);process.wait(timeout=15)
    with socket.socket() as socket_check:assert socket_check.connect_ex(('127.0.0.1',proxyport))!=0
   finally:

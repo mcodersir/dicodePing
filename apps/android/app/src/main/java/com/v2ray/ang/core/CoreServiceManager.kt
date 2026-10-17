@@ -170,6 +170,9 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
+        // Geo loaders stat/mmap files directly. Do not wait for the main screen's
+        // asynchronous preload: a tile, widget or first Connect can start before it.
+        SettingsManager.initAssets(service, service.assets)
         val guid = MmkvManager.getSelectServer() ?: error("No server selected")
         val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
 

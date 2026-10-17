@@ -37,3 +37,5 @@ Use `profiles` to find its profile ID, then `connect <profile-id>` for the foreg
 
 برای آمار واقعی ترافیک از `connect <id> --stats` استفاده کنید؛ خروجی JSON هر ثانیه، سرعت و مجموع مصرف را با واحد KiB نشان می‌دهد.
 Use `connect <id> --stats` for live JSON upload/download rates and accumulated KiB traffic.
+
+اتصال، یک رکورد JSON با `type: connection` و `localPort` پورت فعال می‌دهد. در صورت اشغال پورت تنظیم‌شده، از این پورت فعال استفاده کنید. `trafficVerified` نتیجهٔ آزمون اینترنت است؛ خطای نشانی تست به‌تنهایی تونل را متوقف نمی‌کند.
