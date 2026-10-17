@@ -275,7 +275,7 @@ class RealPingWorkerService(
     }
 
     private fun isFoxProfile(guid: String): Boolean =
-        com.v2ray.ang.core.FoxAccounts.profile(MmkvManager.decodeServerConfig(guid)) != null ||
+        com.v2ray.ang.core.FoxAccounts.resolveProfile(context, MmkvManager.decodeServerConfig(guid)) != null ||
             MmkvManager.decodeServerRaw(guid)?.let { com.v2ray.ang.core.FoxAccounts.profile(it) } != null
 
     private fun startTcping(guid: String): Long {

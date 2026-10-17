@@ -38,7 +38,7 @@ public class CoreConfigContextBuilder
         config = JsonUtils.DeepCopy(config);
         if (Utils.IsWindows() && config.TunModeItem.EnableTun && config.CoreBasicItem.BindInterface.IsNullOrEmpty())
             config.CoreBasicItem.BindInterface = PhysicalUplink.Find();
-        node = FoxProfiles.ForConnection(node);
+        node = FoxProfiles.ForConnection(await FoxProfiles.ResolveLocalAsync(node));
         var runCoreType = AppManager.Instance.GetCoreType(node, node.ConfigType);
         var coreType = runCoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var context = new CoreConfigContext

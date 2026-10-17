@@ -40,7 +40,7 @@ object CoreConfigManager {
                     guid = guid,
                     errorMessage = "Failed to build config context"
                 )
-            if (configContext.isCustom || FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid)) != null) {
+            if (configContext.isCustom || FoxAccounts.resolveProfile(context, MmkvManager.decodeServerConfig(configContext.guid)) != null) {
                 return buildV2rayCustomConfig(configContext, routeAether = true)
             }
             val unresolved = configContext.resolvedOutbounds.firstNotNullOfOrNull { it.unresolvedHop } ?: configContext.unresolvedTarget
@@ -92,7 +92,7 @@ object CoreConfigManager {
                     guid = guid,
                     errorMessage = "Failed to build config context"
                 )
-            if (configContext.isCustom || FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid)) != null) {
+            if (configContext.isCustom || FoxAccounts.resolveProfile(context, MmkvManager.decodeServerConfig(configContext.guid)) != null) {
                 return buildV2rayCustomConfig(configContext, forTest = true)
             }
             // Only the primary outbound is measured, beside the fallback a group that is the primary names.
@@ -136,7 +136,7 @@ object CoreConfigManager {
         forTest: Boolean = false,
     ): ConfigResult {
         val context = configContext.context
-        val managedFox = FoxAccounts.profile(MmkvManager.decodeServerConfig(configContext.guid))
+        val managedFox = FoxAccounts.resolveProfile(context, MmkvManager.decodeServerConfig(configContext.guid))
         val raw = managedFox?.let { FoxAccounts.template(it.accountId, it.country) } ?: MmkvManager.decodeServerRaw(configContext.guid)
             ?: return ConfigResult(
                 status = false,

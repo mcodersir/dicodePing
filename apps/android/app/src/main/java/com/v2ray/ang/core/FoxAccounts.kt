@@ -114,6 +114,15 @@ internal object FoxAccounts {
         if (syncProfile) sync(context, get(context, id))
         return account
     }
+    fun resolveProfile(context: Context, node: ProfileItem?): FoxProfile? {
+        profile(node)?.let { return it }
+        if (node?.configType != EConfigType.SOCKS || node.server != "127.0.0.1"
+            || node.serverPort != LOCAL_PORT.toString() || !node.username.isNullOrEmpty() || !node.password.isNullOrEmpty()) return null
+        val accounts = list(context).filterNot { it.pending }
+        val url = MmkvManager.decodeSubscriptions().firstOrNull { it.guid == node.subscriptionId }?.subscription?.url
+        val account = accounts.firstOrNull { url == "dicode-fox://${it.id}" } ?: accounts.singleOrNull() ?: return null
+        return FoxProfile(account.id, account.country)
+    }
     fun profile(node: ProfileItem?): FoxProfile? {
         val id = node?.foxAccountId ?: return null
         val country = node.foxCountry ?: "REC"

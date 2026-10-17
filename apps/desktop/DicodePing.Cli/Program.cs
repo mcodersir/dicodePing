@@ -15,7 +15,7 @@ CliText.Configure(ref args);
 if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
 {
     Console.WriteLine(CliText.T("""
-        دیکد پینگ CLI 4.9.1
+        دیکد پینگ CLI 4.9.2
         fox accounts|locations       نمایش حساب‌ها یا کشورها
         fox login                    ورود مرحله‌ای، تأیید و انتخاب کشور
         fox verify <account-id>      واردکردن کد تأیید موزیلا
@@ -35,7 +35,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         --system-proxy               تنظیم پروکسی سیستم در این اجرا
         --lang fa|en                 زبان راهنما و پیام‌ها
         """, """
-        DicodePing CLI 4.9.1
+        DicodePing CLI 4.9.2
         fox accounts|locations       List Fox accounts or provider locations
         fox login                    Sign in (email/password read privately from stdin)
         fox verify <account-id>      Enter Mozilla verification code
@@ -57,7 +57,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         """));
     return 0;
 }
-if (args[0] is "--version" or "version") { Console.WriteLine("4.9.1"); return 0; }
+if (args[0] is "--version" or "version") { Console.WriteLine("4.9.2"); return 0; }
 string? Option(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i+1 < args.Length ? args[i+1] : null; }
 var data = Path.GetFullPath(Option("--data") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing-CLI"));
 Directory.CreateDirectory(data);
@@ -76,7 +76,7 @@ try
     await ConfigHandler.InitBuiltinDNS(config);
     await ConfigHandler.InitBuiltinFullConfigTemplate(config);
     await ProfileExManager.Instance.Init();
-    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.1");
+    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.2");
     Task Output(bool success, string text) { Console.Error.WriteLine(text); return Task.CompletedTask; }
     await CoreManager.Instance.Init(config, Output);
     switch (args[0])
@@ -122,7 +122,7 @@ try
             await CoreManager.Instance.LoadCore(contexts.MainResult.Context, contexts.PreSocksResult?.Context);
             if (!CoreManager.Instance.IsRunning) throw new InvalidOperationException(CliText.T("هسته اجرا نشد", "Core did not start"));
             if (!await CoreManager.Instance.VerifyTrafficAsync(cancellation.Token))
-                throw new IOException(CliText.T("آزمون ترافیک از مسیر انتخاب‌شده موفق نبود", "Traffic verification through the selected route failed"));
+                Console.Error.WriteLine(CliText.T("تونل فعال است؛ نشانی تست پاسخ معتبر نداد. اتصال حفظ شد.", "Tunnel is active; the test URL did not return a valid response. Keeping the connection running."));
             if (args.Contains("--stats")) await StatisticsManager.Instance.Init(config, traffic => {
                 Console.WriteLine(JsonSerializer.Serialize(new {
                     type = "traffic", profileId = traffic.IndexId,

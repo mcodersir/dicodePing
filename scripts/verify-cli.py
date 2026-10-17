@@ -59,4 +59,21 @@ with tempfile.TemporaryDirectory(prefix='dicode-cli-verify-') as folder:
     with socket.socket() as s:assert s.connect_ex(('127.0.0.1',port))!=0,'Core listener survived Ctrl+C'
   finally:
    if process.poll() is None:os.killpg(process.pid,signal.SIGKILL);process.wait()
-http.shutdown();print('PASS CLI: native JSON import, real HTTP latency, failed-last sorting, fresh best, two-core proxy traffic and Ctrl+C cleanup')
+ # Startup must not stop a working core just because the configured test fails.
+ config['SpeedTestItem']['SpeedPingTestUrl']='http://127.0.0.1:9/generate_204'
+ configfile.write_text(json.dumps(config))
+ with log.open('w') as stderr:
+  process=subprocess.Popen(command+['connect',profiles[0]['id'],'--data',str(data),'--verbose'],stdout=subprocess.PIPE,stderr=stderr,start_new_session=True)
+  try:
+   deadline=time.monotonic()+30
+   while 'Running good.' not in log.read_text():
+    if process.poll() is not None or time.monotonic()>deadline:raise RuntimeError(log.read_text())
+    time.sleep(.1)
+   assert 'Keeping the connection running' in log.read_text(),log.read_text()
+   result=subprocess.run(['curl','--noproxy','','--fail','--max-time','10','--socks5-hostname',f'127.0.0.1:{proxyport}',f'http://127.0.0.1:{http.server_port}/'],capture_output=True,text=True)
+   assert result.returncode==0 and 'Dicode CLI native test' in result.stdout,result.stderr
+   process.send_signal(signal.SIGINT);process.wait(timeout=15)
+   with socket.socket() as socket_check:assert socket_check.connect_ex(('127.0.0.1',proxyport))!=0
+  finally:
+   if process.poll() is None:os.killpg(process.pid,signal.SIGKILL);process.wait()
+http.shutdown();print('PASS CLI: native JSON import, real HTTP latency, failed-last sorting, fresh best, two-core proxy traffic, failed health URL without teardown and Ctrl+C cleanup')

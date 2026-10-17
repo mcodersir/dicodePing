@@ -67,10 +67,6 @@ object CoreServiceManager {
     @Volatile
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val healthScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val healthVersion = java.util.concurrent.atomic.AtomicLong()
-    private var healthJob: Job? = null
-    @Volatile private var isVerifyingTraffic = false
 
     /** Owns the Aether warm-up wait; cancelled on every start and stop so a stale wait cannot report. */
     private val aetherScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -174,7 +170,6 @@ object CoreServiceManager {
 
     @Throws(Exception::class)
     private fun launchCore(service: Service, vpnInterface: ParcelFileDescriptor?, isReload: Boolean = false) {
-        cancelTrafficVerification()
         val guid = MmkvManager.getSelectServer() ?: error("No server selected")
         val config = MmkvManager.decodeServerConfig(guid) ?: error("Failed to decode server config")
 
@@ -325,7 +320,7 @@ object CoreServiceManager {
         if (aether != null) {
             announceAetherWarmUp(service, guid, isReload)
         } else {
-            verifyStartedTraffic(service, isReload)
+            announceStarted(service, isReload)
         }
         NotificationManager.startSpeedNotification()
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
@@ -353,42 +348,18 @@ object CoreServiceManager {
                 AetherCoreManager.WarmUpOutcome.CORE_EXITED -> onAetherExit(guid)
                 AetherCoreManager.WarmUpOutcome.LISTENING -> {
                     NotificationManager.setStatusLine(null)
-                    verifyStartedTraffic(service, isReload)
+                    announceStarted(service, isReload)
                 }
             }
         }
     }
 
-    private fun cancelTrafficVerification() {
-        healthVersion.incrementAndGet()
-        healthJob?.cancel(); healthJob = null
-        isVerifyingTraffic = false
-    }
-
-    private fun verifyStartedTraffic(service: Service, isReload: Boolean) {
-        val version = healthVersion.get()
-        val requestVersion = LauncherManager.connectionRequestVersion()
-        isVerifyingTraffic = true
-        val checking = service.getString(R.string.connection_test_testing)
-        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_RUNNING, "")
-        MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, checking)
-        NotificationManager.setStatusLine(checking)
-        healthJob = healthScope.launch {
-            val delay = try { coreController.measureDelay(SettingsManager.getDelayTestUrl()) }
-                catch (error: Exception) { LogUtil.e(AppConfig.TAG, "Connection traffic verification failed", error); -1L }
-            ensureActive()
-            withContext(Dispatchers.Main.immediate) {
-                if (healthVersion.get() != version || !LauncherManager.isConnectionRequestCurrent(requestVersion) || !isRunning()) return@withContext
-                isVerifyingTraffic = false
-                NotificationManager.setStatusLine(null)
-                if (delay > 0) {
-                    MessageHelper.sendMsg2UI(service, if (isReload) AppConfig.MSG_STATE_RUNNING else AppConfig.MSG_STATE_START_SUCCESS, "")
-                } else {
-                    MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, service.getString(R.string.dicode_traffic_verification_failed))
-                    serviceControl?.get()?.stopService()
-                }
-            }
-        }
+    // Core/TUN readiness and Internet reachability are separate. A blocked or
+    // unavailable test URL must never tear down a healthy VPN session. Explicit
+    // latency tests still validate real HTTP responses through the selected route.
+    private fun announceStarted(service: Service, isReload: Boolean) {
+        if (!isRunning()) return
+        MessageHelper.sendMsg2UI(service, if (isReload) AppConfig.MSG_STATE_RUNNING else AppConfig.MSG_STATE_START_SUCCESS, "")
     }
 
     private fun isAetherWarmingUp(): Boolean = aetherWarmUpJob?.isActive == true
@@ -425,7 +396,6 @@ object CoreServiceManager {
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(): Boolean {
-        cancelTrafficVerification()
         foxProcess?.close(); foxProcess = null
         singBoxProcess?.close()
         singBoxProcess = null
@@ -786,12 +756,12 @@ object CoreServiceManager {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     if (isServiceRunning()) {
                         MessageHelper.sendMsg2UI(serviceControl.getService(), AppConfig.MSG_STATE_RUNNING, "")
-                        if (isAetherWarmingUp() || isVerifyingTraffic) {
+                        if (isAetherWarmingUp()) {
                             val service = serviceControl.getService()
                             MessageHelper.sendMsg2UI(
                                 service,
                                 AppConfig.MSG_STATE_CONNECTING,
-                                service.getString(if (isVerifyingTraffic) R.string.connection_test_testing else R.string.aether_core_connecting)
+                                service.getString(R.string.aether_core_connecting)
                             )
                         }
                     } else {

@@ -155,8 +155,8 @@ public partial class ProfilesViewModel : MyReactiveObject
         {
             RxSchedulers.MainThreadScheduler.Schedule(() =>
             {
-                IsConnected = CoreManager.Instance.IsTrafficVerified;
-                ConnectionStatusText = IsConnected ? ResUI.DicodeTunConnected
+                IsConnected = CoreManager.Instance.IsRunning;
+                ConnectionStatusText = IsConnected ? (CoreManager.Instance.IsTrafficVerified ? ResUI.DicodeTunConnected : ResUI.DicodeTunUnverified)
                     : IsConnectionRequested?.Invoke() == true ? ResUI.DicodeConnectingSelected : ResUI.DicodeTunConnect;
             });
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
@@ -846,7 +846,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             NoticeManager.Instance.Enqueue(ResUI.DicodeConnectingSelected);
             if (StartConnection is not null) await StartConnection();
             else ConnectionStartRequested.Publish();
-            IsConnected = CoreManager.Instance.IsTrafficVerified;
+            IsConnected = CoreManager.Instance.IsRunning;
             NoticeManager.Instance.Enqueue(IsConnected ? ResUI.DicodeTunConnectedNotice : ResUI.DicodeTunFailedNotice);
             await RefreshServers();
         }

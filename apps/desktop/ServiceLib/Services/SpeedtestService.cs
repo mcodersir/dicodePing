@@ -155,7 +155,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
                 continue;
             }
 
-            var profile = profileMap.GetValueOrDefault(it.IndexId, it);
+            var profile = await FoxProfiles.ResolveLocalAsync(profileMap.GetValueOrDefault(it.IndexId, it));
             lstSelected.Add(new ServerTestItem()
             {
                 IndexId = it.IndexId,

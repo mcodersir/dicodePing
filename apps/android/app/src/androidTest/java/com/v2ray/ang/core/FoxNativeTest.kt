@@ -16,7 +16,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.1"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.2"))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
@@ -110,6 +110,9 @@ class FoxNativeTest {
             assertEquals(com.v2ray.ang.enums.EConfigType.SOCKS, saved.configType)
             assertEquals("127.0.0.1", saved.server); assertEquals("7854", saved.serverPort)
             assertEquals(id, FoxAccounts.profile(saved)!!.accountId)
+            val copied = saved.copy(foxAccountId = null, foxCountry = null)
+            assertEquals(id, FoxAccounts.resolveProfile(context, copied)!!.accountId)
+            assertNull(FoxAccounts.resolveProfile(context, copied.copy(subscriptionId = "")))
             val runtime = CoreConfigManager.getV2rayConfig(context, guid)
             assertTrue(runtime.status); assertEquals(id, runtime.foxAccountId); assertEquals(7854, runtime.foxPort)
             assertFalse(runtime.content.contains("private-session-sentinel"))

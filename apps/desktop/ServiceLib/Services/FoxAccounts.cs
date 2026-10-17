@@ -177,6 +177,23 @@ public static class FoxProfiles
         }
         catch (JsonException) { return null; }
     }
+    // A copied localhost link has no account metadata. Recover it only when its
+    // subscription identifies the account, or there is exactly one local account.
+    public static async Task<ProfileItem> ResolveLocalAsync(ProfileItem node)
+    {
+        if (Read(node) is not null || node.ConfigType != EConfigType.SOCKS
+            || node.Address != Global.Loopback || node.Port != LocalPort
+            || node.Username.IsNotEmpty() || node.Password.IsNotEmpty()) return node;
+        var accounts = (await FoxAccounts.ListAsync()).Where(a => !a.Pending).ToList();
+        var sub = node.Subid.IsNullOrEmpty() ? null : await AppManager.Instance.GetSubItem(node.Subid);
+        var account = accounts.FirstOrDefault(a => sub?.Url == "dicode-fox://" + a.Id)
+            ?? (accounts.Count == 1 ? accounts[0] : null);
+        if (account is null) return node; // An external SOCKS listener remains external.
+        var resolved = JsonUtils.DeepCopy(node);
+        resolved.SetProtocolExtra(resolved.GetProtocolExtra() with { FoxAccountId = account.Id, FoxCountry = account.Country });
+        return resolved;
+    }
+
     public static ProfileItem ForConnection(ProfileItem node)
     {
         if (Read(node) is not { } fox) return node;

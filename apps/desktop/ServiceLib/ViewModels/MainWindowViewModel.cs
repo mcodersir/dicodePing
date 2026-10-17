@@ -942,17 +942,20 @@ public partial class MainWindowViewModel : MyReactiveObject
                 }
                 await LoadCore(allResult.MainResult.Context, allResult.PreSocksResult?.Context);
                 if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
+                if (!CoreManager.Instance.IsRunning) throw new IOException(CoreManager.Instance.LastStartupError ?? ResUI.DicodeTunFailedNotice);
+                await SysProxyHandler.UpdateSysProxy(_config, false);
                 using var probe = new CancellationTokenSource();
                 _connectionProbeCts = probe;
                 if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) probe.Cancel();
                 try {
                     if (!await CoreManager.Instance.VerifyTrafficAsync(probe.Token)) {
                         ProfileExManager.Instance.SetTestDelay(profileItem.IndexId, -1);
-                        throw new IOException(ResUI.DicodeTrafficVerificationFailed);
+                        // An unreachable test URL is a diagnostic, not a failed core/TUN start.
+                        Logging.SaveLog(ResUI.DicodeTrafficVerificationFailed);
+                        NoticeManager.Instance.SendMessageAndEnqueue(ResUI.DicodeTrafficVerificationFailed);
                     }
                 } finally { _connectionProbeCts = null; }
                 if (!_connectionDesired || intentVersion != Interlocked.Read(ref _connectionIntentVersion)) return;
-                await SysProxyHandler.UpdateSysProxy(_config, false);
                 await Task.Delay(1000);
             });
             if (!CoreManager.Instance.IsRunning)

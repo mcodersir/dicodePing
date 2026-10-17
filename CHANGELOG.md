@@ -1,3 +1,10 @@
+## 4.9.2
+
+- Fix the Android regression that stopped a healthy VPN when a test URL failed.
+- Separate tunnel readiness from Internet reachability on desktop and CLI; retain strict real HTTP latency tests.
+- Resolve copied localhost Fox links only for an unambiguous local account; reject absent local SOCKS upstreams before desktop tunnel startup.
+- Exercise production Android VPN startup, HTTP traffic and manual disconnect with both tunnel modes and an unreachable test endpoint.
+
 # 4.9.1
 
 Home disconnect targets the active session and cancels pending Best, Fox, pool, restart and recovery requests. Best rechecks HTTP reachability on the current network. HTTP errors, redirects and captive-portal responses no longer count as successful connectivity probes. Android removes the direct TCP preflight, updates its native runtime and HEV 2.19.0, and builds strict response checks into the native measurement path. Fox adds secure edge DNS bootstrap with verified TLS identities and one bounded proxy-pass renewal.

@@ -145,6 +145,14 @@ public class CoreManager
             _foxProcess = helper;
             helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code, helper); };
         }
+        // A SOCKS inbound can start even when its localhost upstream is absent.
+        // Refuse that broken chain before claiming a running tunnel.
+        if (node.ConfigType == EConfigType.SOCKS && IPAddress.TryParse(node.Address, out var address) && IPAddress.IsLoopback(address)) {
+            using var upstream = new TcpClient();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            try { await upstream.ConnectAsync(address, node.Port, deadline.Token); }
+            catch (Exception error) { throw new IOException($"Local SOCKS upstream {node.Address}:{node.Port} is not running. Select the managed Fox account profile or start the external proxy first.", error); }
+        }
         await CoreStart(mainContext);
         if (_processService is null) { await CoreStopExclusive(); return; }
         if (_foxProcess is { HasExited: true }) { await CoreStopExclusive(); throw new FoxException("helper", "Firefox proxy stopped during startup"); }
