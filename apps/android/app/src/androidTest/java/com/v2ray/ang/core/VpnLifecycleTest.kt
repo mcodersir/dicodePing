@@ -40,6 +40,10 @@ class VpnLifecycleTest {
         val oldHev = MmkvManager.decodeSettingsBool(AppConfig.PREF_USE_HEV_TUNNEL, true)
         val oldPerApp = MmkvManager.decodeSettingsBool(AppConfig.PREF_PER_APP_PROXY, false)
         val selected = MmkvManager.getSelectServer()
+        val oldRules = MmkvManager.decodeRoutingRulesets()
+        val fixtureRules = oldRules.orEmpty().toMutableList()
+        fixtureRules.add(0, com.v2ray.ang.dto.entities.RulesetItem(outboundTag = "proxy", ip = arrayListOf("198.18.0.10/32")))
+        MmkvManager.encodeRoutingRulesets(fixtureRules)
         val events = LinkedBlockingQueue<Int>()
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) { events.offer(intent?.getIntExtra("key", 0) ?: 0) }
@@ -98,11 +102,11 @@ class VpnLifecycleTest {
             Thread.sleep(14000)
             assertFalse("An unavailable test URL stopped the VPN", events.contains(AppConfig.MSG_STATE_START_FAILURE))
             val proxyPort = SettingsManager.getSocksPort()
-            assertTrue("The active service must still carry HTTP", AetherDelayTester.requestDelay(proxyPort, "http://fixture.invalid:8080/success") > 0)
+            assertTrue("The active service must still carry HTTP", AetherDelayTester.requestDelay(proxyPort, "http://example.com:8080/success") > 0)
             assertTrue(requests.get() > 0)
             // Shell UID is included in the VPN, while this app's local fixture is
             // excluded. This request must enter the actual kernel TUN interface.
-            val tunneled = shell("printf 'GET /tun HTTP/1.1\r\nHost: fixture.invalid\r\nConnection: close\r\n\r\n' | toybox nc -w 8 198.18.0.10 8080")
+            val tunneled = shell("printf 'GET /tun HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n' | toybox nc -w 8 198.18.0.10 8080")
             assertTrue("No HTTP response through the kernel TUN: $tunneled", tunneled.contains("VPN fixture!"))
             LauncherManager.stopService(context)
             var closed = false
@@ -117,6 +121,7 @@ class VpnLifecycleTest {
             Thread.sleep(500)
             if (guid.isNotEmpty()) MmkvManager.removeServer(guid)
             selected?.let(MmkvManager::setSelectServer)
+            MmkvManager.encodeRoutingRulesets(oldRules.orEmpty().toMutableList())
             old.forEach { (key, value) -> if (value == null) MmkvManager.encodeSettings(key, null as String?) else MmkvManager.encodeSettings(key, value) }
             MmkvManager.encodeSettings(AppConfig.PREF_USE_HEV_TUNNEL, oldHev)
             MmkvManager.encodeSettings(AppConfig.PREF_PER_APP_PROXY, oldPerApp)

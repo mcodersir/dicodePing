@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Check upgrade identity, signing certificate and native sing-box packaging."""
-import os, pathlib, re, subprocess, zipfile
+import os, pathlib, re, subprocess, zipfile, json, hashlib
 root = pathlib.Path("dist-android")
 tools = pathlib.Path(os.environ["ANDROID_HOME"]) / "build-tools" / "37.0.0"
 expected_cert = "0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0"
@@ -15,6 +15,9 @@ for abi, suffix in abis.items():
     assert "versionName='4.9.2'" in manifest and f"versionCode='{45920000 + suffix}'" in manifest, "APK version mismatch"
     assert "targetSdkVersion:'36'" in manifest, "APK targets a preview SDK"
     with zipfile.ZipFile(apk) as archive:
+        for item in json.loads(pathlib.Path("scripts/runtime-pins-4.9.2.json").read_text())["android_geodata"]:
+            content = archive.read("assets/" + item["name"])
+            assert hashlib.sha256(content).hexdigest() == item["sha256"], "Missing or altered Android Geo asset: " + item["name"]
         packaged = [a for a in abis if a != "universal"] if abi == "universal" else [abi]
         for architecture in packaged:
             native = archive.read(f"lib/{architecture}/libsingbox.so")

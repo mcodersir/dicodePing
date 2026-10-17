@@ -405,14 +405,20 @@ object SettingsManager {
                 ?.filter { geo.contains(it) || it == AppConfig.PSIPHON_SERVERS_DAT }
                 ?.filter { name ->
                     val copy = File(extFolder, name)
-                    if (name == AppConfig.PSIPHON_SERVERS_DAT) PsiphonServerList.bundledListGoesOver(copy, publishedAt, keptByUser) else !copy.exists()
+                    if (name == AppConfig.PSIPHON_SERVERS_DAT) PsiphonServerList.bundledListGoesOver(copy, publishedAt, keptByUser) else !copy.exists() || copy.length() == 0L
                 }
                 ?.forEach {
                     val target = File(extFolder, it)
-                    assets.open(it).use { input ->
-                        FileOutputStream(target).use { output ->
-                            input.copyTo(output)
-                        }
+                    // A concurrent service must see either a complete file or
+                    // the APK fallback, never a partially copied Geo database.
+                    val storage = android.util.AtomicFile(target)
+                    val output = storage.startWrite()
+                    try {
+                        assets.open(it).use { input -> input.copyTo(output) }
+                        storage.finishWrite(output)
+                    } catch (error: Exception) {
+                        storage.failWrite(output)
+                        throw error
                     }
                     if (it == AppConfig.PSIPHON_SERVERS_DAT && publishedAt > 0) target.setLastModified(publishedAt)
                     LogUtil.i(AppConfig.TAG, "Copied from apk assets folder to ${target.absolutePath}")

@@ -29,3 +29,9 @@ coverage/
 __pycache__/
 *.pyc
 web-qa-*.png
+
+# Checksum-verified Android routing data staged during the build
+/apps/android/app/src/main/assets/geoip.dat
+/apps/android/app/src/main/assets/geosite.dat
+/apps/android/app/src/main/assets/geoip-only-cn-private.dat
+/apps/android/app/src/main/assets/*.dat.tmp

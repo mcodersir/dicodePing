@@ -34,5 +34,22 @@
   "hev": {
     "version": "2.19.0",
     "source_commit": "873541b81f00f8fd462392fc622adbb8a8cd59b0"
-  }
+  },
+  "android_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202610160914/geoip.dat",
+      "sha256": "19c9bc145da03037bafaf614e1f4289c203209883d03532e6d226ecf274c53d7"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202610160914/geosite.dat",
+      "sha256": "ee8443cab0ef64fa8a0027ee99eba6e2d019f488e5d008ab2768ba3228c07d6f"
+    },
+    {
+      "name": "geoip-only-cn-private.dat",
+      "url": "https://github.com/Loyalsoldier/geoip/releases/download/202610160207/geoip-only-cn-private.dat",
+      "sha256": "c1c985a1aae5ef34aa47f610037456ae66fec9588983a516c4b1e738754ee42f"
+    }
+  ]
 }

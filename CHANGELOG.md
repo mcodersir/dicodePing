@@ -1,5 +1,6 @@
 ## 4.9.2
 
+- Restore checksum-verified Android Geo databases required by the default routing rules; copy assets atomically.
 - Fix the Android regression that stopped a healthy VPN when a test URL failed.
 - Separate tunnel readiness from Internet reachability on desktop and CLI; retain strict real HTTP latency tests.
 - Resolve copied localhost Fox links only for an unambiguous local account; reject absent local SOCKS upstreams before desktop tunnel startup.
