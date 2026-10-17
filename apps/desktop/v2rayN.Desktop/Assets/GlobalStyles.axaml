@@ -40,7 +40,6 @@
         <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
         <Setter Property="Background" Value="{DynamicResource DicodePageBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
-        <Setter Property="FlowDirection" Value="RightToLeft" />
     </Style>
 
     <Style Selector="TextBlock">
@@ -50,7 +49,40 @@
     <Style Selector="Button">
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="MinHeight" Value="40" />
-        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="CornerRadius" Value="12" />
+        <!-- Theme-aware surfaces: buttons always follow the active Dicode palette. -->
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
+    <Style Selector="Button:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="Button:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+
+    <Style Selector="Button.DicodeTelegramButton">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="Button.DicodeTelegramButton Path">
+        <Setter Property="Stroke" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <!-- Persian-first tables: headers and list headers align to the right. -->
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="HeaderedContentControl">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
 
     <Style Selector="Menu">
@@ -128,5 +160,149 @@
         <Setter Property="Theme" Value="{DynamicResource BorderlessButton}" />
     </Style>
 
+    <!--  Navigation rail: borderless pill items with a soft accent when active.  -->
+    <Style Selector="RadioButton.DicodeNav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border
+                    Padding="{TemplateBinding Padding}"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="10">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Stretch" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
 
+    <Style Selector="RadioButton.DicodeNav:pointerover /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked /template/ Border">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <Style Selector="RadioButton.DicodeNav:checked Path">
+        <Setter Property="Stroke" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <!-- Static skeletons: only the metric in flight is masked, without an infinite animation. -->
+    <Style Selector="Border.DicodeSkeleton"><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Opacity" Value="0.65" /></Style>
+    <Style Selector="TextBlock.DicodeCaption"><Setter Property="FontSize" Value="11" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" /></Style>
+    <Style Selector="Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="18" /></Style>
+    <Style Selector="Border.DicodeProfileCard.activeProfile"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
+    <Style Selector="ListBoxItem:selected Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /></Style>
+    <Style Selector="Button.DicodeQuietButton"><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="MinHeight" Value="34" /><Setter Property="Padding" Value="10,6" /></Style>
+    <!--  Reports page: per-level log badges.  -->
+    <Style Selector="Border.logBadge">
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+        <Setter Property="MinWidth" Value="52" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Border.logBadge TextBlock">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+    </Style>
+    <Style Selector="Border.logBadgeError">
+        <Setter Property="Background" Value="#B3261E" />
+    </Style>
+    <Style Selector="Border.logBadgeError TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Border.logBadgeWarn">
+        <Setter Property="Background" Value="#9A6700" />
+    </Style>
+    <Style Selector="Border.logBadgeWarn TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Border.logBadgeDebug">
+        <Setter Property="Background" Value="{DynamicResource DicodeBorder}" />
+    </Style>
+
+    <!--  Home power button: soft breathing ring, green while connected.  -->
+    <Style Selector="Button.DicodePower">
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" />
+
+    </Style>
+
+    <Style Selector="Button.DicodePower.Success">
+        <Setter Property="BorderBrush" Value="#2E9E5B" />
+        <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
+    </Style>
+
+    <Style Selector="Button.DicodePower.Success Path">
+        <Setter Property="Stroke" Value="#2E9E5B" />
+    </Style>
+
+    <!--  Toasts / alerts follow the active Dicode palette.  -->
+    <Style Selector="NotificationCard">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="NotificationCard /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="NotificationCard.Information">
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" />
+    </Style>
+
+    <Style Selector="NotificationCard.Warning">
+        <Setter Property="BorderBrush" Value="#9A6700" />
+    </Style>
+
+    <Style Selector="NotificationCard.Critical">
+        <Setter Property="BorderBrush" Value="#B3261E" />
+    </Style>
+
+    <Style Selector="NotificationCard.Success">
+        <Setter Property="BorderBrush" Value="#2E9E5B" />
+    </Style>
+
+    <!--  Page transition: every navigation lands with a calm slide-fade.  -->
+    <Style Selector="Panel.DicodePage">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Easing="CubicEaseOut" Duration="0:0:0.22" Property="Opacity" />
+                <TransformOperationsTransition Easing="CubicEaseOut" Duration="0:0:0.25" Property="RenderTransform" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+
+    <Style Selector="Button.DicodeProbeButton">
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="MinHeight" Value="42" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Transitions">
+            <Transitions><BrushTransition Property="Background" Duration="0:0:0.16" /></Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl">
+        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="MinHeight" Value="42" />
+        <Setter Property="Padding" Value="14,9" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" />
+    </Style>
+    <Style Selector="TabItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
+    </Style>
 </Styles>

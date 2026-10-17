@@ -101,8 +101,8 @@
     <string name="server_lab_reserved">Reserved(اختیاری، وا کاما (,) ز یک جوڌا ابۊن)</string>
     <string name="server_lab_local_address">نشۊوی محلی (اختیاری IPv4/IPv6، وا کاما (,) ز یک جوڌا ابۊن)</string>
     <string name="server_lab_local_mtu">MTU(اختیاری، پؽش فرض 1420)</string>
-    <string name="server_lab_kcp_mtu">mKCP MTU (اختیاری، پؽش فرض هسته 1350)</string>
-    <string name="server_lab_kcp_tti">mKCP TTI (اختیاری، پؽش فرض هسته 50)</string>
+    <string name="server_lab_kcp_mtu">mKCP MTU (اختیاری، پؽش فرض 1350)</string>
+    <string name="server_lab_kcp_tti">mKCP TTI (اختیاری، پؽش فرض 50 میلی‌ثانیه)</string>
     <string name="toast_success">وا مووفقیت ٱنجوم وابی</string>
     <string name="toast_failure">شکست خرد</string>
     <string name="toast_none_data">هیچ داڌه ای وۊجۊڌ نڌاره</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">حالت XHTTP</string>
     <string name="server_lab_xhttp_extra">XHTTP Extra خام JSON، قالوو: { XHTTPObject }</string>
     <string name="server_lab_final_mask">finalMask خام JSON، قالوو: { FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">تئیڌ گوواهی هومتا و ری نوم</string>
     <string name="server_lab_pinned_ca256">جا کلک گوواهی (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">سامووا VPN</string>
     <string name="title_pref_per_app_proxy">پروکسی و ری برنومه</string>
     <string name="summary_pref_per_app_proxy">پوی وولاتی: برنومه پسند وابیڌه وا ی پروکسی منپیز ابۊ، برنومه پسند نوابیڌه موستقیمن منپیز ابۊ.\nحالت دور زیڌن: برنومه پسند وابیڌه موستقیمن منپیز ابۊ، برنومه پسند نوابیڌه وا ی پروکسی منپیز ابۊ.\nپسند خوتکار برنومه یلی ک وا ی پروکسی منپیز ابۊن من نومگه امکووݩ پذیر هڌ.</string>
-    <string name="title_pref_is_booted">منپیز خوتکار مجال ره ونی</string>
-    <string name="summary_pref_is_booted">مجال ره وندن، خوساخوس و سرور پسند بیڌه منپیز ابۊ که گاشڌ نا مووفق بۊ.</string>
+    <string name="title_pref_is_booted">منپیز بئڌ ره وندن دسگا</string>
+    <string name="summary_pref_is_booted">بئڌ ره وندن دسگا، خوساخوس و سرور پسند بیڌه منپیز ابۊ. Android گاشڌ ره وندن من پس زمینه ن مئدۊد کونه.</string>
+    <string name="title_system_vpn_settings">سامووا VPN سیستوم</string>
+    <string name="summary_system_vpn_settings">سامووا VPN من Android ن وا کۊنین سی ساموو کردن VPN همیشه ره وست، ٱر دسگا زس پشتیبانی اکونه.</string>
+    <string name="toast_system_vpn_settings_unavailable">سامووا VPN سیستوم من دسرس نین.</string>
 
 
     <string name="subscription_updater_job_tips">وزیفه من پس زمینه کار اکونه وو ایلاعات پؽشرفت من اعلان نشووݩ داڌه ابۊ.</string>
@@ -284,6 +288,7 @@
     <string name="title_about">زبار</string>
     <string name="title_source_code">کود بونچک</string>
     <string name="title_oss_license">موجوزا کود بونچک</string>
+    <string name="title_translators">ترجومه‌گرا</string>
     <string name="title_tg_channel">تورگه تلگرام</string>
 
     <string name="title_pref_promotion">تبلیغات</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">سرآیندا درخواست (قالوو JSON)</string>
     <string name="sub_setting_filter">فیلتر نیشتنا وا regex</string>
+    <string name="sub_setting_override_address">جایگزینی نشۊوی</string>
+    <string name="sub_setting_override_port">جایگزینی پورت</string>
+    <string name="sub_setting_override_tip">برای نگه داشتن مقدار اشتراک خالی بگذارید</string>
     <string name="sub_setting_enable">ره وندن ورۊ کردن</string>
     <string name="sub_auto_update">ره وندن ورۊ کردن خوتکار</string>
     <string name="sub_allow_insecure_url">موجاز کردن نشۊوی HTTP نا ٱمن</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">ای پروکسی پؽش ز هر کانفیگ من ای اشتراک، وری ٱول عوزو زنجیره پروکسی اضاف ابۊ.</string>
     <string name="sub_setting_exit_proxy_tip">ای پروکسی بئڌ ز هر کانفیگ من ای اشتراک، وری آخر عوزو زنجیره پروکسی اضاف ابۊ.</string>
     <string name="toast_invalid_update_interval">فاصله ورۊ کردن نا موئتبر هڌ. حداقل مقدار 15 دؽقه هڌ.</string>
+    <string name="toast_invalid_override_port">پورت جایگزین نامعتبر است. عددی بین 1 تا 65535 وارد کنید.</string>
     <string name="title_sub_update">ورۊ کردن اشتراک بونکۊ سکویی</string>
     <string name="title_ping_all_server">آزمایش تئخیر TCP (TCPing)</string>
     <string name="title_real_ping_all_server">آزمایش تئخیر واقعی</string>

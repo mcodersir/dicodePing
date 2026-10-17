@@ -101,8 +101,8 @@
     <string name="server_lab_reserved">Reserved (可選，逗號隔開)</string>
     <string name="server_lab_local_address">本機位址 (可選 IPv4/IPv6，逗號隔開)</string>
     <string name="server_lab_local_mtu">MTU（可選，預設 1420）</string>
-    <string name="server_lab_kcp_mtu">mKCP MTU（可選，核心預設 1350）</string>
-    <string name="server_lab_kcp_tti">mKCP TTI（可選，核心預設 50）</string>
+    <string name="server_lab_kcp_mtu">mKCP MTU（可選，預設 1350）</string>
+    <string name="server_lab_kcp_tti">mKCP TTI（可選，預設 50 毫秒）</string>
     <string name="toast_success">成功</string>
     <string name="toast_failure">失敗</string>
     <string name="toast_none_data">無資料</string>
@@ -128,6 +128,7 @@
     <string name="server_lab_xhttp_mode">XHTTP 模式</string>
     <string name="server_lab_xhttp_extra">XHTTP Extra 原始 JSON，格式： { XHTTPObject }</string>
     <string name="server_lab_final_mask">finalMask 原始 JSON，格式：{ FinalMaskObject }</string>
+    <string name="server_lab_dial_mode" translatable="false">dialMode</string>
     <string name="server_lab_ech_config_list" translatable="false">echConfigList</string>
     <string name="server_lab_verify_peer_cert_by_name">Verify peer cert by name</string>
     <string name="server_lab_pinned_ca256">憑證指紋 (SHA-256)</string>
@@ -173,8 +174,11 @@
     <string name="title_vpn_settings">VPN 設定</string>
     <string name="title_pref_per_app_proxy">個別應用程式代理</string>
     <string name="summary_pref_per_app_proxy">一般：已勾選的應用程式使用代理，未勾選的應用程式直接連線；\n繞行模式：已勾選的應用程式直接連線，未勾選的應用程式使用代理。\n選單中可自動選取需要使用代理的應用程式。</string>
-    <string name="title_pref_is_booted">開機時自動連線</string>
-    <string name="summary_pref_is_booted">開機時自動連線選擇的伺服器，可能會不成功</string>
+    <string name="title_pref_is_booted">裝置開機後自動連線</string>
+    <string name="summary_pref_is_booted">裝置開機後自動連線至所選伺服器。Android 可能會限制背景啟動。</string>
+    <string name="title_system_vpn_settings">系統 VPN 設定</string>
+    <string name="summary_system_vpn_settings">開啟 Android VPN 設定，設定永遠開啟的 VPN（若此裝置支援）。</string>
+    <string name="toast_system_vpn_settings_unavailable">系統 VPN 設定無法使用。</string>
 
 
     <string name="subscription_updater_job_tips">任務將在背景執行，通知中會顯示進度資訊。</string>
@@ -284,6 +288,7 @@
     <string name="title_about">關於</string>
     <string name="title_source_code">原始碼</string>
     <string name="title_oss_license">開放原始碼授權</string>
+    <string name="title_translators">翻譯貢獻者</string>
     <string name="title_tg_channel">Telegram 頻道</string>
 
     <string name="title_pref_promotion">推廣</string>
@@ -327,6 +332,9 @@
     <string name="sub_setting_user_agent" translatable="false">User Agent</string>
     <string name="sub_setting_request_headers">請求標頭（JSON 格式）</string>
     <string name="sub_setting_filter">備註篩選條件（正規表示式）</string>
+    <string name="sub_setting_override_address">覆蓋位址</string>
+    <string name="sub_setting_override_port">覆蓋埠</string>
+    <string name="sub_setting_override_tip">留空則保留訂閱中的值</string>
     <string name="sub_setting_enable">啟用更新</string>
     <string name="sub_auto_update">啟用自動更新</string>
     <string name="sub_allow_insecure_url">允許不安全的 HTTP 位址</string>
@@ -336,6 +344,7 @@
     <string name="sub_setting_entry_proxy_tip">所選代理會加在此訂閱中每個設定檔之前，作為該設定檔代理鏈的入口節點。</string>
     <string name="sub_setting_exit_proxy_tip">所選代理會加在此訂閱中每個設定檔之後，作為該設定檔代理鏈的出口節點。</string>
     <string name="toast_invalid_update_interval">更新間隔無效，最小值為 15 分鐘。</string>
+    <string name="toast_invalid_override_port">覆蓋埠無效，請輸入 1 到 65535 之間的數字。</string>
     <string name="title_sub_update">更新訂閱</string>
     <string name="title_ping_all_server">測試 TCP 延遲（TCPing）</string>
     <string name="title_real_ping_all_server">測試真連接延遲</string>

@@ -66,6 +66,17 @@ public partial class CoreConfigSingboxService
                     });
                 }
 
+                // Browsers aggressively prefer QUIC (UDP 443). Forwarding UDP through
+                // the tunnel is unreliable on many networks and a broken QUIC session
+                // surfaces as ERR_QUIC_PROTOCOL_ERROR in the browser. Reject it so
+                // clients fall back to TCP/TLS, which the tunnel carries reliably.
+                _coreConfig.route.rules.Add(new()
+                {
+                    port = [443],
+                    network = ["udp"],
+                    action = "reject",
+                });
+
                 var lstDirectExe = BuildRoutingDirectExe();
                 if (lstDirectExe.Count > 0)
                 {
@@ -245,7 +256,7 @@ public partial class CoreConfigSingboxService
             var resolveRule = new Rule4Sbox
             {
                 action = "resolve",
-                strategy = domainStrategy
+                strategy = domainStrategy,
             };
             if (_config.RoutingBasicItem.DomainStrategy == Global.IPOnDemand)
             {
@@ -279,20 +290,71 @@ public partial class CoreConfigSingboxService
             var filterDomains = _config.RoutingBasicItem.DomainFilterList;
             if (filterDomains is { Count: > 0 } && domainFilterMode != "off")
             {
-                var normalizedDomains = filterDomains
-                    .Select(x => x.Trim().TrimEnd('.'))
-                    .Where(x => x.IsNotEmpty())
-                    .Select(x => x.StartsWith("domain:", StringComparison.OrdinalIgnoreCase) ? x[7..] : x)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                var filterRule = new Rule4Sbox
+                // Plain entries mean the domain and its subdomains. Pasted URLs are
+                // reduced to their host, and every v2ray-style prefix (full:, regexp:,
+                // geosite:, keyword:) is mapped to its sing-box counterpart instead of
+                // being treated as a literal suffix that can never match.
+                var filterRule = new Rule4Sbox();
+                foreach (var raw in filterDomains)
                 {
-                    // A plain entry in the UI means the domain and its subdomains.
-                    domain_suffix = normalizedDomains,
-                    outbound = domainFilterMode == "only" ? Global.ProxyTag : Global.DirectTag,
-                };
-                var sniffIndex = _coreConfig.route.rules.FindIndex(rule => rule.action == "sniff");
-                _coreConfig.route.rules.Insert(sniffIndex >= 0 ? sniffIndex + 1 : 0, filterRule);
+                    var entry = raw.Trim();
+                    if (Uri.TryCreate(entry, UriKind.Absolute, out var uri) && uri.Host.IsNotEmpty())
+                    {
+                        entry = uri.Host;
+                    }
+                    entry = entry.Trim().Trim('.').TrimEnd('/');
+                    if (entry.IsNullOrEmpty())
+                    {
+                        continue;
+                    }
+
+                    // A plain entry in the UI means the domain and its subdomains
+                    // (domain_suffix). Every v2ray-style prefix maps to its sing-box
+                    // counterpart instead of being treated as a literal suffix that
+                    // can never match.
+                    if (entry.StartsWith("domain:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain_suffix ??= [];
+                        filterRule.domain_suffix.Add(entry[7..]);
+                    }
+                    else if (entry.StartsWith("full:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain ??= [];
+                        filterRule.domain.Add(entry[5..]);
+                    }
+                    else if (entry.StartsWith("regexp:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain_regex ??= [];
+                        filterRule.domain_regex.Add(entry[7..]);
+                    }
+                    else if (entry.StartsWith("geosite:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.geosite ??= [];
+                        filterRule.geosite.Add(entry[8..]);
+                    }
+                    else if (entry.StartsWith("keyword:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filterRule.domain_keyword ??= [];
+                        filterRule.domain_keyword.Add(entry[8..]);
+                    }
+                    else
+                    {
+                        filterRule.domain_suffix ??= [];
+                        filterRule.domain_suffix.Add(entry);
+                    }
+                }
+
+                var hasAny = (filterRule.domain?.Count ?? 0)
+                    + (filterRule.domain_suffix?.Count ?? 0)
+                    + (filterRule.domain_keyword?.Count ?? 0)
+                    + (filterRule.domain_regex?.Count ?? 0)
+                    + (filterRule.geosite?.Count ?? 0) > 0;
+                if (hasAny)
+                {
+                    filterRule.outbound = domainFilterMode == "only" ? Global.ProxyTag : Global.DirectTag;
+                    var sniffIndex = _coreConfig.route.rules.FindIndex(rule => rule.action == "sniff");
+                    _coreConfig.route.rules.Insert(sniffIndex >= 0 ? sniffIndex + 1 : 0, filterRule);
+                }
             }
             if (_config.RoutingBasicItem.DomainStrategy == Global.IPIfNonMatch)
             {

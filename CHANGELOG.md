@@ -1,4 +1,156 @@
+## 4.2.2 — Desktop interface redesign
+
+- Compact, bounded profile workspace with numbered rows, country icons, aligned diagnostics and consistent line icons.
+- Reactive active-server selection and security-test busy state preserved across refreshes.
+- Compact connection panel, updated light/dark palettes and no continuous power animation.
+- Responsive download cards; synchronized binary, installer and Android versions.
+- Headless desktop layout previews in RTL/LTR and both themes; web checks on desktop and mobile.
+
 # Changelog
+
+## 4.2.0 (stable)
+
+- Virtualized profile cards, independent metric skeletons and concurrent diagnostic lanes.
+- Serialized temporary-core allocation and readiness checks prevent port collisions.
+- AppData bundle migration and canonical Mihomo selection repair upgrades on existing installs.
+- Complete Persian resource coverage, format-parameter checks and consistent desktop forms.
+- Android bounded concurrency, concurrent subscription fetches and diagnostic-safe cleanup.
+- Four signed Android APK architectures; refreshed bilingual responsive download page.
+- Validate exact bundled core versions and include runtime-versions.json in desktop packages.
+
+
+## 4.1.1-pre.1
+
+- PattN 7.25.5-P31 desktop core integration with cancellable probes and independent metrics.
+- Embedded settings tabs and redesigned profiles workspace.
+- Retired DicodeSpo and merged the two official feeds under Dicode Config Checker on desktop and Android.
+- PattNG P60 native batch cancellation and refreshed verified geo data.
+- Bundle PattN Xray v26.10.7 with SHA-256 verification on all desktop platforms.
+
+
+## 4.1.0 (stable)
+
+First stable release of the 4.x series. Highlights of everything included since 4.0.0:
+
+### New
+- **DicodeSpo sources subscription**: the app's first subscription aggregates free configs from curated public sources — Patterniha Free-Configs (priority #1), 0xRadikal Top100, roosterkid, ermaozi, MatinGhanbari, barry-far, SoliSpirit, Pawdroid, peasoft and Epodonios. Plain and base64 sources are handled, results are deduplicated and capped (500) so it stays light. Available on desktop and Android; individual sources can be disabled or edited from desktop settings, and the server-pool flow now also falls back to DicodeSpo when the Config Checker cache has nothing healthy.
+- **Sanctions reachability check**: 22 services with strict-service gating, failed-service names reported, and full per-service management from desktop settings (search, enable-all, add/edit/delete/reset).
+- Telegram channel button in About (t.me/dicodeping); in-page tabbed Settings (General / Sanctions / DicodeSpo sources).
+
+### Fixed
+- "Core failed to start": geo assets are copied beside every core binary; core stdout/stderr is always captured into the gui log and the Reports page; instant-exit errors include the core's own message.
+- TUN connections: the legacy hosts DNS rule (`ip_accept_any`) that sing-box 1.14 rejects was rebuilt as an explicit domains rule — verified with `sing-box check` against the real installed binary; deprecated `independent_cache` removed.
+- Reports page now truly fills (compiled-binding + code items source) with colored level badges, live filter, autoscroll.
+- Latency/speed/location/sanctions/security tests: instant reset of previous values with a shimmer placeholder, then live per-server results; superseding a running test works.
+- `ERR_QUIC_PROTOCOL_ERROR`: QUIC (UDP 443) is rejected in TUN mode so browsers fall back to TCP/TLS.
+- Domain filter in TUN mode (URLs and full:/regexp:/geosite:/keyword: entries).
+- Persian bidi alignment in mixed-language strings; theme-aware buttons; RTL table headers; toast theming; sidebar navigation and page transitions.
+
+### Cores
+- Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32, PattNG 2.3.10-P60, AndroidLibXrayLite v26.10.4, Loyalsoldier geo 202610042206 — all pinned with SHA-256 in release CI.
+- Android versionCode 401000; desktop FileVersion 4.1.0.1.
+
+
+## 4.0.6 (pre-release)
+
+- **Fix TUN connections**: the generated sing-box DNS config contained the hosts rule `{ ip_accept_any: true }`, which sing-box 1.14 rejects (`FATAL initialize dns router: Response Match Fields ... require match_response to be enabled`) — found in the app's own log and verified with `sing-box check` against the installed binary. The hosts DNS rule is now built from the known hosts domains (full match), and the config validates cleanly.
+- Remove the deprecated `independent_cache` DNS option (silences the sing-box 1.14 warning).
+- Reports page: the log list items source is now wired both via compiled binding and code, so the page fills in every scenario; core output recording from 4.0.5 continues.
+- Theme-styled toasts/alerts: NotificationCard follows the active palette with type-colored borders (info/warning/error/success).
+- Latency/speed/location/sanctions/security tests run through the recorded pipeline; a `--` result means the probed proxy itself did not answer (the log shows why).
+- Bundled mihomo remains v1.19.32 (latest stable); users on older local cores can update from Settings → Check updates.
+- Android versionCode 400601.
+
+## 4.0.5 (pre-release)
+
+- Root-cause the "core failed to start" report by testing the real installed app: Xray exited instantly because it resolved `geosite.dat` next to its own exe while the assets live in `bin/`. Geo files are now copied beside every core binary on launch, and the asset environment variable is verified.
+- Always capture core stdout/stderr: every core line is persisted to the gui log (so "see the report" finally has content) and sent to the Reports page; an instant-exit failure now includes the core's own error message.
+- Fix the Reports page being empty: the log list was never given its items source. The page now populates from the live message stream and today's log file.
+- Settings become an in-page tabbed section: a General tab (existing dialogs) and a Sanctions-check tab embedding the services editor with search, enable-all, add/edit/enable/disable/delete and reset-to-defaults.
+- Theme-aware button styling (surface, border and hover follow the active palette), right-aligned DataGrid column headers for the Persian-first tables.
+- Home page: the power button uses a line power icon with a soft breathing animation and a green connected state; the location card shows the drawn country flag (Windows cannot render flag emoji) plus a pin icon.
+- About page: add a Telegram channel button (t.me/dicodeping).
+- Android versionCode 400501; bundled mihomo remains v1.19.32.
+
+## 4.0.4 (pre-release)
+
+- Fix the connection blockers seen in user logs: profiles whose `XHTTP extra`/`Finalmask` JSON from the subscription is invalid no longer produce validation errors that abort the connection — the broken extra is stripped with a warning and the server connects with plain transport.
+- Block QUIC (UDP 443) in TUN mode for both Xray and sing-box routing so browsers fall back to TCP/TLS instead of failing with `ERR_QUIC_PROTOCOL_ERROR`.
+- Rebuild the Reports page: every event and core output line is now recorded (parsed from the live message stream and today's log file) with colored level badges (INFO/WARN/ERROR/DEBUG), a live regex filter, autoscroll and copy/clear.
+- Rewrite the sanctions reachability check: 22 default services (Gemini, Google AI Studio, ChatGPT, OpenAI API, Docker Hub, YouTube, Netflix, Spotify, GitHub, Steam, ...) with strict-service gating, failed-service names reported in the result. The service list is fully manageable from desktop settings (add/edit/enable/disable/delete/reset to defaults) and Android now uses the same richer, stricter logic.
+- Fix the domain filter in TUN mode: pasted URLs are reduced to their host and `full:`/`regexp:`/`geosite:`/`keyword:` entries map to their sing-box counterparts instead of silently never matching.
+- Fix Persian text alignment in mixed Persian/Latin strings by inserting RTL marks (U+200F) across the Persian resource strings.
+- Dark theme now uses the neutral gray ramp requested in feedback: `#141414` page background, `#1F1F1F` surfaces, `#242629` elevated surfaces.
+- Android versionCode 400401; bundled mihomo remains v1.19.32 (latest stable).
+
+## 4.0.3 (pre-release)
+
+- Fix the sidebar regression that froze navigation on the Home page: the page-switch event handlers were never wired in 4.0.2. Navigation now also re-triggers on click and lands with a calm slide-fade transition.
+- Give the header quick actions (Server pool, Smart connect, Refresh) minimal single-stroke line icons.
+- Fully localize the Server Pool window and the pool service progress messages (`DicodePool*` resources, Persian included); the pool window follows the language flow direction (RTL for Persian).
+- Add short description headers to every page and give the Reports page the same title card as the others.
+- Refine the dark theme palette: clearly dark surfaces with stable borders, never pitch black.
+- Android versionCode 400301 with install guidance: pick the universal or arm64-v8a APK, and re-download if a "parse package" error appears (partial downloads break installation).
+
+## 4.0.2 (pre-release)
+
+- Redesign the desktop navigation rail with minimal single-stroke line icons; it renders on the visual right in Persian (RTL) and the visual left in English (LTR), because window flow direction now follows the selected language instead of forcing RTL everywhere.
+- Translate the remaining 116 English-only UI strings (DNS pages, routing rules, policy groups, transport/security fields, proxy-chain messages) to Persian in `ResUI.fa.resx`.
+- Latency testing no longer refuses work while a previous test is running: the stale loop is superseded automatically, stale delay/location/sanctions values are cleared up front, and rows pulse with a shimmer placeholder until a numeric result arrives.
+- Remove false "update available" prompts: unparseable remote tags (alpha releases such as `v1.15.0-alpha.10`) are no longer reported as updates, and the periodic check stays completely silent when everything is already current.
+- Android now targets the stable Android 16 (`targetSdk 36`), fixing installer complaints that the app "was designed for an older Android" on stable devices; Android versionCode 400201, desktop FileVersion 4.0.2.1.
+
+## 4.0.1 (pre-release)
+
+- Bump desktop and Android display versions to 4.0.1, with desktop FileVersion 4.0.1.1 and Android versionCode 400101.
+- Update bundled desktop runtimes to Xray v26.9.30, sing-box v1.14.2, mihomo v1.19.32 and Loyalsoldier geo data 202610042206 with SHA-256 verification in release CI.
+- Update Android native integration to PattNG 2.3.10-P60 and AndroidLibXrayLite/libv2ray v26.10.4 with pinned commit/hash validation.
+- Mark the GitHub publication as a pre-release for public validation of the redesigned desktop UI and full English-language coverage.
+
+## 4.0.0 (stable, revision 2)
+
+- Prefer an already working DicodePing proxy regardless of its subscription, then the system route provided by another VPN, before touching the official subscription.
+- Validate both the channel list and real Telegram previews on the candidate route; only update/test/connect the official subscription when neither existing path works.
+- Keep cached official profiles usable when refresh fails, and request Android VPN permission lazily only if the official-subscription fallback must actually start.
+- Keep public version 4.0.0 while using Android versionCode 400001 and desktop FileVersion 4.0.0.1 for an in-place stable update.
+
+## 4.0.0 (stable, revision 1)
+
+- Add pre-run controls for the desired number of successful pool servers (1–200) and real-ping rounds per server (1–10) on desktop and Android.
+- Reuse the product's main Real Ping engine in the pool: stabilized SOCKS/HTTP measurements on desktop and the shared TCP-gated native outbound-delay probe on Android.
+- Run tests concurrently with bounded workers, show live successful/target counts, and stop scheduling work automatically when the requested target is reached.
+- Turn the pool Stop action into a graceful checkpoint during testing: completed successful servers are saved immediately, while hard lifecycle cancellation and zero-result runs preserve the previous pool.
+- Ship the accumulated Telegram parser, official-subscription startup, PattNG 2.3.7-P42 and pinned-core fixes as the stable 4.0.0 release without removing user subscriptions or Dicode-specific features.
+
+## 3.9.0 (pre-release, revision 4)
+
+- Accept valid V2Ray links from public Telegram previews even when optional message timestamps or legacy wrapper classes are absent; source order still selects the four newest visible links.
+- Send destination-specific HTTP headers, use browser-compatible Telegram requests and retry unusable previews through `telegram.me`; Telegram/MTProto/SOCKS proxies remain excluded.
+- Scope automatic startup refresh, real-path ping, ordering and location discovery to the official default subscription on desktop and Android, avoiding aggregate/user-pool native test batches and startup races.
+- Preserve cached official profiles when refresh is unavailable. Android versionCode 309003 and desktop FileVersion 3.9.0.4 keep the public version at 3.9.0 while allowing an in-place pre-release upgrade.
+
+## 3.9.0 (pre-release, revision 3)
+
+- Select the newest available link-bearing Telegram messages without the unrequested seven-day/device-clock rejection; show source dates instead of labelling every candidate fresh.
+- Handle varied HTML attributes, encoded characters and inline formatting; distinguish unavailable previews from messages without V2Ray links.
+- Create and migrate the separate «سرور های استخر» subscription when the pool page opens, before collection succeeds, preserving default subscriptions and saved pool profiles.
+- Run both production parsers against real Telegram HTML in release CI, alongside deterministic regression tests. Report empty collection and import failure before the ping stage.
+- Preserve the three successful samples at or below 900 ms requirement. Android versionCode 309002, desktop FileVersion 3.9.0.3.
+
+## 3.9.0 (pre-release, revision 2)
+
+- Separate local connection readiness from GitHub source availability; remove the two-second Android source-download health check.
+- Await startup, retry source endpoints, and show the actual failing stage without claiming a working VPN is disconnected.
+- Add bounded live logs, per-round ping results, progress, copy, follow-scroll and rerun controls on both platforms.
+- Keep version 3.9.0 while increasing Android upgrade code and desktop file revision.
+
+## 3.9.0 (pre-release)
+
+- Add the server pool page on desktop and Android: default-subscription bootstrap, current public channel collection, three real probes, and a dedicated validated subscription.
+- Reject Telegram proxies, failed probes and any sample above 900 ms; bound concurrent downloads and tests and preserve the previous pool on interruption.
+- Integrate PattNG P42 fixes and pin Android/Desktop Xray v26.9.7 with SHA-256 verification while retaining Dicode's custom UI, traffic, filtering and sanctions features.
+- Share Android's dynamic proxy port between UI and VPN processes.
+- Make CI propagate desktop test failures and run Android unit tests before packaging.
 
 ## 3.0.5
 

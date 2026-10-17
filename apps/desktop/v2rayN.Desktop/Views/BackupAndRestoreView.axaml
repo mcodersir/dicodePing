@@ -28,7 +28,7 @@
             <Border
                 Margin="{StaticResource Margin4}"
                 VerticalAlignment="Center"
-                Theme="{DynamicResource CardBorder}">
+                Classes="DicodeCard" Padding="14">
 
                 <Grid
                     Margin="{StaticResource Margin4}"
@@ -78,7 +78,7 @@
             <Border
                 Margin="{StaticResource Margin4}"
                 VerticalAlignment="Center"
-                Theme="{DynamicResource CardBorder}">
+                Classes="DicodeCard" Padding="14">
                 <Grid
                     Margin="{StaticResource Margin4}"
                     ColumnDefinitions="300,200"
