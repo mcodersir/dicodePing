@@ -103,7 +103,10 @@ def main():
         subprocess.run([str(TOOLS / "zipalign"), "-c", "-P", "16", "4", str(rebuilt)], check=True)
         badging = subprocess.run([str(TOOLS / "aapt2"), "dump", "badging", str(rebuilt)], check=True, capture_output=True, text=True).stdout
         assert "name='ir.dicode.ping.fdroid'" in badging and "versionName='4.9.2'" in badging
-        assert f"versionCode='{new_code}'" in badging and "sdkVersion:'29'" in badging and "targetSdkVersion:'36'" in badging
+        assert f"versionCode='{new_code}'" in badging, badging
+        minimum = re.search(r"(?m)^(?:minSdkVersion|sdkVersion):'(\d+)(?:\.0)?'", badging)
+        target = re.search(r"(?m)^targetSdkVersion:'(\d+)(?:\.0)?'", badging)
+        assert minimum and target and (int(minimum[1]), int(target[1])) == (29, 36), badging
         payload = verify_payload(original, rebuilt, manifest)
         records.append({"name": name, "abi": abi, "original_sha256": PIN["sha256"][abi], "sha256": digest(rebuilt.read_bytes()),
             "version_code": new_code, "size": rebuilt.stat().st_size, "payload_manifest_sha256": payload})
