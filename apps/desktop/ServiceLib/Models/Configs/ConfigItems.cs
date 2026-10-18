@@ -97,6 +97,7 @@ public class UIItem
     public string? ColorPrimaryName { get; set; }
     public string? CurrentTheme { get; set; }
     public string CurrentLanguage { get; set; }
+    public int PersianDefaultRevision { get; set; }
     public string CurrentFontFamily { get; set; }
     public int CurrentFontSize { get; set; }
     public bool EnableDragDropSort { get; set; }

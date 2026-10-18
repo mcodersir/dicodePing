@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
+import com.v2ray.ang.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -30,6 +33,7 @@ fun MainBottomBar(
     locationText: String,
     trafficText: String,
     onClick: () -> Unit,
+    onSpeedTest: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -38,10 +42,11 @@ fun MainBottomBar(
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         AppDivider()
+        if (onSpeedTest != null) TextButton(onClick = onSpeedTest) { Text(stringResource(R.string.connection_speed_test)) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,

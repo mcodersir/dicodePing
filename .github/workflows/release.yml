@@ -1,4 +1,4 @@
-name: Release 4.9.2 Stable
+name: Release 4.9.3 Stable
 permissions:
   actions: read
   contents: write
@@ -79,7 +79,7 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore and build the independent desktop client
-      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.2
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.3
     - name: Render desktop layout on Linux
       if: runner.os == 'Linux'
       run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -93,7 +93,7 @@ jobs:
         dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
-        true -p:Version=4.9.2 -o publish
+        true -p:Version=4.9.3 -o publish
     - name: Bundle verified Xray and sing-box runtimes
       shell: pwsh
       run: |
@@ -183,7 +183,7 @@ jobs:
       run: |
         $versions = @{}
         $checks = @(
-          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.2' },
+          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.3' },
           @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.13' },
           @{ name = 'sing-box'; path = 'publish/bin/sing_box/${{ matrix.singbox_binary }}'; arg = 'version'; version = '1.14.3' },
           @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.3.0' },
@@ -205,7 +205,7 @@ jobs:
     - name: Publish independent CLI with verified runtimes
       shell: pwsh
       run: |
-        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.9.2 -o cli-publish
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.9.3 -o cli-publish
         if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
         Copy-Item publish/bin cli-publish/bin -Recurse -Force
         Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -231,7 +231,7 @@ jobs:
       run: |
         choco install innosetup --no-progress --yes
         & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' .github\installer\DicodePing.iss
-        $installer = Get-Item dist\DicodePing-4.9.2-windows-x64-installer.exe
+        $installer = Get-Item dist\DicodePing-4.9.3-windows-x64-installer.exe
         Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
     - uses: actions/upload-artifact@v7
       with:
@@ -304,8 +304,8 @@ jobs:
         echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
         export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.2
-        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.2
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.3
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.3
     - name: Stage APK and checksums
       run: |
         mkdir -p dist-android
@@ -326,12 +326,60 @@ jobs:
         name: android
         path: dist-android/*
     timeout-minutes: 60
+  install:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v4
+      - name: Download published upgrade baselines
+        run: |
+          mkdir -p install-check
+          for version in 4.9.2; do
+            curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-${{ matrix.apkAbi }}.apk" --output "install-check/$version.apk"
+          done
+      - name: Enable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test actual release installation, retained data and startup
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --version 4.9.3 --code 45930000 --baselines 4.9.2 --candidate dist-android/DicodePing-4.9.3-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.3-${{ matrix.alternate }}.apk
+      - name: Preserve installation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-installation-${{ matrix.api }}-${{ matrix.apkAbi }}
+          path: |
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
   publish:
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
     needs:
     - fox-regression
     - desktop
     - android
+    - install
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -342,6 +390,7 @@ jobs:
     - uses: actions/download-artifact@v8
       with:
         path: artifacts
+        pattern: '{android,windows-x64,linux-x64,macos-x64,macos-arm64}'
         merge-multiple: true
     - name: Require source and Android device checks for this exact commit
       env:
@@ -368,14 +417,14 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         RELEASE_SHA: ${{ github.sha }}
       run: |
-        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.2 > tag-ref.json 2> tag-ref-error.txt; then
+        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.3 > tag-ref.json 2> tag-ref-error.txt; then
           existing=$(jq -r '.object.sha' tag-ref.json)
           if [ "$existing" != "$RELEASE_SHA" ]; then
             echo "Release tag points to another commit; refusing to replace it."
             exit 1
           fi
         elif jq -e '.status == "404" or .status == 404' tag-ref.json > /dev/null; then
-          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.2 -f sha="$RELEASE_SHA"
+          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.3 -f sha="$RELEASE_SHA"
         else
           cat tag-ref-error.txt
           exit 1
@@ -383,26 +432,26 @@ jobs:
     - uses: softprops/action-gh-release@v2
       id: draft_release
       with:
-        tag_name: v4.9.2
+        tag_name: v4.9.3
         target_commitish: ${{ github.sha }}
-        name: DicodePing 4.9.2 — Stable
+        name: DicodePing 4.9.3 — Stable
         draft: true
         prerelease: false
         make_latest: false
         generate_release_notes: false
-        body_path: docs/RELEASE-4.9.2.md
+        body_path: docs/RELEASE-4.9.3.md
         files: artifacts/*
     - name: Verify every uploaded package before publishing the stable release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
-        gh release download v4.9.2 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        gh release download v4.9.3 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
         python - <<'PYVERIFY'
         import json, pathlib, re
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
-        expected = {'DicodePing-4.9.2-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        expected = {'DicodePing-4.9.3-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
         assert len(expected) == 14 and len(assets) == 23 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
@@ -419,10 +468,57 @@ jobs:
 'on':
   push:
     tags:
-    - v4.9.2
+    - v4.9.3
   workflow_dispatch:
     inputs:
-      publish:
-        description: Publish 4.9.2 after every build and native check succeeds
+      install:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v4
+      - name: Download published upgrade baselines
+        run: |
+          mkdir -p install-check
+          for version in 4.9.2; do
+            curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-${{ matrix.apkAbi }}.apk" --output "install-check/$version.apk"
+          done
+      - name: Enable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test actual release installation, retained data and startup
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --version 4.9.3 --code 45930000 --baselines 4.9.2 --candidate dist-android/DicodePing-4.9.3-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.3-${{ matrix.alternate }}.apk
+      - name: Preserve installation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-installation-${{ matrix.api }}-${{ matrix.apkAbi }}
+          path: |
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
+  publish:
+        description: Publish 4.9.3 after every build and native check succeeds
         type: boolean
         default: false

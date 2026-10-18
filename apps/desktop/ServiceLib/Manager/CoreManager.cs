@@ -41,7 +41,7 @@ public class CoreManager
     {
         if (!IsRunning) return false;
         var session = SessionId;
-        var proxy = new WebProxy($"socks5://{Global.Loopback}:{ActiveLocalPort}");
+        var proxy = ConnectionHandler.CreateActiveProxy();
         var delay = await ConnectionHandler.GetRealPingTime(proxy, token);
         if (!IsRunning || session != SessionId) return false;
         _trafficVerified = delay > 0;

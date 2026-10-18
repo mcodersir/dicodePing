@@ -82,10 +82,14 @@ public static class ConnectionHandler
 
     public static async Task<(int Delay, IpInfoResult? Location)> RunAvailabilityCheckDetailed()
     {
-        var time = await GetRealPingTimeInfo();
-        var webProxy = time > 0 ? await GetWebProxy() : null;
-        var location = time > 0 ? await GetIPInfo(webProxy) : null;
-        return (time, location);
+        if (!CoreManager.Instance.IsRunning) return (-1, null);
+        var session = CoreManager.Instance.SessionId;
+        var webProxy = await GetWebProxy();
+        var ping = GetRealPingTime(webProxy);
+        var location = GetIPInfo(webProxy);
+        await Task.WhenAll(ping, location);
+        return session == CoreManager.Instance.SessionId && CoreManager.Instance.IsRunning
+            ? (await ping, await location) : (-1, null);
     }
 
     /// <summary>
@@ -132,8 +136,17 @@ public static class ConnectionHandler
     /// </summary>
     private static async Task<WebProxy?> GetWebProxy()
     {
+        return CreateActiveProxy();
+    }
+
+    public static WebProxy CreateActiveProxy()
+    {
         var port = AppManager.Instance.GetLocalPort(EInboundProtocol.socks);
-        return new WebProxy($"socks5://{Global.Loopback}:{port}");
+        var proxy = new WebProxy($"socks5://{Global.Loopback}:{port}");
+        var inbound = AppManager.Instance.Config.Inbound.FirstOrDefault(x => x.Protocol == nameof(EInboundProtocol.socks));
+        if (!string.IsNullOrEmpty(inbound?.User) && !string.IsNullOrEmpty(inbound.Pass))
+            proxy.Credentials = new NetworkCredential(inbound.User, inbound.Pass);
+        return proxy;
     }
 
     /// <summary>
@@ -141,8 +154,9 @@ public static class ConnectionHandler
     /// </summary>
     public static async Task<int> GetRealPingTime(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
-        return await ProxyHealthProbe.MeasureAsync(AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl,
-            webProxy, Global.LocalFetch, cancellationToken);
+        return await ProxyHealthProbe.MeasureAnyAsync(new[] { AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl,
+            "https://cp.cloudflare.com/generate_204", "https://www.gstatic.com/generate_204",
+            "https://www.apple.com/library/test/success.html" }, webProxy, TimeSpan.FromSeconds(12), cancellationToken);
     }
 
     /// <summary>
@@ -150,42 +164,49 @@ public static class ConnectionHandler
     /// </summary>
     public static async Task<IpInfoResult?> GetIPInfo(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var downloadHandle = new DownloadService();
-            var preferredUrl = AppManager.Instance.Config.SpeedTestItem.IPAPIUrl;
-            // Some IP APIs are intermittently blocked. Try the configured API
-            // first, then the product's supported fallbacks through the same
-            // temporary proxy; this is especially important for the beta
-            // location action and never touches the saved ping value.
-            var urls = Global.IPAPIUrls
-                .Prepend(preferredUrl)
-                .Where(url => url.IsNotEmpty())
-                .Distinct();
-            foreach (var url in urls)
-            {
-                var result = await downloadHandle.TryDownloadString(url, webProxy, "", cancellationToken);
-                var ipInfo = result.IsNotEmpty() ? JsonUtils.Deserialize<IPAPIInfo>(result) : null;
-                if (ipInfo == null)
-                {
-                    continue;
-                }
-                var ip = ipInfo.ip ?? ipInfo.clientIp ?? ipInfo.ip_addr ?? ipInfo.query;
-                var country = ipInfo.country_code ?? ipInfo.country ?? ipInfo.countryCode ?? ipInfo.location?.country_code;
-                if (country.IsNotEmpty())
-                {
-                    return new IpInfoResult(country, ip);
-                }
+        if (webProxy is null) return null;
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        stop.CancelAfter(TimeSpan.FromSeconds(12));
+        var urls = Global.IPAPIUrls.Prepend(AppManager.Instance.Config.SpeedTestItem.IPAPIUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url)).Distinct();
+        var tasks = urls.Select(async url => {
+            try {
+                using var handler = new SocketsHttpHandler { Proxy = webProxy, UseProxy = true, AllowAutoRedirect = false };
+                var policy = CertPemManager.Instance.BuildCertificateChainPolicy();
+                if (policy is not null) handler.SslOptions.CertificateChainPolicy = policy;
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8), MaxResponseContentBufferSize = 65536 };
+                var text = await client.GetStringAsync(url, stop.Token);
+                return ParseIPInfo(text);
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch { return null; }
+        }).ToList();
+        try {
+            while (tasks.Count > 0) {
+                var completed = await Task.WhenAny(tasks); tasks.Remove(completed);
+                var result = await completed;
+                if (result is not null) { stop.Cancel(); return result; }
             }
+            cancellationToken.ThrowIfCancellationRequested();
             return null;
+        } finally {
+            stop.Cancel();
+            try { await Task.WhenAll(tasks); } catch (OperationCanceledException) { }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch
-        {
-            return null;
-        }
+    }
+
+    public static IpInfoResult? ParseIPInfo(string text)
+    {
+        try {
+            var info = JsonUtils.Deserialize<IPAPIInfo>(text);
+            if (info is null) return null;
+            var ip = new[] { info.ip, info.clientIp, info.ip_addr, info.query }.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+            if (!IPAddress.TryParse(ip, out var address) || IPAddress.IsLoopback(address)
+                || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any)
+                || (address.AddressFamily == AddressFamily.InterNetwork && address.GetAddressBytes()[0] is 10 or 127)
+                || ip!.StartsWith("198.18.") || ip.StartsWith("198.19.")) return null;
+            var country = new[] { info.country_code, info.countryCode, info.location?.country_code, info.country }
+                .FirstOrDefault(x => x?.Length == 2 && x.All(char.IsAsciiLetter));
+            return country is null ? null : new IpInfoResult(country.ToUpperInvariant(), ip);
+        } catch { return null; }
     }
 }

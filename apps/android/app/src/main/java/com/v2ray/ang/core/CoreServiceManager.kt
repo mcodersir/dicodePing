@@ -40,6 +40,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import libv2ray.CoreCallbackHandler
@@ -619,6 +620,7 @@ object CoreServiceManager {
                 return@launch
             }
 
+            val exitLookup = async(Dispatchers.IO) { SpeedtestManager.getRemoteIPInfo() }
             var time = -1L
             var errorStr = ""
 
@@ -628,21 +630,12 @@ object CoreServiceManager {
                 LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
                 errorStr = e.message?.substringAfter("\":").orEmpty()
             }
-            if (time == -1L) {
-                ensureActive()
-                try {
-                    time = coreController.measureDelay(SettingsManager.getDelayTestUrl(true))
-                } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to measure delay", e)
-                    errorStr = e.message?.substringAfter("\":").orEmpty()
-                }
-            }
 
             ensureActive()
-            val endpoint = if (time >= 0) SpeedtestManager.getRemoteIPInfo() else null
+            val endpoint = exitLookup.await()
             val result = ConnectionTestResult(
                 delayMillis = time,
-                errorMessage = errorStr,
+                errorMessage = if (time >= 0) "" else errorStr,
                 country = endpoint?.country,
                 ipAddress = endpoint?.ipAddress,
             )

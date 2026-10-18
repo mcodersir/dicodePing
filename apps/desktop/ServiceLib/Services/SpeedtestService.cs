@@ -574,18 +574,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
                 innerCt.ThrowIfCancellationRequested();
 
-                var delay = await DoRealPing(it, completedIds, innerCt, updateDelay);
-                if (blSpeedTest)
-                {
-                    if (delay > 0)
-                    {
-                        await DoSpeedTest(it, completedIds, innerCt);
-                    }
-                    else
-                    {
-                        await UpdateFunc(it.IndexId, "", ResUI.SpeedtestingSkip);
-                    }
-                }
+                await DoRealPing(it, completedIds, innerCt, updateDelay);
+                if (blSpeedTest) await DoSpeedTest(it, completedIds, innerCt);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -628,32 +618,9 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         ConcurrentDictionary<string, byte> completedIds, CancellationToken ct = default)
     {
         var proxy = new WebProxy($"socks5://{Global.Loopback}:{item.Port}");
-        using var handler = new HttpClientHandler { Proxy = proxy, UseProxy = true };
-        using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(_config.SpeedTestItem.SpeedTestTimeout, 3, 20)));
-        long bytes = 0;
-        var timer = new Stopwatch();
-        try
-        {
-            using var response = await client.GetAsync(_config.SpeedTestItem.SpeedTestUrl, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-            response.EnsureSuccessStatusCode();
-            await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
-            var buffer = new byte[64 * 1024];
-            timer.Start();
-            while (true)
-            {
-                var count = await stream.ReadAsync(buffer, timeout.Token);
-                if (count == 0) break;
-                bytes += count;
-            }
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { /* A timed sample is complete. */ }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex) { Logging.SaveLog(_tag, ex); }
-        finally { timer.Stop(); }
-        ct.ThrowIfCancellationRequested();
-        var speed = timer.Elapsed.TotalSeconds > 0 ? Math.Round((decimal)(bytes / timer.Elapsed.TotalSeconds / 1_000_000), 2) : 0;
+        var speed = await ProxyThroughputProbe.MeasureAsync(new[] { _config.SpeedTestItem.SpeedTestUrl,
+            "https://speed.cloudflare.com/__down?bytes=10000000" }, proxy,
+            TimeSpan.FromSeconds(Math.Clamp(_config.SpeedTestItem.SpeedTestTimeout, 3, 20)), ct);
         ProfileExManager.Instance.SetTestSpeed(item.IndexId, speed);
         await UpdateFunc(item.IndexId, "", speed > 0 ? speed.ToString("0.00") : ResUI.SpeedtestingSkip);
         completedIds.TryAdd(item.IndexId, 0);

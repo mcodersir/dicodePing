@@ -10,4 +10,4 @@ License: CC BY-SA 4.0, see LICENSE-CC-BY-SA-4.0.txt.
 License URL: https://creativecommons.org/licenses/by-sa/4.0/
 
 Files are distributed unmodified. Exact download URLs and SHA-256 checksums
-are recorded in scripts/runtime-pins-4.9.2.json in the DicodePing source.
+are recorded in scripts/runtime-pins-4.9.3.json in the DicodePing source.

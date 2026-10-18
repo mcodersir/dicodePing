@@ -1,3 +1,7 @@
+## 4.9.3
+
+Independent bounded latency and exit-location diagnostics, preserved successful samples, measured throughput with provider fallback, Android upload/download test and one-time Persian upgrade default. Signed APK installation and 4.9.2 upgrade gates. See docs/RELEASE-4.9.3.md.
+
 ## 4.9.2
 
 - Restore checksum-verified Android Geo databases required by the default routing rules; copy assets atomically.

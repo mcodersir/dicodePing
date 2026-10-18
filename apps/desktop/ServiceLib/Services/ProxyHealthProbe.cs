@@ -10,14 +10,17 @@ public static class ProxyHealthProbe
             || uri.Scheme is not ("http" or "https") || proxy.IsBypassed(uri)) return -1;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(timeout);
-        using var client = new HttpClient(new SocketsHttpHandler
+        var handler = new SocketsHttpHandler
         {
             Proxy = proxy, UseProxy = true, AllowAutoRedirect = false,
             ConnectTimeout = timeout,
-        }) { Timeout = timeout, MaxResponseContentBufferSize = 65536 };
+        };
+        var policy = CertPemManager.Instance.BuildCertificateChainPolicy();
+        if (policy is not null) handler.SslOptions.CertificateChainPolicy = policy;
+        using var client = new HttpClient(handler) { Timeout = timeout, MaxResponseContentBufferSize = 65536 };
+        var best = int.MaxValue;
         try
         {
-            var best = int.MaxValue;
             for (var i = 0; i < 2; i++)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, uri);
@@ -25,13 +28,40 @@ public static class ProxyHealthProbe
                 var timer = Stopwatch.StartNew();
                 using var response = await client.SendAsync(request, deadline.Token).ConfigureAwait(false);
                 var body = await response.Content.ReadAsStringAsync(deadline.Token).ConfigureAwait(false);
-                if (!IsExpectedResponse(uri, (int)response.StatusCode, body)) return -1;
+                if (!IsExpectedResponse(uri, (int)response.StatusCode, body)) break;
                 best = Math.Min(best, Math.Max(1, (int)timer.Elapsed.TotalMilliseconds));
             }
-            return best;
+            return best == int.MaxValue ? -1 : best;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch { return -1; }
+        catch { return best == int.MaxValue ? -1 : best; }
+    }
+
+    // Independent providers share one deadline. Every request uses the same explicit proxy.
+    public static async Task<int> MeasureAnyAsync(IEnumerable<string> urls, IWebProxy? proxy, TimeSpan timeout, CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        stop.CancelAfter(timeout);
+        var pending = urls.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Select(async url =>
+        {
+            try { return await MeasureAsync(url, proxy, timeout, stop.Token); }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested) { return -1; }
+        }).ToList();
+        try {
+            while (pending.Count > 0) {
+                var completed = await Task.WhenAny(pending);
+                pending.Remove(completed);
+                var result = await completed;
+                if (result > 0) { stop.Cancel(); return result; }
+            }
+            token.ThrowIfCancellationRequested();
+            return -1;
+        } finally {
+            stop.Cancel();
+            // Observe and dispose every losing request before its test core is stopped.
+            try { await Task.WhenAll(pending); } catch (OperationCanceledException) { }
+        }
     }
 
     public static bool IsExpectedResponse(Uri uri, int status, string body)

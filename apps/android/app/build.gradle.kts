@@ -15,9 +15,9 @@ android {
         // Target the latest STABLE Android (16, API 36). Targeting a preview
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
-        // Android package revision 2; the user-facing release remains 4.9.2.
-        versionCode = 409201
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.2"
+        // Monotonic shared version code permits switching architecture without a downgrade.
+        versionCode = 409300
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.3"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {

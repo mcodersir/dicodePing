@@ -266,7 +266,8 @@ fun MainScreen(
                     pingText = displayText,
                     locationText = "",
                     trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  ↓ ${uiState.trafficDownlink.toTrafficString()}",
-                    onClick = { dispatchAction(MainAction.TestCurrentServer) }
+                    onClick = { dispatchAction(MainAction.TestCurrentServer) },
+                    onSpeedTest = if (isRunning && !uiState.isTesting) ({ dispatchAction(MainAction.TestSpeed) }) else null
                 )
             },
             floatingActionButton = {

@@ -878,4 +878,6 @@
     <string name="fox_recommended">Recommended · Mozilla anycast route</string>
     <string name="fox_subscription_usage">Used: %1$.2f GB · Remaining: %2$.2f GB</string>
     <string name="dicode_traffic_verification_failed">The core started, but traffic verification failed. Check the test URL and routing settings.</string>
+    <string name="connection_speed_test">Test download and upload</string>
+    <string name="connection_speed_result">Download: %1$s Mbps · Upload: %2$s Mbps</string>
 </resources>

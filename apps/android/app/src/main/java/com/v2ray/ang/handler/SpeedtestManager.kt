@@ -54,61 +54,49 @@ object SpeedtestManager {
         return -1
     }
 
-    fun getRemoteIPInfo(): RemoteEndpointInfo? {
-        val url = MmkvManager.decodeSettingsString(AppConfig.PREF_IP_API_URL)
-            .takeIf { !it.isNullOrBlank() } ?: AppConfig.IP_API_URL
+    fun getRemoteIPInfo(): RemoteEndpointInfo? = getProxyLocationInfo(SettingsManager.getSocksPort(), true)
 
-        val proxyUsername = SettingsManager.getSocksUsername()
-        val proxyPassword = SettingsManager.getSocksPassword()
-        val httpPort = SettingsManager.getHttpPort()
-        if (httpPort == 0) return null
-        val content = HttpUtil.getUrlContent(
-            UrlContentRequest(
-                url = url,
-                timeout = 5000,
-                httpPort = httpPort,
-                proxyUsername = proxyUsername,
-                proxyPassword = proxyPassword
-            )
-        ) ?: return null
-        val ipInfo = JsonUtil.fromJsonSafe(content, IPAPIInfo::class.java) ?: return null
-
-        val ip = listOf(
-            ipInfo.ip,
-            ipInfo.clientIp,
-            ipInfo.ip_addr,
-            ipInfo.query
-        ).firstOrNull { !it.isNullOrBlank() }
-
-        val country = listOf(
-            ipInfo.country_code,
-            ipInfo.country,
-            ipInfo.countryCode,
-            ipInfo.location?.country_code
-        ).firstOrNull { !it.isNullOrBlank() }
-
-        return RemoteEndpointInfo(
-            country = country,
-            ipAddress = ip,
-        )
+    /** Exit lookup is independent of latency. No request can fall back to a direct connection. */
+    fun getProxyLocationInfo(port: Int, active: Boolean = false): RemoteEndpointInfo? {
+        if (port !in 1..65535) return null
+        val preferred = MmkvManager.decodeSettingsString(AppConfig.PREF_IP_API_URL).takeIf { !it.isNullOrBlank() }
+        val urls = listOfNotNull(preferred, AppConfig.IP_API_URL, "https://speed.cloudflare.com/meta", "https://api.ipapi.is").distinct()
+        val username = if (active) SettingsManager.getSocksUsername() else null
+        val password = if (active) SettingsManager.getSocksPassword() else null
+        val authenticated = !username.isNullOrBlank() && !password.isNullOrBlank()
+        val client = okhttp3.OkHttpClient.Builder()
+            .proxy(java.net.Proxy(if (authenticated) java.net.Proxy.Type.HTTP else java.net.Proxy.Type.SOCKS,
+                InetSocketAddress("127.0.0.1", if (authenticated) SettingsManager.getHttpPort() else port)))
+            .proxyAuthenticator { _, response ->
+                if (!authenticated || response.request.header("Proxy-Authorization") != null) null
+                else response.request.newBuilder().header("Proxy-Authorization", okhttp3.Credentials.basic(username!!, password!!)).build()
+            }
+            .followRedirects(false).followSslRedirects(false)
+            .callTimeout(3, java.util.concurrent.TimeUnit.SECONDS).build()
+        try {
+            for (url in urls) {
+                try {
+                    val result = client.newCall(okhttp3.Request.Builder().url(url).build()).execute().use { response ->
+                        if (!response.isSuccessful) null else parseExitInfo(response.peekBody(65536).string())
+                    }
+                    if (result != null) return result
+                } catch (_: Exception) { /* Another provider can still describe this exit. */ }
+            }
+            return null
+        } finally { client.dispatcher.cancelAll(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
     }
 
-    /** Queries the proxy exit itself, never the server hostname or the direct connection. */
-    fun getProxyLocationInfo(port: Int): RemoteEndpointInfo? {
-        if (port !in 1..65535) return null
-        val url = MmkvManager.decodeSettingsString(AppConfig.PREF_IP_API_URL).takeIf { !it.isNullOrBlank() } ?: AppConfig.IP_API_URL
-        val client = okhttp3.OkHttpClient.Builder()
-            .proxy(java.net.Proxy(java.net.Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", port)))
-            .callTimeout(8, java.util.concurrent.TimeUnit.SECONDS).build()
-        try {
-            return client.newCall(okhttp3.Request.Builder().url(url).build()).execute().use { response ->
-                if (!response.isSuccessful) return@use null
-                val info = JsonUtil.fromJsonSafe(response.body.string(), com.v2ray.ang.dto.IPAPIInfo::class.java) ?: return@use null
-                val ip = listOf(info.ip, info.clientIp, info.ip_addr, info.query).firstOrNull { !it.isNullOrBlank() } ?: return@use null
-                val country = listOf(info.country_code, info.countryCode, info.location?.country_code, info.country).firstOrNull { !it.isNullOrBlank() }
-                RemoteEndpointInfo(country, ip)
-            }
-        } finally { client.dispatcher.cancelAll(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
+    internal fun parseExitInfo(content: String): RemoteEndpointInfo? {
+        val info = JsonUtil.fromJsonSafe(content, IPAPIInfo::class.java) ?: return null
+        val ip = listOf(info.ip, info.clientIp, info.ip_addr, info.query).firstOrNull { !it.isNullOrBlank() } ?: return null
+        // Only numeric public exit addresses, never a hostname or the TUN fake-DNS range.
+        if (!ip.matches(Regex("[0-9a-fA-F:.]+"))) return null
+        val address = runCatching { InetAddress.getByName(ip) }.getOrNull() ?: return null
+        if (address.isAnyLocalAddress || address.isLoopbackAddress || address.isSiteLocalAddress || address.isLinkLocalAddress ||
+            ip.startsWith("198.18.") || ip.startsWith("198.19.")) return null
+        val country = listOf(info.country_code, info.countryCode, info.location?.country_code, info.country)
+            .firstOrNull { it?.matches(Regex("[a-zA-Z]{2}")) == true } ?: return null
+        return RemoteEndpointInfo(country.uppercase(java.util.Locale.ROOT), ip)
     }
 
     /**

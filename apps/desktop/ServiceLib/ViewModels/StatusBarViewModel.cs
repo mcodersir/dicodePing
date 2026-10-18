@@ -362,7 +362,9 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         await TestServerAvailabilitySub(ResUI.Speedtesting);
 
+        var session = CoreManager.Instance.SessionId;
         var result = await Task.Run(ConnectionHandler.RunAvailabilityCheckDetailed);
+        if (!CoreManager.Instance.IsRunning || session != CoreManager.Instance.SessionId) return null;
         var country = result.Location?.Country;
         PingDisplay = result.Delay > 0 ? $"{ResUI.DicodePingLabel}: {result.Delay} ms" : ResUI.DicodePingFailed;
         LocationCountry = country.IsNotEmpty() ? country : string.Empty;

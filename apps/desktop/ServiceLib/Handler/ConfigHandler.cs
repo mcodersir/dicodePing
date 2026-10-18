@@ -119,10 +119,7 @@ public static class ConfigHandler
         config.UiItem.MainColumnItem ??= [];
         config.UiItem.WindowSizeItem ??= [];
 
-        if (config.UiItem.CurrentLanguage.IsNullOrEmpty())
-        {
-            config.UiItem.CurrentLanguage = "en";
-        }
+        ApplyPersianDefault(config.UiItem);
         if (!hasSavedColumns)
         {
             config.UiItem.EnableAutoAdjustMainLvColWidth = true;
@@ -3260,4 +3257,11 @@ public static class ConfigHandler
     }
 
     #endregion UIItem
+    public static void ApplyPersianDefault(UIItem ui)
+    {
+        if (ui.PersianDefaultRevision >= 493) return;
+        ui.CurrentLanguage = "fa";
+        ui.PersianDefaultRevision = 493;
+    }
+
 }

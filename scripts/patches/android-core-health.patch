@@ -1,18 +1,18 @@
-diff --git a/libv2ray_utils.go b/libv2ray_utils.go
-index fcc9e85..e186b87 100644
 --- a/libv2ray_utils.go
 +++ b/libv2ray_utils.go
-@@ -7,6 +7,7 @@ import (
- 	"io"
- 	"net"
+@@ -9,4 +9,6 @@
  	"net/http"
 +	"net/url"
  	"strconv"
  	"strings"
++	"sync"
  	"time"
-@@ -138,8 +139,9 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
- 	}
- 
+@@ -114,3 +116,3 @@
+ // outboundTag, or as the instance routes it when outboundTag is empty
+-func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag string, url string) (int64, error) {
++func measureInstDelayOnce(ctx context.Context, inst *core.Instance, outboundTag string, url string) (int64, error) {
+ 	if inst == nil {
+@@ -140,4 +142,5 @@
  	client := &http.Client{
 -		Transport: tr,
 -		Timeout:   12 * time.Second,
@@ -20,11 +20,7 @@ index fcc9e85..e186b87 100644
 +		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 +		Timeout:       12 * time.Second,
  	}
- 
- 	var minDuration int64 = -1
-@@ -172,10 +174,10 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
- 			continue
- 		}
+@@ -174,6 +177,6 @@
  
 -		_, err = io.Copy(io.Discard, resp.Body)
 +		body, err := io.ReadAll(io.LimitReader(resp.Body, 65537))
@@ -33,20 +29,12 @@ index fcc9e85..e186b87 100644
 -		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 +		if !validProbeResponse(url, resp.StatusCode, body) {
  			lastErr = fmt.Errorf("invalid status: %s", resp.Status)
- 			continue
- 		}
-@@ -185,7 +187,7 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
- 			continue
- 		}
+@@ -187,3 +190,3 @@
  
 -		duration := time.Since(start).Milliseconds()
 +		duration := max(int64(1), time.Since(start).Milliseconds())
  		if !success || duration < minDuration {
- 			minDuration = duration
- 		}
-@@ -197,3 +199,24 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
- 	}
- 	return minDuration, nil
+@@ -199 +202,69 @@
  }
 +
 +// A portal, proxy error or redirect is never a successful generate_204 probe.
@@ -68,4 +56,51 @@ index fcc9e85..e186b87 100644
 +		return status == 200 && strings.Contains(strings.ToLower(string(body)), "<title>success</title>")
 +	}
 +	return true
++}
++
++// One failed diagnostic provider cannot mark a working route dead. Keep custom
++// probes exact; use independently hosted known responses for built-in 204 URLs.
++func probeTargets(address string) []string {
++	switch address {
++	case "", "https://www.google.com/generate_204", "https://www.gstatic.com/generate_204", "https://www.youtube.com/generate_204", "https://www.googlevideo.com/generate_204":
++		return []string{address, "https://cp.cloudflare.com/generate_204", "https://www.apple.com/library/test/success.html"}
++	default:
++		return []string{address}
++	}
++}
++
++func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag string, address string) (int64, error) {
++	targets := probeTargets(address)
++	if len(targets) == 1 {
++		return measureInstDelayOnce(ctx, inst, outboundTag, address)
++	}
++	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
++	var workers sync.WaitGroup
++	defer func() { cancel(); workers.Wait() }()
++	type sample struct {
++		delay int64
++		err   error
++	}
++	results := make(chan sample, len(targets))
++	for _, target := range targets {
++		workers.Add(1)
++		go func(target string) {
++			defer workers.Done()
++			delay, err := measureInstDelayOnce(ctx, inst, outboundTag, target)
++			results <- sample{delay, err}
++		}(target)
++	}
++	var lastErr error
++	for range targets {
++		select {
++		case result := <-results:
++			if result.err == nil && result.delay > 0 {
++				return result.delay, nil
++			}
++			lastErr = result.err
++		case <-ctx.Done():
++			return -1, ctx.Err()
++		}
++	}
++	return -1, lastErr
 +}

@@ -11,6 +11,7 @@ sealed interface MainStatus {
 
     /** Running, but the profile is still bringing its tunnel up; the daemon supplies the text. */
     data class Connecting(val message: String) : MainStatus
+    data class SpeedResult(val downloadMbps: Double?, val uploadMbps: Double?) : MainStatus
     data object Testing : MainStatus
     data class TestProgress(val progress: String) : MainStatus
     data class ConnectionTest(val result: ConnectionTestResult) : MainStatus
@@ -53,6 +54,7 @@ sealed interface MainAction {
     data object RefreshGroups : MainAction
     data object ToggleService : MainAction
     data class ConnectServer(val guid: String) : MainAction
+    data object TestSpeed : MainAction
     data object TestCurrentServer : MainAction
     data object TestAllServers : MainAction
     data object TestRealAllServers : MainAction

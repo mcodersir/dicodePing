@@ -342,7 +342,7 @@ public class CertPemManager
 
     public X509ChainPolicy? BuildCertificateChainPolicy()
     {
-        if (IsSystemRootCertProvider())
+        if (_config is null || IsSystemRootCertProvider())
         {
             return null;
         }

@@ -141,6 +141,7 @@ class MainViewModel(
 
     private val testRequests = MainTestRequests()
     private var bulkTestJob: Job? = null
+    private var speedTestJob: Job? = null
     private var startupLocationGroup: String? = null
     private var startupJob: Job? = null
     private var startupStarted = false
@@ -283,6 +284,9 @@ class MainViewModel(
         MainStatus.Disconnected -> dataSource.getString(R.string.connection_not_connected)
         MainStatus.Connected -> dataSource.getString(R.string.connection_connected)
         is MainStatus.Connecting -> status.message
+        is MainStatus.SpeedResult -> dataSource.getString(R.string.connection_speed_result,
+            status.downloadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—",
+            status.uploadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—")
         MainStatus.Testing -> dataSource.getString(R.string.connection_test_testing)
         is MainStatus.TestProgress -> dataSource.getString(
             R.string.connection_running_task_left,
@@ -303,7 +307,7 @@ class MainViewModel(
             dataSource.getString(R.string.connection_test_error, detail)
         }
 
-        if (result.delayMillis < 0 || (result.country == null && result.ipAddress == null)) {
+        if (result.country == null && result.ipAddress == null) {
             return status
         }
 
@@ -346,6 +350,7 @@ class MainViewModel(
             MainAction.DiscoverFinalMask -> discoverFinalMask()
             MainAction.TestAllSecurity -> testAllSecurity()
             MainAction.TestAllSanctions -> testAllSanctions()
+            MainAction.TestSpeed -> testConnectionSpeed()
             MainAction.CancelTesting -> cancelAllPing()
             MainAction.RemoveAllServers -> removeAllServerAsync()
             MainAction.RemoveDuplicateServers -> removeDuplicateServerAsync()
@@ -1094,7 +1099,24 @@ class MainViewModel(
         }
 
     // ---------- Testing ----------
+    private fun testConnectionSpeed() {
+        if (!uiState.value.isRunning || speedTestJob?.isActive == true) return
+        cancelAllPing()
+        val guid = uiState.value.selectedGuid
+        _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
+        speedTestJob = viewModelScope.launch {
+            try {
+                val result = com.v2ray.ang.core.ProxyThroughputProbe.measure(if (!com.v2ray.ang.handler.SettingsManager.getSocksUsername().isNullOrBlank()) com.v2ray.ang.handler.SettingsManager.getHttpPort() else com.v2ray.ang.handler.SettingsManager.getSocksPort(),
+                    com.v2ray.ang.handler.SettingsManager.getSocksUsername(), com.v2ray.ang.handler.SettingsManager.getSocksPassword())
+                if (uiState.value.isRunning && uiState.value.selectedGuid == guid)
+                    _uiState.update { it.copy(isTesting = false, status = MainStatus.SpeedResult(result.downloadMbps, result.uploadMbps)) }
+            } finally { _uiState.update { it.copy(isTesting = testRequests.isTesting) } }
+        }
+    }
+
     fun cancelAllPing() {
+        speedTestJob?.cancel()
+        speedTestJob = null
         bulkTestJob?.cancel()
         bulkTestJob = null
         testRequests.cancelBulk()
@@ -1173,6 +1195,8 @@ class MainViewModel(
 
     fun testCurrentServerRealPing() {
         if (!uiState.value.isRunning) return
+        speedTestJob?.cancel()
+        speedTestJob = null
         val requestId = testRequests.beginCurrent()
         _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
         dataSource.testCurrentServerRealPing(requestId)
@@ -1252,6 +1276,7 @@ class MainViewModel(
 
     // ---------- Running state ----------
     private fun updateRunningState(running: Boolean, clearTestingText: Boolean = true) {
+        if (!running) { speedTestJob?.cancel(); speedTestJob = null }
         if (!running || clearTestingText) testRequests.invalidateCurrent()
         _uiState.update { state ->
             state.copy(

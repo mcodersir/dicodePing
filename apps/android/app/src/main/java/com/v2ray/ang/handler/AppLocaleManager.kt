@@ -21,6 +21,16 @@ object AppLocaleManager {
      * Migrates the existing MMKV language preference and restores it before the first activity.
      */
     fun initialize(context: Context) {
+        // Apply once on the 4.9.3 upgrade; subsequent explicit choices stay intact.
+        if (!MmkvManager.decodeSettingsBool("dicode_persian_default_493", false)) {
+            persistLegacyPreference(Language.PERSIAN)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.getSystemService(LocaleManager::class.java).applicationLocales =
+                    android.os.LocaleList(requireNotNull(Language.PERSIAN.locale))
+            }
+            AppCompatDelegate.setApplicationLocales(Language.PERSIAN.toLocaleList())
+            MmkvManager.encodeSettings("dicode_persian_default_493", true)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Api33.prepareMigration(context)
         } else {
