@@ -37,6 +37,15 @@ public static class ProxyHealthProbe
         catch { return best == int.MaxValue ? -1 : best; }
     }
 
+    public static IReadOnlyList<string> TargetsFor(string preferred)
+    {
+        // A user-supplied endpoint is an exact diagnostic, not permission to test other sites.
+        if (!string.IsNullOrWhiteSpace(preferred) && !Global.SpeedPingTestUrls.Contains(preferred, StringComparer.OrdinalIgnoreCase))
+            return [preferred];
+        return [preferred, "https://cp.cloudflare.com/generate_204", "https://www.gstatic.com/generate_204",
+            "https://www.apple.com/library/test/success.html"];
+    }
+
     // Independent providers share one deadline. Every request uses the same explicit proxy.
     public static async Task<int> MeasureAnyAsync(IEnumerable<string> urls, IWebProxy? proxy, TimeSpan timeout, CancellationToken token = default)
     {

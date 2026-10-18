@@ -154,9 +154,7 @@ public static class ConnectionHandler
     /// </summary>
     public static async Task<int> GetRealPingTime(IWebProxy? webProxy, CancellationToken cancellationToken = default)
     {
-        return await ProxyHealthProbe.MeasureAnyAsync(new[] { AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl,
-            "https://cp.cloudflare.com/generate_204", "https://www.gstatic.com/generate_204",
-            "https://www.apple.com/library/test/success.html" }, webProxy, TimeSpan.FromSeconds(12), cancellationToken);
+        return await ProxyHealthProbe.MeasureAnyAsync(ProxyHealthProbe.TargetsFor(AppManager.Instance.Config.SpeedTestItem.SpeedPingTestUrl), webProxy, TimeSpan.FromSeconds(12), cancellationToken);
     }
 
     /// <summary>

@@ -5,6 +5,13 @@ namespace ServiceLib.Tests;
 public class Release493Tests
 {
     [Fact]
+    public void CustomDiagnosticStaysExactWhileBuiltInProvidersHaveFallbacks()
+    {
+        Assert.Equal(new[] { "http://127.0.0.1:9/generate_204" }, ProxyHealthProbe.TargetsFor("http://127.0.0.1:9/generate_204"));
+        Assert.Contains("https://cp.cloudflare.com/generate_204", ProxyHealthProbe.TargetsFor("https://www.google.com/generate_204"));
+    }
+
+    [Fact]
     public void UpgradeDefaultsToPersianOnceAndPreservesTheNextUserChoice()
     {
         var ui = new UIItem { CurrentLanguage = "en" };
