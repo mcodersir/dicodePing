@@ -53,10 +53,35 @@ class ThroughputProbeTest {
                     else { assertTrue(result.downloadMbps!! > 0); assertTrue(result.uploadMbps!! > 0) }
                 }
                 loop.join(3000)
-                assertEquals(1_000_000L, received.get())
+                assertEquals(65536L, received.get())
             }
         }
     }
+    @Test fun slowValidatedDownloadProducesATimedSample() {
+        ServerSocket(0, 50, InetAddress.getLoopbackAddress()).use { server ->
+            val loop = thread(isDaemon = true) {
+                server.accept().use { socket ->
+                    val reader = socket.getInputStream().bufferedReader()
+                    while (reader.readLine()?.isNotEmpty() == true) Unit
+                    socket.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: 131072\r\n\r\n" + "a".repeat(65536)).toByteArray())
+                    socket.getOutputStream().flush()
+                    Thread.sleep(1000)
+                }
+            }
+            SocksStub().use { socks ->
+                val client = okhttp3.OkHttpClient.Builder()
+                    .proxy(java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress("127.0.0.1", socks.port)))
+                    .callTimeout(500, java.util.concurrent.TimeUnit.MILLISECONDS).build()
+                try {
+                    val result = ProxyThroughputProbe.sample(client, AetherDelayTester.ProbeCalls(), "http://127.0.0.1:${server.localPort}/", null)
+                    assertNotNull(result)
+                    assertTrue(result!! > 0)
+                } finally { client.connectionPool.evictAll(); client.dispatcher.executorService.shutdown() }
+            }
+            loop.join(2000)
+        }
+    }
+
     private class SocksStub : AutoCloseable {
         private val server = ServerSocket(0, 50, InetAddress.getLoopbackAddress())
         val port: Int get() = server.localPort

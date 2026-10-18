@@ -29,7 +29,7 @@ internal object ProxyThroughputProbe {
                 .callTimeout(10, TimeUnit.SECONDS).build()
             try {
                 val download = sample(client, calls, downloadUrl, null)
-                val payload = ByteArray(1_000_000).also { java.security.SecureRandom().nextBytes(it) }
+                val payload = ByteArray(65536).also { java.security.SecureRandom().nextBytes(it) }
                 val upload = sample(client, calls, uploadUrl, payload)
                 Result(download, upload)
             } finally {
@@ -40,23 +40,30 @@ internal object ProxyThroughputProbe {
         try { work.await() } catch (e: CancellationException) { calls.cancel(); throw e }
     }
 
-    private fun sample(client: OkHttpClient, calls: AetherDelayTester.ProbeCalls, url: String, payload: ByteArray?): Double? {
+    internal fun sample(client: OkHttpClient, calls: AetherDelayTester.ProbeCalls, url: String, payload: ByteArray?): Double? {
         val request = Request.Builder().url(url).header("Cache-Control", "no-cache, no-store")
             .header("Accept-Encoding", "identity").apply {
                 if (payload != null) post(payload.toRequestBody("application/octet-stream".toMediaType()))
             }.build()
+        val started = System.nanoTime()
+        var bytes = 0L
+        var validated = false
+        fun rate(count: Long): Double? = if (count < 65536) null else count * 8_000.0 / (System.nanoTime() - started).coerceAtLeast(1)
         return try {
-            val started = System.nanoTime()
             calls.start(client.newCall(request)).execute().use { response ->
-                if (!response.isSuccessful || response.header("Content-Type").orEmpty().contains("text/html")) return null
-                var bytes = 0L
+                val type = response.header("Content-Type").orEmpty()
+                if (!response.isSuccessful || type.contains("text/html") || (payload == null && type.contains("application/json"))) return null
+                validated = true
                 response.body.byteStream().use { stream ->
                     val buffer = ByteArray(65536)
                     while (true) { val size = stream.read(buffer); if (size < 0) break; bytes += size }
                 }
                 val transferred = payload?.size?.toLong() ?: bytes
-                if (transferred < 65536) null else transferred * 8_000.0 / (System.nanoTime() - started).coerceAtLeast(1)
+                rate(transferred)
             }
+        } catch (_: java.io.InterruptedIOException) {
+            // A slow but validated download is a timed sample, not a failed connection.
+            if (validated && payload == null) rate(bytes) else null
         } catch (_: java.io.IOException) { null }
     }
 }
