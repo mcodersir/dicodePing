@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.9.3"
+const version = "4.9.4"
 
 type State struct {
 	Email              string `json:"email"`
@@ -144,10 +144,7 @@ func main() {
 						return
 					case <-ticker.C:
 						refreshCtx, finish := context.WithTimeout(ctx, 15*time.Second)
-						p.mutex.Lock()
-						p.passExpiry = 0
-						_, _ = p.proxyPassLocked(refreshCtx)
-						p.mutex.Unlock()
+						_ = p.refreshProxyPass(refreshCtx, true)
 						finish()
 					}
 				}

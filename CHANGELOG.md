@@ -1,3 +1,8 @@
+# 4.9.4
+
+- Fox: fix SOCKS admission stalls after 64 live connections, isolate background pass refresh from active connections, detect unresponsive HTTP/2 uplinks, bound CONNECT establishment without killing established streams, and distinguish request throttling from confirmed quota exhaustion.
+- Preserve Android signing identity and advance all APKs to versionCode 45940000.
+
 ## 4.9.3
 
 Independent bounded latency and exit-location diagnostics, preserved successful samples, measured throughput with provider fallback, Android upload/download test and one-time Persian upgrade default. Signed APK installation and 4.9.2 upgrade gates. See docs/RELEASE-4.9.3.md.

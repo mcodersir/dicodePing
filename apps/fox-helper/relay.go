@@ -30,7 +30,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		// FoxyVPN's REC endpoint is the provider anycast route, not the first country.
 		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
-	p.streams = &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: p.relayDialer().DialContext, DialTLSContext: p.dialEdgeTLS, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second}
+	p.streams = p.relayTransport()
 	reached := false
 	for _, candidate := range candidates {
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {
@@ -81,9 +81,7 @@ func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, 
 	return p.openTunnelAttempt(ctx, authority, true)
 }
 func (p *provider) openTunnelAttempt(ctx context.Context, authority string, refresh bool) (net.Conn, error) {
-	p.mutex.Lock()
-	pass, err := p.proxyPassLocked(ctx)
-	p.mutex.Unlock()
+	pass, err := p.proxyPass(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +121,7 @@ func (p *provider) openTunnelAttempt(ctx context.Context, authority string, refr
 		}
 		code, msg := "unreachable", "Firefox proxy rejected CONNECT"
 		if resp.StatusCode == 429 {
-			code = "quota_exceeded"
-			msg = "The provider rejected traffic because the account allowance is exhausted"
+			return nil, proxyLimitError(resp.Header)
 		}
 		if resp.StatusCode == 401 || resp.StatusCode == 407 {
 			code = "login_required"
@@ -209,7 +206,7 @@ func (p *provider) serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	fatal := make(chan error, 1)
-	slots := make(chan struct{}, 64)
+	slots := make(chan struct{}, 512)
 	var wg sync.WaitGroup
 	go func() { <-ctx.Done(); p.listener.Close() }()
 	for {
@@ -219,7 +216,9 @@ func (p *provider) serve(ctx context.Context) error {
 		}
 		select {
 		case slots <- struct{}{}:
-		case <-ctx.Done():
+		default:
+			// Never stop Accept behind long-lived streams: fail excess local
+			// connections promptly instead of a silent, unbounded listen queue.
 			conn.Close()
 			continue
 		}
@@ -340,12 +339,18 @@ func (p *provider) socks(ctx context.Context, c net.Conn) error {
 	}
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	upstream, err := p.openTunnel(streamCtx, authority)
+	// Bound only CONNECT establishment, not the lifetime of the stream.
+	// A socket deadline on the local client cannot cancel a hung upstream.
+	connectCtx, finishConnect := context.WithTimeout(streamCtx, 12*time.Second)
+	upstream, err := p.openDialTunnel(connectCtx, authority)
+	finishConnect()
 	if err != nil {
 		replySocks(c, 5, 0)
 		return err
 	}
 	defer upstream.Close()
+	stopLifetime := context.AfterFunc(streamCtx, func() { upstream.Close() })
+	defer stopLifetime()
 	if err = replySocks(c, 0, 0); err != nil {
 		return err
 	}

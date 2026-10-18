@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="dist", type=pathlib.Path)
     parser.add_argument("--edition", choices=["desktop", "cli"], default="desktop")
     args = parser.parse_args()
-    archive = args.output / ("DicodePing-4.9.3-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
+    archive = args.output / ("DicodePing-4.9.4-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
     package(args.root, archive, args.platform == "windows-x64", args.edition == "cli")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:

@@ -58,6 +58,7 @@ type provider struct {
 	authURL, guardianURL, settingsURL string
 	info                              AccountInfo
 	mutex                             sync.Mutex
+	passRefresh                       chan struct{}
 	pass                              string
 	passExpiry                        int64
 	selected                          Location
@@ -73,7 +74,7 @@ type provider struct {
 func newProvider(s State) *provider {
 	jar, _ := cookiejar.New(nil)
 	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSHandshakeTimeout: 15 * time.Second, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, ResponseHeaderTimeout: 30 * time.Second, IdleConnTimeout: 60 * time.Second}
-	return &provider{state: s, authURL: authBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
+	return &provider{passRefresh: make(chan struct{}, 1), state: s, authURL: authBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func (p *provider) installRoots(pem string) error {
 	if pem == "" {
@@ -188,8 +189,8 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 				code = "verification_required"
 				message = "Mozilla requires browser verification. Complete it in your Mozilla account and try again."
 			case 429:
-				code = "quota_exceeded"
-				message = "Account quota or request limit reached. Check the account allowance and reset date."
+				limited := proxyLimitError(resp.Header)
+				code, message = limited.Code, limited.Message
 			}
 			if errno == 103 {
 				code = "credentials"
@@ -444,4 +445,13 @@ func (p *provider) locations(ctx context.Context) ([]Location, error) {
 		return nil, &ProviderError{Code: "locations", Message: "Mozilla returned no compatible locations"}
 	}
 	return result, nil
+}
+
+// HTTP 429 also means temporary request throttling. Only an explicit zero
+// allowance identifies quota exhaustion and may terminate the whole session.
+func proxyLimitError(headers http.Header) *ProviderError {
+	if remaining, err := strconv.ParseInt(headers.Get("X-Quota-Remaining"), 10, 64); err == nil && remaining <= 0 {
+		return &ProviderError{Code: "quota_exceeded", Status: 429, Message: "The provider reports no remaining VPN allowance"}
+	}
+	return &ProviderError{Code: "rate_limited", Status: 429, Message: "The provider temporarily limited requests; try again shortly"}
 }
