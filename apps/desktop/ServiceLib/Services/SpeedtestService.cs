@@ -405,7 +405,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = selecteds.Count,
+                MaxDegreeOfParallelism = Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 1, 16),
                 CancellationToken = ct,
             };
 
@@ -497,7 +497,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = selecteds.Count,
+                MaxDegreeOfParallelism = Math.Clamp(_config.SpeedTestItem.MixedConcurrencyCount, 1, 16),
                 CancellationToken = ct,
             };
 
