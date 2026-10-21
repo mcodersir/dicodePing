@@ -3,8 +3,8 @@
   "enabled": true,
   "placements": {
     "home": true,
-    "profiles": false,
-    "fox": false
+    "profiles": true,
+    "fox": true
   },
   "ads": [
     {
