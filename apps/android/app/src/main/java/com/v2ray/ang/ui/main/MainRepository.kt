@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainRepository(
     private val app: AngApplication
 ) : MainDataSource {
+    override fun connectionRequestVersion() = com.v2ray.ang.core.LauncherManager.connectionRequestVersion()
+    override fun isConnectionRequestCurrent(version: String) = com.v2ray.ang.core.LauncherManager.isConnectionRequestCurrent(version)
 
     private val localizedContext: Context
         get() = AppLocaleManager.localizedContext(app)

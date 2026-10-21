@@ -14,7 +14,7 @@ Checked against release/tag APIs and Maven Central/Google Maven/NuGet metadata o
 | Java | 27 | Build JDK updated; Gradle 9.8 supports it. Android bytecode compatibility and minSdk 29 retained |
 | Kotlin / Gradle / AGP | 2.4.21 / 9.8.2 / 9.4.1 | Kotlin/Gradle updated; AGP already current stable |
 | Python | 3.15 | CI/release scripts use current stable Python; scripts use only standard library, no application Python package stack to update |
-| MMKV | 2.4.3 | Storage library update; installation/upgrade checks preserve app identity and saved data |
+| MMKV | 1.3.17 LTS | Latest compatible 32-bit/64-bit line; MMKV 2.4.3 removes 32-bit ABIs |
 | Avalonia | 12.1.4 | UI runtime patch update; DataGrid/Semi/Edit kept at their separately published compatible versions |
 | ReactiveUI / UI bridge / generator | 24.3.0 / 12.1.2 / 4.2.0 | Updated compatible set; generator now explicitly receives compile assets |
 | Downloader / QRCoder / NLog | 5.10.1 / 1.8.1 / 6.2.2 | Stable updates |
@@ -24,6 +24,8 @@ Checked against release/tag APIs and Maven Central/Google Maven/NuGet metadata o
 | Routing databases | Desktop 202610202206; Android 202610210934; CN/private 202610190920 | Explicit checksums, no unverified latest downloads |
 
 ## Compatibility exceptions
+
+- MMKV 2.4.3 drops armeabi-v7a/x86 native libraries. Retain the supported 1.3.17 LTS line for the universal and 32-bit APKs; all ABI native libraries are verified before release.
 
 - ReactiveUI 26.0.1 moves activation/view interfaces to a different assembly/API. The Avalonia 12 bridge 12.1.2 still targets the 24.x interface. The attempted 26.x build exposed missing `IViewFor`/`IActivatableView` references; 24.3.0 is retained as the updated compatible release. Numerically larger bridge 14.7.1 is an older Avalonia 11-era package, not a newer compatible bridge.
 - Avalonia 12.1.4 depends on SkiaSharp native ABI 3.119.4. SkiaSharp 4.x and ZXing Skia bindings 0.16.24 require ABI 4.x. Keep native assets 3.119.4 and bindings 0.16.22 together; do not mix managed/native Skia major versions.

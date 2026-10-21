@@ -22,6 +22,8 @@ for abi, suffix in abis.items():
             assert "assets/routing-data/" + notice in archive.namelist(), "Routing data attribution is missing"
         packaged = [a for a in abis if a != "universal"] if abi == "universal" else [abi]
         for architecture in packaged:
+            storage = archive.read(f"lib/{architecture}/libmmkv.so")
+            assert storage[:4] == b"\x7fELF" and storage[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Storage native library missing or architecture mismatch"
             native = archive.read(f"lib/{architecture}/libsingbox.so")
             assert native[:4] == b"\x7fELF" and native[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Native core architecture mismatch"
             fox = archive.read(f"lib/{architecture}/libdicodefox.so")

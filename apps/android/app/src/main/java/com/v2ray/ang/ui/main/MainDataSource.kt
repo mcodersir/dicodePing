@@ -18,6 +18,8 @@ interface MainDataSource : Closeable {
     fun getSelectServer(): String?
     fun setSelectServer(guid: String)
 
+    fun connectionRequestVersion(): String
+    fun isConnectionRequestCurrent(version: String): Boolean
     fun isDefaultAutoTestEnabled(): Boolean = true
 
     fun getConfirmRemove(): Boolean

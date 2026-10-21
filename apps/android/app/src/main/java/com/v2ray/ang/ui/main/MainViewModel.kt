@@ -400,7 +400,7 @@ class MainViewModel(
     fun initialize() {
         if (startupStarted) return
         startupStarted = true
-        startupRequestVersion = com.v2ray.ang.core.LauncherManager.connectionRequestVersion()
+        startupRequestVersion = dataSource.connectionRequestVersion()
         startupJob = viewModelScope.launch(preloadDispatcher) {
             try {
                 initialPageReady.await()
@@ -433,7 +433,7 @@ class MainViewModel(
                                 .filter { it.guid in batch && it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
                         }
                         if (best != null) {
-                            if (startupRequestVersion?.let { com.v2ray.ang.core.LauncherManager.isConnectionRequestCurrent(it) } == true) {
+                            if (startupRequestVersion?.let { dataSource.isConnectionRequestCurrent(it) } == true) {
                                 selectForConnection(best.guid)
                                 _uiState.update { it.copy(startupConnectGuid = best.guid) }
                             }
@@ -455,7 +455,7 @@ class MainViewModel(
         }
     }
 
-    fun consumeStartupConnection(): String? { val guid = _uiState.value.startupConnectGuid; _uiState.update { it.copy(startupConnectGuid = null) }; return guid?.takeIf { startupRequestVersion?.let(com.v2ray.ang.core.LauncherManager::isConnectionRequestCurrent) == true } }
+    fun consumeStartupConnection(): String? { val guid = _uiState.value.startupConnectGuid; _uiState.update { it.copy(startupConnectGuid = null) }; return guid?.takeIf { startupRequestVersion?.let(dataSource::isConnectionRequestCurrent) == true } }
 
     fun skipPreparation() {
         startupJob?.cancel()

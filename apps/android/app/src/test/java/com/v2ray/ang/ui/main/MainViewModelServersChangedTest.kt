@@ -47,6 +47,9 @@ class MainViewModelServersChangedTest {
      * stored, recorded in [moves], at once or, held by [hold], once [release] lets it, or refused, see [refusals].
      */
     private class FakeSource : MainDataSource {
+        var connectionVersion = "initial"
+        override fun connectionRequestVersion() = connectionVersion
+        override fun isConnectionRequestCurrent(version: String) = version == connectionVersion
         override fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) = Unit
         val events = Channel<MainServiceEvent>(Channel.UNLIMITED)
 
@@ -255,6 +258,22 @@ class MainViewModelServersChangedTest {
         assertEquals("primary-server", viewModel.uiState.value.startupConnectGuid)
         assertEquals(null, source.testMessages.tryReceive().getOrNull())
         assertEquals(42L, viewModel.serversForGroup(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID).value.single().testDelayMillis)
+        viewModel.skipPreparation()
+    }
+
+    @Test
+    fun disconnectWhilePreparingPreventsStartupAutoConnection() = runBlocking {
+        val source = FakeSource().apply { showPrimaryGroup = true }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.initialize()
+        withTimeout(5_000) { source.testMessages.receive() }
+        val pingId = source.requestIds.receive()
+        source.connectionVersion = "manual-disconnect"
+        source.affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
+        source.events.send(MainServiceEvent.MeasureConfigFinish(pingId))
+        withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
+        assertEquals(null, viewModel.consumeStartupConnection())
         viewModel.skipPreparation()
     }
 
