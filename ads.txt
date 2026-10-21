@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "enabled": false,
+  "enabled": true,
   "placements": {
     "home": true,
     "profiles": false,
@@ -8,13 +8,13 @@
   },
   "ads": [
     {
-      "id": "example-sponsor",
-      "enabled": false,
-      "title_fa": "عنوان تبلیغ شما",
-      "title_en": "Your sponsor title",
-      "body_fa": "متن کوتاه تبلیغ را اینجا بنویسید.",
-      "body_en": "Write a short sponsor message here.",
-      "target_url": "https://example.com/",
+      "id": "dicodeping-telegram",
+      "enabled": true,
+      "title_fa": "عضو کانالمون هنوز نشدی؟ 👀",
+      "title_en": "Haven't joined our channel yet? 👀",
+      "body_fa": "بابا تو دیکد پینگ منتظرتیما! 😎🔥",
+      "body_en": "We're waiting for you at Dicode Ping! 😎🔥",
+      "target_url": "https://t.me/dicodeping",
       "placements": [
         "home"
       ]
