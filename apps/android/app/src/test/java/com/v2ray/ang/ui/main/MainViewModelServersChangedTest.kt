@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class MainViewModelServersChangedTest {
+    private lateinit var mainScheduler: kotlinx.coroutines.test.TestCoroutineScheduler
 
     /**
      * One subscription, whose server list [serverGuids] a change away from the screen replaces, and in which a move is
@@ -183,7 +184,8 @@ class MainViewModelServersChangedTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @BeforeEach
     fun setMainDispatcher() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        mainScheduler = kotlinx.coroutines.test.TestCoroutineScheduler()
+        Dispatchers.setMain(UnconfinedTestDispatcher(mainScheduler))
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -192,6 +194,7 @@ class MainViewModelServersChangedTest {
         Dispatchers.resetMain()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun successfulPingsMoveToTheTopBeforeTheBatchFinishes() = runBlocking {
         val source = FakeSource()
@@ -201,9 +204,15 @@ class MainViewModelServersChangedTest {
         withTimeout(5_000) { source.testMessages.receive() }
         val id = source.requestIds.receive()
         source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("b", 80), id))
+        mainScheduler.runCurrent()
+        mainScheduler.advanceTimeBy(501)
+        mainScheduler.runCurrent()
         withTimeout(5_000) { viewModel.serverGroupState(SUB).first { it.rows.firstOrNull()?.guid == "b" } }
         assertEquals(true, viewModel.uiState.value.isTesting)
         source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("a", 20), id))
+        mainScheduler.runCurrent()
+        mainScheduler.advanceTimeBy(501)
+        mainScheduler.runCurrent()
         withTimeout(5_000) { viewModel.serverGroupState(SUB).first { it.rows.firstOrNull()?.testDelayMillis == 20L } }
         assertEquals(listOf("a", "b"), viewModel.serverGroupState(SUB).value.rows.map { it.guid })
         viewModel.cancelAllPing()
