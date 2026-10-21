@@ -42,17 +42,17 @@ internal fun parseSponsor(json: String, placement: String, fa: Boolean): Sponsor
 }.getOrNull()
 
 @Composable
-internal fun SponsorBanner(placement: String) {
+internal fun SponsorBanner(placement: String, fallbackPlacement: String? = null) {
     val context = LocalContext.current
     val fa = context.resources.configuration.locales[0].language == "fa"
     var ad by remember(placement) { mutableStateOf<SponsorAd?>(null) }
-    LaunchedEffect(placement, fa) {
+    LaunchedEffect(placement, fallbackPlacement, fa) {
         while (true) {
             ad = withContext(Dispatchers.IO) { runCatching {
                 val c = URL("https://raw.githubusercontent.com/mcodersir/dicodePing/refs/heads/main/ads.txt").openConnection() as java.net.HttpURLConnection
                 c.connectTimeout = 4000; c.readTimeout = 4000; c.instanceFollowRedirects = false
                 try { if (c.responseCode != 200) null else { val b = c.inputStream.use { input -> val out = java.io.ByteArrayOutputStream(); val chunk = ByteArray(4096)
-                    while (out.size() <= 131072) { val count = input.read(chunk, 0, minOf(chunk.size, 131073 - out.size())); if (count < 0) break; out.write(chunk, 0, count) }; out.toByteArray() }; if (b.size > 131072) null else parseSponsor(b.toString(Charsets.UTF_8), placement, fa) } } finally { c.disconnect() }
+                    while (out.size() <= 131072) { val count = input.read(chunk, 0, minOf(chunk.size, 131073 - out.size())); if (count < 0) break; out.write(chunk, 0, count) }; out.toByteArray() }; if (b.size > 131072) null else (parseSponsor(b.toString(Charsets.UTF_8), placement, fa) ?: fallbackPlacement?.let { parseSponsor(b.toString(Charsets.UTF_8), it, fa) }) } } finally { c.disconnect() }
             }.getOrNull() }
             delay(15 * 60_000L)
         }
