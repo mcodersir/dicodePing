@@ -69,6 +69,13 @@ class MainActivity : HelperBaseComponentActivity() {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
 
+    private val requestStartupNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            // Denying notifications must not disable the VPN. Wait for the
+            // permission dialog to finish before startup can ask for VPN consent.
+            mainViewModel.onAction(MainAction.Initialize)
+        }
+
     private var vpnPermissionRequestVersion: String? = null
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -106,9 +113,12 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mainViewModel.onAction(MainAction.Initialize)
-
-        checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestStartupNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            mainViewModel.onAction(MainAction.Initialize)
+        }
     }
 
     override fun onStart() {
