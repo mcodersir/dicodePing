@@ -1,6 +1,9 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,6 +85,7 @@ fun GroupPagerPage(
         mainViewModel.serverGroupState(groupId)
     }
     val groupState by groupStateFlow.collectAsStateWithLifecycle()
+    val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val canReorder = groupId.isNotEmpty() && searchQuery.isEmpty()
     val actions = remember(
         onSelectServer,
@@ -112,7 +116,8 @@ fun GroupPagerPage(
         onMoveServer = { fromGuid, toGuid ->
             mainViewModel.onAction(MainAction.MoveServer(groupId, fromGuid, toGuid))
         },
-        contentPadding = contentPadding
+        contentPadding = contentPadding,
+        followPingResults = mainState.isTesting && locateTarget == null
     )
 }
 
@@ -137,7 +142,8 @@ private fun ServerListPage(
     actions: ServerRowActions,
     onLocateHandled: () -> Unit,
     onMoveServer: (fromGuid: String, toGuid: String) -> Unit,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    followPingResults: Boolean = false,
 ) {
     if (doubleColumnDisplay) {
         val gridState = remember(groupId) {
@@ -150,6 +156,7 @@ private fun ServerListPage(
             }
         } else null
 
+        FollowPingGridResults(followPingResults, rows.map { it.guid }, gridState)
         LocateTargetEffect(locateTarget, rows, gridState, onLocateHandled)
 
         LazyVerticalGrid(
@@ -195,6 +202,7 @@ private fun ServerListPage(
             }
         } else null
 
+        FollowPingListResults(followPingResults, rows.map { it.guid }, listState)
         LocateTargetEffect(locateTarget, rows, listState, onLocateHandled)
 
         LazyColumn(
@@ -447,5 +455,27 @@ internal suspend fun PagerState.navigateToPageOptimized(
         animateScrollToPage(target)
     } else {
         scrollToPage(target)
+    }
+}
+
+
+/** Follow the best rows only when the test began at the top; a user drag takes priority. */
+@Composable
+internal fun FollowPingListResults(active: Boolean, keys: List<String>, state: LazyListState) {
+    var follow by remember(state, active) { mutableStateOf(active && state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset == 0) }
+    val dragged by state.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(dragged) { if (dragged) follow = false }
+    LaunchedEffect(keys, active, follow, dragged) {
+        if (active && follow && !dragged && keys.isNotEmpty()) state.requestScrollToItem(0)
+    }
+}
+
+@Composable
+internal fun FollowPingGridResults(active: Boolean, keys: List<String>, state: LazyGridState) {
+    var follow by remember(state, active) { mutableStateOf(active && state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset == 0) }
+    val dragged by state.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(dragged) { if (dragged) follow = false }
+    LaunchedEffect(keys, active, follow, dragged) {
+        if (active && follow && !dragged && keys.isNotEmpty()) state.requestScrollToItem(0)
     }
 }
