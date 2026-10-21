@@ -11,7 +11,7 @@ import (
 // streams. Ping a silent edge and close a transport that no longer responds,
 // so new streams can obtain a new connection instead of sharing a dead socket.
 func relayHTTP2Config() *http.HTTP2Config {
-	return &http.HTTP2Config{SendPingTimeout: 15 * time.Second, PingTimeout: 10 * time.Second, WriteByteTimeout: 15 * time.Second}
+	return &http.HTTP2Config{SendPingTimeout: 15 * time.Second, PingTimeout: 25 * time.Second, WriteByteTimeout: 60 * time.Second, MaxReceiveBufferPerConnection: 4*1024*1024 - 1, MaxReceiveBufferPerStream: 1024 * 1024}
 }
 
 func (p *provider) proxyPass(ctx context.Context) (string, error) {
@@ -75,4 +75,17 @@ func (p *provider) refreshProxyPass(ctx context.Context, force bool) error {
 
 func (p *provider) relayTransport() *http.Transport {
 	return &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: p.relayDialer().DialContext, DialTLSContext: p.dialEdgeTLS, TLSClientConfig: &tls.Config{RootCAs: p.roots, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 12 * time.Second, IdleConnTimeout: 90 * time.Second, HTTP2: relayHTTP2Config()}
+}
+
+func (p *provider) nextRelay() *http.Transport {
+	if len(p.relayPool) == 0 {
+		return p.streams
+	}
+	return p.relayPool[(p.relayNext.Add(1)-1)%uint64(len(p.relayPool))]
+}
+func (p *provider) closeRelays() {
+	p.streams.CloseIdleConnections()
+	for _, tr := range p.relayPool {
+		tr.CloseIdleConnections()
+	}
 }

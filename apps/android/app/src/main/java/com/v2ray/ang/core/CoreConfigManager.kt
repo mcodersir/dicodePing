@@ -251,7 +251,7 @@ object CoreConfigManager {
             // add tun inbound from template
             val templateConfig = initV2rayConfig(configContext)
             templateConfig.inbounds.firstOrNull { it.tag == "tun" }?.let { inboundTun ->
-                inboundTun.settings?.mtu = SettingsManager.getVpnMtu()
+                inboundTun.settings?.mtu = if (FoxAccounts.resolveProfile(configContext.context, MmkvManager.decodeServerConfig(configContext.guid)) != null) minOf(SettingsManager.getVpnMtu(), 1400) else SettingsManager.getVpnMtu()
                 // The injected inbound must be able to map the fake IPs of a fakedns config back
                 // to domains; the user's own inbounds are left as written
                 if (hasFakeDnsServer(json)) {
@@ -1024,20 +1024,14 @@ object CoreConfigManager {
     //region some sub function
 
     private fun needTun(): Boolean {
-        return SettingsManager.isVpnMode() && !SettingsManager.isUsingHevTun()
+        return SettingsManager.isUsingXrayTun()
     }
 
     /**
      * Configure inbound listeners and related runtime options.
      */
     private fun configureInbounds(v2rayConfig: V2rayConfig) {
-        val vpn = SettingsManager.isVpnMode()
-        val useHev = SettingsManager.isUsingHevTun()
-        val forcedByHev = vpn && useHev
-        val forcedBySocksRoot = SettingsManager.isRootMode()
-                || MmkvManager.decodeSettingsBool(AppConfig.PREF_ROOT_LAN_SHARING)
-
-        val enableLocalProxy = forcedByHev || forcedBySocksRoot || MmkvManager.decodeSettingsBool(AppConfig.PREF_ENABLE_LOCAL_PROXY, true)
+        val enableLocalProxy = SettingsManager.isLocalProxyKept()
 
         val socksPort = SettingsManager.getSocksPort()
         val socksUsername = SettingsManager.getSocksUsername()
@@ -1175,8 +1169,10 @@ object CoreConfigManager {
         }
 
         if (SettingsManager.isVpnMode()) {
-            if (SettingsManager.isUsingHevTun()) {
-                //hev-socks5-tunnel dns routing
+            //hev-socks5-tunnel dns routing
+            // PattNG: kept with Xray-core's TUN too, for the root LAN sharing and the clients of the local proxy,
+            // whenever the core keeps that inbound
+            if (SettingsManager.isLocalProxyKept()) {
                 v2rayConfig.routing.rules.add(
                     0, V2rayConfig.RoutingBean.RulesBean(
                         inboundTag = arrayListOf("socks"),
@@ -1184,7 +1180,8 @@ object CoreConfigManager {
                         port = "53",
                     )
                 )
-            } else {
+            }
+            if (SettingsManager.isUsingXrayTun()) {
                 v2rayConfig.routing.rules.add(
                     0, V2rayConfig.RoutingBean.RulesBean(
                         inboundTag = arrayListOf("tun"),

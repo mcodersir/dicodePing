@@ -143,6 +143,8 @@ class MainViewModel(
     private var bulkTestJob: Job? = null
     private var speedTestJob: Job? = null
     private var startupLocationGroup: String? = null
+    private var startupTestTargets: Set<String> = emptySet()
+    private var startupRequestVersion: String? = null
     private var startupJob: Job? = null
     private var startupStarted = false
     private var preparationDone: CompletableDeferred<Unit>? = null
@@ -398,6 +400,7 @@ class MainViewModel(
     fun initialize() {
         if (startupStarted) return
         startupStarted = true
+        startupRequestVersion = com.v2ray.ang.core.LauncherManager.connectionRequestVersion()
         startupJob = viewModelScope.launch(preloadDispatcher) {
             try {
                 initialPageReady.await()
@@ -406,26 +409,36 @@ class MainViewModel(
                 val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
                 if (primary == null || !primary.subscription.enabled || !dataSource.isDefaultAutoTestEnabled() || uiState.value.isRunning) return@launch
                 _uiState.update { it.copy(preparationVisible = true, preparationStage = "refresh", preparationProgress = "") }
-                val completed = withTimeoutOrNull(240_000L) {
+                val completed = withTimeoutOrNull(100_000L) {
                     dataSource.updateConfigViaSub(primary)
                     currentCoroutineContext().ensureActive()
                     dataSource.setSelectedSubscriptionId(primary.guid)
                     _uiState.update { it.copy(selectedGroupId = primary.guid, preparationStage = "latency") }
                     setupGroupTab(forceRefresh = true).join()
-                    preparationDone = CompletableDeferred()
-                    withContext(Dispatchers.Main) {
-                        startupLocationGroup = primary.guid
-                        testAllRealPing()
-                        if (!testRequests.isTesting) preparationDone?.complete(Unit)
-                    }
-                    preparationDone?.await()
-                    withContext(ioDispatcher) {
-                        val servers = loadGroup(primary.guid, forceRefresh = true).servers
-                        val best = servers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-                        // Preserve an explicitly selected reachable server; otherwise prepare the fastest.
-                        val selected = dataSource.getSelectServer()
-                        val reachable = servers.any { it.guid == selected && it.testDelayMillis > 0 }
-                        if (!reachable && best != null) selectForConnection(best.guid)
+                    // Probe at most 90 candidates, in small waves. Stop as soon as a wave
+                    // supplies a working tunnel; do not wait for locations or unused profiles.
+                    val remaining = loadGroup(primary.guid, forceRefresh = true).servers.take(90).map { it.guid }.toMutableList()
+                    while (remaining.isNotEmpty()) {
+                        val batch = remaining.take(15)
+                        remaining.removeAll(batch.toSet())
+                        preparationDone = CompletableDeferred()
+                        withContext(Dispatchers.Main) {
+                            startupLocationGroup = primary.guid
+                            testAllRealPing(maxServers = 90, startupGuids = batch)
+                            if (!testRequests.isTesting) preparationDone?.complete(Unit)
+                        }
+                        preparationDone?.await()
+                        val best = withContext(ioDispatcher) {
+                            loadGroup(primary.guid, forceRefresh = true).servers
+                                .filter { it.guid in batch && it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+                        }
+                        if (best != null) {
+                            if (startupRequestVersion?.let { com.v2ray.ang.core.LauncherManager.isConnectionRequestCurrent(it) } == true) {
+                                selectForConnection(best.guid)
+                                _uiState.update { it.copy(startupConnectGuid = best.guid) }
+                            }
+                            break
+                        }
                     }
                     true
                 }
@@ -441,6 +454,8 @@ class MainViewModel(
             }
         }
     }
+
+    fun consumeStartupConnection(): String? { val guid = _uiState.value.startupConnectGuid; _uiState.update { it.copy(startupConnectGuid = null) }; return guid?.takeIf { startupRequestVersion?.let(com.v2ray.ang.core.LauncherManager::isConnectionRequestCurrent) == true } }
 
     fun skipPreparation() {
         startupJob?.cancel()
@@ -1136,7 +1151,7 @@ class MainViewModel(
         }
     }
 
-    fun testAllRealPing(onlyTcp: Boolean = false) {
+    fun testAllRealPing(onlyTcp: Boolean = false, maxServers: Int = Int.MAX_VALUE, startupGuids: List<String>? = null) {
         cancelAllPing()
         diagnosticMode = null
         val groupId = uiState.value.selectedGroupId
@@ -1144,7 +1159,8 @@ class MainViewModel(
         if (servers.isEmpty()) {
             return
         }
-        val serverGuids = servers.map { it.guid }
+        val serverGuids = startupGuids?.take(90) ?: servers.take(maxServers).map { it.guid }
+        if (maxServers < Int.MAX_VALUE) startupTestTargets = serverGuids.toSet()
         mutableServerGroupState(groupId).update { current ->
             current.copy(
                 servers = current.servers.map { server ->
@@ -1161,7 +1177,7 @@ class MainViewModel(
         val message = TestServiceMessage(
             key = AppConfig.MSG_MEASURE_CONFIG_START,
             subscriptionId = groupId,
-            serverGuids = if (keywordFilter.isNotEmpty()) serverGuids else emptyList(),
+            serverGuids = if (keywordFilter.isNotEmpty() || maxServers < Int.MAX_VALUE) serverGuids else emptyList(),
             onlyTcp = onlyTcp
         )
         _uiState.update {
@@ -1215,8 +1231,7 @@ class MainViewModel(
             }
             if (!wasDiagnostic && startupLocationGroup == request.groupId) {
                 startupLocationGroup = null
-                _uiState.update { it.copy(preparationStage = "location", preparationProgress = "") }
-                testAllLocations(request.groupId)
+                preparationDone?.complete(Unit)
             } else if (wasDiagnostic && uiState.value.preparationVisible) {
                 preparationDone?.complete(Unit)
             }

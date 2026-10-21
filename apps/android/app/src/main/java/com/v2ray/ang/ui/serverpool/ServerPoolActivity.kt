@@ -88,7 +88,7 @@ class ServerPoolViewModel(application: Application) : AndroidViewModel(applicati
         stopRequested.set(false)
         state.update { it.copy(busy = true) }
         val normalized = options.normalized()
-        report(PoolProgress("شروع", PoolStrings.t("اجرای جدید · 4.9.4 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت", "New run · 4.9.4 · target ${normalized.targetCount} servers · ${normalized.testRounds} rounds")))
+        report(PoolProgress("شروع", PoolStrings.t("اجرای جدید · 4.9.5 · هدف ${normalized.targetCount} سرور · ${normalized.testRounds} نوبت", "New run · 4.9.5 · target ${normalized.targetCount} servers · ${normalized.testRounds} rounds")))
         job = viewModelScope.launch {
             try {
                 val context = getApplication<Application>()

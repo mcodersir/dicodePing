@@ -356,6 +356,8 @@ public partial class CoreConfigSingboxService
             {
                 case EConfigType.WireGuard:
                     {
+                        endpoint.server = null;
+                        endpoint.server_port = null;
                         endpoint.address = Utils.String2List(protocolExtra.WgInterfaceAddress)?.Select(s => s.Trim()).ToList() ?? ["172.16.0.2/32"];
                         var peer = new Peer4Sbox
                         {
@@ -474,6 +476,11 @@ public partial class CoreConfigSingboxService
                     enabled = true,
                     fingerprint = _node.Fingerprint.IsNullOrEmpty() ? _config.CoreBasicItem.DefFingerprint : _node.Fingerprint
                 };
+                // "hellochrome_120" is an Xray-only fingerprint; sing-box's uTLS rejects it, so use sing-box's Chrome
+                if (tls.utls.fingerprint == "hellochrome_120")
+                {
+                    tls.utls.fingerprint = "chrome";
+                }
             }
             if (_node.StreamSecurity == Global.StreamSecurity)
             {

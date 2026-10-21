@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -64,6 +65,9 @@ type provider struct {
 	selected                          Location
 	listener                          net.Listener
 	streams                           *http.Transport
+	relayPool                         []*http.Transport
+	relayNext                         atomic.Uint64
+	tlsSplit                          string
 	bindInterface                     string
 	edgeCache                         sync.Map
 	edgeResolver                      func(context.Context, string) ([]net.IP, error)
@@ -74,7 +78,9 @@ type provider struct {
 func newProvider(s State) *provider {
 	jar, _ := cookiejar.New(nil)
 	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSHandshakeTimeout: 15 * time.Second, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, ResponseHeaderTimeout: 30 * time.Second, IdleConnTimeout: 60 * time.Second}
-	return &provider{passRefresh: make(chan struct{}, 1), state: s, authURL: authBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
+	p := &provider{tlsSplit: "sni", passRefresh: make(chan struct{}, 1), state: s, authURL: authBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
+	transport.DialTLSContext = p.dialControlTLS
+	return p
 }
 func (p *provider) installRoots(pem string) error {
 	if pem == "" {

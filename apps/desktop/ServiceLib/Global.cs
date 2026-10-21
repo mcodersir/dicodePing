@@ -419,6 +419,7 @@ public class Global
     public static readonly List<string> Fingerprints =
     [
         "chrome",
+        "hellochrome_120",
         "firefox",
         "safari",
         "ios",

@@ -39,6 +39,7 @@ public class CoreConfigContextBuilder
         if (Utils.IsWindows() && config.TunModeItem.EnableTun && config.CoreBasicItem.BindInterface.IsNullOrEmpty())
             config.CoreBasicItem.BindInterface = PhysicalUplink.Find();
         node = FoxProfiles.ForConnection(await FoxProfiles.ResolveLocalAsync(node));
+        if (FoxProfiles.Read(node) is not null) config.TunModeItem.Mtu = Math.Min(config.TunModeItem.Mtu > 0 ? config.TunModeItem.Mtu : 1400, 1400);
         var runCoreType = AppManager.Instance.GetCoreType(node, node.ConfigType);
         var coreType = runCoreType == ECoreType.sing_box ? ECoreType.sing_box : ECoreType.Xray;
         var context = new CoreConfigContext

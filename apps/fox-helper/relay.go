@@ -31,6 +31,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
 	p.streams = p.relayTransport()
+	p.relayPool = []*http.Transport{p.streams, p.relayTransport(), p.relayTransport(), p.relayTransport()}
 	reached := false
 	for _, candidate := range candidates {
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {
@@ -61,7 +62,7 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		}
 	}
 	if !reached {
-		p.streams.CloseIdleConnections()
+		p.closeRelays()
 		return "", &ProviderError{Code: "unreachable", Message: "No selected Firefox VPN location passed the real traffic test; no direct fallback was used."}
 	}
 	if listen == "" {
@@ -78,7 +79,14 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	return p.listener.Addr().String(), nil
 }
 func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, error) {
-	return p.openTunnelAttempt(ctx, authority, true)
+	conn, err := p.openTunnelAttempt(ctx, authority, true)
+	var api *ProviderError
+	// Retry establishment on a different carrier only before any application
+	// payload has been sent. Established byte streams are never replayed.
+	if err != nil && ctx.Err() == nil && !errors.As(err, &api) {
+		return p.openTunnelAttempt(ctx, authority, true)
+	}
+	return conn, err
 }
 func (p *provider) openTunnelAttempt(ctx context.Context, authority string, refresh bool) (net.Conn, error) {
 	pass, err := p.proxyPass(ctx)
@@ -98,7 +106,7 @@ func (p *provider) openTunnelAttempt(ctx context.Context, authority string, refr
 	request.ContentLength = -1
 	request.Header.Set("Proxy-Authorization", "Bearer "+pass)
 	request.Header.Set("User-Agent", userAgent)
-	resp, err := p.streams.RoundTrip(request)
+	resp, err := p.nextRelay().RoundTrip(request)
 	if err != nil {
 		cancel()
 		reader.Close()
@@ -202,7 +210,7 @@ func (p *provider) serve(ctx context.Context) error {
 		return errors.New("listener not prepared")
 	}
 	defer p.listener.Close()
-	defer p.streams.CloseIdleConnections()
+	defer p.closeRelays()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	fatal := make(chan error, 1)
@@ -298,7 +306,7 @@ func replySocks(c net.Conn, code byte, port int) error {
 	return err
 }
 func (p *provider) socks(ctx context.Context, c net.Conn) error {
-	c.SetDeadline(time.Now().Add(15 * time.Second))
+	c.SetDeadline(time.Now().Add(30 * time.Second))
 	greeting := make([]byte, 2)
 	if _, err := io.ReadFull(c, greeting); err != nil {
 		return err
@@ -341,7 +349,7 @@ func (p *provider) socks(ctx context.Context, c net.Conn) error {
 	defer cancel()
 	// Bound only CONNECT establishment, not the lifetime of the stream.
 	// A socket deadline on the local client cannot cancel a hung upstream.
-	connectCtx, finishConnect := context.WithTimeout(streamCtx, 12*time.Second)
+	connectCtx, finishConnect := context.WithTimeout(streamCtx, 25*time.Second)
 	upstream, err := p.openDialTunnel(connectCtx, authority)
 	finishConnect()
 	if err != nil {

@@ -97,6 +97,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                 }
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+                    SponsorBanner("fox")
                     Text(stringResource(R.string.fox_hint))
                     Box {
                         OutlinedButton(onClick = { expandedAccounts = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(current?.email ?: stringResource(R.string.fox_accounts)) }
@@ -117,6 +118,9 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                         DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
                     }
                     if (signIn) {
+                    Text(if (fa) "۱ · حساب Mozilla بسازید و ایمیل را در سایت تأیید کنید. اگر حساب دارید، مستقیم وارد شوید." else "1 · Create a Mozilla account and verify your email on its website, or use an existing account.")
+                    OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://accounts.firefox.com/signup"))) }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "باز کردن سایت ساخت حساب Mozilla" else "Open Mozilla account registration") }
+                    Text(if (fa) "۲ · ایمیل و رمز همان حساب را وارد کنید؛ رمز ذخیره نمی‌شود." else "2 · Enter your account email and password. Your password is not saved.")
                     OutlinedTextField(email, { email = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     OutlinedTextField(password, { password = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !busy)
                     Button(onClick = { run { FoxAccounts.login(context, email, password).id } }, enabled = !busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_login)) }

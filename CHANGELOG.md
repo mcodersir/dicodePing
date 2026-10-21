@@ -1,3 +1,7 @@
+# 4.9.5
+
+پایداری روباه، TLS fragmentation، MTU و تحمل وقفهٔ موبایل؛ تست اولیه حداکثر ۹۰ کانفیگ در دسته‌های ۱۵تایی؛ هسته‌های جدید و تبلیغات قابل کنترل. [جزئیات](docs/RELEASE-4.9.5.md).
+
 # 4.9.4
 
 - Fox: fix SOCKS admission stalls after 64 live connections, isolate background pass refresh from active connections, detect unresponsive HTTP/2 uplinks, bound CONNECT establishment without killing established streams, and distinguish request throttling from confirmed quota exhaustion.

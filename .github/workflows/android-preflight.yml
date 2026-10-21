@@ -1,18 +1,21 @@
-name: Android 4.9.4 preflight
+name: Android 4.9.5 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v7
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.15"
     - uses: actions/setup-go@v6
       with:
-        go-version: 1.27.2
+        go-version: 1.27.3
         cache: false
     - uses: actions/setup-java@v5
       with:
         distribution: temurin
-        java-version: 21
+        java-version: 27
     - uses: android-actions/setup-android@v4
     - name: Install SDK and NDK
       run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
@@ -22,14 +25,14 @@ jobs:
       run: |
         git config --global http.version HTTP/1.1
         for attempt in 1 2 3 4; do
-          if git clone --branch 2.3.11-P65 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+          if git clone --branch 2.3.12-P67 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
             break
           fi
           rm -rf native-upstream
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        test "$(git -C native-upstream rev-parse HEAD)" = "54a14ea662da1a863fe648b95ebdc71c5af56140"
+        test "$(git -C native-upstream rev-parse HEAD)" = "89c760cee27051ac7b6c391d376e528adfdc8a0c"
         for attempt in 1 2 3 4; do
           if git -C native-upstream submodule update --init --recursive --depth 1; then
             break
@@ -37,9 +40,9 @@ jobs:
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.0
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.1
         git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
-        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "873541b81f00f8fd462392fc622adbb8a8cd59b0"
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "107a5083cb33d729a476c8282745dfc2f12e48e2"
         git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
         bash native-upstream/compile-hevtun.sh
         cp -r native-upstream/libs apps/android/app/
@@ -63,7 +66,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.4
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.5
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -91,4 +94,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-4.9.4
+    - codex/release-4.9.5

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "enabled": false,
+  "placements": {
+    "home": true,
+    "profiles": false,
+    "fox": false
+  },
+  "ads": [
+    {
+      "id": "example-sponsor",
+      "enabled": false,
+      "title_fa": "عنوان تبلیغ شما",
+      "title_en": "Your sponsor title",
+      "body_fa": "متن کوتاه تبلیغ را اینجا بنویسید.",
+      "body_en": "Write a short sponsor message here.",
+      "target_url": "https://example.com/",
+      "placements": [
+        "home"
+      ]
+    }
+  ]
+}

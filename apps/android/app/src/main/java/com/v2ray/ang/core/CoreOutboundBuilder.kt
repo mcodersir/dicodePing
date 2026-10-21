@@ -423,7 +423,8 @@ object CoreOutboundBuilder {
             ?.ifEmpty { null }
             ?: listOf(AppConfig.WIREGUARD_LOCAL_ADDRESS_V4)
 
-        val addresses = if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true) {
+        val ipv6Enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED, AppConfig.DEFAULT_IPV6_ENABLED)
+        val addresses = if (ipv6Enabled) {
             rawAddresses
         } else {
             val ipv4Addresses = rawAddresses.filter { !it.contains(":") }
@@ -432,7 +433,7 @@ object CoreOutboundBuilder {
 
         val (remotes, leftOut) = wireguardRemoteDns(
             profileItem.remoteDNS,
-            ipv6Enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true,
+            ipv6Enabled = ipv6Enabled,
         )
         if (leftOut.isNotEmpty()) {
             // The entries themselves stay out of the log: one may be a DNS URL with an account in it.

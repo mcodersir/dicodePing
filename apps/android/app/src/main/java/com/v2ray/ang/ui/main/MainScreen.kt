@@ -79,6 +79,11 @@ fun MainScreen(
         val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
         if (best != null) { dispatchAction(MainAction.ConnectServer(best.guid)) }
     }
+    LaunchedEffect(uiState.startupConnectGuid) {
+        mainViewModel.consumeStartupConnection()?.let { guid ->
+            if (!isRunning) dispatchAction(MainAction.ConnectServer(guid))
+        }
+    }
     val selectedGuid = uiState.selectedGuid
     val doubleColumnDisplay = uiState.doubleColumnDisplay
     val confirmRemove = uiState.confirmRemove
@@ -284,6 +289,8 @@ fun MainScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
+                    SponsorBanner("home")
+                    SponsorBanner("profiles")
                     if (groups.size > 1) {
                         GroupTabBar(
                             groups = groups,

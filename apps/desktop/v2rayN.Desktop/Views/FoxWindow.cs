@@ -63,7 +63,11 @@ public sealed class FoxWindow : Window
         var remove = new Button { Content = FoxUi.T("حذف حساب و ساب از برنامه", "Remove local account and subscription") };
         foreach (var button in new[] { login, verify, refresh, connect, copyProxy, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
-        var credentialsPanel = new StackPanel { Spacing = 12, Children = { email, password, login } };
+        var openAccount = new Button { Content = FoxUi.T("۱ · باز کردن سایت Mozilla و ساخت حساب", "1 · Open Mozilla and create an account"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        openAccount.Click += (_, _) => ProcUtils.ProcessStart("https://accounts.firefox.com/signup");
+        var credentialsPanel = new StackPanel { Spacing = 12, Children = {
+            new TextBlock { Text = FoxUi.T("ابتدا در سایت Mozilla یک حساب بسازید و ایمیلتان را تأیید کنید. اگر حساب دارید، همین‌جا وارد شوید.", "Create a Mozilla account and verify your email on the website. Already registered? Sign in below."), TextWrapping = TextWrapping.Wrap },
+            openAccount, new TextBlock { Text = FoxUi.T("۲ · ایمیل و رمز همان حساب را وارد کنید؛ رمز ذخیره نمی‌شود.", "2 · Enter that account's email and password. Your password is not saved."), TextWrapping = TextWrapping.Wrap }, email, password, login } };
         var verificationPanel = new StackPanel { Spacing = 12, Children = { code, verify } };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
             quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, connect, copyProxy, refresh, remove } };
@@ -156,7 +160,7 @@ public sealed class FoxWindow : Window
             new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 32, Height = 32, Stretch = Stretch.Uniform, StrokeThickness = 1.8, Stroke = new SolidColorBrush(Color.Parse("#C77739")), HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = FoxUi.T("روباه", "Fox"), FontSize = 28, FontWeight = FontWeight.SemiBold },
             new TextBlock { Text = FoxUi.T("اتصال غیررسمی Firefox VPN با حساب شما. سهمیه و موقعیت‌های مجاز را Mozilla تعیین می‌کند؛ معمولاً تا ۵۰ گیگابایت در ماه برای حساب واجد شرایط. رمز عبور ذخیره نمی‌شود.", "Unofficial Firefox VPN connection using your account. Mozilla controls eligibility, locations and allowance, usually up to 50 GB/month for eligible accounts. Passwords are never stored."), TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = FoxUi.T("حساب‌های شما", "Your accounts"), FontWeight = FontWeight.SemiBold }, accounts, add, back, steps, credentialsPanel, verificationPanel, connectionPanel, status,
+            new TextBlock { Text = FoxUi.T("حساب‌های شما", "Your accounts"), FontWeight = FontWeight.SemiBold }, accounts, add, back, new SponsorBanner { Placement = "fox" }, steps, credentialsPanel, verificationPanel, connectionPanel, status,
             new TextBlock { Text = FoxUi.T("TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود. حذف ساب آن را خودکار برنمی‌گرداند؛ دکمهٔ تازه‌سازی امکان افزودن دوباره را دارد.", "Supports TCP and encrypted DNS, not arbitrary UDP. Deleted subscriptions stay deleted until you explicitly sync them again."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }
         } } };
     }

@@ -43,6 +43,7 @@ func TestSOCKSMoreThan64LiveStreamsContinueExchangingData(t *testing.T) {
 	p.selected = Location{Host: host, Port: mustPort(port)}
 	p.roots = roots
 	p.streams = p.relayTransport()
+	p.relayPool = []*http.Transport{p.streams, p.relayTransport(), p.relayTransport(), p.relayTransport()}
 	p.listener, _ = net.Listen("tcp", "127.0.0.1:0")
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

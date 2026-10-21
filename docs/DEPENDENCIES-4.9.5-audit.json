@@ -1,0 +1,242 @@
+[
+  {
+    "package": "Avalonia.AvaloniaEdit",
+    "current": "12.0.0",
+    "latest": "12.0.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.avaloniaedit/index.json"
+  },
+  {
+    "package": "Avalonia.Controls.DataGrid",
+    "current": "12.1.2",
+    "latest": "12.1.2",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.controls.datagrid/index.json"
+  },
+  {
+    "package": "Avalonia.Headless",
+    "current": "12.1.1",
+    "latest": "12.1.4",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.headless/index.json"
+  },
+  {
+    "package": "Avalonia.Desktop",
+    "current": "12.1.1",
+    "latest": "12.1.4",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.desktop/index.json"
+  },
+  {
+    "package": "AvaloniaUI.DiagnosticsSupport",
+    "current": "2.2.3",
+    "latest": "2.2.3",
+    "source": "https://api.nuget.org/v3-flatcontainer/avaloniaui.diagnosticssupport/index.json"
+  },
+  {
+    "package": "AwesomeAssertions",
+    "current": "9.5.0",
+    "latest": "9.6.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/awesomeassertions/index.json"
+  },
+  {
+    "package": "DialogHost.Avalonia",
+    "current": "0.12.3",
+    "latest": "0.12.3",
+    "source": "https://api.nuget.org/v3-flatcontainer/dialoghost.avalonia/index.json"
+  },
+  {
+    "package": "IPNetwork2",
+    "current": "4.3.0",
+    "latest": "4.3.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/ipnetwork2/index.json"
+  },
+  {
+    "package": "ReactiveUI.Avalonia",
+    "current": "12.1.1",
+    "latest": "14.7.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.avalonia/index.json"
+  },
+  {
+    "package": "CliWrap",
+    "current": "3.10.5",
+    "latest": "3.10.5",
+    "source": "https://api.nuget.org/v3-flatcontainer/cliwrap/index.json"
+  },
+  {
+    "package": "Downloader",
+    "current": "5.9.5",
+    "latest": "5.10.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/downloader/index.json"
+  },
+  {
+    "package": "Microsoft.NET.Test.Sdk",
+    "current": "18.8.1",
+    "latest": "18.11.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/index.json"
+  },
+  {
+    "package": "H.NotifyIcon.Wpf",
+    "current": "2.4.1",
+    "latest": "2.4.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/h.notifyicon.wpf/index.json"
+  },
+  {
+    "package": "MaterialDesignThemes",
+    "current": "5.3.2",
+    "latest": "5.4.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/materialdesignthemes/index.json"
+  },
+  {
+    "package": "QRCoder",
+    "current": "1.8.0",
+    "latest": "1.8.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/qrcoder/index.json"
+  },
+  {
+    "package": "ReactiveUI",
+    "current": "24.1.0",
+    "latest": "26.0.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/reactiveui/index.json"
+  },
+  {
+    "package": "ReactiveUI.SourceGenerators",
+    "current": "3.2.0",
+    "latest": "4.2.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.sourcegenerators/index.json"
+  },
+  {
+    "package": "ReactiveUI.WPF",
+    "current": "24.1.0",
+    "latest": "26.0.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.wpf/index.json"
+  },
+  {
+    "package": "Semi.Avalonia",
+    "current": "12.1.0.1",
+    "latest": "12.1.0.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia/index.json"
+  },
+  {
+    "package": "Semi.Avalonia.AvaloniaEdit",
+    "current": "12.0.0",
+    "latest": "12.0.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia.avaloniaedit/index.json"
+  },
+  {
+    "package": "Semi.Avalonia.DataGrid",
+    "current": "12.1.0.1",
+    "latest": "12.1.0.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia.datagrid/index.json"
+  },
+  {
+    "package": "NLog",
+    "current": "6.2.0",
+    "latest": "6.2.2",
+    "source": "https://api.nuget.org/v3-flatcontainer/nlog/index.json"
+  },
+  {
+    "package": "sqlite-net-e",
+    "current": "1.11.285",
+    "latest": "1.11.285",
+    "source": "https://api.nuget.org/v3-flatcontainer/sqlite-net-e/index.json"
+  },
+  {
+    "package": "Repobot.SQLite.Unofficial",
+    "current": "3.53.4.1",
+    "latest": "3.54.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/repobot.sqlite.unofficial/index.json"
+  },
+  {
+    "package": "TaskScheduler",
+    "current": "2.12.2",
+    "latest": "2.12.2",
+    "source": "https://api.nuget.org/v3-flatcontainer/taskscheduler/index.json"
+  },
+  {
+    "package": "WebDav.Client",
+    "current": "2.9.0",
+    "latest": "2.9.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/webdav.client/index.json"
+  },
+  {
+    "package": "xunit.runner.visualstudio",
+    "current": "3.1.5",
+    "latest": "4.0.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/xunit.runner.visualstudio/index.json"
+  },
+  {
+    "package": "xunit.v3",
+    "current": "3.2.2",
+    "latest": "4.0.2",
+    "source": "https://api.nuget.org/v3-flatcontainer/xunit.v3/index.json"
+  },
+  {
+    "package": "YamlDotNet",
+    "current": "18.1.0",
+    "latest": "18.1.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/yamldotnet/index.json"
+  },
+  {
+    "package": "ZXing.Net.Bindings.SkiaSharp",
+    "current": "0.16.22",
+    "latest": "0.16.24",
+    "source": "https://api.nuget.org/v3-flatcontainer/zxing.net.bindings.skiasharp/index.json"
+  },
+  {
+    "package": "SkiaSharp.NativeAssets.Linux",
+    "current": "3.119.4",
+    "latest": "4.153.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/skiasharp.nativeassets.linux/index.json"
+  },
+  {
+    "package": "System.Security.Cryptography.ProtectedData",
+    "current": "10.0.0",
+    "latest": "10.0.13",
+    "source": "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.protecteddata/index.json"
+  },
+  {
+    "package": "coverlet.collector",
+    "current": "6.0.4",
+    "latest": "10.1.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/coverlet.collector/index.json"
+  },
+  {
+    "package": "Microsoft.NET.Test.Sdk",
+    "current": "17.14.1",
+    "latest": "18.11.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/index.json"
+  },
+  {
+    "package": "NUnit",
+    "current": "4.4.0",
+    "latest": "5.0.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/nunit/index.json"
+  },
+  {
+    "package": "NUnit.Analyzers",
+    "current": "4.10.0",
+    "latest": "4.15.0",
+    "source": "https://api.nuget.org/v3-flatcontainer/nunit.analyzers/index.json"
+  },
+  {
+    "package": "NUnit3TestAdapter",
+    "current": "5.1.0",
+    "latest": "6.3.1",
+    "source": "https://api.nuget.org/v3-flatcontainer/nunit3testadapter/index.json"
+  },
+  {
+    "package": "Avalonia",
+    "current": "0.10.0",
+    "latest": "12.1.4",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia/index.json"
+  },
+  {
+    "package": "Avalonia.Desktop",
+    "current": "0.10.0",
+    "latest": "12.1.4",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.desktop/index.json"
+  },
+  {
+    "package": "Avalonia.Diagnostics",
+    "current": "0.10.0",
+    "latest": "11.3.22",
+    "source": "https://api.nuget.org/v3-flatcontainer/avalonia.diagnostics/index.json"
+  }
+]

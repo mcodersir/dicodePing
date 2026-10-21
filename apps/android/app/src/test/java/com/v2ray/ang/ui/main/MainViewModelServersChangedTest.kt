@@ -57,6 +57,7 @@ class MainViewModelServersChangedTest {
         @Volatile
         var showAllGroup = false
         var showPrimaryGroup = false
+        var primaryGuids = listOf("primary-server")
         var primaryEnabled = true
         var autoTestEnabled = true
         var cancelCount = 0
@@ -130,7 +131,7 @@ class MainViewModelServersChangedTest {
                 listReadHeld.complete(Unit)
                 gate.await(5, TimeUnit.SECONDS)
             }
-            return if (groupId == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) listOf("primary-server") else serverGuids
+            return if (groupId == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) primaryGuids else serverGuids
         }
         override fun decodeServerConfig(guid: String): ProfileItem? =
             ProfileItem.create(EConfigType.VLESS).apply {
@@ -206,6 +207,26 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
+    fun startupNeverProbesMoreThanNinetyOfThreeHundredProfiles() = runBlocking {
+        val source = FakeSource().apply { showPrimaryGroup = true; primaryGuids = (0 until 300).map { "candidate-$it" } }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.initialize()
+        val tested = mutableListOf<String>()
+        repeat(6) {
+            val request = withTimeout(5_000) { source.testMessages.receive() }
+            assertEquals(15, request.serverGuids.size)
+            tested.addAll(request.serverGuids)
+            val id = source.requestIds.receive()
+            source.events.send(MainServiceEvent.MeasureConfigFinish(id))
+        }
+        withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
+        assertEquals(90, tested.distinct().size)
+        assertEquals(null, source.testMessages.tryReceive().getOrNull())
+        viewModel.skipPreparation()
+    }
+
+    @Test
     fun preparationSkipsDeletedDisabledAndOptedOutDefaultSubscriptions() = runBlocking {
         for (mode in listOf("deleted", "disabled", "optout")) {
             val source = FakeSource().apply { showPrimaryGroup = mode != "deleted"; primaryEnabled = mode != "disabled"; autoTestEnabled = mode != "optout" }
@@ -220,26 +241,21 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
-    fun preparationKeepsSavedLatencyAndLocationAfterBothStagesFinish() = runBlocking {
+    fun preparationConnectsAfterRealLatencyWithoutWaitingForLocations() = runBlocking {
         val source = FakeSource().apply { showPrimaryGroup = true }
         val viewModel = MainViewModel(mock<Application>(), source)
         viewModel.awaitServers("a", "b")
         viewModel.initialize()
-        withTimeout(5_000) { source.testMessages.receive() }
+        val request = withTimeout(5_000) { source.testMessages.receive() }
+        assertEquals(listOf("primary-server"), request.serverGuids)
         val pingId = source.requestIds.receive()
         source.affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
         source.events.send(MainServiceEvent.MeasureConfigFinish(pingId))
-        val locationRequest = withTimeout(5_000) { source.testMessages.receive() }
-        val locationId = source.requestIds.receive()
-        assertEquals(true, locationRequest.locationOnly)
-        assertEquals(listOf("primary-server"), locationRequest.serverGuids)
-        source.affiliations["primary-server"] = ServerAffiliationInfo(42, "DE", "203.0.113.1")
-        source.events.send(MainServiceEvent.MeasureConfigFinish(locationId))
         withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
-        val cached = viewModel.serversForGroup(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID).value.single()
-        assertEquals(42L, cached.testDelayMillis)
-        assertEquals("DE", cached.countryCode)
-        assertEquals("203.0.113.1", cached.ipAddress)
+        assertEquals("primary-server", viewModel.uiState.value.startupConnectGuid)
+        assertEquals(null, source.testMessages.tryReceive().getOrNull())
+        assertEquals(42L, viewModel.serversForGroup(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID).value.single().testDelayMillis)
+        viewModel.skipPreparation()
     }
 
     @Test

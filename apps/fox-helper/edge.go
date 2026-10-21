@@ -155,6 +155,12 @@ func (p *provider) bootstrapEdge(ctx context.Context, host string) ([]net.IP, er
 }
 
 func (p *provider) dialEdgeTLS(ctx context.Context, network, address string) (net.Conn, error) {
+	return p.dialProviderTLS(ctx, network, address, true)
+}
+func (p *provider) dialControlTLS(ctx context.Context, network, address string) (net.Conn, error) {
+	return p.dialProviderTLS(ctx, network, address, false)
+}
+func (p *provider) dialProviderTLS(ctx context.Context, network, address string, edge bool) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -177,9 +183,13 @@ func (p *provider) dialEdgeTLS(ctx context.Context, network, address string) (ne
 		attempt, cancel := context.WithTimeout(ctx, 5*time.Second)
 		raw, e := p.relayDialer().DialContext(attempt, network, candidate)
 		if e == nil {
-			secure := tls.Client(raw, &tls.Config{RootCAs: p.roots, ServerName: host, MinVersion: tls.VersionTLS12, NextProtos: []string{"h2"}})
+			protocols := []string{"h2", "http/1.1"}
+			if edge {
+				protocols = []string{"h2"}
+			}
+			secure := tls.Client(&helloSplitConn{Conn: raw, mode: p.tlsSplit}, &tls.Config{RootCAs: p.roots, ServerName: host, MinVersion: tls.VersionTLS12, NextProtos: protocols})
 			e = secure.HandshakeContext(attempt)
-			if e == nil && secure.ConnectionState().NegotiatedProtocol != "h2" {
+			if e == nil && edge && secure.ConnectionState().NegotiatedProtocol != "h2" {
 				e = errors.New("relay did not negotiate HTTP/2")
 			}
 			if e == nil {

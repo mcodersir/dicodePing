@@ -29,6 +29,12 @@ class UtilsTest {
     }
 
     @Test
+    fun ipv6IsOnByDefault() {
+        // PattNG: "Enable IPv6" reads as this while no value is stored.
+        assertTrue(AppConfig.DEFAULT_IPV6_ENABLED)
+    }
+
+    @Test
     fun test_isIpAddress() {
         assertFalse(Utils.isIpAddress("114.113.112.266"))
         assertFalse(Utils.isIpAddress("666.666.666.666"))

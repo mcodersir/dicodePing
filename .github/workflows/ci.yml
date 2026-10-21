@@ -10,9 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.27.2
+          go-version: 1.27.3
           cache: false
       - run: go test -race -timeout 60s ./...
         working-directory: apps/fox-helper
@@ -21,10 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-      - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.4
+      - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.5
 
       - name: Build independent CLI
         run: |
@@ -41,12 +47,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.27.2
+          go-version: 1.27.3
           cache: false
       - name: Verify Windows Fox socket interface binding
         run: go test -timeout 60s ./...
@@ -56,7 +65,7 @@ jobs:
         run: |
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Desktop regression tests failed' }
-          dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=4.9.4 -o isolated-publish
+          dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=4.9.5 -o isolated-publish
           if ($LASTEXITCODE -ne 0) { throw 'Desktop publish failed' }
           if (-not (Test-Path isolated-publish/DicodePing.exe)) { throw 'Desktop executable was not published' }
           $manifest = Get-Content apps/desktop/v2rayN.Desktop/app.manifest -Raw
@@ -67,15 +76,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
       - name: Check release version and Android UI source
         run: |
-          grep -q 'versionName.*4.9.4' apps/android/app/build.gradle.kts
+          grep -q 'versionName.*4.9.5' apps/android/app/build.gradle.kts
           test -f apps/android/app/src/main/java/com/v2ray/ang/ui/main/MainScreen.kt
 
   web-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
       - uses: actions/setup-node@v6
         with:
           node-version: 24

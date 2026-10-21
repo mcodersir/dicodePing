@@ -209,6 +209,7 @@
                         <Grid RowDefinitions="Auto,*" RowSpacing="14">
                             <StackPanel Margin="4,0" Spacing="4">
                                 <TextBlock FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" Text="{x:Static resx:ResUI.DicodeHomeTitle}" />
+                                <views:SponsorBanner Placement="home" />
                                 <TextBlock Classes="HomeSubtitle" Opacity="0.72" Text="{x:Static resx:ResUI.DicodeHomeSubtitle}" TextWrapping="Wrap" />
                             </StackPanel>
                             <ContentControl x:Name="contentStatusBarView" Grid.Row="1" />
@@ -216,7 +217,7 @@
                     </Panel>
 
                     <Panel x:Name="pageProfiles" Classes="DicodePage" IsVisible="False">
-                        <ContentControl x:Name="tabProfiles" />
+                        <DockPanel><views:SponsorBanner Placement="profiles" DockPanel.Dock="Top" /><ContentControl x:Name="tabProfiles" /></DockPanel>
                     </Panel>
 
                     <Panel x:Name="pageProxies" Classes="DicodePage" IsVisible="False">

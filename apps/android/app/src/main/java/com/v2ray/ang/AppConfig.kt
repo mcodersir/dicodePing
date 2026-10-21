@@ -232,6 +232,7 @@ object AppConfig {
 
     /** Shared defaults for settings shown in the UI and consumed by config generation. */
     const val DEFAULT_SOCKS_ENABLE_UDP = true
+    const val DEFAULT_IPV6_ENABLED = true
     const val DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD = "0"
     const val DEFAULT_VPN_BYPASS_LAN = "1"
     const val DEFAULT_HEV_TUNNEL_LOGLEVEL = "warn"
@@ -317,6 +318,7 @@ object AppConfig {
     // bundled for the VPN hev path; distinct filename from the JNI lib to avoid collision).
     const val ROOT_TUN2SOCKS_BIN = "libhevsockstun.so"
     const val ROOT_FWD_CHAIN = "CORE_FWD"   // FORWARD chain for LAN/tethering sharing
+    const val ROOT_DNS_OUT_CHAIN = "CORE_DNS_OUT"
     const val ROOT_DNS_CHAIN = "CORE_DNS"   // nat chain for tethered-client DNS DNAT
     const val ROOT_V6_CHAIN = "CORE6_FILTER"       // ip6tables filter/OUTPUT chain: blackhole native IPv6 when it isn't tunneled
     const val ROOT_V6_FWD_CHAIN = "CORE6_FWD" // ip6tables FORWARD chain: route or reject tethered clients' native IPv6

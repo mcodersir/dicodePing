@@ -21,6 +21,7 @@ sealed interface MainStatus {
  * Main UI state
  */
 data class MainUiState(
+    val startupConnectGuid: String? = null,
     val groups: List<GroupMapItem> = emptyList(),
     val selectedGroupId: String = "",
     val selectedGuid: String? = null,
