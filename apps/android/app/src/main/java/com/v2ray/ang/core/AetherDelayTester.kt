@@ -270,10 +270,7 @@ object AetherDelayTester {
         deadline: Long = deadlineAfter(TEST_BUDGET_MS),
         calls: ProbeCalls = ProbeCalls(),
     ): Long {
-        val urls = when (url) {
-            AppConfig.DELAY_TEST_URL, AppConfig.DELAY_TEST_URL2 -> listOf(url, "https://cp.cloudflare.com/generate_204", "https://www.apple.com/library/test/success.html")
-            else -> listOf(url)
-        }
+        val urls = ProxyHealthResponse.targets(url)
         val requests = try { urls.distinct().map { Request.Builder().url(it).header("Cache-Control", "no-cache, no-store").build() } }
             catch (_: IllegalArgumentException) { return -1L }
         val client = OkHttpClient.Builder()
@@ -283,12 +280,12 @@ object AetherDelayTester {
         return try {
             var best = -1L
             for (request in requests) {
-                repeat(ATTEMPTS) {
+                repeat(if (requests.size > 1) 1 else ATTEMPTS) {
                     val remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
                     if (remaining < MIN_REQUEST_MS) return best
                     // Derived clients share the pool, so a second attempt measures a warm connection. The connect
                     // timeout is set as well because the SOCKS handshake happens inside the connect.
-                    val budget = if (requests.size > 1) minOf(remaining, 3000L) else remaining
+                    val budget = if (requests.size > 1) minOf(remaining, 5000L) else remaining
                     val attempt = client.newBuilder()
                         .connectTimeout(budget, TimeUnit.MILLISECONDS)
                         .callTimeout(budget, TimeUnit.MILLISECONDS)

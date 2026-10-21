@@ -386,6 +386,7 @@ private fun ServerListItem(
                     }
                 }
             }
+            if (row.speedText.isNotBlank()) Text(row.speedText, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (row.subscriptionBadge.isNotBlank()) {
@@ -409,6 +410,7 @@ private fun ServerListItem(
             }
             if (row.subscriptionUsage.isNotBlank()) Text(row.subscriptionUsage,
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            if (row.speedText.isNotBlank()) Text(row.speedText, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(

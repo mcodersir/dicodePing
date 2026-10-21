@@ -33,6 +33,8 @@ class CoreVpnService : VpnService(), ServiceControl {
     private var isRunning = false
     private var tun2SocksService: Tun2SocksControl? = null
     private val isStartingLock = AtomicBoolean(false)
+    private val lifecycleWorker = CoreLifecycleWorker.executor
+    private val stopRequested = AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
@@ -45,7 +47,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     override fun onRevoke() {
         com.v2ray.ang.core.LauncherManager.cancelPendingConnectionRequests()
         LogUtil.w(AppConfig.TAG, "StartCore-VPN: Permission revoked")
-        stopAllService()
+        stopService()
     }
 
 //    override fun onLowMemory() {
@@ -57,25 +59,9 @@ class CoreVpnService : VpnService(), ServiceControl {
         super.onDestroy()
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service destroyed")
 
-        // Ensure VPN interface is properly closed when the service is destroyed without
-        // going through stopAllService() (e.g. when killed unexpectedly). isRunning is
-        // set to false at the start of stopAllService(), so this guard prevents a double-close.
-        if (isRunning) {
-            // The interface is not all that would outlive the service then: tun2socks, Xray and the
-            // Aether core run on in this process, as the other two services stop them in onDestroy.
-            // The service is going down already, so this is the teardown without stopSelf().
-            stopAllService(isForced = false)
-            try {
-                if (::mInterface.isInitialized) {
-                    mInterface.close()
-                    LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed in onDestroy")
-                }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface in onDestroy", e)
-            }
-        }
-
-        unlockStart()
+        stopRequested.set(true)
+        CoreServiceManager.cancelFoxStartup()
+        lifecycleWorker.execute { stopAllService(isForced = false) }
         NotificationManager.cancelNotification()
     }
 
@@ -97,14 +83,29 @@ class CoreVpnService : VpnService(), ServiceControl {
             return START_NOT_STICKY
         }
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service command received, systemVpnStart=$isSystemVpnStart")
-        if (!setupVpnService()) {
-            unlockStart()
-            // Stop service if setup fails to avoid infinite restart loops (START_STICKY)
-            stopSelf()
-            return START_NOT_STICKY
+        stopRequested.set(false)
+        lifecycleWorker.execute {
+            try {
+                if (stopRequested.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) return@execute
+                NotificationManager.ensureForeground()
+                if (!setupVpnService()) {
+                    stopRequested.set(true)
+                    stopAllService()
+                    return@execute
+                }
+                if (stopRequested.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) {
+                    stopAllService()
+                    return@execute
+                }
+                startService()
+                if (stopRequested.get()) stopAllService()
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-VPN: Startup failed", error)
+                MessageHelper.sendMsg2UI(this, AppConfig.MSG_STATE_START_FAILURE, error.message.orEmpty())
+                stopAllService()
+            } finally { unlockStart() }
         }
-        startService()
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun getService(): Service {
@@ -133,7 +134,9 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     override fun stopService() {
-        stopAllService(true)
+        stopRequested.set(true)
+        CoreServiceManager.cancelFoxStartup()
+        if (!lifecycleWorker.isShutdown) lifecycleWorker.execute { stopAllService(true) }
     }
 
     override fun vpnProtect(socket: Int): Boolean {
@@ -245,6 +248,15 @@ class CoreVpnService : VpnService(), ServiceControl {
      * @param ipv6 Whether the interface takes the IPv6 address, routes and DNS servers ([addVpnDnsServers])
      */
     private fun configureNetworkSettings(builder: Builder, ipv6: Boolean) {
+        // Pick the carrier before establishing the replacement VPN. The old
+        // default network can still be another VPN while Android tears it down.
+        val connectivity = getSystemService(android.net.ConnectivityManager::class.java)
+        val carrier = connectivity.allNetworks.mapNotNull { network ->
+            connectivity.getNetworkCapabilities(network)?.let { caps -> network to caps }
+        }.filter { (_, caps) -> caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) }
+            .maxByOrNull { (_, caps) -> if (caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 1 else 0 }?.first
+        if (carrier != null) builder.setUnderlyingNetworks(arrayOf(carrier))
         val vpnConfig = SettingsManager.getCurrentVpnInterfaceAddressConfig()
         val bypassLan = SettingsManager.routingRulesetsBypassLan()
 
@@ -373,7 +385,7 @@ class CoreVpnService : VpnService(), ServiceControl {
 
         RootLanSharing.stopClientSharing(this)
 
-        CoreServiceManager.stopCoreLoop()
+        CoreServiceManager.stopCoreLoop(this)
 
         if (isForced) {
             //stopSelf has to be called ahead of mInterface.close(). otherwise v2ray core cannot be stooped
@@ -383,15 +395,9 @@ class CoreVpnService : VpnService(), ServiceControl {
             //which means the first v2ray core somehow failed to stop and release the port.
             stopSelf()
 
-            // Add a small delay to allow the async core stop operation to complete
-            // before closing the VPN interface, preventing a race condition that can
-            // leave the VPN icon in the status bar after stopping the service.
-            try {
-                Thread.sleep(100)
-            } catch (e: InterruptedException) {
-                LogUtil.w(AppConfig.TAG, "StartCore-VPN: Sleep interrupted", e)
-            }
-
+        }
+        run {
+            // Close on the lifecycle worker after the core's stop operation.
             try {
                 if (::mInterface.isInitialized) {
                     mInterface.close()

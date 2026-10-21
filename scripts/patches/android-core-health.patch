@@ -1,18 +1,30 @@
+diff --git a/libv2ray_utils.go b/libv2ray_utils.go
+index fcc9e85..9019913 100644
 --- a/libv2ray_utils.go
 +++ b/libv2ray_utils.go
-@@ -9,4 +9,6 @@
+@@ -7,8 +7,10 @@ import (
+ 	"io"
+ 	"net"
  	"net/http"
 +	"net/url"
  	"strconv"
  	"strings"
 +	"sync"
  	"time"
-@@ -114,3 +116,3 @@
+ 
+ 	corenet "github.com/xtls/xray-core/common/net"
+@@ -112,7 +114,7 @@ func measureOutboundDelay(ctx context.Context, ConfigureFileContent string, url
+ 
+ // measureInstDelay measures the delay for an instance to a given URL, through the outbound with
  // outboundTag, or as the instance routes it when outboundTag is empty
 -func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag string, url string) (int64, error) {
 +func measureInstDelayOnce(ctx context.Context, inst *core.Instance, outboundTag string, url string) (int64, error) {
  	if inst == nil {
-@@ -140,4 +142,5 @@
+ 		return -1, errors.New("core instance is nil")
+ 	}
+@@ -138,8 +140,9 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 	}
+ 
  	client := &http.Client{
 -		Transport: tr,
 -		Timeout:   12 * time.Second,
@@ -20,7 +32,11 @@
 +		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 +		Timeout:       12 * time.Second,
  	}
-@@ -174,6 +177,6 @@
+ 
+ 	var minDuration int64 = -1
+@@ -172,10 +175,10 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 			continue
+ 		}
  
 -		_, err = io.Copy(io.Discard, resp.Body)
 +		body, err := io.ReadAll(io.LimitReader(resp.Body, 65537))
@@ -29,12 +45,20 @@
 -		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 +		if !validProbeResponse(url, resp.StatusCode, body) {
  			lastErr = fmt.Errorf("invalid status: %s", resp.Status)
-@@ -187,3 +190,3 @@
+ 			continue
+ 		}
+@@ -185,7 +188,7 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 			continue
+ 		}
  
 -		duration := time.Since(start).Milliseconds()
 +		duration := max(int64(1), time.Since(start).Milliseconds())
  		if !success || duration < minDuration {
-@@ -199 +202,69 @@
+ 			minDuration = duration
+ 		}
+@@ -197,3 +200,74 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+ 	}
+ 	return minDuration, nil
  }
 +
 +// A portal, proxy error or redirect is never a successful generate_204 probe.
@@ -55,6 +79,9 @@
 +	if strings.EqualFold(u.Hostname(), "www.apple.com") && u.Path == "/library/test/success.html" {
 +		return status == 200 && strings.Contains(strings.ToLower(string(body)), "<title>success</title>")
 +	}
++	if strings.EqualFold(u.Hostname(), "detectportal.firefox.com") && u.Path == "/success.txt" {
++		return status == 200 && strings.TrimSpace(string(body)) == "success"
++	}
 +	return true
 +}
 +
@@ -62,8 +89,8 @@
 +// probes exact; use independently hosted known responses for built-in 204 URLs.
 +func probeTargets(address string) []string {
 +	switch address {
-+	case "", "https://www.google.com/generate_204", "https://www.gstatic.com/generate_204", "https://www.youtube.com/generate_204", "https://www.googlevideo.com/generate_204":
-+		return []string{address, "https://cp.cloudflare.com/generate_204", "https://www.apple.com/library/test/success.html"}
++	case "", "https://www.google.com/generate_204", "https://www.gstatic.com/generate_204", "https://www.youtube.com/generate_204", "https://www.googlevideo.com/generate_204", "http://www.google.com/generate_204", "http://www.gstatic.com/generate_204", "http://www.youtube.com/generate_204", "http://www.googlevideo.com/generate_204":
++		return []string{address, "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt", "https://www.apple.com/library/test/success.html"}
 +	default:
 +		return []string{address}
 +	}

@@ -10,13 +10,25 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class FoxNativeTest {
+    @Test fun packagedSingBoxExecutesOnTheDevicePageSize() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val executable = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
+        val process = ProcessBuilder(executable.absolutePath, "version").redirectErrorStream(true).start()
+        try {
+            assertTrue(process.waitFor(15, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("1.14.3"))
+        } finally { if (process.isAlive) process.destroyForcibly() }
+    }
+
     @Test fun helperRunsAndLoadsAndroidTrustStoreWithoutLeakingCredentials() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val executable = File(context.applicationInfo.nativeLibraryDir, "libdicodefox.so")
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.5"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.6"))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.

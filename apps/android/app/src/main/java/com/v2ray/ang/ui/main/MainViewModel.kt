@@ -142,6 +142,7 @@ class MainViewModel(
     private val testRequests = MainTestRequests()
     private var bulkTestJob: Job? = null
     private var speedTestJob: Job? = null
+    private val speedResults = ConcurrentHashMap<String, String>()
     private var startupLocationGroup: String? = null
     private var startupTestTargets: Set<String> = emptySet()
     private var startupRequestVersion: String? = null
@@ -268,7 +269,7 @@ class MainViewModel(
             val drained = pendingTestResults.toMap()
             pendingTestResults.clear()
             groupDataCache[request.groupId]?.let { cached ->
-                groupDataCache[request.groupId] = applyTestDelayResults(cached, drained)
+                groupDataCache[request.groupId] = applyTestDelayResults(cached, drained).sortedBy { if (it.testDelayMillis > 0) it.testDelayMillis else Long.MAX_VALUE }
             }
             drained
         }
@@ -276,8 +277,8 @@ class MainViewModel(
         if (testRequests.bulk?.id != request.id) return
         mutableServerGroupState(request.groupId).update { current ->
             current.copy(
-                servers = applyTestDelayResults(current.servers, updates),
-                rows = applyTestDelayResultsToRows(current.rows, updates),
+                servers = applyTestDelayResults(current.servers, updates).sortedBy { if (it.testDelayMillis > 0) it.testDelayMillis else Long.MAX_VALUE },
+                rows = applyTestDelayResultsToRows(current.rows, updates).sortedBy { if (it.testDelayMillis > 0) it.testDelayMillis else Long.MAX_VALUE },
             )
         }
     }
@@ -352,6 +353,10 @@ class MainViewModel(
             MainAction.DiscoverFinalMask -> discoverFinalMask()
             MainAction.TestAllSecurity -> testAllSecurity()
             MainAction.TestAllSanctions -> testAllSanctions()
+            is MainAction.TestServerSpeed -> {
+                if (uiState.value.isRunning && uiState.value.selectedGuid == action.guid) testConnectionSpeed()
+                else toast(dataSource.getString(R.string.connection_not_connected))
+            }
             MainAction.TestSpeed -> testConnectionSpeed()
             MainAction.CancelTesting -> cancelAllPing()
             MainAction.RemoveAllServers -> removeAllServerAsync()
@@ -409,7 +414,7 @@ class MainViewModel(
                 val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
                 if (primary == null || !primary.subscription.enabled || !dataSource.isDefaultAutoTestEnabled() || uiState.value.isRunning) return@launch
                 _uiState.update { it.copy(preparationVisible = true, preparationStage = "refresh", preparationProgress = "") }
-                val completed = withTimeoutOrNull(100_000L) {
+                val completed = withTimeoutOrNull(70_000L) {
                     dataSource.updateConfigViaSub(primary)
                     currentCoroutineContext().ensureActive()
                     dataSource.setSelectedSubscriptionId(primary.guid)
@@ -442,7 +447,22 @@ class MainViewModel(
                     }
                     true
                 }
-                if (completed == null) withContext(Dispatchers.Main) { cancelAllPing() }
+                if (completed == null) {
+                    // Keep samples completed before the deadline, including a partial wave.
+                    withContext(Dispatchers.Main) {
+                        testRequests.bulk?.let { flushPendingTestResults(it) }
+                        cancelAllPing()
+                    }
+                    val best = withContext(ioDispatcher) {
+                        loadGroup(primary.guid, forceRefresh = true).servers
+                            .filter { it.guid in startupTestTargets && it.testDelayMillis > 0 }
+                            .minByOrNull { it.testDelayMillis }
+                    }
+                    if (best != null && startupRequestVersion?.let(dataSource::isConnectionRequestCurrent) == true) {
+                        selectForConnection(best.guid)
+                        _uiState.update { it.copy(startupConnectGuid = best.guid) }
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -595,7 +615,7 @@ class MainViewModel(
                 server = server,
                 subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty(),
                 aetherProtocolLabel = aetherProtocolLabel,
-            ).copy(subscriptionUsage = dataSource.getSubscriptionItem(server.profile.subscriptionId)?.let { sub ->
+            ).copy(speedText = speedResults[server.guid].orEmpty(), subscriptionUsage = dataSource.getSubscriptionItem(server.profile.subscriptionId)?.let { sub ->
                 if (!sub.url.startsWith("dicode-fox://") || sub.totalBytes <= 0) ""
                 else dataSource.getString(R.string.fox_subscription_usage,
                     (sub.uploadBytes + sub.downloadBytes).coerceAtLeast(0) / 1e9,
@@ -1118,13 +1138,20 @@ class MainViewModel(
         if (!uiState.value.isRunning || speedTestJob?.isActive == true) return
         cancelAllPing()
         val guid = uiState.value.selectedGuid
-        _uiState.update { it.copy(isTesting = true, status = MainStatus.Testing) }
+        _uiState.update { it.copy(isTesting = true) }
         speedTestJob = viewModelScope.launch {
             try {
                 val result = com.v2ray.ang.core.ProxyThroughputProbe.measure(if (!com.v2ray.ang.handler.SettingsManager.getSocksUsername().isNullOrBlank()) com.v2ray.ang.handler.SettingsManager.getHttpPort() else com.v2ray.ang.handler.SettingsManager.getSocksPort(),
                     com.v2ray.ang.handler.SettingsManager.getSocksUsername(), com.v2ray.ang.handler.SettingsManager.getSocksPassword())
-                if (uiState.value.isRunning && uiState.value.selectedGuid == guid)
-                    _uiState.update { it.copy(isTesting = false, status = MainStatus.SpeedResult(result.downloadMbps, result.uploadMbps)) }
+                if (uiState.value.isRunning && uiState.value.selectedGuid == guid && guid != null) {
+                    val text = dataSource.getString(R.string.connection_speed_result,
+                        result.downloadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—",
+                        result.uploadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—")
+                    speedResults[guid] = text
+                    groupUiFlows.values.forEach { flow -> flow.update { state -> state.copy(rows = state.rows.map { row ->
+                        if (row.guid == guid) row.copy(speedText = text) else row
+                    }) } }
+                }
             } finally { _uiState.update { it.copy(isTesting = testRequests.isTesting) } }
         }
     }
@@ -1160,15 +1187,15 @@ class MainViewModel(
             return
         }
         val serverGuids = startupGuids?.take(90) ?: servers.take(maxServers).map { it.guid }
-        if (maxServers < Int.MAX_VALUE) startupTestTargets = serverGuids.toSet()
+        if (maxServers < Int.MAX_VALUE) startupTestTargets = startupTestTargets + serverGuids
         mutableServerGroupState(groupId).update { current ->
             current.copy(
                 servers = current.servers.map { server ->
-                    if (server.testDelayMillis == 0L) server
+                    if (server.guid !in serverGuids || server.testDelayMillis == 0L) server
                     else server.copy(testDelayMillis = 0L)
                 },
                 rows = current.rows.map { row ->
-                    if (row.testDelayMillis == 0L) row
+                    if (row.guid !in serverGuids || row.testDelayMillis == 0L) row
                     else row.copy(testDelayMillis = 0L)
                 }
             )

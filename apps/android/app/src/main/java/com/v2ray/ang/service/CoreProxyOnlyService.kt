@@ -13,6 +13,8 @@ import com.v2ray.ang.util.LogUtil
 import java.lang.ref.SoftReference
 
 class CoreProxyOnlyService : Service(), ServiceControl {
+    private val ending = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
     /**
      * Initializes the service.
      */
@@ -44,13 +46,18 @@ class CoreProxyOnlyService : Service(), ServiceControl {
             return START_STICKY
         }
 
-        if (!CoreServiceManager.startCoreLoop(null)) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Proxy: Failed to start core loop")
-            stopSelf()
-            return START_NOT_STICKY
+        if (!starting.compareAndSet(false, true)) return START_NOT_STICKY
+        CoreLifecycleWorker.executor.execute {
+            try {
+                if (ending.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) return@execute
+                NotificationManager.ensureForeground()
+                if (!CoreServiceManager.startCoreLoop(null) || ending.get()) stopSelf()
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "Core service startup failed", error)
+                stopSelf()
+            } finally { starting.set(false) }
         }
-
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     /**
@@ -58,7 +65,9 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      */
     override fun onDestroy() {
         super.onDestroy()
-        CoreServiceManager.stopCoreLoop()
+        ending.set(true)
+        CoreServiceManager.cancelFoxStartup()
+        CoreLifecycleWorker.executor.execute { CoreServiceManager.stopCoreLoop(this) }
     }
 
     /**
@@ -80,6 +89,8 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      * Stops the service.
      */
     override fun stopService() {
+        ending.set(true)
+        CoreServiceManager.cancelFoxStartup()
         stopSelf()
     }
 

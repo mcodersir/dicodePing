@@ -176,7 +176,7 @@ internal object FoxAccounts {
 
 /** Private stdin/stdout protocol. Tokens never reach logcat or process arguments. */
 internal class FoxProcess(private val context: Context) : AutoCloseable {
-    private var process: Process? = null
+    @Volatile private var process: Process? = null
     val isAlive: Boolean get() = process?.isAlive == true
     @Volatile private var stopped = false
     private fun launch(request: JSONObject): java.io.BufferedReader {
@@ -184,7 +184,9 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         check(executable.isFile && executable.canExecute()) { "Fox helper is missing; install the full DicodePing APK" }
         val command = ProcessBuilder(executable.absolutePath).directory(context.cacheDir)
         listOf("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy").forEach { command.environment().remove(it) }
+        check(!stopped) { "Fox start cancelled" }
         val child = command.start(); process = child
+        if (stopped) { child.destroy(); error("Fox start cancelled") }
         thread(isDaemon = true, name = "FoxPrivateErrors") { runCatching { child.errorStream.bufferedReader().useLines { lines -> lines.forEach { } } } }
         request.put("ca_bundle", FoxAccounts.roots())
         child.outputStream.bufferedWriter().apply { write(request.toString()); newLine(); flush() }
@@ -222,6 +224,8 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         }
     }
     fun measure(port: Int, url: String): Long = AetherDelayTester.requestDelay(port, url)
+
+    fun cancel() { stopped = true; process?.destroy() }
 
     override fun close() { stopped = true; process?.let { child -> runCatching { child.outputStream.close() }; child.destroy(); if (!child.waitFor(2, TimeUnit.SECONDS)) { child.destroyForcibly(); child.waitFor(2, TimeUnit.SECONDS) } }; process = null }
 }

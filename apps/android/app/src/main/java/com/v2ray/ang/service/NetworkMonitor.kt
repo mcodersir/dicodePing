@@ -40,6 +40,7 @@ class NetworkMonitor(
     }
 
     private var upstream: Network? = null
+    private var hadUpstream = false
     private var handoverJob: Job? = null
     private var registered = false
 
@@ -60,9 +61,10 @@ class NetworkMonitor(
             val previous = upstream
             upstream = network
             onUnderlyingNetworksChanged(arrayOf(network))
-            if (previous != null && previous != network) {
+            if (hadUpstream && previous != network) {
                 scheduleHandover(network)
             }
+            hadUpstream = true
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
@@ -98,6 +100,7 @@ class NetworkMonitor(
         handoverJob?.cancel()
         handoverJob = null
         upstream = null
+        hadUpstream = false
         if (!registered) return
         registered = false
         try {

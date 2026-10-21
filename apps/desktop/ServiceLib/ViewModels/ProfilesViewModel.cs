@@ -31,6 +31,7 @@ public partial class ProfilesViewModel : MyReactiveObject
 
     private string _serverFilter = string.Empty;
     private readonly Dictionary<string, bool> _dicHeaderSort = new();
+    private bool _liveLatencyOrder;
     private readonly ConcurrentDictionary<string, ProfileItemModel> _profileLookup = new();
     private readonly ConcurrentDictionary<ESpeedActionType, SpeedtestService> _probeServices = new();
     private string? _pendingSelectIndexId;
@@ -388,6 +389,12 @@ public partial class ProfilesViewModel : MyReactiveObject
             item.Delay = int.TryParse(result.Delay, out var delay) ? delay : -1;
             item.DelayVal = item.Delay > 0 ? result.Delay! : "—";
             item.IsLatencyTesting = false;
+            // Move one existing row per result; preserve row identity and selection.
+            var old = ProfileItems.IndexOf(item);
+            var key = item.Delay > 0 ? item.Delay : int.MaxValue;
+            var destination = ProfileItems.Take(old).Count(x => (x.Delay > 0 ? x.Delay : int.MaxValue) <= key)
+                + ProfileItems.Skip(old + 1).Count(x => (x.Delay > 0 ? x.Delay : int.MaxValue) < key);
+            if (old != destination) ProfileItems.Move(old, destination);
         }
         if (result.Speed.IsNotEmpty() && !IsPending(result.Speed))
         {
@@ -511,7 +518,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
         for (var row = 0; row < (lstModel?.Count ?? 0); row++)
             lstModel![row].RowNumber = row + 1;
-        ProfileItems.ReplaceAll(lstModel ?? []);
+        ProfileItems.ReplaceAll(_liveLatencyOrder ? (lstModel ?? []).OrderBy(x => x.Delay > 0 ? x.Delay : int.MaxValue) : lstModel ?? []);
         HasProfiles = ProfileItems.Count > 0;
         _profileLookup.Clear();
         foreach (var item in ProfileItems) _profileLookup[item.IndexId] = item;
@@ -1013,6 +1020,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                 run.UpdateSummary(ResUI.DicodeProbeRunning);
                 return Task.CompletedTask;
             });
+            if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest) _liveLatencyOrder = true;
             var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
             foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) {
                 if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest) {

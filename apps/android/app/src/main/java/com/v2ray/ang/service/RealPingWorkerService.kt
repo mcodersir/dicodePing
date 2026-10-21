@@ -57,6 +57,7 @@ class RealPingWorkerService(
     private val batch: String = UUID.randomUUID().toString(),
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
+    private val helpers = java.util.concurrent.ConcurrentHashMap.newKeySet<AutoCloseable>()
     private val job = SupervisorJob()
     private val concurrency = SettingsManager.getRealPingConcurrency()
     private val dispatcher = Executors.newFixedThreadPool(if (onlyTcp) concurrency * 2 else concurrency).asCoroutineDispatcher()
@@ -113,12 +114,13 @@ class RealPingWorkerService(
         job.cancel()
         // A measurement blocks its thread in the native core, where a cancelled coroutine does not reach it. The
         // native call runs on a thread of its own: cancel() is often called on the main thread of a service.
-        thread(name = "RealPingCancel") { CoreNativeManager.cancelOutboundDelays(batch) }
+        thread(name = "RealPingCancel") { CoreNativeManager.cancelOutboundDelays(batch); helpers.forEach { runCatching { it.close() } } }
     }
 
     internal fun disposeProbe() = close()
 
     private fun close() {
+        helpers.clear()
         try {
             dispatcher.close()
         } catch (_: Throwable) {
@@ -134,12 +136,14 @@ class RealPingWorkerService(
             if (!result.status) return@withLock null
             result.foxAccountId?.let { id ->
                 return@withLock com.v2ray.ang.core.FoxProcess(context).use { helper ->
+                    helpers.add(helper); scope.ensureActive()
                     helper.start(id, result.foxCountry, result.foxPort); scope.ensureActive()
                     SpeedtestManager.getProxyLocationInfo(result.foxPort)
                 }
             }
             result.singBoxContent?.let { content ->
                 return@withLock com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
+                    helpers.add(helper); scope.ensureActive()
                     helper.start(content, result.singBoxPort)
                     scope.ensureActive()
                     SpeedtestManager.getProxyLocationInfo(result.singBoxPort)
@@ -192,6 +196,7 @@ class RealPingWorkerService(
         configResult.foxAccountId?.let { id ->
             return RealPingExecutionLimiter.run(config.configType) {
                 com.v2ray.ang.core.FoxProcess(context).use { helper ->
+                    helpers.add(helper); scope.ensureActive()
                     helper.start(id, configResult.foxCountry, configResult.foxPort)
                     helper.measure(configResult.foxPort, SettingsManager.getDelayTestUrl())
                 }
@@ -200,6 +205,7 @@ class RealPingWorkerService(
         configResult.singBoxContent?.let { content ->
             return RealPingExecutionLimiter.run(config.configType) {
                 com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
+                    helpers.add(helper); scope.ensureActive()
                     helper.start(content, configResult.singBoxPort)
                     helper.measure(configResult.singBoxPort, SettingsManager.getDelayTestUrl())
                 }

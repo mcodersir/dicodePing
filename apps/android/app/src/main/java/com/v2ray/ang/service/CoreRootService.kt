@@ -30,7 +30,8 @@ import java.lang.ref.SoftReference
  */
 class CoreRootService : Service(), ServiceControl {
 
-    private var setupJob: Job? = null
+    private val ending = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val starting = java.util.concurrent.atomic.AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
@@ -54,36 +55,30 @@ class CoreRootService : Service(), ServiceControl {
             return START_STICKY
         }
 
-        // Start the in-process core first (this also posts the foreground notification),
-        // then install the root routing off the main thread.
-        if (!CoreServiceManager.startCoreLoop(null)) {
-            LogUtil.e(AppConfig.TAG, "StartCore-Root: core failed to start")
-            stopService()
-            return START_NOT_STICKY
+        if (!starting.compareAndSet(false, true)) return START_NOT_STICKY
+        CoreLifecycleWorker.executor.execute {
+            try {
+                if (ending.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) return@execute
+                NotificationManager.ensureForeground()
+                if (!CoreServiceManager.startCoreLoop(null) || ending.get()) { stopSelf(); return@execute }
+                if (!RootProxyManager.start(this@CoreRootService) || ending.get()) stopSelf()
+            } catch (error: Exception) {
+                LogUtil.e(AppConfig.TAG, "Core service startup failed", error)
+                stopSelf()
+            } finally { starting.set(false) }
         }
-
-        setupJob = CoroutineScope(Dispatchers.IO).launch {
-            if (!RootProxyManager.start(this@CoreRootService)) {
-                LogUtil.e(AppConfig.TAG, "StartCore-Root: failed to start root mode, stopping")
-                stopService()
-            }
-        }
-
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Wait for any in-flight async setup to finish before tearing down. The rules are
-        // installed off the main thread and can take seconds (the setup script waits for the
-        // tun to appear); if a stop arrives during that window, teardown would run first and
-        // the setup would then re-install the rules + tun pointing at a now-dead core,
-        // blackholing all traffic until the next start/stop cycle clears it.
-        runBlocking { setupJob?.cancelAndJoin() }
-        // Remove routing rules BEFORE stopping the core so traffic is never redirected
-        // to a dead listener. Synchronous on purpose — leaving rules behind breaks the net.
-        RootProxyManager.stop(this)
-        CoreServiceManager.stopCoreLoop()
+        ending.set(true)
+        CoreServiceManager.cancelFoxStartup()
+        CoreLifecycleWorker.executor.execute {
+            // Teardown is ordered before a later service start, without blocking Android's main thread.
+            RootProxyManager.stop(this)
+            CoreServiceManager.stopCoreLoop(this)
+        }
     }
 
     override fun getService(): Service = this
@@ -93,6 +88,8 @@ class CoreRootService : Service(), ServiceControl {
     }
 
     override fun stopService() {
+        ending.set(true)
+        CoreServiceManager.cancelFoxStartup()
         stopSelf()
     }
 

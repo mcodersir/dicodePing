@@ -20,6 +20,18 @@ public class RemoteAdsTests
         RemoteAds.Parse(Config("https://example.com"), "profiles", true).Should().BeNull();
         RemoteAds.Parse("not json", "home", true).Should().BeNull();
     }
+    [Theory]
+    [InlineData("https://cdn.example.com/banner.png", true)]
+    [InlineData("http://cdn.example.com/banner.png", false)]
+    [InlineData("https://127.0.0.1/banner.png", false)]
+    public void ImageBannersKeepSafeHttpsLinks(string image, bool allowed) {
+        var root = JsonNode.Parse(Config("https://example.com"))!;
+        root["ads"]![0]!["type"] = "banner";
+        root["ads"]![0]!["image_url"] = image;
+        var ad = RemoteAds.Parse(root.ToJsonString(), "home", true);
+        Assert.Equal(allowed, ad is not null);
+        if (allowed) Assert.Equal(image, ad!.ImageUrl);
+    }
     [Fact]
     public void EnabledBannerUsesSelectedLanguage() {
         RemoteAds.Parse(Config("https://example.com"), "home", true)!.Title.Should().Be("حامی");

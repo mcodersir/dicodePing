@@ -6,7 +6,7 @@ parser.add_argument('--candidate',type=pathlib.Path)
 parser.add_argument('--alternate',type=pathlib.Path)
 parser.add_argument('--version', default='4.9.2')
 parser.add_argument('--code', type=int, default=45920100)
-parser.add_argument('--baselines', nargs='+', default=['4.8.0','4.9.0','4.9.1','4.9.2'])
+parser.add_argument('--baselines', nargs='*', default=['4.8.0','4.9.0','4.9.1','4.9.2'])
 args=parser.parse_args()
 root=pathlib.Path('install-check'); package='ir.dicode.ping.fdroid'; results=[]
 def adb(*args):
@@ -15,6 +15,10 @@ def adb(*args):
     return r
 try:
     adb('shell','getprop')
+    page_size = adb('shell','getconf','PAGE_SIZE').stdout.strip()
+    if 'ps16k' in __import__('os').environ.get('DICODE_INSTALL_TARGET',''):
+        assert page_size == '16384', 'Installation gate did not boot a 16 KB kernel'
+    results.append({'scenario': 'device page size', 'success': page_size in ('4096', '16384'), 'output': page_size})
     if args.candidate:
         assert args.candidate.is_file()
         adb('root'); adb('wait-for-device')
@@ -37,6 +41,9 @@ try:
                 assert f'versionCode={args.code} ' in info.stdout and f'versionName={args.version}' in info.stdout
                 if previous:
                     assert 'keep-my-data' in adb('shell','cat',marker).stdout,'Upgrade lost existing app data'
+            if args.candidate and previous is None:
+                r=adb('shell','sh','-c',f"'mkdir -p {marker.rsplit('/',1)[0]} && echo keep-my-data > {marker}'")
+                assert r.returncode==0, 'Cannot create fresh-install data fixture'
             launch=adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
             if args.candidate:
                 assert launch.returncode==0 and 'Status: ok' in launch.stdout,'Release activity could not start'

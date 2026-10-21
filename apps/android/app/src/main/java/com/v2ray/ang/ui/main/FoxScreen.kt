@@ -97,7 +97,7 @@ internal fun FoxScreen(onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: 
                 }
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
-                    SponsorBanner("fox")
+
                     Text(stringResource(R.string.fox_hint))
                     Box {
                         OutlinedButton(onClick = { expandedAccounts = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(current?.email ?: stringResource(R.string.fox_accounts)) }

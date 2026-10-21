@@ -312,7 +312,7 @@ public sealed class ServerPoolService
             var batch = chunk.Select((p, i) => new ServerTestItem { IndexId = p.IndexId, Address = p.Address,
                 Port = p.Port, ConfigType = p.ConfigType, Profile = p, QueueNum = i,
                 CoreType = AppManager.Instance.GetCoreType(p, p.ConfigType) }).ToList();
-            var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch);
+            var core = await CoreManager.Instance.LoadCoreConfigSpeedtest(batch, abortToken);
             if (core == null)
             {
                 progress.Report(new(ResUI.DicodePoolStageTest, ResUI.DicodePoolCoreNotReady));

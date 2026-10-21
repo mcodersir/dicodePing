@@ -35,3 +35,5 @@ web-qa-*.png
 /apps/android/app/src/main/assets/geosite.dat
 /apps/android/app/src/main/assets/geoip-only-cn-private.dat
 /apps/android/app/src/main/assets/*.dat.tmp
+
+/native-singbox/

@@ -271,8 +271,7 @@ fun MainScreen(
                     pingText = displayText,
                     locationText = "",
                     trafficText = "↑ ${uiState.trafficUplink.toTrafficString()}  ↓ ${uiState.trafficDownlink.toTrafficString()}",
-                    onClick = { dispatchAction(MainAction.TestCurrentServer) },
-                    onSpeedTest = if (isRunning && !uiState.isTesting) ({ dispatchAction(MainAction.TestSpeed) }) else null
+                    onClick = { dispatchAction(MainAction.TestCurrentServer) }
                 )
             },
             floatingActionButton = {
@@ -289,8 +288,7 @@ fun MainScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    SponsorBanner("home")
-                    SponsorBanner("profiles")
+                    if (isRunning) SponsorBanner("home")
                     if (groups.size > 1) {
                         GroupTabBar(
                             groups = groups,

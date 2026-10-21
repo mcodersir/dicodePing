@@ -1,4 +1,4 @@
-name: Android 4.9.5 preflight
+name: Android 4.9.6 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -66,7 +66,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.5
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.6
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -81,6 +81,18 @@ jobs:
         working-directory: apps/android
         script: |
           trap 'adb logcat -d > app/build/remote-test-logcat.txt' EXIT; ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64
+    - name: Test native executables and probes on 16 KB Android
+      timeout-minutes: 15
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 35
+        target: google_apis_ps16k
+        arch: x86_64
+        disable-animations: true
+        working-directory: apps/android
+        script: |
+          test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
+          ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.core.FoxNativeTest
     - name: Preserve Android test diagnostics
       if: always()
       uses: actions/upload-artifact@v7
@@ -94,4 +106,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-4.9.5
+    - codex/release-4.9.6

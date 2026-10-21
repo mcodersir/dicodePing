@@ -4,6 +4,12 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class ProxyHealthResponseTest {
+    @Test fun legacyDefaultsGetFallbackWithoutOverridingCustomEndpoints() {
+        assertTrue(ProxyHealthResponse.targets("http://www.google.com/generate_204").contains("https://detectportal.firefox.com/success.txt"))
+        assertEquals(listOf("https://custom.test/generate_204"), ProxyHealthResponse.targets("https://custom.test/generate_204"))
+        assertTrue(ProxyHealthResponse.accepts("https://detectportal.firefox.com/success.txt", 200, "success\n"))
+        assertFalse(ProxyHealthResponse.accepts("https://detectportal.firefox.com/success.txt", 200, "sign in"))
+    }
     @Test fun aPortalOrRedirectCannotBecomeAGenerate204Ping() {
         val url = "https://www.google.com/generate_204"
         assertTrue(ProxyHealthResponse.accepts(url, 204, ""))

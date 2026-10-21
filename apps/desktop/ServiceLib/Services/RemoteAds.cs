@@ -1,6 +1,6 @@
 namespace ServiceLib.Services;
 
-public record SponsorAd(string Title, string Body, string Url);
+public record SponsorAd(string Title, string Body, string Url, string? ImageUrl = null);
 public static class RemoteAds
 {
     public const string ConfigUrl = "https://raw.githubusercontent.com/mcodersir/dicodePing/refs/heads/main/ads.txt";
@@ -18,6 +18,12 @@ public static class RemoteAds
                 var title = ad[persian ? "title_fa" : "title_en"]?.ToString() ?? "";
                 var body = ad[persian ? "body_fa" : "body_en"]?.ToString() ?? "";
                 if (string.IsNullOrWhiteSpace(title) || title.Length > 120 || body.Length > 400) continue;
+                var image = ad["image_url"]?.ToString();
+                if (ad["type"]?.ToString() == "banner" && !string.IsNullOrWhiteSpace(image)) {
+                    if (image.Length > 2048 || !Uri.TryCreate(image, UriKind.Absolute, out var picture) || picture.Scheme != "https"
+                        || picture.UserInfo.Length > 0 || picture.IsLoopback || !picture.Host.Contains('.')) continue;
+                    return new SponsorAd(title, body, uri.AbsoluteUri, picture.AbsoluteUri);
+                }
                 return new SponsorAd(title, body, uri.AbsoluteUri);
             }
         } catch (Exception) { }

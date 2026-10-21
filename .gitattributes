@@ -5,3 +5,5 @@
 *.ico binary
 *.aar binary
 *.jar binary
+
+*.patch -whitespace

@@ -177,10 +177,10 @@ public class CoreManager
         } catch { await CoreStopExclusive(); throw; }
     }
 
-    public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds)
+    public async Task<ProcessService?> LoadCoreConfigSpeedtest(List<ServerTestItem> selecteds, CancellationToken token = default)
     {
-        await _probeLaunchLock.WaitAsync();
-        try { return await ReadyProbe(await StartProbeBatch(selecteds), selecteds.Where(x => x.AllowTest).Select(x => x.Port)); }
+        await _probeLaunchLock.WaitAsync(token);
+        try { return await ReadyProbe(await StartProbeBatch(selecteds), selecteds.Where(x => x.AllowTest).Select(x => x.Port), token); }
         finally { _probeLaunchLock.Release(); }
     }
 

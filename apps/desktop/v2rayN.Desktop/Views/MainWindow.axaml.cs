@@ -496,7 +496,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
 
     private async Task RunDicodePingStartupAsync()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(70));
         _startupCts = cts;
         var requestVersion = ViewModel.ProfilesViewModel.ConnectionRequestVersion;
         try
@@ -523,14 +523,13 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             foreach (var batch in profiles.Chunk(15)) {
                 ViewModel.PreparationStatus = ResUI.DicodeProbeLatency;
                 await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, batch, cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
                 var delays = (await ProfileExManager.Instance.GetProfileExs()).ToDictionary(x => x.IndexId, x => x.Delay);
                 best = batch.Where(x => delays.GetValueOrDefault(x.IndexId) > 0).OrderBy(x => delays[x.IndexId]).FirstOrDefault();
-                if (best is not null) break;
+                if (best is not null || cts.IsCancellationRequested) break;
             }
             await ViewModel.ProfilesViewModel.RefreshServersBiz();
             if (best is not null && !CoreManager.Instance.IsRunning && ViewModel.ProfilesViewModel.IsConnectionRequestCurrent(requestVersion))
-                await ViewModel.ConnectPoolProfileAsync(best.IndexId, cts.Token, requestVersion);
+                await ViewModel.ConnectPoolProfileAsync(best.IndexId, CancellationToken.None, requestVersion);
             await ViewModel.StatusBarViewModel.RefreshServersBiz();
         }
         catch (OperationCanceledException) { await ViewModel.ProfilesViewModel.StopDiagnosticsAsync(); }

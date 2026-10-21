@@ -40,11 +40,15 @@ public static class ProxyHealthProbe
     public static IReadOnlyList<string> TargetsFor(string preferred)
     {
         // A user-supplied endpoint is an exact diagnostic, not permission to test other sites.
-        if (!string.IsNullOrWhiteSpace(preferred) && !Global.SpeedPingTestUrls.Contains(preferred, StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(preferred) && !Global.SpeedPingTestUrls.Contains(preferred, StringComparer.OrdinalIgnoreCase) && !IsLegacyBuiltIn(preferred))
             return [preferred];
         return [preferred, "https://cp.cloudflare.com/generate_204", "https://www.gstatic.com/generate_204",
-            "https://www.apple.com/library/test/success.html"];
+            "https://www.apple.com/library/test/success.html", "https://detectportal.firefox.com/success.txt"];
     }
+
+    private static bool IsLegacyBuiltIn(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && uri.Scheme is "http" or "https" && uri.AbsolutePath.TrimEnd('/') == "/generate_204"
+        && uri.Host is "www.google.com" or "www.gstatic.com" or "www.youtube.com" or "www.googlevideo.com";
 
     // Independent providers share one deadline. Every request uses the same explicit proxy.
     public static async Task<int> MeasureAnyAsync(IEnumerable<string> urls, IWebProxy? proxy, TimeSpan timeout, CancellationToken token = default)
@@ -82,6 +86,8 @@ public static class ProxyHealthProbe
             return status == 200 && body.Trim() == "Microsoft Connect Test";
         if (uri.Host.Equals("www.apple.com", StringComparison.OrdinalIgnoreCase) && uri.AbsolutePath == "/library/test/success.html")
             return status == 200 && body.Contains("<TITLE>Success</TITLE>", StringComparison.OrdinalIgnoreCase);
+        if (uri.Host.Equals("detectportal.firefox.com", StringComparison.OrdinalIgnoreCase) && uri.AbsolutePath == "/success.txt")
+            return status == 200 && body.Trim() == "success";
         return true;
     }
 }

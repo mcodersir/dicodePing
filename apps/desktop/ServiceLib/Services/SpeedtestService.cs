@@ -396,7 +396,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         ProcessService processService = null;
         try
         {
-            processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(selecteds);
+            processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(selecteds, ct);
             if (processService is null)
             {
                 return false;
@@ -488,7 +488,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         ProcessService processService = null;
         try
         {
-            processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(selecteds);
+            processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(selecteds, ct);
             if (processService is null)
             {
                 return false;

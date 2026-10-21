@@ -55,6 +55,7 @@ sealed interface MainAction {
     data object RefreshGroups : MainAction
     data object ToggleService : MainAction
     data class ConnectServer(val guid: String) : MainAction
+    data class TestServerSpeed(val guid: String) : MainAction
     data object TestSpeed : MainAction
     data object TestCurrentServer : MainAction
     data object TestAllServers : MainAction

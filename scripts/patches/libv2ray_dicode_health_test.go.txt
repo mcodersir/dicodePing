@@ -30,3 +30,9 @@ func TestDicodeProbeRejectsPortalRedirectAndErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestDicodeSavedDefaultFallbackAndMozillaBody(t *testing.T) {
+ if len(probeTargets("http://www.google.com/generate_204")) < 2 { t.Fatal("saved default lost fallbacks") }
+ if len(probeTargets("https://custom.test/generate_204")) != 1 { t.Fatal("custom target was replaced") }
+ if !validProbeResponse("https://detectportal.firefox.com/success.txt",200,[]byte("success\n")) || validProbeResponse("https://detectportal.firefox.com/success.txt",200,[]byte("portal")) { t.Fatal("Mozilla success body not validated") }
+}

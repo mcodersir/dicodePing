@@ -5,6 +5,12 @@ namespace ServiceLib.Tests;
 public class Release493Tests
 {
     [Fact]
+    public void SavedLegacyDefaultStillUsesIndependentValidatedProviders() {
+        Assert.Contains("https://detectportal.firefox.com/success.txt", ProxyHealthProbe.TargetsFor("http://www.google.com/generate_204"));
+        Assert.True(ProxyHealthProbe.IsExpectedResponse(new Uri("https://detectportal.firefox.com/success.txt"), 200, "success\n"));
+        Assert.False(ProxyHealthProbe.IsExpectedResponse(new Uri("https://detectportal.firefox.com/success.txt"), 200, "network login"));
+    }
+    [Fact]
     public void CustomDiagnosticStaysExactWhileBuiltInProvidersHaveFallbacks()
     {
         Assert.Equal(new[] { "http://127.0.0.1:9/generate_204" }, ProxyHealthProbe.TargetsFor("http://127.0.0.1:9/generate_204"));

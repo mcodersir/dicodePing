@@ -56,7 +56,8 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
-    private var foxProcess: FoxProcess? = null
+    @Volatile private var foxProcess: FoxProcess? = null
+    fun cancelFoxStartup() { foxProcess?.cancel() }
     private var singBoxProcess: SingBoxProcess? = null
 
     /** The Aether core the running configuration depends on, null when it has no Aether outbound. */
@@ -399,12 +400,12 @@ object CoreServiceManager {
      * Unregisters broadcast receivers, stops notifications, and shuts down plugins.
      * @return True if the core was stopped successfully, false otherwise.
      */
-    fun stopCoreLoop(): Boolean {
+    fun stopCoreLoop(owner: Service? = null): Boolean {
         foxProcess?.close(); foxProcess = null
         singBoxProcess?.close()
         singBoxProcess = null
         connectionTestScope.coroutineContext.cancelChildren()
-        val service = getService() ?: return false
+        val service = owner ?: getService() ?: return false
 
         networkMonitor?.unregister()
         networkMonitor = null
@@ -416,12 +417,10 @@ object CoreServiceManager {
         AetherCoreManager.stop()
 
         if (isRunning()) {
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    coreController.stopLoop()
-                } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop V2Ray loop", e)
-                }
+            try {
+                coreController.stopLoop()
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to stop V2Ray loop", e)
             }
         }
 
@@ -455,7 +454,7 @@ object CoreServiceManager {
         networkMonitor = NetworkMonitor(
             connectivity = connectivity,
             onUnderlyingNetworksChanged = { networks -> serviceControl?.get()?.setUnderlyingNetworks(networks) },
-            onHandover = { reloadCore() },
+            onHandover = { com.v2ray.ang.service.CoreLifecycleWorker.executor.execute { reloadCore() } },
         ).also { it.register() }
     }
 

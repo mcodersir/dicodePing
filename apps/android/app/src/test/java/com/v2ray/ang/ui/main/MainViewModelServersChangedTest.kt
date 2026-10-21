@@ -193,6 +193,23 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
+    fun successfulPingsMoveToTheTopBeforeTheBatchFinishes() = runBlocking {
+        val source = FakeSource()
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.testAllRealPing()
+        withTimeout(5_000) { source.testMessages.receive() }
+        val id = source.requestIds.receive()
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("b", 80), id))
+        withTimeout(5_000) { viewModel.serverGroupState(SUB).first { it.rows.firstOrNull()?.guid == "b" } }
+        assertEquals(true, viewModel.uiState.value.isTesting)
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("a", 20), id))
+        withTimeout(5_000) { viewModel.serverGroupState(SUB).first { it.rows.firstOrNull()?.testDelayMillis == 20L } }
+        assertEquals(listOf("a", "b"), viewModel.serverGroupState(SUB).value.rows.map { it.guid })
+        viewModel.cancelAllPing()
+    }
+
+    @Test
     fun startupTestsThePrimarySubscriptionEvenWhenTheAggregateWasSelected() = runBlocking {
         val source = FakeSource().apply { showAllGroup = true; showPrimaryGroup = true }
         val viewModel = MainViewModel(mock<Application>(), source)

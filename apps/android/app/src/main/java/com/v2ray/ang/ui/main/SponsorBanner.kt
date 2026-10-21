@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +15,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
 
-internal data class SponsorAd(val title: String, val body: String, val url: String)
+internal data class SponsorAd(val title: String, val body: String, val url: String, val imageUrl: String? = null)
 internal fun parseSponsor(json: String, placement: String, fa: Boolean): SponsorAd? = runCatching {
     require(json.length <= 131072 && placement in setOf("home", "profiles", "fox"))
     val root = JSONObject(json)
@@ -30,7 +31,12 @@ internal fun parseSponsor(json: String, placement: String, fa: Boolean): Sponsor
         val title = ad.optString(if (fa) "title_fa" else "title_en")
         val body = ad.optString(if (fa) "body_fa" else "body_en")
         if (title.isBlank() || title.length > 120 || body.length > 400) continue
-        return SponsorAd(title, body, url)
+        val image = ad.optString("image_url").takeIf { ad.optString("type") == "banner" && it.isNotBlank() }
+        if (image != null) {
+            val picture = java.net.URI(image); val pictureHost = picture.host ?: continue
+            if (image.length > 2048 || picture.scheme != "https" || picture.userInfo != null || '.' !in pictureHost || pictureHost.startsWith("127.") || pictureHost == "localhost") continue
+        }
+        return SponsorAd(title, body, url, image)
     }
     null
 }.getOrNull()
@@ -52,11 +58,39 @@ internal fun SponsorBanner(placement: String) {
         }
     }
     ad?.let { sponsor ->
-        OutlinedCard(Modifier.fillMaxWidth().padding(8.dp)) { Column(Modifier.padding(12.dp)) {
-            Text(if (fa) "تبلیغ" else "Sponsored", style = MaterialTheme.typography.labelSmall)
-            Text(sponsor.title, style = MaterialTheme.typography.titleSmall)
-            Text(sponsor.body, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sponsor.url))) }) { Text(if (fa) "مشاهده" else "Open") }
-        } }
+        OutlinedCard(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sponsor.url))) } },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(if (fa) "تبلیغ" else "Ad", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(sponsor.title, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text("↗", style = MaterialTheme.typography.labelMedium)
+                }
+                if (sponsor.imageUrl != null) {
+                    var bitmap by remember(sponsor.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+                    LaunchedEffect(sponsor.imageUrl) {
+                        bitmap = withContext(Dispatchers.IO) { runCatching {
+                            val c = URL(sponsor.imageUrl).openConnection() as java.net.HttpURLConnection
+                            c.connectTimeout = 4000; c.readTimeout = 4000; c.instanceFollowRedirects = false
+                            try {
+                                require(c.responseCode == 200)
+                                val bytes = c.inputStream.use { input ->
+                                    val out = java.io.ByteArrayOutputStream(); val buffer = ByteArray(4096)
+                                    while (true) { val n = input.read(buffer); if (n < 0) break; require(out.size() + n <= 1048576); out.write(buffer, 0, n) }; out.toByteArray()
+                                }
+                                val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                                require(options.outWidth in 1..4096 && options.outHeight in 1..4096)
+                                options.inJustDecodeBounds = false
+                                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
+                            } finally { c.disconnect() }
+                        }.getOrNull() }
+                    }
+                    bitmap?.let { androidx.compose.foundation.Image(it, sponsor.title, Modifier.fillMaxWidth().heightIn(max = 88.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit) }
+                } else if (sponsor.body.isNotBlank()) {
+                    Text(sponsor.body, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+            }
+        }
     }
 }

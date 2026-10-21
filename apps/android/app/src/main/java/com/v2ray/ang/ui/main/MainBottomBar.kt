@@ -33,7 +33,6 @@ fun MainBottomBar(
     locationText: String,
     trafficText: String,
     onClick: () -> Unit,
-    onSpeedTest: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -42,7 +41,6 @@ fun MainBottomBar(
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         AppDivider()
-        if (onSpeedTest != null) TextButton(onClick = onSpeedTest) { Text(stringResource(R.string.connection_speed_test)) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
