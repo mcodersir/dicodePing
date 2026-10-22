@@ -90,6 +90,8 @@ class FoxNativeTest {
         val context = instrumentation.targetContext
         MmkvManager.initialize(context)
         val auto = MmkvManager.decodeSettingsBool(com.v2ray.ang.AppConfig.PREF_DICODE_AUTO_TEST, true)
+        val logLevel = MmkvManager.decodeSettingsString(com.v2ray.ang.AppConfig.PREF_LOGLEVEL)
+        val lastFailure = java.util.concurrent.atomic.AtomicReference<String>("")
         val hev = MmkvManager.decodeSettingsBool(com.v2ray.ang.AppConfig.PREF_USE_HEV_TUNNEL, false)
         val selected = MmkvManager.getSelectServer()
         val guid = UUID.randomUUID().toString()
@@ -118,13 +120,15 @@ class FoxNativeTest {
         })
         try {
             MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_DICODE_AUTO_TEST, false)
+            MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_LOGLEVEL, "debug")
+            com.v2ray.ang.util.LogUtil.refreshLogLevel()
             MmkvManager.encodeServerConfig(guid, com.v2ray.ang.dto.entities.ProfileItem.create(com.v2ray.ang.enums.EConfigType.VLESS).apply {
                 subscriptionId = subscription; remarks = "VLESS integration fixture"; this.server = "127.0.0.1"; serverPort = port.toString(); password = user; security = "none"; network = "tcp"
             })
             instrumentation.uiAutomation.executeShellCommand("appops set ${context.packageName} ACTIVATE_VPN allow").use {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
             }
-            server.startLoop("""{"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}"}}]}""", 0)
+            server.startLoop("""{"log":{"loglevel":"debug","access":""},"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}"}}]}""", 0)
             androidx.test.core.app.ActivityScenario.launch<com.v2ray.ang.ui.main.MainActivity>(
                 android.content.Intent(context, com.v2ray.ang.ui.main.MainActivity::class.java)
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)).use {
@@ -145,10 +149,13 @@ class FoxNativeTest {
                             val connection = java.net.URL("http://1.1.1.1:${endpoint.localPort}/integration").openConnection(proxy)
                             connection.connectTimeout = 500; connection.readTimeout = 1000
                             connection.getInputStream().use { it.bufferedReader().readText() }
+                        }.onFailure { failure ->
+                            lastFailure.set(failure.toString())
+                            android.util.Log.w("DicodeVlessFixture", failure.toString())
                         }.getOrDefault("")
                         if (response != "vless-ok") Thread.sleep(100)
                     }
-                    assertEquals("VPN service failed with HEV=$useHev", "vless-ok", response)
+                    assertEquals("VPN service failed with HEV=$useHev, hits=${hits.get()}, serverRunning=${server.isRunning}, last=${lastFailure.get()}", "vless-ok", response)
                     Thread.sleep(1200) // A delayed onDestroy from the old session must not stop this one.
                     val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
                     assertTrue("No VPN transport", connectivity.allNetworks.any { network ->
@@ -170,6 +177,8 @@ class FoxNativeTest {
             selected?.let(MmkvManager::setSelectServer)
             MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_USE_HEV_TUNNEL, hev)
             MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_DICODE_AUTO_TEST, auto)
+            MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_LOGLEVEL, logLevel)
+            com.v2ray.ang.util.LogUtil.refreshLogLevel()
         }
     }
 
