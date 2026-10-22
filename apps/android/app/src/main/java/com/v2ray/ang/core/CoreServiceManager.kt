@@ -772,7 +772,10 @@ object CoreServiceManager {
                     if (isOrderedBroadcast) resultCode = Activity.RESULT_OK
                     if (isServiceRunning()) {
                         MessageHelper.sendMsg2UI(serviceControl.getService(), AppConfig.MSG_STATE_RUNNING, "")
-                        if (isAetherWarmingUp()) {
+                        if (isStarting) {
+                            val service = serviceControl.getService()
+                            MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, service.getString(R.string.toast_services_start))
+                        } else if (isAetherWarmingUp()) {
                             val service = serviceControl.getService()
                             MessageHelper.sendMsg2UI(
                                 service,

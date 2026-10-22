@@ -120,7 +120,9 @@ class FoxNativeTest {
             MmkvManager.encodeServerConfig(guid, com.v2ray.ang.dto.entities.ProfileItem.create(com.v2ray.ang.enums.EConfigType.VLESS).apply {
                 subscriptionId = subscription; remarks = "VLESS integration fixture"; this.server = "127.0.0.1"; serverPort = port.toString(); password = user; security = "none"; network = "tcp"
             })
-            instrumentation.uiAutomation.executeShellCommand("appops set ${context.packageName} ACTIVATE_VPN allow").close()
+            instrumentation.uiAutomation.executeShellCommand("appops set ${context.packageName} ACTIVATE_VPN allow").use {
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
+            }
             server.startLoop("""{"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}"}}]}""", 0)
             androidx.test.core.app.ActivityScenario.launch<com.v2ray.ang.ui.main.MainActivity>(
                 android.content.Intent(context, com.v2ray.ang.ui.main.MainActivity::class.java)

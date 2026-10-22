@@ -263,7 +263,7 @@ fun MainScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    if (isRunning) SponsorBanner("home", fallbackPlacement = "profiles")
+                    if (isRunning && uiState.status !is MainStatus.Connecting) SponsorBanner("home", fallbackPlacement = "profiles")
                     if (groups.size > 1) {
                         GroupTabBar(
                             groups = groups,
