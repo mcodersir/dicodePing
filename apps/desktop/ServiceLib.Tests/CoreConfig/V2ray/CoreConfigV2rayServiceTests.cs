@@ -9,6 +9,24 @@ namespace ServiceLib.Tests.CoreConfig.V2ray;
 
 public class CoreConfigV2rayServiceTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void LegacyVlessWithoutEncryptionGeneratesAUsableNoneDefault(string? encryption)
+    {
+        var config = CoreConfigTestFactory.CreateConfig(ECoreType.Xray);
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var node = CoreConfigTestFactory.CreateVmessNode(ECoreType.Xray);
+        node.ConfigType = EConfigType.VLESS;
+        node.SetProtocolExtra(new ProtocolExtraItem { VlessEncryption = encryption });
+        var context = CoreConfigTestFactory.CreateContext(config, node, ECoreType.Xray);
+        var result = new CoreConfigV2rayService(context).GenerateClientConfigContent();
+        result.Success.Should().BeTrue();
+        var cfg = JsonUtils.Deserialize<V2rayConfig>(result.Data!.ToString())!;
+        cfg.outbounds.First(o => o.tag == Global.ProxyTag && o.protocol == "vless").settings.encryption?.ToString().Should().Be("none");
+    }
+
     [Fact]
     public void GenerateClientConfigContent_DomainFilter_NormalizesUrlAndForcesTunSniffing()
     {

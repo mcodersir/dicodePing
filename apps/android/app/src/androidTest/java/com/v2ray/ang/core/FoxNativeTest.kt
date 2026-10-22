@@ -131,6 +131,10 @@ class FoxNativeTest {
                 // Exercise both the reference native TUN and the optional HEV reader.
                 for (useHev in listOf(false, true)) {
                     MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_USE_HEV_TUNNEL, useHev)
+                    // Older/manual/imported profiles can omit VLESS encryption or store an empty value.
+                    val legacy = MmkvManager.decodeServerConfig(guid)!!
+                    legacy.method = if (useHev) "  " else null
+                    MmkvManager.encodeServerConfig(guid, legacy)
                     MmkvManager.setSelectServer(guid)
                     LauncherManager.startService(context, guid)
                     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)

@@ -149,7 +149,7 @@ public partial class CoreConfigV2rayService
                         outboundSettings.port = _node.Port;
                         outboundSettings.id = _node.Password;
                         outboundSettings.email = Global.UserEMail;
-                        outboundSettings.encryption = protocolExtra.VlessEncryption;
+                        outboundSettings.encryption = string.IsNullOrWhiteSpace(protocolExtra.VlessEncryption) ? Global.None : protocolExtra.VlessEncryption;
 
                         if (protocolExtra.Flow.IsNullOrEmpty())
                         {

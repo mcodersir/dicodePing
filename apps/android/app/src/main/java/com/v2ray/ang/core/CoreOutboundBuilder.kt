@@ -218,7 +218,7 @@ object CoreOutboundBuilder {
             settings.address = getServerAddress(profileItem)
             settings.port = profileItem.serverPort.orEmpty().toInt()
             settings.id = profileItem.password.orEmpty()
-            settings.encryption = profileItem.method
+            settings.encryption = profileItem.method?.takeIf { it.isNotBlank() } ?: "none"
             settings.flow = profileItem.flow
         }
 
