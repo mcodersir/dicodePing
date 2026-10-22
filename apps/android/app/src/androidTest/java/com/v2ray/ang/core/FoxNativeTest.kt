@@ -10,6 +10,21 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class FoxNativeTest {
+    @Test fun packagedTransportHelpersExecuteOnTheDevicePageSize() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        for (name in listOf("liblyrebird.so", "libpsiphon-tunnel-core.so")) {
+            val executable = File(context.applicationInfo.nativeLibraryDir, name)
+            assertTrue(name, executable.isFile)
+            val process = ProcessBuilder(executable.absolutePath, "-version").redirectErrorStream(true).start()
+            try {
+                assertTrue(name, process.waitFor(15, TimeUnit.SECONDS))
+                val output = process.inputStream.bufferedReader().readText()
+                assertEquals(name + ": " + output, 0, process.exitValue())
+                assertTrue(name, output.isNotBlank())
+            } finally { if (process.isAlive) process.destroyForcibly() }
+        }
+    }
+
     @Test fun packagedSingBoxExecutesOnTheDevicePageSize() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val executable = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")

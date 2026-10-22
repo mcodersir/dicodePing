@@ -70,5 +70,19 @@
     "ndk": "29.0.14206865",
     "buildmode": "pie",
     "max_page_size": 16384
+  },
+  "android_transport_sources": {
+    "lyrebird": {
+      "module": "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird",
+      "version": "v0.0.0-20260312101154-fc105a03c0e0",
+      "commit": "fc105a03c0e0acc2479301c361c012ffed359c43",
+      "zip_sha256": "e460a90a67c8831d5e8f70b652b39cba0bc05190412c7034bbb8c90fb1b9baff",
+      "go": "go1.27.3"
+    },
+    "psiphon": {
+      "repository": "https://github.com/CluvexStudio/psiphon-tunnel-core.git",
+      "commit": "83aa73b9b982e7421e00117f5b0c5aceb5dda452",
+      "go": "go1.26.10"
+    }
   }
 }
