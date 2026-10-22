@@ -319,10 +319,13 @@ object AngConfigManager {
 
         val existing = if (append) emptyMap() else MmkvManager.decodeServerList(subid).mapNotNull { guid ->
             MmkvManager.decodeServerConfig(guid)?.let { profile -> profile.duplicateIdentity() to guid }
-        }.toMap()
+        }.groupBy({ it.first }, { it.second })
         configs.forEach { parsed ->
-            val old = existing[parsed.profile.duplicateIdentity()]
-            val key = old?.takeIf { parsed.rawConfig == null || MmkvManager.decodeServerRaw(it) == parsed.rawConfig } ?: Utils.getUuid()
+            // Custom profiles can share an endpoint while carrying different credentials in their JSON.
+            val old = existing[parsed.profile.duplicateIdentity()].orEmpty().firstOrNull {
+                parsed.rawConfig == null || MmkvManager.decodeServerRaw(it) == parsed.rawConfig
+            }
+            val key = old ?: Utils.getUuid()
             keyToProfile[key] = parsed.profile
             parsed.rawConfig?.let { raw -> rawConfigs[key] = raw }
         }

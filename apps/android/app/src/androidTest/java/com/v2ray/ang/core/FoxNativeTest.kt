@@ -194,6 +194,26 @@ class FoxNativeTest {
         }
     }
 
+    @Test fun distinctCustomCredentialsKeepTheirOwnMetricsWhenTheFeedRefreshes() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        MmkvManager.initialize(context)
+        val group = "custom-metrics-" + UUID.randomUUID()
+        val raws = listOf(UUID.randomUUID(), UUID.randomUUID()).map { id ->
+            """{"remarks":"Custom fixture","inbounds":[],"outbounds":[{"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"example.org","port":443,"users":[{"id":"$id","encryption":"none"}]}]}}]}"""
+        }
+        val feed = raws.joinToString("\n") { "dicode-json://" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(it.toByteArray()) }
+        try {
+            assertEquals(2, com.v2ray.ang.handler.AngConfigManager.importBatchConfig(feed, group, false).first)
+            val before = MmkvManager.decodeServerList(group).associateBy { MmkvManager.decodeServerRaw(it)!! }
+            before.values.forEachIndexed { i, guid -> MmkvManager.encodeServerTestDelayMillis(guid, (i + 1) * 100L) }
+            val delays = before.values.associateWith { MmkvManager.decodeServerAffiliationInfo(it)!!.testDelayMillis }
+            assertEquals(2, com.v2ray.ang.handler.AngConfigManager.importBatchConfig(feed, group, false).first)
+            val after = MmkvManager.decodeServerList(group).associateBy { MmkvManager.decodeServerRaw(it)!! }
+            assertEquals(before, after)
+            delays.forEach { (guid, delay) -> assertEquals(delay, MmkvManager.decodeServerAffiliationInfo(guid)!!.testDelayMillis) }
+        } finally { MmkvManager.removeServerViaSubid(group) }
+    }
+
     @Test fun delayedServiceStartCannotUndoManualDisconnect() {
         val version = LauncherManager.beginConnectionRequest()
         val command = android.content.Intent().putExtra("dicode_connection_request", version)
