@@ -100,13 +100,14 @@ class FoxNativeTest {
         val hits = java.util.concurrent.atomic.AtomicInteger()
         val http = kotlin.concurrent.thread(isDaemon = true) {
             while (!endpoint.isClosed) {
-                runCatching { endpoint.accept().use { client ->
+                val accepted = runCatching { endpoint.accept() }.getOrNull() ?: break
+                kotlin.concurrent.thread(isDaemon = true) { runCatching { accepted.use { client ->
                     client.soTimeout = 5000
                     val input = client.getInputStream().bufferedReader()
                     while (!input.readLine().isNullOrEmpty()) { }
                     hits.incrementAndGet()
                     client.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\nvless-ok".toByteArray())
-                } }
+                } } }
             }
         }
         CoreNativeManager.initCoreEnv(context)

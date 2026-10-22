@@ -343,6 +343,24 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
+    fun historicalStartupPingIsDisplayedButDoesNotBecomeAFreshAutoConnectCandidate() = runBlocking {
+        val source = FakeSource().apply {
+            showPrimaryGroup = true
+            affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
+        }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.initialize()
+        withTimeout(5_000) { source.testMessages.receive() }
+        val id = source.requestIds.receive()
+        source.events.send(MainServiceEvent.MeasureConfigFinish(id))
+        withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
+        assertNull(viewModel.consumeStartupConnection())
+        assertEquals(42L, source.affiliations["primary-server"]?.testDelayMillis)
+        viewModel.skipPreparation()
+    }
+
+    @Test
     fun preparationConnectsAfterRealLatencyWithoutWaitingForLocations() = runBlocking {
         val source = FakeSource().apply { showPrimaryGroup = true }
         val viewModel = MainViewModel(mock<Application>(), source)
@@ -352,6 +370,7 @@ class MainViewModelServersChangedTest {
         assertEquals(listOf("primary-server"), request.serverGuids)
         val pingId = source.requestIds.receive()
         source.affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("primary-server", 42), pingId))
         source.events.send(MainServiceEvent.MeasureConfigFinish(pingId))
         withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
         assertEquals("primary-server", viewModel.uiState.value.startupConnectGuid)
@@ -370,6 +389,7 @@ class MainViewModelServersChangedTest {
         val pingId = source.requestIds.receive()
         source.connectionVersion = "manual-disconnect"
         source.affiliations["primary-server"] = ServerAffiliationInfo(testDelayMillis = 42)
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("primary-server", 42), pingId))
         source.events.send(MainServiceEvent.MeasureConfigFinish(pingId))
         withTimeout(5_000) { viewModel.uiState.first { !it.preparationVisible } }
         assertEquals(null, viewModel.consumeStartupConnection())

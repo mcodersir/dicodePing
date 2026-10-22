@@ -19,7 +19,18 @@ jobs:
     - uses: android-actions/setup-android@v4
     - name: Install SDK and NDK
       run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
+    - name: Restore pinned Android native payloads
+      id: android-native
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          apps/android/app/libs
+          apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/geo*.dat
+          apps/android/app/src/main/assets/psiphon_servers.*
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.7.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Build pinned hev TUN
+      if: steps.android-native.outputs.cache-hit != 'true'
       env:
         NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
       run: |
@@ -47,18 +58,32 @@ jobs:
         bash native-upstream/compile-hevtun.sh
         cp -r native-upstream/libs apps/android/app/
     - name: Bundle verified Android Aether and Psiphon helpers
+      if: steps.android-native.outputs.cache-hit != 'true'
       run: |
         python scripts/stage-aether.py --android --output apps/android/app/libs
         bash native-upstream/fetch-psiphon-servers.sh
         cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
     - name: Build Fox helper for all Android architectures
+      if: steps.android-native.outputs.cache-hit != 'true'
       run: python scripts/stage-fox.py --android --output apps/android/app/libs
     - name: Bundle verified Android sing-box
+      if: steps.android-native.outputs.cache-hit != 'true'
       run: python scripts/stage-singbox-android.py
     - name: Build pinned Android runtime with strict HTTP probes
+      if: steps.android-native.outputs.cache-hit != 'true'
       run: bash scripts/build-android-core.sh
       env:
         ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+    - name: Save verified Android native payloads
+      if: steps.android-native.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          apps/android/app/libs
+          apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/geo*.dat
+          apps/android/app/src/main/assets/psiphon_servers.*
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.7.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Compile and test Android before release
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures

@@ -461,7 +461,7 @@ class MainViewModel(
                 val completed = withTimeoutOrNull(70_000L) {
                     dataSource.updateConfigViaSub(primary)
                     currentCoroutineContext().ensureActive()
-                    var prepared = primary
+                    var prepared: SubscriptionCache = primary
                     if (dataSource.getServerGuidList(primary.guid).isEmpty()) {
                         dataSource.getSubscriptions().firstOrNull { it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL && it.subscription.enabled }?.let {
                             dataSource.updateConfigViaSub(it)
@@ -871,15 +871,13 @@ class MainViewModel(
                         val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
                         if (primary?.subscription?.enabled == true && dataSource.isDefaultAutoTestEnabled()
                             && (subId.isEmpty() || subId == primary.guid)) {
-                            var prepared = primary
-                    if (dataSource.getServerGuidList(primary.guid).isEmpty()) {
-                        dataSource.getSubscriptions().firstOrNull { it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL && it.subscription.enabled }?.let {
-                            dataSource.updateConfigViaSub(it)
-                            prepared = it
-                        }
-                    }
-                    dataSource.setSelectedSubscriptionId(prepared.guid)
-                            _uiState.update { it.copy(selectedGroupId = primary.guid) }
+                            val prepared: SubscriptionCache = if (dataSource.getServerGuidList(primary.guid).isEmpty()) {
+                                dataSource.getSubscriptions().firstOrNull {
+                                    it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL && it.subscription.enabled
+                                } ?: primary
+                            } else primary
+                            dataSource.setSelectedSubscriptionId(prepared.guid)
+                            _uiState.update { it.copy(selectedGroupId = prepared.guid) }
                             setupGroupTab(forceRefresh = true).join()
                             withContext(Dispatchers.Main) { testAllRealPing() }
                         }
