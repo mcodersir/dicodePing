@@ -56,8 +56,19 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
+    private val sessionOwner = CoreSessionOwner<Service>()
+    private val pendingRestarts = java.util.concurrent.ConcurrentHashMap<Service, String>()
+
+    /** Called on the serial lifecycle worker after onDestroy and resource cleanup. */
+    fun serviceDestroyed(owner: Service) {
+        val version = pendingRestarts.remove(owner) ?: return
+        owner.mainExecutor.execute {
+            if (LauncherManager.isConnectionRequestCurrent(version)) LauncherManager.startService(owner, requestVersion = version)
+        }
+    }
+
     @Volatile private var foxProcess: FoxProcess? = null
-    fun cancelFoxStartup() { foxProcess?.cancel() }
+    fun cancelFoxStartup(owner: Service? = null) { if (owner == null || sessionOwner.owns(owner)) foxProcess?.cancel() }
     private var singBoxProcess: SingBoxProcess? = null
 
     /** The Aether core the running configuration depends on, null when it has no Aether outbound. */
@@ -80,6 +91,7 @@ object CoreServiceManager {
 
     @Volatile
     private var isReloading = false
+    @Volatile private var isStarting = false
 
     /** Tun descriptor the core was started with, null in the proxy only and root run modes. */
     private var currentVpnInterface: ParcelFileDescriptor? = null
@@ -106,7 +118,7 @@ object CoreServiceManager {
      * reload has stopped for a moment. What answers a state query, or decides between a start and a
      * stop, goes by this one.
      */
-    fun isServiceRunning() = ReloadOutcome.serviceRuns(
+    fun isServiceRunning() = isStarting || ReloadOutcome.serviceRuns(
         coreRunning = isRunning(),
         reloading = isReloading,
         stoppedMeanwhile = networkMonitor == null,
@@ -123,19 +135,21 @@ object CoreServiceManager {
      * `registerReceiver(Context, BroadcastReceiver, IntentFilter, int)`.
      * Starts the V2Ray core service.
      */
-    fun startCoreLoop(vpnInterface: ParcelFileDescriptor?): Boolean {
+    fun startCoreLoop(vpnInterface: ParcelFileDescriptor?, owner: Service? = null): Boolean {
         if (isRunning()) {
             LogUtil.w(AppConfig.TAG, "StartCore-Manager: Core already running")
             return false
         }
 
-        val service = getService()
-        if (service == null) {
+        val service = owner ?: getService()
+        if (service == null || (owner != null && getService() !== owner)) {
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Service is null")
             return false
         }
 
         try {
+            sessionOwner.claim(service)
+            isStarting = true
             doStartCoreLoop(service, vpnInterface)
             return true
         } catch (e: Exception) {
@@ -145,7 +159,7 @@ object CoreServiceManager {
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, userFacingReason(e))
             NotificationManager.cancelNotification()
             return false
-        }
+        } finally { isStarting = false }
     }
 
     /**
@@ -230,6 +244,8 @@ object CoreServiceManager {
         try {
             result.foxAccountId?.let { id ->
                 val helper = FoxProcess(service); foxProcess = helper
+                MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, service.getString(R.string.fox_connecting))
+                NotificationManager.setStatusLine(service.getString(R.string.fox_connecting))
                 helper.start(id, result.foxCountry, result.foxPort) {
                     service.mainExecutor.execute {
                         if (foxProcess === helper && isServiceRunning()) {
@@ -364,6 +380,7 @@ object CoreServiceManager {
     // latency tests still validate real HTTP responses through the selected route.
     private fun announceStarted(service: Service, isReload: Boolean) {
         if (!isRunning()) return
+        NotificationManager.setStatusLine(null)
         MessageHelper.sendMsg2UI(service, if (isReload) AppConfig.MSG_STATE_RUNNING else AppConfig.MSG_STATE_START_SUCCESS, "")
     }
 
@@ -401,6 +418,10 @@ object CoreServiceManager {
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(owner: Service? = null): Boolean {
+        // onDestroy may be delivered after a replacement service has started.
+        // An old teardown must never kill its successor or broadcast a false disconnect.
+        if (owner != null && !sessionOwner.release(owner)) return false
+        isStarting = false
         foxProcess?.close(); foxProcess = null
         singBoxProcess?.close()
         singBoxProcess = null
@@ -789,17 +810,9 @@ object CoreServiceManager {
                     val requestVersion = intent.getStringExtra("content") ?: LauncherManager.connectionRequestVersion()
                     if (!LauncherManager.isConnectionRequestCurrent(requestVersion)) return
 
-                    val pendingResult = goAsync()
-                    CoroutineScope(Dispatchers.Default).launch {
-                        try {
-                            serviceControl.stopService()
-                            delay(500L)
-                            if (LauncherManager.isConnectionRequestCurrent(requestVersion))
-                                LauncherManager.startService(serviceControl.getService(), requestVersion = requestVersion)
-                        } finally {
-                            pendingResult.finish()
-                        }
-                    }
+                    pendingRestarts[serviceControl.getService()] = requestVersion
+                    serviceControl.stopService()
+
                 }
 
                 AppConfig.MSG_MEASURE_DELAY -> {

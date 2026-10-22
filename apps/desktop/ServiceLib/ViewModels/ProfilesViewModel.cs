@@ -1027,7 +1027,7 @@ public partial class ProfilesViewModel : MyReactiveObject
             var ids = selected.Select(x => x.IndexId).ToHashSet(StringComparer.Ordinal);
             foreach (var row in ProfileItems.Where(x => ids.Contains(x.IndexId))) {
                 if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest) {
-                    row.Delay = 0; row.DelayVal = "—";
+                    // Keep the last result visible while the replacement is pending.
                 }
                 SetMetricBusy(row, actionType, true);
             }

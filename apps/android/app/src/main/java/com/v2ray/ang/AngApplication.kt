@@ -68,6 +68,21 @@ class AngApplication : Application() {
             primary.url = AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL
             MmkvManager.encodeSubscription(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, primary)
         }
+        // One-time split. A deleted supplemental feed stays deleted after future launches.
+        if (!MmkvManager.decodeSettingsBool("dicode-subscriptions-split-497", false)) {
+            if (primary != null) {
+                val existing = MmkvManager.decodeSubscriptions().firstOrNull { it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL }
+                val secondaryId = existing?.guid ?: MmkvManager.encodeSubscription(
+                    AppConfig.DICODE_SECONDARY_SUBSCRIPTION_ID,
+                    SubscriptionItem(remarks = "Community configs", url = AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL,
+                        enabled = true, autoUpdate = true, updateInterval = 60))
+                existing?.let { it.subscription.remarks = "Community configs"; MmkvManager.encodeSubscription(it.guid, it.subscription) }
+                // Old primary rows had no source provenance. Preserve them and their diagnostics
+                // in the removable group until its next refresh, instead of discarding working routes.
+                MmkvManager.moveSubscriptionProfiles(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID, secondaryId)
+            }
+            MmkvManager.encodeSettings("dicode-subscriptions-split-497", true)
+        }
         val subscriptionOrder = MmkvManager.decodeSubsList()
         subscriptionOrder.remove(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
         if (primary != null) subscriptionOrder.add(0, AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)

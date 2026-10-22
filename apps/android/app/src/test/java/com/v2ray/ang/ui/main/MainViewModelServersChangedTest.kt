@@ -220,6 +220,23 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
+    fun queuedAndCancelledTestRetainsPreviousDiagnosticsButDoesNotConnectFromThem() = runBlocking {
+        val source = FakeSource().apply {
+            affiliations["a"] = ServerAffiliationInfo(testDelayMillis = 40, countryCode = "DE", ipAddress = "203.0.113.1")
+        }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.onAction(MainAction.SmartConnect(quick = true))
+        withTimeout(5_000) { source.testMessages.receive() }
+        val row = viewModel.serverGroupState(SUB).value.rows.first { it.guid == "a" }
+        assertEquals(40L, row.testDelayMillis)
+        assertEquals("DE", viewModel.serverGroupState(SUB).value.servers.first { it.guid == "a" }.countryCode)
+        viewModel.cancelAllPing()
+        assertEquals(40L, source.affiliations["a"]?.testDelayMillis)
+        assertNull(viewModel.consumeStartupConnection())
+    }
+
+    @Test
     fun quickConnectStopsAtThreeFreshSuccessesAndChoosesTheirBest() = runBlocking {
         val source = FakeSource().apply { serverGuids = listOf("a", "b", "c", "d") }
         val viewModel = MainViewModel(mock<Application>(), source)

@@ -5,7 +5,7 @@ import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.util.HttpUtil
 
 /**
- * Merges exactly the two built-in Config Checker sources in priority order.
+ * Fetches only Dicode Config Checker. Other feeds are independent subscriptions.
  * Sources are fetched in priority order; plain links are taken as-is and
  * base64 bodies are decoded. Results are deduplicated without dropping the second source.
  */
@@ -18,7 +18,7 @@ object PrimarySubscriptionSources {
 
     val DEFAULT_SOURCES = listOf(
         Source("Dicode Config Checker", AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL),
-        Source("Patterniha Free-Configs", AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL),
+
     )
 
     private val LINK_REGEX = Regex("(?:vmess|vless|trojan|ss|ssr|hysteria2?|hy2|tuic)://[^\\s\"'<>\\\\]+")

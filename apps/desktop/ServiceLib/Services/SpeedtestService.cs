@@ -134,11 +134,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task<List<ServerTestItem>> GetClearItem(ESpeedActionType actionType, List<ProfileItem> selecteds)
     {
-        // Clear persisted positives before filtering unsupported/skipped profiles.
-        // Otherwise Best can reuse a stale TCP/old-network result after this scan.
-        if (actionType is ESpeedActionType.Realping or ESpeedActionType.Tcping or ESpeedActionType.UdpTest)
-            foreach (var id in selecteds.Select(x => x.IndexId).Where(x => x.IsNotEmpty()).Distinct())
-                ProfileExManager.Instance.SetTestDelay(id, 0);
+        // Fresh smart-connect candidates are tracked separately from persisted diagnostics.
         var lstSelected = new List<ServerTestItem>(selecteds.Count);
         var ids = selecteds.Where(it => !it.IndexId.IsNullOrEmpty()
             && (it.ConfigType == EConfigType.Custom || it.ConfigType.IsComplexType() || it.Port > 0))
@@ -341,14 +337,16 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     private async Task RunRealPingBatchAsync(List<ServerTestItem> lstSelected,
         ConcurrentDictionary<string, byte> completedIds, int pageSize = 0, CancellationToken ct = default)
     {
-        // Custom configurations and entry hops require an owned, isolated core.
-        // The shared batch builder cannot execute them, including a single item.
         var isolated = lstSelected.Where(x => CoreManager.RequiresIsolatedProbe(_config, x)).ToList();
-        if (isolated.Count > 0)
-        {
-            await RunMixedTestAsync(isolated, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct);
-            lstSelected = lstSelected.Except(isolated).ToList();
-        }
+        var standard = lstSelected.Except(isolated).ToList();
+        await Task.WhenAll(
+            isolated.Count == 0 ? Task.CompletedTask : RunMixedTestAsync(isolated, completedIds, Math.Max(1, _config.SpeedTestItem.MixedConcurrencyCount), false, ct),
+            RunStandardRealPingBatchAsync(standard, completedIds, pageSize, ct));
+    }
+
+    private async Task RunStandardRealPingBatchAsync(List<ServerTestItem> lstSelected,
+        ConcurrentDictionary<string, byte> completedIds, int pageSize, CancellationToken ct)
+    {
         if (lstSelected.Count == 0) return;
         if (pageSize <= 0)
         {
@@ -675,6 +673,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
     private async Task UpdateFunc(string indexId, string delay, string speed = "")
     {
+        if (indexId.IsNotEmpty() && (int.TryParse(delay, out _) || decimal.TryParse(speed, out _)))
+            await ProfileExManager.Instance.SaveTo();
         await (_updateFunc?.Invoke(new() { IndexId = indexId, Delay = delay, Speed = speed }) ?? Task.CompletedTask);
         if (indexId.IsNotEmpty() && speed.IsNotEmpty())
         {
@@ -689,6 +689,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     }
     private async Task UpdateIpInfoFunc(string indexId, string ip)
     {
+        await ProfileExManager.Instance.SaveTo();
         await (_updateFunc?.Invoke(new() { IndexId = indexId, IpInfo = ip }) ?? Task.CompletedTask);
     }
 }

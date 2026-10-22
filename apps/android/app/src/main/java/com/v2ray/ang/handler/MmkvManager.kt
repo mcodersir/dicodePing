@@ -569,21 +569,42 @@ object MmkvManager {
     }
 
     /** Stores the last real endpoint location beside the persisted delay result. */
-    fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) {
-        if (guid.isBlank() || (countryCode.isNullOrBlank() && ipAddress.isNullOrBlank())) return
+    fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) = withTestResultLock {
+        if (guid.isBlank() || (countryCode.isNullOrBlank() && ipAddress.isNullOrBlank())) return@withTestResultLock
         val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
         aff.countryCode = countryCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
         aff.ipAddress = ipAddress?.trim()?.takeIf { it.isNotBlank() }
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
     }
 
-    fun encodeServerSanctions(guid: String, accessible: Boolean, passed: Int, total: Int) {
-        if (guid.isBlank()) return
+    fun encodeServerSanctions(guid: String, accessible: Boolean, passed: Int, total: Int) = withTestResultLock {
+        if (guid.isBlank()) return@withTestResultLock
         val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
         aff.sanctionsAccessible = accessible
         aff.sanctionsPassed = passed
         aff.sanctionsTotal = total
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
+    }
+
+    fun encodeServerSpeed(guid: String, text: String) = withTestResultLock {
+        val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
+        aff.speedText = text
+        check(serverAffStorage.encode(guid, JsonUtil.toJson(aff))) { "Could not save speed result" }
+    }
+
+    /** Retains profile IDs, selected routes and all diagnostics during the one-time feed split. */
+    fun moveSubscriptionProfiles(fromId: String, toId: String) = withProfileIndexLock {
+        val moved = decodeServerList(fromId).toList()
+        val destination = decodeServerList(toId)
+        moved.forEach { guid ->
+            decodeServerConfig(guid)?.let { profile ->
+                profile.subscriptionId = toId
+                requireStorageWrite(profileFullStorage.encode(guid, JsonUtil.toJson(profile)), "Could not move profile")
+                if (guid !in destination) destination.add(guid)
+            }
+        }
+        requireStorageWrite(persistServerList(destination, toId), "Could not publish separated feed")
+        requireStorageWrite(persistServerList(emptyList(), fromId), "Could not separate primary feed")
     }
 
     /**

@@ -6,7 +6,7 @@ namespace ServiceLib.Tests;
 public class ProbeRegressionTests
 {
     [Fact]
-    public void BuiltInSubscriptionMigrationIsIdempotentAndPreservesUserLinks()
+    public void PrimarySubscriptionAlwaysHasExactlyOneSourceAndPreservesItsIdentity()
     {
         var item = new SubItem { Id = "existing", Enabled = false, MoreUrl = "https://example.com/sub," + DicodePingBootstrap.SecondarySubscriptionUrl };
         DicodePingBootstrap.ConfigurePrimarySubscription(item);
@@ -15,7 +15,7 @@ public class ProbeRegressionTests
         Assert.False(item.Enabled);
         Assert.Equal("Dicode Config Checker", item.Remarks);
         Assert.Equal(DicodePingBootstrap.DefaultSubscriptionUrl, item.Url);
-        Assert.Equal("https://example.com/sub," + DicodePingBootstrap.SecondarySubscriptionUrl, item.MoreUrl);
+        Assert.Equal(string.Empty, item.MoreUrl);
     }
 
     [Fact]

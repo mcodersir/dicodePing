@@ -107,6 +107,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             this.BindCommand(ViewModel, vm => vm.AddCustomOutboundServerCmd, v => v.menuAddCustomOutboundServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddPolicyGroupServerCmd, v => v.menuAddPolicyGroupServer).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddProxyChainServerCmd, v => v.menuAddProxyChainServer).DisposeWith(disposables);
+            this.BindCommand(ViewModel, vm => vm.AddProxyChainServerCmd, v => v.btnProxyChain).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddServerViaClipboardCmd, v => v.menuAddServerViaClipboard).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddServerViaScanCmd, v => v.menuAddServerViaScan).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.AddServerViaImageCmd, v => v.menuAddServerViaImage).DisposeWith(disposables);
@@ -512,6 +513,16 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, primary!.Id, false,
                 (_, message) => { Dispatcher.UIThread.Post(() => ViewModel.PreparationStatus = message); return Task.CompletedTask; }, cts.Token));
             cts.Token.ThrowIfCancellationRequested();
+            if ((await AppManager.Instance.ProfileItems(primary!.Id) ?? []).Count == 0)
+            {
+                var supplemental = (await AppManager.Instance.SubItems())?.FirstOrDefault(item => item.Enabled && item.Url == DicodePingBootstrap.SecondarySubscriptionUrl);
+                if (supplemental is not null)
+                {
+                    await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, supplemental.Id, false,
+                        (_, _) => Task.CompletedTask, cts.Token));
+                    primary = supplemental;
+                }
+            }
             ViewModel.IsPreparationRefreshing = false;
             _config.SubIndexId = primary!.Id;
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();
@@ -522,8 +533,9 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
             // Stop at the first working batch; never wait for all subscriptions or locations.
             foreach (var batch in profiles.Chunk(15)) {
                 ViewModel.PreparationStatus = ResUI.DicodeProbeLatency;
-                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, batch, cts.Token);
-                var delays = (await ProfileExManager.Instance.GetProfileExs()).ToDictionary(x => x.IndexId, x => x.Delay);
+                var delays = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+                await ViewModel.ProfilesViewModel.ServerSpeedtest(ESpeedActionType.FastRealping, batch, cts.Token,
+                    (id, latency) => delays[id] = latency);
                 best = batch.Where(x => delays.GetValueOrDefault(x.IndexId) > 0).OrderBy(x => delays[x.IndexId]).FirstOrDefault();
                 if (best is not null || cts.IsCancellationRequested) break;
             }

@@ -77,6 +77,7 @@ public class GUIItem
     public bool EnableHWA { get; set; } = false;
     public bool EnableLog { get; set; } = true;
     public bool AutoTestDefaultSubscription { get; set; } = true;
+    public bool SubscriptionsSplit497 { get; set; }
     public string? RootCertProvider { get; set; }
 }
 

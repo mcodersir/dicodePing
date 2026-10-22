@@ -6,7 +6,7 @@ namespace ServiceLib.Tests;
 public class Release491Tests
 {
     [Fact]
-    public async Task ASkippedProfileCannotKeepAnOldSuccessfulLatencyAfterAFreshScan()
+    public async Task ASkippedProfileRetainsItsHistoricalLatencyWithoutBecomingAFreshCandidate()
     {
         var config = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateConfig();
         ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.BindAppManagerConfig(config);
@@ -17,7 +17,7 @@ public class Release491Tests
         var clear = typeof(SpeedtestService).GetMethod("GetClearItem", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var result = await (Task<List<ServerTestItem>>)clear.Invoke(service, [ESpeedActionType.Realping, new List<ProfileItem> { node }])!;
         Assert.Empty(result);
-        Assert.Equal(0, (await ProfileExManager.Instance.GetProfileExs()).Single(x => x.IndexId == node.IndexId).Delay);
+        Assert.Equal(7, (await ProfileExManager.Instance.GetProfileExs()).Single(x => x.IndexId == node.IndexId).Delay);
     }
 
     private static T Uninitialized<T>() => (T)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(T));

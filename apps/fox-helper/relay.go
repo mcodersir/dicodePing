@@ -18,22 +18,19 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	if _, err := p.account(ctx); err != nil {
 		return "", err
 	}
-	candidates, err := p.locations(ctx)
 	country = strings.ToUpper(strings.TrimSpace(country))
 	if country == "" {
 		country = "REC"
 	}
-	if err != nil && country != "REC" {
+	candidates, err := initialRelayLocations(country, func() ([]Location, error) { return p.locations(ctx) })
+	if err != nil {
 		return "", err
-	}
-	if country == "REC" {
-		// FoxyVPN's REC endpoint is the provider anycast route, not the first country.
-		candidates = append([]Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, candidates...)
 	}
 	p.streams = p.relayTransport()
 	p.relayPool = []*http.Transport{p.streams, p.relayTransport(), p.relayTransport(), p.relayTransport()}
 	reached := false
-	for _, candidate := range candidates {
+	for index := 0; index < len(candidates); index++ {
+		candidate := candidates[index]
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {
 			continue
 		}
@@ -59,6 +56,12 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		var api *ProviderError
 		if errors.As(e, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required") {
 			return "", api
+		}
+		if country == "REC" && index == 0 {
+			// Catalog fallback is needed only when the recommended anycast route fails.
+			if alternatives, lookupErr := p.locations(ctx); lookupErr == nil {
+				candidates = append(candidates, alternatives...)
+			}
 		}
 	}
 	if !reached {
@@ -437,4 +440,12 @@ func (p *provider) udpDNS(ctx context.Context, control net.Conn) error {
 			udp.WriteToUDP(append(packet, answer...), peer)
 		}
 	}
+}
+
+// The provider's recommended anycast endpoint is fixed; country choices use the catalog.
+func initialRelayLocations(country string, catalog func() ([]Location, error)) ([]Location, error) {
+	if country == "REC" {
+		return []Location{{CountryCode: "REC", Host: "p.m1.fastly-masque.net", Port: 2499}}, nil
+	}
+	return catalog()
 }

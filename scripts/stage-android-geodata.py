@@ -6,7 +6,7 @@ import pathlib
 import urllib.request
 
 root = pathlib.Path(__file__).resolve().parent.parent
-pins = json.loads((root / "scripts/runtime-pins-4.9.6.json").read_text())
+pins = json.loads((root / "scripts/runtime-pins-4.9.7.json").read_text())
 output = root / "apps/android/app/src/main/assets"
 output.mkdir(parents=True, exist_ok=True)
 for item in pins["android_geodata"]:

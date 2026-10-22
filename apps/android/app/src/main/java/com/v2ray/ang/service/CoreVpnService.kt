@@ -35,6 +35,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     private val isStartingLock = AtomicBoolean(false)
     private val lifecycleWorker = CoreLifecycleWorker.executor
     private val stopRequested = AtomicBoolean(false)
+    private val tornDown = AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()
@@ -60,9 +61,11 @@ class CoreVpnService : VpnService(), ServiceControl {
         LogUtil.i(AppConfig.TAG, "StartCore-VPN: Service destroyed")
 
         stopRequested.set(true)
-        CoreServiceManager.cancelFoxStartup()
-        lifecycleWorker.execute { stopAllService(isForced = false) }
-        NotificationManager.cancelNotification()
+        CoreServiceManager.cancelFoxStartup(this)
+        lifecycleWorker.execute {
+            stopAllService(isForced = false)
+            CoreServiceManager.serviceDestroyed(this)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -115,7 +118,7 @@ class CoreVpnService : VpnService(), ServiceControl {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Interface not initialized")
             return
         }
-        if (!CoreServiceManager.startCoreLoop(mInterface)) {
+        if (!CoreServiceManager.startCoreLoop(mInterface, this)) {
             LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to start core loop")
             stopAllService()
             return
@@ -133,7 +136,7 @@ class CoreVpnService : VpnService(), ServiceControl {
 
     override fun stopService() {
         stopRequested.set(true)
-        CoreServiceManager.cancelFoxStartup()
+        CoreServiceManager.cancelFoxStartup(this)
         if (!lifecycleWorker.isShutdown) lifecycleWorker.execute { stopAllService(true) }
     }
 
@@ -371,6 +374,7 @@ class CoreVpnService : VpnService(), ServiceControl {
     }
 
     private fun stopAllService(isForced: Boolean = true) {
+        if (!tornDown.compareAndSet(false, true)) return
 //        val configName = defaultDPreference.getPrefString(PREF_CURR_CONFIG_GUID, "")
 //        val emptyInfo = VpnNetworkInfo()
 //        val info = loadVpnNetworkInfo(configName, emptyInfo)!! + (lastNetworkInfo ?: emptyInfo)

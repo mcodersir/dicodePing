@@ -22,6 +22,7 @@ object AppConfig {
 
     // Default subscription ID for ungrouped servers
     const val DEFAULT_SUBSCRIPTION_ID = "__default_subscription__"
+    const val DICODE_SECONDARY_SUBSCRIPTION_ID = "__dicode_secondary_subscription__"
     const val DICODE_PRIMARY_SUBSCRIPTION_ID = "__dicode_primary_subscription__"
     const val DICODE_PRIMARY_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 

@@ -60,7 +60,7 @@ class CoreRootService : Service(), ServiceControl {
             try {
                 if (ending.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) return@execute
                 NotificationManager.ensureForeground()
-                if (!CoreServiceManager.startCoreLoop(null) || ending.get()) { stopSelf(); return@execute }
+                if (!CoreServiceManager.startCoreLoop(null, this) || ending.get()) { stopSelf(); return@execute }
                 if (!RootProxyManager.start(this@CoreRootService) || ending.get()) stopSelf()
             } catch (error: Exception) {
                 LogUtil.e(AppConfig.TAG, "Core service startup failed", error)
@@ -73,11 +73,12 @@ class CoreRootService : Service(), ServiceControl {
     override fun onDestroy() {
         super.onDestroy()
         ending.set(true)
-        CoreServiceManager.cancelFoxStartup()
+        CoreServiceManager.cancelFoxStartup(this)
         CoreLifecycleWorker.executor.execute {
             // Teardown is ordered before a later service start, without blocking Android's main thread.
             RootProxyManager.stop(this)
             CoreServiceManager.stopCoreLoop(this)
+            CoreServiceManager.serviceDestroyed(this)
         }
     }
 
@@ -89,7 +90,7 @@ class CoreRootService : Service(), ServiceControl {
 
     override fun stopService() {
         ending.set(true)
-        CoreServiceManager.cancelFoxStartup()
+        CoreServiceManager.cancelFoxStartup(this)
         stopSelf()
     }
 

@@ -317,8 +317,12 @@ object AngConfigManager {
         val keyToProfile = linkedMapOf<String, ProfileItem>()
         val rawConfigs = mutableMapOf<String, String>()
 
+        val existing = if (append) emptyMap() else MmkvManager.decodeServerList(subid).mapNotNull { guid ->
+            MmkvManager.decodeServerConfig(guid)?.let { profile -> profile.duplicateIdentity() to guid }
+        }.toMap()
         configs.forEach { parsed ->
-            val key = Utils.getUuid()
+            val old = existing[parsed.profile.duplicateIdentity()]
+            val key = old?.takeIf { parsed.rawConfig == null || MmkvManager.decodeServerRaw(it) == parsed.rawConfig } ?: Utils.getUuid()
             keyToProfile[key] = parsed.profile
             parsed.rawConfig?.let { raw -> rawConfigs[key] = raw }
         }
@@ -510,7 +514,7 @@ object AngConfigManager {
                 com.v2ray.ang.core.FoxAccounts.refresh(com.v2ray.ang.AngApplication.application, it.subscription.url.removePrefix("dicode-fox://"), true)
                 return SubscriptionUpdateResult(configCount = 1, successCount = 1)
             }
-            // One built-in group combines both independent subscription feeds.
+            // The primary group contains only the checker feed.
             if (it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID) {
                 val spoText = PrimarySubscriptionSources.aggregate()
                 if (spoText.isBlank()) {

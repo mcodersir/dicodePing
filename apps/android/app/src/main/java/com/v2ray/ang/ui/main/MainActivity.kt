@@ -270,7 +270,6 @@ class MainActivity : HelperBaseComponentActivity() {
         ) {
             checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
         }
-        if (mainViewModel.isLoading.value) return
         val requestVersion = LauncherManager.connectionRequestVersion()
         mainViewModel.prepareAetherConnection {
             if (LauncherManager.isConnectionRequestCurrent(requestVersion)) LauncherManager.startService(this, requestVersion = requestVersion)

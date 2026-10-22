@@ -51,7 +51,7 @@ class CoreProxyOnlyService : Service(), ServiceControl {
             try {
                 if (ending.get() || !com.v2ray.ang.core.LauncherManager.isCurrentStartRequest(intent)) return@execute
                 NotificationManager.ensureForeground()
-                if (!CoreServiceManager.startCoreLoop(null) || ending.get()) stopSelf()
+                if (!CoreServiceManager.startCoreLoop(null, this) || ending.get()) stopSelf()
             } catch (error: Exception) {
                 LogUtil.e(AppConfig.TAG, "Core service startup failed", error)
                 stopSelf()
@@ -66,8 +66,11 @@ class CoreProxyOnlyService : Service(), ServiceControl {
     override fun onDestroy() {
         super.onDestroy()
         ending.set(true)
-        CoreServiceManager.cancelFoxStartup()
-        CoreLifecycleWorker.executor.execute { CoreServiceManager.stopCoreLoop(this) }
+        CoreServiceManager.cancelFoxStartup(this)
+        CoreLifecycleWorker.executor.execute {
+            CoreServiceManager.stopCoreLoop(this)
+            CoreServiceManager.serviceDestroyed(this)
+        }
     }
 
     /**
@@ -90,7 +93,7 @@ class CoreProxyOnlyService : Service(), ServiceControl {
      */
     override fun stopService() {
         ending.set(true)
-        CoreServiceManager.cancelFoxStartup()
+        CoreServiceManager.cancelFoxStartup(this)
         stopSelf()
     }
 

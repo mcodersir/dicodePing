@@ -21,7 +21,7 @@ class PrimarySubscriptionSourcesTest {
         assertEquals(2, listOf(first, renamed.copy(password = "other")).distinctBy { it.duplicateIdentity() }.size)
     }
     @Test fun exactlyTheRequestedSourcesAreConfiguredInOrder() {
-        assertEquals(listOf(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL, AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL),
+        assertEquals(listOf(AppConfig.DICODE_PRIMARY_SUBSCRIPTION_URL),
             PrimarySubscriptionSources.DEFAULT_SOURCES.map { it.url })
     }
     @Test fun supportsPlainAndUrlSafeBase64WithoutPadding() {

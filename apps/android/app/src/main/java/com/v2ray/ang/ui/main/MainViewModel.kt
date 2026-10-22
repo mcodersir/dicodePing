@@ -119,7 +119,8 @@ class MainViewModel(
         if (smartSession !== session) return
         smartSession = null
         cancelAllPing()
-        val best = session.samples.minByOrNull { it.value }?.key ?: return
+        val best = session.samples.minByOrNull { it.value }?.key
+        if (best == null) { toast(R.string.connection_not_connected); return }
         if (uiState.value.isRunning || !dataSource.isConnectionRequestCurrent(session.version)) return
         startupRequestVersion = session.version
         selectForConnection(best)
@@ -170,6 +171,7 @@ class MainViewModel(
     private var reloadJob: Job? = null
     private var testResultFlushJob: Job? = null
     private val pendingTestResults = linkedMapOf<String, Long>()
+    private val freshTestResults = ConcurrentHashMap<String, Long>()
 
     private val testRequests = MainTestRequests()
     private var bulkTestJob: Job? = null
@@ -231,9 +233,7 @@ class MainViewModel(
             }
 
             is MainServiceEvent.StateConnecting -> {
-                if (uiState.value.isRunning) {
-                    _uiState.update { it.copy(status = MainStatus.Connecting(event.message)) }
-                }
+                _uiState.update { it.copy(isRunning = true, status = MainStatus.Connecting(event.message)) }
             }
 
             is MainServiceEvent.TrafficStats -> _uiState.update { it.copy(trafficUplink = event.uplink, trafficDownlink = event.downlink) }
@@ -270,6 +270,10 @@ class MainViewModel(
             }
 
             is MainServiceEvent.MeasureConfigCancelled -> {
+                if (smartSession?.requestId == event.requestId) {
+                    viewModelScope.launch { finishSmartConnect(event.requestId) }
+                    return
+                }
                 if (testRequests.completeBulk(event.requestId) != null) {
                     cancelPendingTestResults()
                     resetTestStatus()
@@ -283,6 +287,7 @@ class MainViewModel(
 
     private fun queueTestResult(result: RealPingResult, request: MainTestRequests.Bulk) {
         pendingTestResults[result.guid] = result.delayMillis
+        freshTestResults[result.guid] = result.delayMillis
         smartSession?.takeIf { it.requestId == request.id }?.let { session ->
             if (result.delayMillis > 0 && (!session.quick || session.samples.size < 3)) session.samples[result.guid] = result.delayMillis
             if (session.quick && session.samples.size >= 3) {
@@ -456,25 +461,32 @@ class MainViewModel(
                 val completed = withTimeoutOrNull(70_000L) {
                     dataSource.updateConfigViaSub(primary)
                     currentCoroutineContext().ensureActive()
-                    dataSource.setSelectedSubscriptionId(primary.guid)
-                    _uiState.update { it.copy(selectedGroupId = primary.guid, preparationStage = "latency") }
+                    var prepared = primary
+                    if (dataSource.getServerGuidList(primary.guid).isEmpty()) {
+                        dataSource.getSubscriptions().firstOrNull { it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL && it.subscription.enabled }?.let {
+                            dataSource.updateConfigViaSub(it)
+                            prepared = it
+                        }
+                    }
+                    dataSource.setSelectedSubscriptionId(prepared.guid)
+                    _uiState.update { it.copy(selectedGroupId = prepared.guid, preparationStage = "latency") }
                     setupGroupTab(forceRefresh = true).join()
                     // Probe at most 90 candidates, in small waves. Stop as soon as a wave
                     // supplies a working tunnel; do not wait for locations or unused profiles.
-                    val remaining = loadGroup(primary.guid, forceRefresh = true).servers.take(90).map { it.guid }.toMutableList()
+                    val remaining = loadGroup(prepared.guid, forceRefresh = true).servers.take(90).map { it.guid }.toMutableList()
                     while (remaining.isNotEmpty()) {
                         val batch = remaining.take(15)
                         remaining.removeAll(batch.toSet())
                         preparationDone = CompletableDeferred()
                         withContext(Dispatchers.Main) {
-                            startupLocationGroup = primary.guid
+                            startupLocationGroup = prepared.guid
                             testAllRealPing(maxServers = 90, startupGuids = batch)
                             if (!testRequests.isTesting) preparationDone?.complete(Unit)
                         }
                         preparationDone?.await()
                         val best = withContext(ioDispatcher) {
-                            loadGroup(primary.guid, forceRefresh = true).servers
-                                .filter { it.guid in batch && it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
+                            loadGroup(prepared.guid, forceRefresh = true).servers
+                                .filter { it.guid in batch && (freshTestResults[it.guid] ?: -1) > 0 }.minByOrNull { it.testDelayMillis }
                         }
                         if (best != null) {
                             if (startupRequestVersion?.let { dataSource.isConnectionRequestCurrent(it) } == true) {
@@ -493,8 +505,8 @@ class MainViewModel(
                         cancelAllPing()
                     }
                     val best = withContext(ioDispatcher) {
-                        loadGroup(primary.guid, forceRefresh = true).servers
-                            .filter { it.guid in startupTestTargets && it.testDelayMillis > 0 }
+                        loadGroup(uiState.value.selectedGroupId, forceRefresh = true).servers
+                            .filter { it.guid in startupTestTargets && (freshTestResults[it.guid] ?: -1) > 0 }
                             .minByOrNull { it.testDelayMillis }
                     }
                     if (best != null && startupRequestVersion?.let(dataSource::isConnectionRequestCurrent) == true) {
@@ -654,7 +666,7 @@ class MainViewModel(
                 server = server,
                 subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty(),
                 aetherProtocolLabel = aetherProtocolLabel,
-            ).copy(speedText = speedResults[server.guid].orEmpty(), subscriptionUsage = dataSource.getSubscriptionItem(server.profile.subscriptionId)?.let { sub ->
+            ).copy(speedText = speedResults[server.guid] ?: dataSource.decodeAffiliationInfo(server.guid)?.speedText.orEmpty(), subscriptionUsage = dataSource.getSubscriptionItem(server.profile.subscriptionId)?.let { sub ->
                 if (!sub.url.startsWith("dicode-fox://") || sub.totalBytes <= 0) ""
                 else dataSource.getString(R.string.fox_subscription_usage,
                     (sub.uploadBytes + sub.downloadBytes).coerceAtLeast(0) / 1e9,
@@ -859,7 +871,14 @@ class MainViewModel(
                         val primary = dataSource.getSubscriptions().firstOrNull { it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID }
                         if (primary?.subscription?.enabled == true && dataSource.isDefaultAutoTestEnabled()
                             && (subId.isEmpty() || subId == primary.guid)) {
-                            dataSource.setSelectedSubscriptionId(primary.guid)
+                            var prepared = primary
+                    if (dataSource.getServerGuidList(primary.guid).isEmpty()) {
+                        dataSource.getSubscriptions().firstOrNull { it.subscription.url == AppConfig.DICODE_SECONDARY_SUBSCRIPTION_URL && it.subscription.enabled }?.let {
+                            dataSource.updateConfigViaSub(it)
+                            prepared = it
+                        }
+                    }
+                    dataSource.setSelectedSubscriptionId(prepared.guid)
                             _uiState.update { it.copy(selectedGroupId = primary.guid) }
                             setupGroupTab(forceRefresh = true).join()
                             withContext(Dispatchers.Main) { testAllRealPing() }
@@ -1187,6 +1206,7 @@ class MainViewModel(
                         result.downloadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—",
                         result.uploadMbps?.let { String.format(java.util.Locale.ROOT, "%.2f", it) } ?: "—")
                     speedResults[guid] = text
+                    com.v2ray.ang.handler.MmkvManager.encodeServerSpeed(guid, text)
                     groupUiFlows.values.forEach { flow -> flow.update { state -> state.copy(rows = state.rows.map { row ->
                         if (row.guid == guid) row.copy(speedText = text) else row
                     }) } }
@@ -1231,18 +1251,7 @@ class MainViewModel(
         }
         val serverGuids = startupGuids?.take(90) ?: servers.take(maxServers).map { it.guid }
         if (maxServers < Int.MAX_VALUE) startupTestTargets = startupTestTargets + serverGuids
-        mutableServerGroupState(groupId).update { current ->
-            current.copy(
-                servers = current.servers.map { server ->
-                    if (server.guid !in serverGuids || server.testDelayMillis == 0L) server
-                    else server.copy(testDelayMillis = 0L)
-                },
-                rows = current.rows.map { row ->
-                    if (row.guid !in serverGuids || row.testDelayMillis == 0L) row
-                    else row.copy(testDelayMillis = 0L)
-                }
-            )
-        }
+        freshTestResults.clear()
         val request = testRequests.beginBulk(groupId)
         if (smartQuick != null) {
             smartSession = SmartSession(request.id, dataSource.connectionRequestVersion(), smartQuick)
@@ -1262,18 +1271,6 @@ class MainViewModel(
             )
         }
         bulkTestJob = viewModelScope.launch {
-            withContext(ioDispatcher) {
-                dataSource.clearAllTestDelayResults(serverGuids)
-                val resetGuids = serverGuids.toHashSet()
-                cacheMutex.withLock {
-                    groupDataCache[groupId]?.let { cached ->
-                        groupDataCache[groupId] = cached.map { server ->
-                            if (server.guid !in resetGuids || server.testDelayMillis == 0L) server
-                            else server.copy(testDelayMillis = 0L)
-                        }
-                    }
-                }
-            }
             dataSource.sendMsg2TestService(message, request.id)
         }
     }

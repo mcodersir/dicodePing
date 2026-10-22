@@ -19,6 +19,20 @@ public static class DicodePingBootstrap
         var checker = subscriptions.FirstOrDefault(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
         if (checker is null && !freshInstall) return;
         checker ??= new SubItem { Id = string.Empty, Enabled = true, AutoUpdateInterval = 1 };
+        if (!config.GuiItem.SubscriptionsSplit497)
+        {
+            var secondary = subscriptions.FirstOrDefault(item => string.Equals(item.Url, SecondarySubscriptionUrl, StringComparison.OrdinalIgnoreCase));
+            secondary ??= new SubItem { Id = string.Empty, Remarks = "Community configs", Url = SecondarySubscriptionUrl, Enabled = true, AutoUpdateInterval = 1 };
+            await ConfigHandler.AddSubItem(config, secondary);
+            if (!freshInstall && checker.Id.IsNotEmpty())
+            {
+                var legacy = await AppManager.Instance.ProfileItems(checker.Id) ?? [];
+                foreach (var profile in legacy) profile.Subid = secondary.Id;
+                if (legacy.Count > 0) await SQLiteHelper.Instance.UpdateAllAsync(legacy);
+            }
+            config.GuiItem.SubscriptionsSplit497 = true;
+            await ConfigHandler.SaveConfig(config);
+        }
         ConfigurePrimarySubscription(checker);
         await ConfigHandler.AddSubItem(config, checker);
     }
@@ -31,7 +45,6 @@ public static class DicodePingBootstrap
         checker.Remarks = "Dicode Config Checker";
         checker.Url = DefaultSubscriptionUrl;
         checker.Sort = 0;
-        checker.MoreUrl = string.Join(",", (checker.MoreUrl ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Append(SecondarySubscriptionUrl).Distinct(StringComparer.OrdinalIgnoreCase));
+        checker.MoreUrl = string.Empty;
     }
 }

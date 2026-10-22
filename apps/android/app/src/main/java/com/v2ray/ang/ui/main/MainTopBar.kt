@@ -132,6 +132,9 @@ fun MainTopBar(
                         text = { androidx.compose.material3.Text(stringResource(R.string.native_methods_title)) },
                         onClick = { showImportMenu = false; onNativeMethods() },
                     )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { androidx.compose.material3.Text(stringResource(R.string.menu_item_import_config_proxy_chain)) },
+                        onClick = { showImportMenu = false; onAction(MainAction.ImportManually(com.v2ray.ang.enums.EConfigType.PROXYCHAIN.value)) })
                     ImportMenuContent(
                         onAction = { action ->
                             showImportMenu = false

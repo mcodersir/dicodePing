@@ -882,4 +882,5 @@
     <string name="connection_speed_result">دانلود: %1$s Mbps · آپلود: %2$s Mbps</string>
     <string name="connect_menu">روش اتصال</string>
     <string name="connect_quick">اتصال سریع</string>
+    <string name="fox_connecting">در حال آماده‌سازی مسیر روباه…</string>
 </resources>

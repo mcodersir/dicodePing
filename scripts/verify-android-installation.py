@@ -10,7 +10,7 @@ parser.add_argument('--baselines', nargs='*', default=['4.8.0','4.9.0','4.9.1','
 args=parser.parse_args()
 root=pathlib.Path('install-check'); package='ir.dicode.ping.fdroid'; results=[]
 def adb(*args):
-    r=subprocess.run(['adb',*args],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
+    r=subprocess.run(['adb',*args],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
     print('adb',' '.join(args),'exit',r.returncode,'\n'+r.stdout,flush=True)
     return r
 try:
@@ -56,6 +56,6 @@ try:
         assert r.returncode==0 and 'keep-my-data' in adb('shell','cat',marker).stdout
 finally:
     (root/'installation-results.json').write_text(json.dumps(results,indent=2))
-    log=subprocess.run(['adb','logcat','-d'],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60);(root/'package-manager-logcat.txt').write_text(log.stdout)
+    log=subprocess.run(['adb','logcat','-d'],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=60);(root/'package-manager-logcat.txt').write_text(log.stdout)
 assert results and all(r['success'] for r in results),'A signed release could not be installed; see installation-results.json'
 print('PASS signed published APK: fresh installation and upgrades',flush=True)
