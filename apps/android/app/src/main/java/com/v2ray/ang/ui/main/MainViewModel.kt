@@ -112,7 +112,10 @@ class MainViewModel(
         val deadline = smartDeadline
         smartDeadline = null
         if (deadline != currentCoroutineContext()[Job]) deadline?.cancel()
-        testRequests.bulk?.takeIf { it.id == requestId }?.let { flushPendingTestResults(it) }
+        testRequests.bulk?.takeIf { it.id == requestId }?.let { request ->
+            flushPendingTestResults(request)
+            withContext(ioDispatcher) { dataSource.sortByTestResultsForSub(request.groupId) }
+        }
         if (smartSession !== session) return
         smartSession = null
         cancelAllPing()
@@ -1196,7 +1199,7 @@ class MainViewModel(
         smartSession = null
         smartDeadline?.cancel()
         smartDeadline = null
-        _uiState.update { it.copy(isSmartConnecting = false) }
+        _uiState.update { it.copy(isSmartConnecting = false, startupConnectGuid = null) }
         speedTestJob?.cancel()
         speedTestJob = null
         bulkTestJob?.cancel()

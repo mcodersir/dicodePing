@@ -163,7 +163,8 @@ class MainViewModelServersChangedTest {
         override fun removeInvalidServerByGuid(guid: String) = 0
         override fun removeInvalidServersInGroup(groupId: String) = 0
         override fun clearAllTestDelayResults(guids: List<String>) = Unit
-        override fun sortByTestResultsForSub(subId: String) = Unit
+        val persistedSorts = AtomicInteger()
+        override fun sortByTestResultsForSub(subId: String) { persistedSorts.incrementAndGet() }
         override fun getSubsList() = listOf(SUB)
         override suspend fun importBatchConfig(server: String?, subscriptionId: String, updateUI: Boolean) = 0 to 0
         override fun updateConfigViaSubAll() = SubscriptionUpdateResult()
@@ -235,6 +236,7 @@ class MainViewModelServersChangedTest {
         withTimeout(5_000) { viewModel.uiState.first { it.startupConnectGuid == "b" } }
         assertEquals(false, viewModel.uiState.value.isTesting)
         assertEquals("b", viewModel.consumeStartupConnection())
+        assertEquals(1, source.persistedSorts.get())
         // Late events from the cancelled batch must not start a second connection.
         source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("d", 1), id))
         source.events.send(MainServiceEvent.MeasureConfigFinish(id))
