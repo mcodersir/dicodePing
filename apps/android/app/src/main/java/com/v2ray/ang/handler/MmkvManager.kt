@@ -569,12 +569,13 @@ object MmkvManager {
     }
 
     /** Stores the last real endpoint location beside the persisted delay result. */
-    fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?) = withTestResultLock {
+    fun encodeServerLocation(guid: String, countryCode: String?, ipAddress: String?): Unit = withTestResultLock {
         if (guid.isBlank() || (countryCode.isNullOrBlank() && ipAddress.isNullOrBlank())) return@withTestResultLock
         val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
         aff.countryCode = countryCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
         aff.ipAddress = ipAddress?.trim()?.takeIf { it.isNotBlank() }
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
+        Unit
     }
 
     fun encodeServerSanctions(guid: String, accessible: Boolean, passed: Int, total: Int) = withTestResultLock {
