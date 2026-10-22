@@ -48,7 +48,7 @@ fun MainTopBar(
     onSearchToggle: (Boolean) -> Unit,
     onMenuClick: () -> Unit,
     isAutoConnecting: Boolean,
-    onSmartConnect: () -> Unit,
+    onSmartConnect: (Boolean) -> Unit,
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit,
     onNativeMethods: () -> Unit = {},
@@ -65,6 +65,7 @@ fun MainTopBar(
             initialFocus.requestFocus()
         }
     }
+    var showConnectMenu by remember { mutableStateOf(false) }
     var showImportMenu by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     val importMenuScrollState = rememberScrollState()
@@ -99,11 +100,18 @@ fun MainTopBar(
                 IconButton(onClick = { onSearchToggle(true) }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
                 }
-                IconButton(onClick = onSmartConnect, modifier = Modifier.remoteFocus()) {
-                    if (isAutoConnecting) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(painterResource(R.drawable.ic_flash_on_24dp), contentDescription = stringResource(R.string.fab_auto_connect_best))
+                Box {
+                    IconButton(onClick = { if (isAutoConnecting) onSmartConnect(true) else showConnectMenu = true }, modifier = Modifier.remoteFocus()) {
+                        if (isAutoConnecting) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Icon(painterResource(R.drawable.ic_flash_on_24dp), contentDescription = stringResource(R.string.connect_menu))
+                    }
+                    DropdownMenu(expanded = showConnectMenu, onDismissRequest = { showConnectMenu = false }) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { androidx.compose.material3.Text(stringResource(R.string.connect_quick)) },
+                            onClick = { showConnectMenu = false; onSmartConnect(true) })
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { androidx.compose.material3.Text(stringResource(R.string.fab_auto_connect_best)) },
+                            onClick = { showConnectMenu = false; onSmartConnect(false) })
                     }
                 }
             }

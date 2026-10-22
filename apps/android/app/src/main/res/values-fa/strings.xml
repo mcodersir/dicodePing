@@ -880,4 +880,6 @@
     <string name="dicode_traffic_verification_failed">هسته اجرا شد، اما آزمون ترافیک موفق نبود. نشانی تست و تنظیمات مسیریابی را بررسی کنید.</string>
     <string name="connection_speed_test">تست دانلود و آپلود</string>
     <string name="connection_speed_result">دانلود: %1$s Mbps · آپلود: %2$s Mbps</string>
+    <string name="connect_menu">روش اتصال</string>
+    <string name="connect_quick">اتصال سریع</string>
 </resources>

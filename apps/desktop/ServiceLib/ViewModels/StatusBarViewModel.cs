@@ -16,6 +16,7 @@ public partial class StatusBarViewModel : MyReactiveObject
     public EventChannel<RxVoid> AddServerViaScanRequested { get; } = new();
     public EventChannel<RxVoid> AddServerViaClipboardRequested { get; } = new();
     public EventChannel<RxVoid> ToggleConnectionRequested { get; } = new();
+    public EventChannel<RxVoid> QuickConnectionRequested { get; } = new();
     public EventChannel<RxVoid> SmartConnectionRequested { get; } = new();
 
     #region ObservableCollection
@@ -44,6 +45,7 @@ public partial class StatusBarViewModel : MyReactiveObject
     public ReactiveCommand<RxVoid, RxVoid> ShowWindowCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> HideWindowCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> ToggleConnectionCmd { get; }
+    public ReactiveCommand<RxVoid, RxVoid> QuickConnectionCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> SmartConnectionCmd { get; }
 
     #region System Proxy
@@ -187,6 +189,7 @@ public partial class StatusBarViewModel : MyReactiveObject
             ToggleConnectionRequested.Publish();
             await Task.CompletedTask;
         });
+        QuickConnectionCmd = ReactiveCommand.Create(() => { QuickConnectionRequested.Publish(); });
         SmartConnectionCmd = ReactiveCommand.CreateFromTask(async () =>
         {
             SmartConnectionRequested.Publish();

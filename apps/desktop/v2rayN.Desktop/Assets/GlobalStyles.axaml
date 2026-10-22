@@ -49,7 +49,7 @@
     <Style Selector="Button">
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="MinHeight" Value="40" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="10" />
         <!-- Theme-aware surfaces: buttons always follow the active Dicode palette. -->
         <Setter Property="Background" Value="{DynamicResource DicodeSurfaceElevated}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
@@ -66,10 +66,16 @@
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
     </Style>
 
+    <Style Selector="Button#btnSmartConnection">
+        <Setter Property="Background" Value="{DynamicResource DicodeActionBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource DicodeActionForeground}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
     <Style Selector="Button.DicodeTelegramButton">
         <Setter Property="Background" Value="{DynamicResource DicodeSelection}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeAccent}" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="10" />
     </Style>
 
     <Style Selector="Button.DicodeTelegramButton Path">
@@ -201,7 +207,7 @@
     <!-- Static skeletons: only the metric in flight is masked, without an infinite animation. -->
     <Style Selector="Border.DicodeSkeleton"><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Opacity" Value="0.65" /></Style>
     <Style Selector="TextBlock.DicodeCaption"><Setter Property="FontSize" Value="11" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" /></Style>
-    <Style Selector="Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="18" /></Style>
+    <Style Selector="Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="14" /></Style>
     <Style Selector="Border.DicodeProfileCard.activeProfile"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
     <Style Selector="ListBoxItem:selected Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /></Style>
     <Style Selector="Button.DicodeQuietButton"><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="MinHeight" Value="34" /><Setter Property="Padding" Value="10,6" /></Style>
@@ -252,7 +258,7 @@
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="10" />
     </Style>
 
     <Style Selector="NotificationCard /template/ ContentPresenter">
@@ -289,7 +295,7 @@
     <Style Selector="Button.DicodeProbeButton">
         <Setter Property="Padding" Value="12,9" />
         <Setter Property="MinHeight" Value="42" />
-        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Transitions">
             <Transitions><BrushTransition Property="Background" Duration="0:0:0.16" /></Transitions>
         </Setter>
@@ -326,7 +332,7 @@
     <Style Selector="CheckBox /template/ Border#NormalRectangle"><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="5" /></Style>
     <Style Selector="CheckBox:checked /template/ Border#NormalRectangle"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
     <Style Selector="CheckBox:indeterminate /template/ Border#NormalRectangle"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /></Style>
-    <Style Selector="ComboBox /template/ Border#PopupBorder"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="12" /></Style>
+    <Style Selector="ComboBox /template/ Border#PopupBorder"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="10" /></Style>
     <Style Selector="ComboBox /template/ PathIcon#DropDownGlyph"><Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" /></Style>
     <Style Selector="Slider /template/ RepeatButton#PART_DecreaseButton"><Setter Property="Background" Value="{DynamicResource DicodeAccent}" /></Style>
     <Style Selector="CheckBox:checked /template/ Border#RootBorder"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /><Setter Property="CornerRadius" Value="10" /></Style>

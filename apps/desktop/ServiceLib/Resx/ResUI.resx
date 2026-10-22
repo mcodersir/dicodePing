@@ -2434,4 +2434,6 @@ https://t.me/dicodeping</value>
   <data name="DicodeTrafficVerificationFailed" xml:space="preserve"><value>The core started, but traffic verification through this route failed. Check the test URL and routing settings.</value></data>
   <data name="DicodeTunUnverified" xml:space="preserve"><value>Tunnel active · Internet not verified</value></data>
   <data name="DicodeLocalSocksMissing" xml:space="preserve"><value>Local SOCKS upstream {0}:{1} is not running. Select the managed Fox account profile or start the external proxy first.</value></data>
+  <data name="DicodeQuickConnect" xml:space="preserve"><value>Quick connect</value></data>
+  <data name="DicodeBestConnect" xml:space="preserve"><value>Connect to best</value></data>
 </root>

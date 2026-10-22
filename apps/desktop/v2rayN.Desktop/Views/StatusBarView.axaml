@@ -39,8 +39,15 @@
               x:Name="btnSmartConnection"
               MinWidth="160"
               HorizontalAlignment="Center"
-              Content="{x:Static resx:ResUI.DicodeBest}"
-              ToolTip.Tip="{x:Static resx:ResUI.DicodeSmartConnect}" />
+              Content="{x:Static resx:ResUI.DicodeSmartConnect}"
+              ToolTip.Tip="{x:Static resx:ResUI.DicodeSmartConnect}">
+            <Button.Flyout>
+              <MenuFlyout>
+                <MenuItem x:Name="menuQuickConnection" Header="{x:Static resx:ResUI.DicodeQuickConnect}" />
+                <MenuItem x:Name="menuBestConnection" Header="{x:Static resx:ResUI.DicodeBestConnect}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
         </StackPanel>
 
         <StackPanel Classes="ConnectionDetails" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Spacing="12">

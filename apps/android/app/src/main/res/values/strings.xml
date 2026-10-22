@@ -880,4 +880,6 @@
     <string name="dicode_traffic_verification_failed">The core started, but traffic verification failed. Check the test URL and routing settings.</string>
     <string name="connection_speed_test">Test download and upload</string>
     <string name="connection_speed_result">Download: %1$s Mbps · Upload: %2$s Mbps</string>
+    <string name="connect_menu">Connection options</string>
+    <string name="connect_quick">Quick connect</string>
 </resources>

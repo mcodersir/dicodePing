@@ -356,6 +356,9 @@ public partial class MainWindowViewModel : MyReactiveObject
         StatusBarViewModel.ToggleConnectionRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await ProfilesViewModel.ConnectSelectedAsync());
+        StatusBarViewModel.QuickConnectionRequested.AsObservable()
+            .ObserveOn(RxSchedulers.MainThreadScheduler)
+            .Subscribe(async _ => await ProfilesViewModel.ConnectBestAsync(quick: true));
         StatusBarViewModel.SmartConnectionRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await ProfilesViewModel.ConnectBestAsync());

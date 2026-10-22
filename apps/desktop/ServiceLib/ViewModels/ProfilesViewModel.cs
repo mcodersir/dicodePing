@@ -796,7 +796,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         await ConnectProfileAsync(selected);
     }
 
-    public async Task ConnectBestAsync()
+    public async Task ConnectBestAsync(bool quick = false)
     {
         if (CoreManager.Instance.IsRunning || IsConnectionRequested?.Invoke() == true || _connectGate.CurrentCount == 0)
         {
@@ -811,11 +811,14 @@ public partial class ProfilesViewModel : MyReactiveObject
         // Cached TCP latency and results from a previous network are not evidence that
         // this profile can carry traffic now. Best always uses a fresh HTTP probe.
             NoticeManager.Instance.Enqueue(ResUI.DicodeSmartTesting);
-            await ServerSpeedtest(ESpeedActionType.FastRealping);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(70));
+            var candidates = new SmartConnectCandidates(quick ? 3 : int.MaxValue);
+            await ServerSpeedtest(ESpeedActionType.FastRealping, cancellationToken: deadline.Token,
+                onReachable: (id, delay) => { if (candidates.Add(id, delay)) deadline.Cancel(); });
             await RefreshServersBiz();
         if (!IsConnectionRequestCurrent(requestVersion)) return;
         // A failed or untested server is never presented as the best route.
-        var best = ProfileItems.Where(item => item.Delay > 0).OrderBy(item => item.Delay).FirstOrDefault();
+        var best = ProfileItems.FirstOrDefault(item => item.IndexId == candidates.BestId);
         if (best is null) { NoticeManager.Instance.Enqueue(ResUI.DicodeNoReachable); return; }
         SelectedProfile = best;
         await ConnectProfileExclusiveAsync(best.IndexId, requestVersion);
@@ -976,7 +979,7 @@ public partial class ProfilesViewModel : MyReactiveObject
         }
     }
 
-    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null, CancellationToken cancellationToken = default)
+    public async Task ServerSpeedtest(ESpeedActionType actionType, IReadOnlyCollection<ProfileItem>? targetProfiles = null, CancellationToken cancellationToken = default, Action<string, int>? onReachable = null)
     {
         if (IsRefreshing) return;
         var testAll = actionType is ESpeedActionType.FastRealping or ESpeedActionType.Mixedtest or ESpeedActionType.Speedtest or ESpeedActionType.Location or ESpeedActionType.Sanctions;
@@ -1030,6 +1033,9 @@ public partial class ProfilesViewModel : MyReactiveObject
             }
             var service = new SpeedtestService(_config, result => OnUiAsync(async () => {
                 await ApplyProbeResult(result, actionType);
+                if (actionType == ESpeedActionType.Realping && ids.Contains(result.IndexId ?? "")
+                    && int.TryParse(result.Delay, out var measuredDelay) && measuredDelay > 0)
+                    onReachable?.Invoke(result.IndexId!, measuredDelay);
                 var terminal = actionType switch {
                     ESpeedActionType.Location => result.IpInfo,
                     ESpeedActionType.Sanctions => result.SanctionsInfo,
@@ -1049,6 +1055,7 @@ public partial class ProfilesViewModel : MyReactiveObject
                     run.UpdateSummary(run.StopRequested ? ResUI.SpeedtestingStop : ResUI.SpeedtestingCompleted); return Task.CompletedTask; });
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { Logging.SaveLog("Profile diagnostics", ex); NoticeManager.Instance.Enqueue(ResUI.FailedToRunCore); }
         finally { gate.Release(); }
     }

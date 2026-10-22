@@ -5504,6 +5504,8 @@ namespace ServiceLib.Resx {
         /// <summary>
         ///   Looks up a localized string similar to Best.
         /// </summary>
+        public static string DicodeQuickConnect => ResourceManager.GetString("DicodeQuickConnect", resourceCulture);
+        public static string DicodeBestConnect => ResourceManager.GetString("DicodeBestConnect", resourceCulture);
         public static string DicodeBest {
             get {
                 return ResourceManager.GetString("DicodeBest", resourceCulture);

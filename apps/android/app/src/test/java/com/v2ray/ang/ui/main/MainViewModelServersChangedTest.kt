@@ -219,6 +219,60 @@ class MainViewModelServersChangedTest {
     }
 
     @Test
+    fun quickConnectStopsAtThreeFreshSuccessesAndChoosesTheirBest() = runBlocking {
+        val source = FakeSource().apply { serverGuids = listOf("a", "b", "c", "d") }
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b", "c", "d")
+        viewModel.onAction(MainAction.SmartConnect(quick = true))
+        withTimeout(5_000) { source.testMessages.receive() }
+        val id = source.requestIds.receive()
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("d", -1), id))
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("a", 200), id))
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("b", 40), id))
+        withTimeout(5_000) { viewModel.uiState.first { it.isSmartConnecting } }
+        assertNull(viewModel.uiState.value.startupConnectGuid)
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("c", 90), id))
+        withTimeout(5_000) { viewModel.uiState.first { it.startupConnectGuid == "b" } }
+        assertEquals(false, viewModel.uiState.value.isTesting)
+        assertEquals("b", viewModel.consumeStartupConnection())
+        // Late events from the cancelled batch must not start a second connection.
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("d", 1), id))
+        source.events.send(MainServiceEvent.MeasureConfigFinish(id))
+        assertNull(viewModel.consumeStartupConnection())
+    }
+
+    @Test
+    fun bestConnectWaitsForTheBatchAndUsesAvailableSuccessesWhenFewerThanThreeWork() = runBlocking {
+        val source = FakeSource()
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.onAction(MainAction.SmartConnect(quick = false))
+        withTimeout(5_000) { source.testMessages.receive() }
+        val id = source.requestIds.receive()
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("a", 30), id))
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("b", -1), id))
+        assertNull(viewModel.consumeStartupConnection())
+        source.events.send(MainServiceEvent.MeasureConfigFinish(id))
+        withTimeout(5_000) { viewModel.uiState.first { it.startupConnectGuid == "a" } }
+        assertEquals("a", viewModel.consumeStartupConnection())
+    }
+
+    @Test
+    fun cancellingSmartConnectPreventsLateResultsFromConnecting() = runBlocking {
+        val source = FakeSource()
+        val viewModel = MainViewModel(mock<Application>(), source)
+        viewModel.awaitServers("a", "b")
+        viewModel.onAction(MainAction.SmartConnect(quick = true))
+        withTimeout(5_000) { source.testMessages.receive() }
+        val id = source.requestIds.receive()
+        viewModel.cancelAllPing()
+        source.events.send(MainServiceEvent.MeasureConfigSuccess(com.v2ray.ang.dto.RealPingResult("a", 20), id))
+        source.events.send(MainServiceEvent.MeasureConfigFinish(id))
+        assertNull(viewModel.consumeStartupConnection())
+        assertEquals(false, viewModel.uiState.value.isSmartConnecting)
+    }
+
+    @Test
     fun startupTestsThePrimarySubscriptionEvenWhenTheAggregateWasSelected() = runBlocking {
         val source = FakeSource().apply { showAllGroup = true; showPrimaryGroup = true }
         val viewModel = MainViewModel(mock<Application>(), source)

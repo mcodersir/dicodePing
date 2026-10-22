@@ -55,30 +55,13 @@ fun MainScreen(
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val isRunning = uiState.isRunning
     val displayText = mainViewModel.formatStatus(uiState.status)
-    val smartConnectServers by remember(mainViewModel, uiState.selectedGroupId) { mainViewModel.serversForGroup(uiState.selectedGroupId) }.collectAsStateWithLifecycle()
-    var autoConnectPending by rememberSaveable { mutableStateOf(false) }
-    var autoConnectStarted by remember { mutableStateOf(false) }
-    var autoConnectVersion by remember { mutableStateOf("") }
     fun dispatchAction(action: MainAction) {
         if (action is MainAction.ToggleService || action is MainAction.ConnectServer || action is MainAction.RestartService || action is MainAction.SelectServer) {
-            autoConnectPending = false
-            autoConnectStarted = false
+            mainViewModel.cancelAllPing()
         }
         onAction(action)
     }
 
-    LaunchedEffect(autoConnectPending, uiState.isTesting, smartConnectServers, isRunning) {
-        if (!autoConnectPending) return@LaunchedEffect
-        if (isRunning || !com.v2ray.ang.core.LauncherManager.isConnectionRequestCurrent(autoConnectVersion)) {
-            autoConnectPending = false; autoConnectStarted = false; return@LaunchedEffect
-        }
-        if (uiState.isTesting) { autoConnectStarted = true; return@LaunchedEffect }
-        if (!autoConnectStarted) return@LaunchedEffect
-        autoConnectPending = false
-        autoConnectStarted = false
-        val best = smartConnectServers.filter { it.testDelayMillis > 0 }.minByOrNull { it.testDelayMillis }
-        if (best != null) { dispatchAction(MainAction.ConnectServer(best.guid)) }
-    }
     LaunchedEffect(uiState.startupConnectGuid) {
         mainViewModel.consumeStartupConnection()?.let { guid ->
             if (!isRunning) dispatchAction(MainAction.ConnectServer(guid))
@@ -228,19 +211,11 @@ fun MainScreen(
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
-                    isAutoConnecting = autoConnectPending,
-                    onSmartConnect = {
+                    isAutoConnecting = uiState.isSmartConnecting,
+                    onSmartConnect = { quick ->
                         if (isRunning) dispatchAction(MainAction.ToggleService)
-                        else {
-                            if (autoConnectPending) {
-                                autoConnectPending = false; autoConnectStarted = false
-                                dispatchAction(MainAction.CancelTesting)
-                            } else {
-                                autoConnectVersion = com.v2ray.ang.core.LauncherManager.connectionRequestVersion()
-                                autoConnectPending = true; autoConnectStarted = false
-                                dispatchAction(MainAction.TestRealAllServers)
-                            }
-                        }
+                        else if (uiState.isSmartConnecting) dispatchAction(MainAction.CancelTesting)
+                        else dispatchAction(MainAction.SmartConnect(quick))
                     },
                     onAction = ::dispatchAction,
                     onNativeMethods = { showNativeMethods = true },

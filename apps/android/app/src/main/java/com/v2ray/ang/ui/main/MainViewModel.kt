@@ -93,6 +93,35 @@ class MainViewModel(
     @Volatile
     private var keywordFilter: String = ""
     private var filterJob: Job? = null
+    private data class SmartSession(val requestId: String, val version: String, val quick: Boolean,
+        val samples: MutableMap<String, Long> = linkedMapOf(), var finishing: Boolean = false)
+    private var smartSession: SmartSession? = null
+    private var smartDeadline: Job? = null
+
+    private fun startSmartConnect(quick: Boolean) {
+        skipPreparation()
+        if (uiState.value.isRunning) return
+        testAllRealPing(smartQuick = quick)
+    }
+
+    private suspend fun finishSmartConnect(requestId: String) {
+        val session = smartSession?.takeIf { it.requestId == requestId } ?: return
+        if (session.finishing) return
+        session.finishing = true
+        // The deadline may be calling us: never cancel our own coroutine during cleanup.
+        val deadline = smartDeadline
+        smartDeadline = null
+        if (deadline != currentCoroutineContext()[Job]) deadline?.cancel()
+        testRequests.bulk?.takeIf { it.id == requestId }?.let { flushPendingTestResults(it) }
+        if (smartSession !== session) return
+        smartSession = null
+        cancelAllPing()
+        val best = session.samples.minByOrNull { it.value }?.key ?: return
+        if (uiState.value.isRunning || !dataSource.isConnectionRequestCurrent(session.version)) return
+        startupRequestVersion = session.version
+        selectForConnection(best)
+        _uiState.update { it.copy(startupConnectGuid = best) }
+    }
 
     // ---------- Groups & cache ----------
     private val cacheMutex = Mutex()
@@ -251,6 +280,12 @@ class MainViewModel(
 
     private fun queueTestResult(result: RealPingResult, request: MainTestRequests.Bulk) {
         pendingTestResults[result.guid] = result.delayMillis
+        smartSession?.takeIf { it.requestId == request.id }?.let { session ->
+            if (result.delayMillis > 0 && (!session.quick || session.samples.size < 3)) session.samples[result.guid] = result.delayMillis
+            if (session.quick && session.samples.size >= 3) {
+                viewModelScope.launch { finishSmartConnect(request.id) }
+            }
+        }
         if (testResultFlushJob?.isActive == true) return
 
         testResultFlushJob = viewModelScope.launch {
@@ -348,6 +383,7 @@ class MainViewModel(
             MainAction.RefreshGroups -> setupGroupTab(forceRefresh = true)
             MainAction.TestAllServers -> testAllRealPing(true)
             MainAction.TestRealAllServers -> testAllRealPing()
+            is MainAction.SmartConnect -> startSmartConnect(action.quick)
             MainAction.TestAllLocations -> testAllLocations()
             MainAction.RescanAether -> rescanAether()
             MainAction.DiscoverFinalMask -> discoverFinalMask()
@@ -1157,6 +1193,10 @@ class MainViewModel(
     }
 
     fun cancelAllPing() {
+        smartSession = null
+        smartDeadline?.cancel()
+        smartDeadline = null
+        _uiState.update { it.copy(isSmartConnecting = false) }
         speedTestJob?.cancel()
         speedTestJob = null
         bulkTestJob?.cancel()
@@ -1178,7 +1218,7 @@ class MainViewModel(
         }
     }
 
-    fun testAllRealPing(onlyTcp: Boolean = false, maxServers: Int = Int.MAX_VALUE, startupGuids: List<String>? = null) {
+    fun testAllRealPing(onlyTcp: Boolean = false, maxServers: Int = Int.MAX_VALUE, startupGuids: List<String>? = null, smartQuick: Boolean? = null) {
         cancelAllPing()
         diagnosticMode = null
         val groupId = uiState.value.selectedGroupId
@@ -1201,6 +1241,11 @@ class MainViewModel(
             )
         }
         val request = testRequests.beginBulk(groupId)
+        if (smartQuick != null) {
+            smartSession = SmartSession(request.id, dataSource.connectionRequestVersion(), smartQuick)
+            _uiState.update { it.copy(isSmartConnecting = true) }
+            smartDeadline = viewModelScope.launch { delay(70_000L); finishSmartConnect(request.id) }
+        }
         val message = TestServiceMessage(
             key = AppConfig.MSG_MEASURE_CONFIG_START,
             subscriptionId = groupId,
@@ -1246,6 +1291,10 @@ class MainViewModel(
     }
 
     private fun onTestsFinished(requestId: String) {
+        if (smartSession?.requestId == requestId) {
+            viewModelScope.launch { finishSmartConnect(requestId) }
+            return
+        }
         val request = testRequests.completeBulk(requestId) ?: return
         val wasDiagnostic = diagnosticMode != null
         diagnosticMode = null

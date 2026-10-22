@@ -42,7 +42,8 @@ public partial class StatusBarView : ReactiveUserControl<StatusBarViewModel>
             this.OneWayBind(ViewModel, vm => vm.SpeedDirectDisplay, v => v.txtSpeedDirectDisplay.Text).DisposeWith(disposables);
             this.OneWayBind(ViewModel, vm => vm.TotalTrafficDisplay, v => v.txtTotalTrafficDisplay.Text).DisposeWith(disposables);
             this.BindCommand(ViewModel, vm => vm.ToggleConnectionCmd, v => v.btnToggleConnection).DisposeWith(disposables);
-            this.BindCommand(ViewModel, vm => vm.SmartConnectionCmd, v => v.btnSmartConnection).DisposeWith(disposables);
+            this.BindCommand(ViewModel, vm => vm.SmartConnectionCmd, v => v.menuBestConnection).DisposeWith(disposables);
+            this.BindCommand(ViewModel, vm => vm.QuickConnectionCmd, v => v.menuQuickConnection).DisposeWith(disposables);
             this.Bind(ViewModel, vm => vm.EnableTun, v => v.togEnableTun.IsChecked).DisposeWith(disposables);
 
             this.Bind(ViewModel, vm => vm.SystemProxySelected, v => v.cmbSystemProxy.SelectedIndex).DisposeWith(disposables);

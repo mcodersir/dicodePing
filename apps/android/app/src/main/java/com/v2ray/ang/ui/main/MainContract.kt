@@ -22,6 +22,7 @@ sealed interface MainStatus {
  */
 data class MainUiState(
     val startupConnectGuid: String? = null,
+    val isSmartConnecting: Boolean = false,
     val groups: List<GroupMapItem> = emptyList(),
     val selectedGroupId: String = "",
     val selectedGuid: String? = null,
@@ -60,6 +61,7 @@ sealed interface MainAction {
     data object TestCurrentServer : MainAction
     data object TestAllServers : MainAction
     data object TestRealAllServers : MainAction
+    data class SmartConnect(val quick: Boolean) : MainAction
     data object TestAllLocations : MainAction
     data object RescanAether : MainAction
     data object DiscoverFinalMask : MainAction

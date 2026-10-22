@@ -2434,4 +2434,6 @@ https://t.me/dicodeping‏</value>
   <data name="DicodeTrafficVerificationFailed" xml:space="preserve"><value>هسته اجرا شد، اما آزمون ترافیک از این مسیر موفق نبود. نشانی تست و تنظیمات مسیریابی را بررسی کنید.</value></data>
   <data name="DicodeTunUnverified" xml:space="preserve"><value>تونل فعال · اینترنت تأیید نشده</value></data>
   <data name="DicodeLocalSocksMissing" xml:space="preserve"><value>پروکسی محلی {0}:{1} اجرا نشده است. پروفایل حساب روباه را انتخاب کنید یا ابتدا پروکسی خارجی را اجرا کنید.</value></data>
+  <data name="DicodeQuickConnect" xml:space="preserve"><value>اتصال سریع</value></data>
+  <data name="DicodeBestConnect" xml:space="preserve"><value>اتصال به بهترین</value></data>
 </root>
