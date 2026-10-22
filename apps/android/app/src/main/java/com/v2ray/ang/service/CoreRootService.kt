@@ -46,6 +46,10 @@ class CoreRootService : Service(), ServiceControl {
             stopSelf(startId)
             return START_NOT_STICKY
         }
+        if (ending.get()) {
+            CoreServiceManager.deferStartUntilDestroyed(this, com.v2ray.ang.core.LauncherManager.startRequestVersion(intent))
+            return START_NOT_STICKY
+        }
         LogUtil.i(AppConfig.TAG, "StartCore-Root: command received")
 
         // A reload has Xray stopped for a moment; a start on top of it would run beside the reload and

@@ -59,6 +59,12 @@ object CoreServiceManager {
     private val sessionOwner = CoreSessionOwner<Service>()
     private val pendingRestarts = java.util.concurrent.ConcurrentHashMap<Service, String>()
 
+    /** A new start can reach the same Android instance while its old stopSelf is still pending. */
+    fun deferStartUntilDestroyed(owner: Service, version: String) {
+        if (LauncherManager.isConnectionRequestCurrent(version)) pendingRestarts[owner] = version
+        owner.stopSelf()
+    }
+
     /** Called on the serial lifecycle worker after onDestroy and resource cleanup. */
     fun serviceDestroyed(owner: Service) {
         val version = pendingRestarts.remove(owner) ?: return

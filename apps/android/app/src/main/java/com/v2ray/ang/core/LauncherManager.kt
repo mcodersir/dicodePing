@@ -34,6 +34,7 @@ object LauncherManager {
     fun beginConnectionRequest(): String = connectionRequests.begin()
     fun isConnectionRequestCurrent(version: String): Boolean = connectionRequests.isCurrent(version)
     fun cancelPendingConnectionRequests() = connectionRequests.cancel()
+    fun startRequestVersion(intent: Intent?): String = intent?.getStringExtra(REQUEST_EXTRA) ?: connectionRequestVersion()
     fun isCurrentStartRequest(intent: Intent?): Boolean = intent == null || intent.action == android.net.VpnService.SERVICE_INTERFACE
         || intent.getStringExtra(REQUEST_EXTRA)?.let(::isConnectionRequestCurrent) == true
 

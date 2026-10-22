@@ -221,6 +221,7 @@ class FoxNativeTest {
     @Test fun delayedServiceStartCannotUndoManualDisconnect() {
         val version = LauncherManager.beginConnectionRequest()
         val command = android.content.Intent().putExtra("dicode_connection_request", version)
+        assertEquals(version, LauncherManager.startRequestVersion(command))
         assertTrue(LauncherManager.isCurrentStartRequest(command))
         LauncherManager.cancelPendingConnectionRequests()
         assertFalse(LauncherManager.isCurrentStartRequest(command))

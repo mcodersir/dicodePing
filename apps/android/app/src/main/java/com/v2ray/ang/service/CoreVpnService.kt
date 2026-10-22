@@ -75,6 +75,10 @@ class CoreVpnService : VpnService(), ServiceControl {
             stopSelf(startId)
             return START_NOT_STICKY
         }
+        if (stopRequested.get() || tornDown.get()) {
+            CoreServiceManager.deferStartUntilDestroyed(this, com.v2ray.ang.core.LauncherManager.startRequestVersion(intent))
+            return START_NOT_STICKY
+        }
         // A new service instance has a new lock. Clearing it on a duplicate OS
         // start would allow a second startup to replace the first one's TUN.
         val isSystemVpnStart = intent == null || intent.action == SERVICE_INTERFACE
