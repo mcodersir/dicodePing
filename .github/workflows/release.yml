@@ -403,6 +403,7 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: x86_64
           target: ${{ matrix.target }}
+          ram-size: 4096M
           disable-animations: true
           script: python3 scripts/verify-android-installation.py --version 4.9.7 --code 45970000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-4.9.7-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.7-${{ matrix.alternate }}.apk
       - name: Preserve installation evidence
