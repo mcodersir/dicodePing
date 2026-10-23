@@ -2,7 +2,6 @@ package com.v2ray.ang.core
 
 import com.v2ray.ang.enums.AetherKeyKind
 import com.v2ray.ang.enums.AetherProtocol
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 class AetherIdentityManagerTest {
 
@@ -242,41 +240,39 @@ class AetherIdentityManagerTest {
     }
 
     @Test
-    fun aCancellationLandingRightAfterTheNewKeysWereMarkedReadyStillPutsThemInPlace() = runBlocking {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun aCancellationLandingRightAfterTheNewKeysWereMarkedReadyStillPutsThemInPlace() = kotlinx.coroutines.test.runTest {
         val dir = keysInUse()
         val renewal = File(folder, "aether-renewal")
-        val registered = CompletableDeferred<Unit>()
-        val allowRegistrationReturn = java.util.concurrent.CountDownLatch(1)
-        val allowReadyReturn = java.util.concurrent.CountDownLatch(1)
-        val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
-        val dispatcher = executor.asCoroutineDispatcher()
-        val job = launch(dispatcher) {
-            AetherIdentityManager.renew(dir, renewal, AetherIdentityManager.KEY_FILES) {
+        // Drive IO and its return separately: a real IO worker may finish before
+        // withContext suspends, making an executor barrier miss the ready mark.
+        val ioTasks = java.util.ArrayDeque<Runnable>()
+        val io = object : kotlinx.coroutines.CoroutineDispatcher() {
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+                ioTasks.addLast(block)
+            }
+        }
+        val job = launch {
+            AetherIdentityManager.renew(dir, renewal, AetherIdentityManager.KEY_FILES, ioDispatcher = io) {
                 register(renewal)
-                registered.complete(Unit)
-                allowRegistrationReturn.await()
                 true
             }
         }
-        try {
-            kotlinx.coroutines.withTimeout(60_000) { registered.await() }
-            // Queue a barrier behind registration and ahead of the IO result. The IO step can
-            // write its ready mark, but renewal cannot consume that result before cancellation.
-            executor.execute { allowReadyReturn.await() }
-            allowRegistrationReturn.countDown()
-            val mark = File(renewal, AetherIdentityManager.READY_MARK)
-            kotlinx.coroutines.withTimeout(60_000) { while (!mark.exists()) kotlinx.coroutines.delay(1) }
-            assertTrue(mark.exists())
-            job.cancel()
-            allowReadyReturn.countDown()
-            job.join()
-        } finally {
-            allowRegistrationReturn.countDown()
-            allowReadyReturn.countDown()
-            job.cancelAndJoin()
-            dispatcher.close()
+        fun runIoStep() {
+            assertEquals(1, ioTasks.size)
+            ioTasks.removeFirst().run()
         }
-
+        testScheduler.runCurrent() // Queue preparation of the renewal directory.
+        runIoStep()
+        testScheduler.runCurrent() // Register keys and queue their ready check.
+        runIoStep() // Ready is recorded, but the caller has not consumed the result.
+        assertTrue(File(renewal, AetherIdentityManager.READY_MARK).exists())
+        job.cancel()
+        testScheduler.runCurrent() // Deliver cancellation and queue non-cancellable cleanup.
+        runIoStep()
+        testScheduler.runCurrent()
+        assertTrue(job.isCompleted)
+        assertTrue(ioTasks.isEmpty())
         assertEquals(every("new"), devices(dir))
         assertFalse(renewal.exists())
     }

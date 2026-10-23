@@ -8,6 +8,7 @@ import com.v2ray.ang.enums.AetherPsiphon
 import com.v2ray.ang.enums.AetherTor
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -279,9 +280,10 @@ object AetherIdentityManager {
         workDir: File,
         renewalDir: File,
         files: List<String>,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
         register: suspend () -> Boolean,
     ): Boolean {
-        val cleared = withContext(Dispatchers.IO) {
+        val cleared = withContext(ioDispatcher) {
             // A renewal whose keys were all ready is finished first; what one stopped earlier left is no key anyone uses.
             settle(workDir, renewalDir) && renewalDir.deleteRecursively() && renewalDir.mkdirs()
         }
@@ -292,14 +294,14 @@ object AetherIdentityManager {
         val ready = AtomicBoolean(false)
         try {
             if (register()) {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     // A key the run left beside the ones asked for goes with the folder rather than into place.
                     (KEY_FILES - files.toSet()).forEach { File(renewalDir, it).delete() }
                     ready.set(isComplete(renewalDir, files) && markReady(renewalDir))
                 }
             }
         } finally {
-            withContext(NonCancellable + Dispatchers.IO) {
+            withContext(NonCancellable + ioDispatcher) {
                 if (ready.get()) settle(workDir, renewalDir) else renewalDir.deleteRecursively()
             }
         }
