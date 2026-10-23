@@ -73,6 +73,10 @@ with tempfile.TemporaryDirectory(prefix='dicode-vless-native-') as folder:
         try:
             result = subprocess.run([str(cli), 'import', str(link), '--data', str(data), '--verbose'], capture_output=True, text=True, timeout=60)
             assert result.returncode == 0, result.stderr
+            listed = subprocess.run([str(cli), 'profiles', '--data', str(data), '--verbose'], capture_output=True, text=True, timeout=60)
+            assert listed.returncode == 0, listed.stderr
+            profiles = json.loads(listed.stdout)
+            profile_id = next(p['id'] for p in profiles if p['name'] == 'Native-VLESS-fixture')
             settings_file = data / 'guiConfigs/DicodePingConfig.json'
             settings = json.loads(settings_file.read_text(encoding='utf-8-sig'))
             settings['TunModeItem']['EnableLegacyProtect'] = False
@@ -83,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix='dicode-vless-native-') as folder:
             ] + ['::/0']
             settings['SpeedTestItem']['SpeedPingTestUrl'] = f'http://192.0.2.1:{http.server_port}/'
             settings_file.write_text(json.dumps(settings))
-            client = subprocess.Popen([str(cli), 'connect', '--tun', '--data', str(data), '--verbose'],
+            client = subprocess.Popen([str(cli), 'connect', profile_id, '--tun', '--data', str(data), '--verbose'],
                                       stdout=subprocess.DEVNULL, stderr=client_log,
                                       creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
             deadline = time.monotonic() + 40
