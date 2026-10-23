@@ -128,7 +128,8 @@ class FoxNativeTest {
             instrumentation.uiAutomation.executeShellCommand("appops set ${context.packageName} ACTIVATE_VPN allow").use {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
             }
-            server.startLoop("""{"log":{"loglevel":"debug","access":""},"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}"}}]}""", 0)
+            // Only this controlled test server may redirect traffic to its loopback HTTP fixture.
+            server.startLoop("""{"log":{"loglevel":"debug","access":""},"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}","finalRules":[{"action":"allow","ip":["127.0.0.1/32"]}]}}]}""", 0)
             androidx.test.core.app.ActivityScenario.launch<com.v2ray.ang.ui.main.MainActivity>(
                 android.content.Intent(context, com.v2ray.ang.ui.main.MainActivity::class.java)
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)).use {
