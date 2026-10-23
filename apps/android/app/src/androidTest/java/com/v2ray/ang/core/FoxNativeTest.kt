@@ -149,7 +149,8 @@ class FoxNativeTest {
                     legacy.path = if (useTls) "/native-fixture" else null
                     legacy.sni = if (useTls) "localhost" else null
                     legacy.alpn = if (useTls) "http/1.1" else null
-                    legacy.insecure = useTls // Only this self-signed, local test endpoint.
+                    legacy.insecure = false
+                    legacy.pinnedCA256 = if (useTls) "8dd12f476cf0b30ddc7a7f71308f613c58458065afa1fc0fd71b2f4ad723fd91" else null // Trust only the local fixture certificate.
                     MmkvManager.encodeServerConfig(guid, legacy)
                     MmkvManager.setSelectServer(guid)
                     LauncherManager.startService(context, guid)

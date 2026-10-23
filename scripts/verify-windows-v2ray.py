@@ -5,6 +5,8 @@ Only the documentation subnet is routed into this test TUN. The fixture's
 self-signed certificate/key are test data, never account or production keys.
 """
 import argparse
+import hashlib
+import ssl
 import http.server
 import ipaddress
 import json
@@ -45,6 +47,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 http = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 threading.Thread(target=http.serve_forever, daemon=True).start()
 fixtures = pathlib.Path('apps/android/app/src/androidTest/assets').resolve()
+cert_pin = hashlib.sha256(ssl.PEM_cert_to_DER_cert((fixtures / 'native-fixture-cert.pem.txt').read_text())).hexdigest()
 with tempfile.TemporaryDirectory(prefix='dicode-vless-native-') as folder:
     folder = pathlib.Path(folder)
     data = folder / 'data'
@@ -66,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='dicode-vless-native-') as folder:
     server_config = folder / 'server.json'
     server_config.write_text(json.dumps(config))
     link = folder / 'profile.txt'
-    link.write_text(f'vless://{user}@127.0.0.1:{endpoint}?encryption=none&security=tls&sni=localhost&allowInsecure=1&alpn=http%2F1.1&type=ws&path=%2Fnative-fixture#Native-VLESS-fixture')
+    link.write_text(f'vless://{user}@127.0.0.1:{endpoint}?encryption=none&security=tls&sni=localhost&pcs={cert_pin}&alpn=http%2F1.1&type=ws&path=%2Fnative-fixture#Native-VLESS-fixture')
     with (folder / 'server.log').open('w') as server_log, (folder / 'client.log').open('w') as client_log:
         server = subprocess.Popen([str(xray), 'run', '-c', str(server_config)], stdout=server_log, stderr=server_log)
         client = None
