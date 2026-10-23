@@ -57,7 +57,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         """));
     return 0;
 }
-if (args[0] is "--version" or "version") { Console.WriteLine("4.9.6"); return 0; }
+if (args[0] is "--version" or "version") { Console.WriteLine("4.9.8"); return 0; }
 string? Option(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i+1 < args.Length ? args[i+1] : null; }
 var data = Path.GetFullPath(Option("--data") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing-CLI"));
 Directory.CreateDirectory(data);
@@ -76,7 +76,7 @@ try
     await ConfigHandler.InitBuiltinDNS(config);
     await ConfigHandler.InitBuiltinFullConfigTemplate(config);
     await ProfileExManager.Instance.Init();
-    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.6");
+    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.8");
     Task Output(bool success, string text) { Console.Error.WriteLine(text); return Task.CompletedTask; }
     await CoreManager.Instance.Init(config, Output);
     switch (args[0])
