@@ -362,7 +362,7 @@ public class DownloadService
     /// </summary>
     private async Task<WebProxy?> GetWebProxy(bool blProxy, CancellationToken cancellationToken = default)
     {
-        if (!blProxy)
+        if (!blProxy || !CoreManager.Instance.IsRunning)
         {
             return null;
         }
@@ -372,7 +372,7 @@ public class DownloadService
             return null;
         }
 
-        return new WebProxy($"socks5://{Global.Loopback}:{port}");
+        return ConnectionHandler.CreateActiveProxy();
     }
 
     /// <summary>
@@ -391,7 +391,7 @@ public class DownloadService
         while (!rootToken.IsCancellationRequested)
         {
             using var tcp = new TcpClient();
-            using var attemptCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+            using var attemptCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(rootToken, attemptCts.Token);
             var linkedToken = linkedCts.Token;
             try

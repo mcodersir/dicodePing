@@ -883,4 +883,5 @@
     <string name="connect_menu">روش اتصال</string>
     <string name="connect_quick">اتصال سریع</string>
     <string name="fox_connecting">در حال آماده‌سازی مسیر روباه…</string>
+    <string name="dicode_primary_empty">ساب Dicode Config Checker فعلاً کانفیگی ندارد. ساب اصلی تغییر نمی‌کند؛ در صورت نیاز ساب دیگری را جداگانه انتخاب کنید.</string>
 </resources>

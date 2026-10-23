@@ -1,6 +1,9 @@
 package libv2ray
 
 import (
+    "context"
+    "errors"
+    "reflect"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -35,4 +38,22 @@ func TestDicodeSavedDefaultFallbackAndMozillaBody(t *testing.T) {
  if len(probeTargets("http://www.google.com/generate_204")) < 2 { t.Fatal("saved default lost fallbacks") }
  if len(probeTargets("https://custom.test/generate_204")) != 1 { t.Fatal("custom target was replaced") }
  if !validProbeResponse("https://detectportal.firefox.com/success.txt",200,[]byte("success\n")) || validProbeResponse("https://detectportal.firefox.com/success.txt",200,[]byte("portal")) { t.Fatal("Mozilla success body not validated") }
+}
+
+func TestDicodeProbeFallbackIsSequentialAndStopsAfterSuccess(t *testing.T) {
+    var calls []string
+    delay, err := measureProbeTargets(context.Background(), []string{"failed", "working", "unused"}, func(ctx context.Context, target string) (int64, error) {
+        if ctx.Err() != nil { t.Fatal(ctx.Err()) }
+        calls = append(calls, target)
+        if target == "failed" { return -1, errors.New("blocked") }
+        return 17, nil
+    })
+    if err != nil || delay != 17 || !reflect.DeepEqual(calls, []string{"failed", "working"}) { t.Fatalf("delay=%d calls=%v err=%v", delay, calls, err) }
+}
+func TestDicodeCancelledProbeNeverStartsAnotherProvider(t *testing.T) {
+    ctx, cancel := context.WithCancel(context.Background())
+    cancel()
+    calls := 0
+    _, err := measureProbeTargets(ctx, []string{"first", "unused"}, func(context.Context, string) (int64, error) { calls++; return 1, nil })
+    if !errors.Is(err, context.Canceled) || calls != 0 { t.Fatalf("calls=%d error=%v", calls, err) }
 }

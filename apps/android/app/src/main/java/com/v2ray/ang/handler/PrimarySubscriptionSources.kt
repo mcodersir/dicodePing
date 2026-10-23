@@ -6,8 +6,7 @@ import com.v2ray.ang.util.HttpUtil
 
 /**
  * Fetches only Dicode Config Checker. Other feeds are independent subscriptions.
- * Sources are fetched in priority order; plain links are taken as-is and
- * base64 bodies are decoded. Results are deduplicated without dropping the second source.
+ * Plain links and base64 bodies are decoded and deduplicated within this feed.
  */
 object PrimarySubscriptionSources {
 

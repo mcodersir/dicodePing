@@ -185,7 +185,10 @@ public class CoreConfigContextBuilder
             && mainResult.Context.AppConfig.TunModeItem.StrictRoute)
         {
             var appConfig = JsonUtils.DeepCopy(mainResult.Context.AppConfig);
-            // Keep the resolved hardware uplink: clearing it lets another VPN become the core's default route.
+            // The bridge protects the core process. Match the reference strict-route path;
+            // binding it again can conflict with Windows interface selection.
+            appConfig.CoreBasicItem.BindInterface = string.Empty;
+            appConfig.CoreBasicItem.SendThrough = string.Empty;
             resolvedMainResult = resolvedMainResult with
             {
                 Context = resolvedMainResult.Context with

@@ -42,39 +42,37 @@ public static class ProxyHealthProbe
         // A user-supplied endpoint is an exact diagnostic, not permission to test other sites.
         if (!string.IsNullOrWhiteSpace(preferred) && !Global.SpeedPingTestUrls.Contains(preferred, StringComparer.OrdinalIgnoreCase) && !IsLegacyBuiltIn(preferred))
             return [preferred];
-        return [preferred, "https://cp.cloudflare.com/generate_204", "https://www.gstatic.com/generate_204",
-            "https://www.apple.com/library/test/success.html", "https://detectportal.firefox.com/success.txt"];
+        return [string.IsNullOrWhiteSpace(preferred) ? "https://www.gstatic.com/generate_204" : preferred,
+            "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"];
     }
 
     private static bool IsLegacyBuiltIn(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri)
         && uri.Scheme is "http" or "https" && uri.AbsolutePath.TrimEnd('/') == "/generate_204"
         && uri.Host is "www.google.com" or "www.gstatic.com" or "www.youtube.com" or "www.googlevideo.com";
 
-    // Independent providers share one deadline. Every request uses the same explicit proxy.
+    // One transaction at a time per route. Racing every provider multiplied the
+    // scan's TLS/socket load and made slow but usable configs miss their deadline.
     public static async Task<int> MeasureAnyAsync(IEnumerable<string> urls, IWebProxy? proxy, TimeSpan timeout, CancellationToken token = default)
     {
         token.ThrowIfCancellationRequested();
+        var targets = urls.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(token);
         stop.CancelAfter(timeout);
-        var pending = urls.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Select(async url =>
+        var timer = Stopwatch.StartNew();
+        for (var i = 0; i < targets.Count; i++)
         {
-            try { return await MeasureAsync(url, proxy, timeout, stop.Token); }
-            catch (OperationCanceledException) when (!token.IsCancellationRequested) { return -1; }
-        }).ToList();
-        try {
-            while (pending.Count > 0) {
-                var completed = await Task.WhenAny(pending);
-                pending.Remove(completed);
-                var result = await completed;
-                if (result > 0) { stop.Cancel(); return result; }
+            var remaining = timeout - timer.Elapsed;
+            if (remaining <= TimeSpan.Zero) break;
+            var budget = TimeSpan.FromTicks(remaining.Ticks / (targets.Count - i));
+            try
+            {
+                var result = await MeasureAsync(targets[i], proxy, budget, stop.Token);
+                if (result > 0) return result;
             }
-            token.ThrowIfCancellationRequested();
-            return -1;
-        } finally {
-            stop.Cancel();
-            // Observe and dispose every losing request before its test core is stopped.
-            try { await Task.WhenAll(pending); } catch (OperationCanceledException) { }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested) { break; }
         }
+        token.ThrowIfCancellationRequested();
+        return -1;
     }
 
     public static bool IsExpectedResponse(Uri uri, int status, string body)

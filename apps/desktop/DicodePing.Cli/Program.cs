@@ -15,7 +15,7 @@ CliText.Configure(ref args);
 if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
 {
     Console.WriteLine(CliText.T("""
-        دیکد پینگ CLI 4.9.6
+        دیکد پینگ CLI 4.9.8
         fox accounts|locations       نمایش حساب‌ها یا کشورها
         fox login                    ورود مرحله‌ای، تأیید و انتخاب کشور
         fox verify <account-id>      واردکردن کد تأیید موزیلا
@@ -35,7 +35,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         --system-proxy               تنظیم پروکسی سیستم در این اجرا
         --lang fa|en                 زبان راهنما و پیام‌ها
         """, """
-        DicodePing CLI 4.9.6
+        DicodePing CLI 4.9.8
         fox accounts|locations       List Fox accounts or provider locations
         fox login                    Sign in (email/password read privately from stdin)
         fox verify <account-id>      Enter Mozilla verification code

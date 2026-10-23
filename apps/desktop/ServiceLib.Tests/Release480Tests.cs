@@ -41,14 +41,16 @@ public class Release480Tests
         item.Profile = restored; Assert.True(CoreManager.RequiresIsolatedProbe(config, item));
     }
     [Fact]
-    public void WindowsOrdinaryXrayTunUsesBridgeEvenWithLegacySwitchOff()
+    public void OrdinaryXrayUsesNativeTunUnlessCompatibilityIsExplicitlyEnabled()
     {
         var config = CoreConfigTestFactory.CreateConfig(); config.TunModeItem.EnableTun = true; config.TunModeItem.EnableLegacyProtect = false;
         CoreConfigTestFactory.BindAppManagerConfig(config);
         var node = CoreConfigTestFactory.CreateVmessNode(ECoreType.Xray);
         var bridge = ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray);
-        if (OperatingSystem.IsWindows()) { Assert.NotNull(bridge); Assert.Equal(ECoreType.sing_box, bridge.CoreType); }
-        else Assert.Null(bridge);
+        Assert.Null(bridge);
+        config.TunModeItem.EnableLegacyProtect = true;
+        bridge = ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray);
+        Assert.NotNull(bridge); Assert.Equal(ECoreType.sing_box, bridge.CoreType);
         config.TunModeItem.EnableTun = false; Assert.Null(ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray));
     }
 }

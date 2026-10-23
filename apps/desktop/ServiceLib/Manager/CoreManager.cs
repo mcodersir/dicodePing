@@ -499,16 +499,16 @@ public class CoreManager
         try
         {
             NativeLaunchPolicy.Validate(fileName);
+            if (Utils.IsWindows() && isTunLaunch && coreInfo?.CoreType is (ECoreType.Xray or ECoreType.sing_box)) {
+                WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
+                WindowsTunRuntime.PrepareRetry(Utils.GetBinConfigPath(configPath));
+            }
             if (coreInfo?.CoreType == ECoreType.sing_box) {
                 var path = Utils.GetBinConfigPath(configPath);
                 if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
                     var log = root["log"] as JsonObject ?? new JsonObject();
                     log["level"] = "info"; log["disabled"] = false; log.Remove("output"); root["log"] = log;
                     await File.WriteAllTextAsync(path, root.ToJsonString());
-                }
-                if (Utils.IsWindows() && isTunLaunch) {
-                    WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
-                    WindowsTunRuntime.PrepareRetry(path);
                 }
             }
             if (mayNeedSudo

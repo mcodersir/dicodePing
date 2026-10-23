@@ -2436,4 +2436,5 @@ https://t.me/dicodeping‏</value>
   <data name="DicodeLocalSocksMissing" xml:space="preserve"><value>پروکسی محلی {0}:{1} اجرا نشده است. پروفایل حساب روباه را انتخاب کنید یا ابتدا پروکسی خارجی را اجرا کنید.</value></data>
   <data name="DicodeQuickConnect" xml:space="preserve"><value>اتصال سریع</value></data>
   <data name="DicodeBestConnect" xml:space="preserve"><value>اتصال به بهترین</value></data>
+  <data name="DicodePrimaryEmpty" xml:space="preserve"><value>ساب Dicode Config Checker فعلاً کانفیگی ندارد؛ در صورت نیاز ساب دیگری را جداگانه انتخاب کنید.</value></data>
 </root>

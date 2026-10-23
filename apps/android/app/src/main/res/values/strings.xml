@@ -883,4 +883,5 @@
     <string name="connect_menu">Connection options</string>
     <string name="connect_quick">Quick connect</string>
     <string name="fox_connecting">Preparing the Fox relay…</string>
+    <string name="dicode_primary_empty">Dicode Config Checker returned no configs. The primary subscription stays selected; choose another subscription separately if needed.</string>
 </resources>

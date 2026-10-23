@@ -14,8 +14,11 @@ public static class WindowsTunRuntime
     {
         var root = JsonNode.Parse(File.ReadAllText(configPath))?.AsObject();
         var tun = (root?["inbounds"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(i => i["type"]?.ToString() == "tun");
-        if (tun?["interface_name"]?.ToString().StartsWith("DicodePing_", StringComparison.Ordinal) != true) return false;
-        tun["interface_name"] = InterfaceName + "_" + Guid.NewGuid().ToString("N")[..6];
+        var settings = (root?["inbounds"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(i => i["protocol"]?.ToString() == "tun")?["settings"] as JsonObject;
+        var name = InterfaceName + "_" + Guid.NewGuid().ToString("N")[..6];
+        if (tun?["interface_name"]?.ToString().StartsWith("DicodePing_", StringComparison.Ordinal) == true) tun["interface_name"] = name;
+        else if (settings?["name"]?.ToString().StartsWith("DicodePing_", StringComparison.Ordinal) == true) settings["name"] = name;
+        else return false;
         File.WriteAllText(configPath, root!.ToJsonString());
         return true;
     }

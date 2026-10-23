@@ -514,15 +514,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
                 (_, message) => { Dispatcher.UIThread.Post(() => ViewModel.PreparationStatus = message); return Task.CompletedTask; }, cts.Token));
             cts.Token.ThrowIfCancellationRequested();
             if ((await AppManager.Instance.ProfileItems(primary!.Id) ?? []).Count == 0)
-            {
-                var supplemental = (await AppManager.Instance.SubItems())?.FirstOrDefault(item => item.Enabled && item.Url == DicodePingBootstrap.SecondarySubscriptionUrl);
-                if (supplemental is not null)
-                {
-                    await Task.Run(() => SubscriptionHandler.UpdateProcess(_config, supplemental.Id, false,
-                        (_, _) => Task.CompletedTask, cts.Token));
-                    primary = supplemental;
-                }
-            }
+                NoticeManager.Instance.SendMessageAndEnqueue(ResUI.DicodePrimaryEmpty);
             ViewModel.IsPreparationRefreshing = false;
             _config.SubIndexId = primary!.Id;
             await ViewModel.ProfilesViewModel.RefreshSubscriptions();

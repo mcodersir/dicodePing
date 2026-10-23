@@ -2436,4 +2436,5 @@ https://t.me/dicodeping</value>
   <data name="DicodeLocalSocksMissing" xml:space="preserve"><value>Local SOCKS upstream {0}:{1} is not running. Select the managed Fox account profile or start the external proxy first.</value></data>
   <data name="DicodeQuickConnect" xml:space="preserve"><value>Quick connect</value></data>
   <data name="DicodeBestConnect" xml:space="preserve"><value>Connect to best</value></data>
+  <data name="DicodePrimaryEmpty" xml:space="preserve"><value>Dicode Config Checker returned no configs. Choose another subscription separately if needed.</value></data>
 </root>

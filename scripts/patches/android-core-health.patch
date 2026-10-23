@@ -1,19 +1,16 @@
 diff --git a/libv2ray_utils.go b/libv2ray_utils.go
-index fcc9e85..9019913 100644
+index fcc9e85..c4d2ad1 100644
 --- a/libv2ray_utils.go
 +++ b/libv2ray_utils.go
-@@ -7,8 +7,10 @@ import (
+@@ -7,6 +7,7 @@ import (
  	"io"
  	"net"
  	"net/http"
 +	"net/url"
  	"strconv"
  	"strings"
-+	"sync"
  	"time"
- 
- 	corenet "github.com/xtls/xray-core/common/net"
-@@ -112,7 +114,7 @@ func measureOutboundDelay(ctx context.Context, ConfigureFileContent string, url
+@@ -112,7 +113,7 @@ func measureOutboundDelay(ctx context.Context, ConfigureFileContent string, url
  
  // measureInstDelay measures the delay for an instance to a given URL, through the outbound with
  // outboundTag, or as the instance routes it when outboundTag is empty
@@ -22,7 +19,7 @@ index fcc9e85..9019913 100644
  	if inst == nil {
  		return -1, errors.New("core instance is nil")
  	}
-@@ -138,8 +140,9 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+@@ -138,8 +139,9 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
  	}
  
  	client := &http.Client{
@@ -34,7 +31,7 @@ index fcc9e85..9019913 100644
  	}
  
  	var minDuration int64 = -1
-@@ -172,10 +175,10 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+@@ -172,10 +174,10 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
  			continue
  		}
  
@@ -47,7 +44,7 @@ index fcc9e85..9019913 100644
  			lastErr = fmt.Errorf("invalid status: %s", resp.Status)
  			continue
  		}
-@@ -185,7 +188,7 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+@@ -185,7 +187,7 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
  			continue
  		}
  
@@ -56,7 +53,7 @@ index fcc9e85..9019913 100644
  		if !success || duration < minDuration {
  			minDuration = duration
  		}
-@@ -197,3 +200,74 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
+@@ -197,3 +199,71 @@ func measureInstDelay(ctx context.Context, inst *core.Instance, outboundTag stri
  	}
  	return minDuration, nil
  }
@@ -90,7 +87,7 @@ index fcc9e85..9019913 100644
 +func probeTargets(address string) []string {
 +	switch address {
 +	case "", "https://www.google.com/generate_204", "https://www.gstatic.com/generate_204", "https://www.youtube.com/generate_204", "https://www.googlevideo.com/generate_204", "http://www.google.com/generate_204", "http://www.gstatic.com/generate_204", "http://www.youtube.com/generate_204", "http://www.googlevideo.com/generate_204":
-+		return []string{address, "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt", "https://www.apple.com/library/test/success.html"}
++		return []string{address, "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"}
 +	default:
 +		return []string{address}
 +	}
@@ -101,33 +98,30 @@ index fcc9e85..9019913 100644
 +	if len(targets) == 1 {
 +		return measureInstDelayOnce(ctx, inst, outboundTag, address)
 +	}
++	return measureProbeTargets(ctx, targets, func(attempt context.Context, target string) (int64, error) {
++		return measureInstDelayOnce(attempt, inst, outboundTag, target)
++	})
++}
++
++// Keep one transaction in flight per profile. Parallel provider fan-out multiplied
++// every batch into dozens of TLS handshakes and exhausted mobile network budgets.
++func measureProbeTargets(ctx context.Context, targets []string, measure func(context.Context, string) (int64, error)) (int64, error) {
 +	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
-+	var workers sync.WaitGroup
-+	defer func() { cancel(); workers.Wait() }()
-+	type sample struct {
-+		delay int64
-+		err   error
-+	}
-+	results := make(chan sample, len(targets))
-+	for _, target := range targets {
-+		workers.Add(1)
-+		go func(target string) {
-+			defer workers.Done()
-+			delay, err := measureInstDelayOnce(ctx, inst, outboundTag, target)
-+			results <- sample{delay, err}
-+		}(target)
-+	}
++	defer cancel()
 +	var lastErr error
-+	for range targets {
-+		select {
-+		case result := <-results:
-+			if result.err == nil && result.delay > 0 {
-+				return result.delay, nil
-+			}
-+			lastErr = result.err
-+		case <-ctx.Done():
++	for i, target := range targets {
++		if ctx.Err() != nil {
 +			return -1, ctx.Err()
 +		}
++		deadline, _ := ctx.Deadline()
++		budget := time.Until(deadline) / time.Duration(len(targets)-i)
++		attempt, finish := context.WithTimeout(ctx, budget)
++		delay, err := measure(attempt, target)
++		finish()
++		if err == nil && delay > 0 {
++			return delay, nil
++		}
++		lastErr = err
 +	}
 +	return -1, lastErr
 +}

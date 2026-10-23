@@ -43,7 +43,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.7"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.8"))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
@@ -98,6 +98,10 @@ class FoxNativeTest {
         val subscription = "integration-497-" + guid
         val user = UUID.randomUUID().toString()
         val port = com.v2ray.ang.util.Utils.findRandomFreePort()
+        val tlsPort = com.v2ray.ang.util.Utils.findRandomFreePort()
+        val cert = File(context.cacheDir, "native-fixture-cert.pem.txt")
+        val key = File(context.cacheDir, "native-fixture-key.pem.txt")
+        for (file in listOf(cert, key)) instrumentation.context.assets.open(file.name).use { input -> file.outputStream().use { input.copyTo(it) } }
         val endpoint = java.net.ServerSocket(0, 8, java.net.InetAddress.getByName("127.0.0.1"))
         val hits = java.util.concurrent.atomic.AtomicInteger()
         val http = kotlin.concurrent.thread(isDaemon = true) {
@@ -129,16 +133,23 @@ class FoxNativeTest {
                 android.os.ParcelFileDescriptor.AutoCloseInputStream(it).bufferedReader().readText()
             }
             // Only this controlled test server may redirect traffic to its loopback HTTP fixture.
-            server.startLoop("""{"log":{"loglevel":"debug","access":""},"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}","finalRules":[{"action":"allow","ip":["127.0.0.1/32"]}]}}]}""", 0)
+            server.startLoop("""{"log":{"loglevel":"debug","access":""},"inbounds":[{"listen":"127.0.0.1","port":$port,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"}},{"listen":"127.0.0.1","port":$tlsPort,"protocol":"vless","settings":{"clients":[{"id":"$user"}],"decryption":"none"},"streamSettings":{"network":"ws","security":"tls","wsSettings":{"path":"/native-fixture"},"tlsSettings":{"alpn":["http/1.1"],"certificates":[{"certificateFile":"${cert.absolutePath}","keyFile":"${key.absolutePath}"}]}}}],"outbounds":[{"protocol":"freedom","tag":"direct","settings":{"redirect":"127.0.0.1:${endpoint.localPort}","finalRules":[{"action":"allow","ip":["127.0.0.1/32"]}]}}]}""", 0)
             androidx.test.core.app.ActivityScenario.launch<com.v2ray.ang.ui.main.MainActivity>(
                 android.content.Intent(context, com.v2ray.ang.ui.main.MainActivity::class.java)
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)).use {
                 // Exercise both the reference native TUN and the optional HEV reader.
-                for (useHev in listOf(false, true)) {
+                for ((useHev, useTls) in listOf(false to false, false to true, true to false, true to true)) {
                     MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_USE_HEV_TUNNEL, useHev)
                     // Older/manual/imported profiles can omit VLESS encryption or store an empty value.
                     val legacy = MmkvManager.decodeServerConfig(guid)!!
                     legacy.method = if (useHev) "  " else null
+                    legacy.serverPort = (if (useTls) tlsPort else port).toString()
+                    legacy.network = if (useTls) "ws" else "tcp"
+                    legacy.security = if (useTls) "tls" else "none"
+                    legacy.path = if (useTls) "/native-fixture" else null
+                    legacy.sni = if (useTls) "localhost" else null
+                    legacy.alpn = if (useTls) "http/1.1" else null
+                    legacy.insecure = useTls // Only this self-signed, local test endpoint.
                     MmkvManager.encodeServerConfig(guid, legacy)
                     MmkvManager.setSelectServer(guid)
                     LauncherManager.startService(context, guid)
@@ -156,7 +167,7 @@ class FoxNativeTest {
                         }.getOrDefault("")
                         if (response != "vless-ok") Thread.sleep(100)
                     }
-                    assertEquals("VPN service failed with HEV=$useHev, hits=${hits.get()}, serverRunning=${server.isRunning}, last=${lastFailure.get()}", "vless-ok", response)
+                    assertEquals("VPN service failed with HEV=$useHev TLS=$useTls, hits=${hits.get()}, serverRunning=${server.isRunning}, last=${lastFailure.get()}", "vless-ok", response)
                     Thread.sleep(1200) // A delayed onDestroy from the old session must not stop this one.
                     val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
                     assertTrue("No VPN transport", connectivity.allNetworks.any { network ->
@@ -169,11 +180,12 @@ class FoxNativeTest {
                     }) Thread.sleep(50)
                 }
             }
-            assertTrue(hits.get() >= 2)
+            assertTrue(hits.get() >= 4)
         } finally {
             LauncherManager.stopService(context)
             runCatching { server.stopLoop() }
             endpoint.close(); http.join(1000)
+            cert.delete(); key.delete()
             MmkvManager.removeServer(guid)
             selected?.let(MmkvManager::setSelectServer)
             MmkvManager.encodeSettings(com.v2ray.ang.AppConfig.PREF_USE_HEV_TUNNEL, hev)
