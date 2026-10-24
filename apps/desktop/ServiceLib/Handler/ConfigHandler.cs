@@ -1613,15 +1613,9 @@ public static class ConfigHandler
     /// <returns>A SOCKS profile item or null if not needed</returns>
     public static ProfileItem? GetPreSocksItem(Config config, ProfileItem node, ECoreType coreType)
     {
-        ProfileItem? itemSocks = null;
-        // Xray owns TUN directly. Existing legacy-protect settings must not
-        // resurrect the removed runtime or create a second tunnel.
-        if (node.ConfigType == EConfigType.Custom && node.PreSocksPort is > 0 and <= 65535)
-        {
-            itemSocks = new ProfileItem { CoreType = ECoreType.Xray, ConfigType = EConfigType.SOCKS,
-                Address = Global.Loopback, Port = node.PreSocksPort.Value };
-        }
-        return itemSocks;
+        // Every supported runtime owns its TUN directly. Legacy PreSocksPort
+        // metadata must not start an extra tunnel or resurrect a removed engine.
+        return null;
     }
 
     /// <summary>

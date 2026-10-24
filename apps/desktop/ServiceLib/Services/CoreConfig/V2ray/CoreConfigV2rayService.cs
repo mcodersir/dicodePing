@@ -10,6 +10,12 @@ public partial class CoreConfigV2rayService(CoreConfigContext context)
 
     #region public gen function
 
+    public List<Inbounds4Ray> GenerateRuntimeInbounds()
+    {
+        GenInbounds();
+        return _coreConfig.inbounds;
+    }
+
     public RetResult GenerateClientConfigContent()
     {
         var ret = new RetResult();

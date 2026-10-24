@@ -7,6 +7,29 @@ namespace ServiceLib.Tests;
 public class Release499Tests
 {
     [Fact]
+    public async Task ImportedXrayJsonUsesTheReportedRuntimePortAndKeepsItsExit()
+    {
+        var source = Path.GetTempFileName(); var output = Path.GetTempFileName();
+        const string raw = """{"inbounds":[{"protocol":"mixed","tag":"original-input","listen":"127.0.0.1","port":27123}],"outbounds":[{"protocol":"socks","tag":"proxy","settings":{"servers":[{"address":"exit.example","port":443}]}}],"routing":{"rules":[{"type":"field","inboundTag":["original-input"],"outboundTag":"proxy"}]}}""";
+        try {
+            File.WriteAllText(source, raw);
+            var config = CoreConfigTestFactory.CreateConfigWithTun(ECoreType.Xray, false);
+            config.Inbound[0].LocalPort = 28123;
+            CoreConfigTestFactory.BindAppManagerConfig(config);
+            var node = new ProfileItem { ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, Address = source };
+            var context = CoreConfigTestFactory.CreateContext(config, node, ECoreType.Xray) with { IsWindows = true };
+            var result = await CoreConfigHandler.GenerateClientConfig(context, output);
+            Assert.True(result.Success, result.Msg);
+            var json = JsonNode.Parse(File.ReadAllText(output))!;
+            Assert.Equal(28123, json["inbounds"]![0]!["port"]!.GetValue<int>());
+            Assert.Equal("original-input", json["inbounds"]![0]!["tag"]!.ToString());
+            Assert.Contains(json["inbounds"]!.AsArray(), i => i?["protocol"]?.ToString() == "tun");
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(raw)!["outbounds"], json["outbounds"]));
+            Assert.Equal(raw, File.ReadAllText(source));
+        } finally { File.Delete(source); File.Delete(output); }
+    }
+
+    [Fact]
     public async Task SavedFoxSocksProfileUsesXrayTunWithoutAnExtraRuntime()
     {
         var config = CoreConfigTestFactory.CreateConfigWithTun(ECoreType.Xray, false);

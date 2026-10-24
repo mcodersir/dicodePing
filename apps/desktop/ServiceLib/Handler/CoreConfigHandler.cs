@@ -18,7 +18,7 @@ public static class CoreConfigHandler
             result = node.CoreType switch
             {
                 ECoreType.mihomo => await new CoreConfigClashService(config, context.IsTunEnabled).GenerateClientCustomConfig(node, fileName),
-                _ => await GenerateClientCustomConfig(config, node, fileName)
+                _ => await GenerateClientCustomConfig(context, node, fileName)
             };
         }
         else if (context.RunCoreType == ECoreType.sing_box)
@@ -51,8 +51,9 @@ public static class CoreConfigHandler
         return result;
     }
 
-    private static async Task<RetResult> GenerateClientCustomConfig(Config config, ProfileItem node, string? fileName)
+    private static async Task<RetResult> GenerateClientCustomConfig(CoreConfigContext context, ProfileItem node, string? fileName)
     {
+        var config = context.AppConfig;
         var ret = new RetResult();
         try
         {
@@ -84,6 +85,21 @@ public static class CoreConfigHandler
             if (node.CoreType is null or ECoreType.Xray && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject root)
             {
                 root.Remove("dicodeFox");
+                var generated = new CoreConfigV2rayService(context).GenerateRuntimeInbounds();
+                var inbounds = root["inbounds"] as JsonArray ?? new JsonArray();
+                var local = inbounds.OfType<JsonObject>().FirstOrDefault(i => i["protocol"]?.ToString() is "socks" or "mixed" or "http");
+                var mixed = JsonNode.Parse(JsonUtils.Serialize(generated.First(i => i.protocol == "mixed")))!.AsObject();
+                if (local is not null) {
+                    mixed["tag"] = local["tag"]?.DeepClone() ?? JsonValue.Create("socks");
+                    inbounds.Remove(local);
+                }
+                inbounds.Insert(0, mixed);
+                foreach (var oldTun in inbounds.OfType<JsonObject>().Where(i => i["protocol"]?.ToString() == "tun").ToList()) inbounds.Remove(oldTun);
+                if (context.IsTunEnabled) {
+                    foreach (var tun in generated.Where(i => i.protocol == "tun")) inbounds.Add(JsonNode.Parse(JsonUtils.Serialize(tun)));
+                }
+                root["inbounds"] = inbounds;
+
                 if (config.GuiItem.EnableStatistics || config.GuiItem.DisplayRealTimeSpeed || FoxProfiles.Read(node) is not null)
                 {
                     root["stats"] = new JsonObject();
