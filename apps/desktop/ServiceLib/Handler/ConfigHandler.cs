@@ -97,7 +97,7 @@ public static class ConfigHandler
         config.TunModeItem ??= new TunModeItem
         {
             EnableTun = true,
-            Mtu = 9000,
+            Mtu = 1500,
             IcmpRouting = Global.TunIcmpRoutingPolicies.First(),
             EnableLegacyProtect = false,
         };
@@ -105,6 +105,7 @@ public static class ConfigHandler
         // on first launch as well, so no non-TUN traffic mode can be selected afterwards.
         config.TunModeItem.EnableTun = true;
         config.TunModeItem.StrictRoute = true;
+        if (config.TunModeItem.Mtu <= 0 || config.TunModeItem.Mtu == 9000) config.TunModeItem.Mtu = 1500;
         config.GuiItem ??= new();
         config.GuiItem.EnableStatistics = true;
         config.GuiItem.DisplayRealTimeSpeed = true;
@@ -1613,32 +1614,12 @@ public static class ConfigHandler
     public static ProfileItem? GetPreSocksItem(Config config, ProfileItem node, ECoreType coreType)
     {
         ProfileItem? itemSocks = null;
-        var enableLegacyProtect = config.TunModeItem.EnableLegacyProtect;
-        if (node.ConfigType != EConfigType.Custom
-            && coreType != ECoreType.sing_box
-            && config.TunModeItem.EnableTun
-            && enableLegacyProtect)
+        // Xray owns TUN directly. Existing legacy-protect settings must not
+        // resurrect the removed runtime or create a second tunnel.
+        if (node.ConfigType == EConfigType.Custom && node.PreSocksPort is > 0 and <= 65535)
         {
-            itemSocks = new ProfileItem()
-            {
-                CoreType = ECoreType.sing_box,
-                ConfigType = EConfigType.SOCKS,
-                Address = Global.Loopback,
-                Port = (config.Inbound.FirstOrDefault(i => i.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 10808)
-            };
-        }
-        else if (node.ConfigType == EConfigType.Custom
-            && node.PreSocksPort is > 0 and <= 65535)
-        {
-            var customPreCoreType = AppManager.Instance.GetCoreType(null, EConfigType.Custom);
-            var preCoreType = (FoxProfiles.Read(node) is not null || (enableLegacyProtect && config.TunModeItem.EnableTun)) ? ECoreType.sing_box : customPreCoreType;
-            itemSocks = new ProfileItem()
-            {
-                CoreType = preCoreType,
-                ConfigType = EConfigType.SOCKS,
-                Address = Global.Loopback,
-                Port = node.PreSocksPort.Value,
-            };
+            itemSocks = new ProfileItem { CoreType = ECoreType.Xray, ConfigType = EConfigType.SOCKS,
+                Address = Global.Loopback, Port = node.PreSocksPort.Value };
         }
         return itemSocks;
     }

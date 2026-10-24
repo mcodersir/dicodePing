@@ -15,7 +15,7 @@ CliText.Configure(ref args);
 if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
 {
     Console.WriteLine(CliText.T("""
-        دیکد پینگ CLI 4.9.8
+        دیکد پینگ CLI 4.9.9
         fox accounts|locations       نمایش حساب‌ها یا کشورها
         fox login                    ورود مرحله‌ای، تأیید و انتخاب کشور
         fox verify <account-id>      واردکردن کد تأیید موزیلا
@@ -27,15 +27,15 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         refresh                      تازه‌سازی اشتراک‌های فعال
         ping                         آزمون تأخیر واقعی و مرتب‌سازی
         connect [id | --best]         اتصال تا فشردن Ctrl+C
-        check <file> --engine xray|sing-box|mihomo
-        run <file> --engine xray|sing-box|mihomo
+        check <file> --engine xray|mihomo
+        run <file> --engine xray|mihomo
         scan-cf <file>                تست HTTPS آدرس‌های کلودفلر
         --data <directory>           مسیر مستقل ذخیره داده‌ها
         --tun                        تونل کل سیستم؛ نیازمند دسترسی مدیر
         --system-proxy               تنظیم پروکسی سیستم در این اجرا
         --lang fa|en                 زبان راهنما و پیام‌ها
         """, """
-        DicodePing CLI 4.9.8
+        DicodePing CLI 4.9.9
         fox accounts|locations       List Fox accounts or provider locations
         fox login                    Sign in (email/password read privately from stdin)
         fox verify <account-id>      Enter Mozilla verification code
@@ -47,8 +47,8 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         refresh                      Update enabled subscriptions
         ping                         Test real latency and sort successful profiles first
         connect [id | --best]         Run a profile until Ctrl+C; uses saved successful tests
-        check <file> --engine xray|sing-box|mihomo
-        run <file> --engine xray|sing-box|mihomo
+        check <file> --engine xray|mihomo
+        run <file> --engine xray|mihomo
         scan-cf <file>                Test supplied Cloudflare IPs with verified HTTPS
         --data <directory>           Separate writable data directory
         --tun                        Enable full-system TUN (requires administrator access)
@@ -57,7 +57,7 @@ if (args.Length == 0 || args.Contains("--help") || args[0] == "help")
         """));
     return 0;
 }
-if (args[0] is "--version" or "version") { Console.WriteLine("4.9.8"); return 0; }
+if (args[0] is "--version" or "version") { Console.WriteLine("4.9.9"); return 0; }
 string? Option(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i+1 < args.Length ? args[i+1] : null; }
 var data = Path.GetFullPath(Option("--data") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DicodePing-CLI"));
 Directory.CreateDirectory(data);
@@ -76,7 +76,7 @@ try
     await ConfigHandler.InitBuiltinDNS(config);
     await ConfigHandler.InitBuiltinFullConfigTemplate(config);
     await ProfileExManager.Instance.Init();
-    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.8");
+    await BundledRuntimeInstaller.InstallAsync(Path.Combine(AppContext.BaseDirectory, "bin"), Utils.GetBinPath(""), "4.9.9");
     Task Output(bool success, string text) { Console.Error.WriteLine(text); return Task.CompletedTask; }
     await CoreManager.Instance.Init(config, Output);
     switch (args[0])

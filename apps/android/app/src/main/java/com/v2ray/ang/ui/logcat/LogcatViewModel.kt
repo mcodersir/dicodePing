@@ -56,6 +56,8 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
+    fun allLogs(): String = logsetsAll.joinToString("\n")
+
     fun copyLogcat() {
         val all = filteredLogs.value.joinToString("\n")
         Utils.setClipboard(app, all)

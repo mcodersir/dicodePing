@@ -363,7 +363,7 @@
     <string name="title_logcat" translatable="false">Logcat</string>
     <string name="logcat_copy">Copy</string>
     <string name="logcat_clear">Clear</string>
-    <string name="logcat_share">Share log</string>
+    <string name="logcat_share">Share diagnostic ZIP</string>
     <string name="title_service_restart">Restart service</string>
     <string name="title_del_all_config">Delete configs</string>
     <string name="title_del_duplicate_config">Delete duplicate configs</string>
@@ -824,7 +824,7 @@
     <string name="preparation_hint">Results are saved to your server list. You can connect as soon as preparation finishes.</string>
     <string name="preparation_skip">Continue without waiting</string>
     <string name="native_methods_title">More connection methods</string>
-    <string name="native_methods_hint">Native sing-box profiles. Advanced certificates and server options can be edited in the profile JSON.</string>
+    <string name="native_methods_hint">Enter the SOCKS address of your external helper. Xray runs the connection.</string>
     <string name="native_connection_name">Connection name</string>
     <string name="native_save_connection">Save connection</string>
     <string name="native_external_hint">For MasterDNS, DNSTT, VayDNS, MHR, MHR-CFW, MITM fronting or SNI Spoofing, start the independent helper first and enter its SOCKS5 address. These helpers are not bundled. Root certificates are never installed automatically.</string>
@@ -884,4 +884,6 @@
     <string name="connect_quick">Quick connect</string>
     <string name="fox_connecting">Preparing the Fox relay…</string>
     <string name="dicode_primary_empty">Dicode Config Checker returned no configs. The primary subscription stays selected; choose another subscription separately if needed.</string>
+<string name="dicode_removed_core">This custom configuration requires a removed engine. Import an Xray configuration or a protocol share link.</string>
+<string name="fox_start_error">Fox could not start (%1$s). Share the diagnostic ZIP from Reports for investigation.</string>
 </resources>

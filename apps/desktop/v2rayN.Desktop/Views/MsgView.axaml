@@ -30,6 +30,7 @@
                     Margin="{StaticResource MarginLr8}"
                     Click="menuMsgViewCopyAll_Click"
                     Content="{x:Static resx:ResUI.menuMsgViewCopyAll}" />
+                <Button Margin="{StaticResource MarginLr8}" Click="ExportDiagnostics_Click" Content="{x:Static resx:ResUI.DicodeExportDiagnostics}" />
                 <Button
                     x:Name="btnClear"
                     Margin="{StaticResource MarginLr8}"

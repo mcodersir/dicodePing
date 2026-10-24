@@ -198,7 +198,7 @@ public static class FoxProfiles
     {
         if (Read(node) is not { } fox) return node;
         var runtime = JsonUtils.DeepCopy(node);
-        runtime.ConfigType = EConfigType.SOCKS; runtime.CoreType = ECoreType.sing_box;
+        runtime.ConfigType = EConfigType.SOCKS; runtime.CoreType = ECoreType.Xray;
         runtime.Address = Global.Loopback; runtime.Port = LocalPort; runtime.PreSocksPort = null;
         runtime.Username = runtime.Password = runtime.StreamSecurity = runtime.Network = string.Empty;
         runtime.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = fox.AccountId, FoxCountry = fox.Country });
@@ -233,7 +233,7 @@ public static class FoxProfiles
             ?? new SubItem { Id = Guid.NewGuid().ToString("N"), Url = "dicode-fox://" + account.Id, Remarks = ResUI.DicodeFoxTitle + " · " + account.Email, AutoUpdateInterval = 0 };
         ApplyQuota(sub, account); await ConfigHandler.AddSubItem(config, sub);
         var nodes = await AppManager.Instance.ProfileItems(sub.Id) ?? []; var existing = nodes.FirstOrDefault();
-        var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.SOCKS, CoreType = ECoreType.sing_box,
+        var node = new ProfileItem { IndexId = existing?.IndexId ?? "", ConfigType = EConfigType.SOCKS, CoreType = ECoreType.Xray,
             Remarks = ResUI.DicodeFoxTitle + " · Firefox VPN · " + account.Country, Address = Global.Loopback, Port = LocalPort,
             DisplayLog = true, Subid = sub.Id, IsSub = true };
         node.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = account.Id, FoxCountry = account.Country });

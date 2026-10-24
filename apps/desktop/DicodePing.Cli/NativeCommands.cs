@@ -9,14 +9,13 @@ internal static class NativeCommands
         if (args.Length < 2) throw new ArgumentException(CliText.T("مسیر فایل پیکربندی لازم است", "A configuration file is required"));
         var file = Path.GetFullPath(args[1]);
         if (!File.Exists(file)) throw new FileNotFoundException(CliText.T("فایل پیکربندی پیدا نشد", "Configuration file not found"));
-        var binary = engine switch { "xray" => "xray/xray", "sing-box" => "sing_box/sing-box", "mihomo" => "mihomo/mihomo", _ => throw new ArgumentException(CliText.T("هسته انتخاب‌شده پشتیبانی نمی‌شود", "Unsupported native engine")) };
+        var binary = engine switch { "xray" => "xray/xray", "mihomo" => "mihomo/mihomo", _ => throw new ArgumentException(CliText.T("هسته انتخاب‌شده پشتیبانی نمی‌شود", "Unsupported native engine")) };
         var path = Path.Combine(AppContext.BaseDirectory, "bin", binary + (OperatingSystem.IsWindows() ? ".exe" : ""));
         if (!File.Exists(path)) throw new FileNotFoundException(CliText.T("هسته همراه برنامه پیدا نشد", "Bundled core is missing"), path);
         var start = new ProcessStartInfo(path) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = Path.Combine(AppContext.BaseDirectory, "bin") };
         foreach (var name in new[] { "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy" }) start.Environment.Remove(name);
         string[] command = engine switch {
             "xray" => args[0] == "check" ? ["run", "-test", "-c", file] : ["run", "-c", file],
-            "sing-box" => [args[0] == "check" ? "check" : "run", "-c", file],
             _ => args[0] == "check" ? ["-t", "-f", file] : ["-f", file]
         };
         foreach (var word in command) start.ArgumentList.Add(word);

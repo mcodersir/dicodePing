@@ -51,6 +51,21 @@ public partial class MsgView : ReactiveUserControl<MsgViewModel>
         await AvaUtils.SetClipboardData(this, string.Join(Environment.NewLine, lines));
     }
 
+    private async void ExportDiagnostics_Click(object? sender, RoutedEventArgs e)
+    {
+        try {
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storage is null) return;
+            var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
+                SuggestedFileName = $"DicodePing-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+                DefaultExtension = "zip"
+            });
+            if (file is null) return;
+            await using var output = await file.OpenWriteAsync();
+            await Task.Run(() => ServiceLib.Services.DiagnosticArchive.Write(output));
+        } catch (Exception error) { Logging.SaveLog("Export diagnostics", error); }
+    }
+
     private void menuMsgViewClear_Click(object? sender, RoutedEventArgs e)
     {
         ClearMsg();

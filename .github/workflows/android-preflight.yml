@@ -1,4 +1,4 @@
-name: Android 4.9.8 preflight
+name: Android 4.9.9 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.8.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.9.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -66,9 +66,6 @@ jobs:
     - name: Build Fox helper for all Android architectures
       if: steps.android-native.outputs.cache-hit != 'true'
       run: python scripts/stage-fox.py --android --output apps/android/app/libs
-    - name: Bundle verified Android sing-box
-      if: steps.android-native.outputs.cache-hit != 'true'
-      run: python scripts/stage-singbox-android.py
     - name: Build pinned Android runtime with strict HTTP probes
       if: steps.android-native.outputs.cache-hit != 'true'
       run: bash scripts/build-android-core.sh
@@ -83,7 +80,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.8.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.9.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Compile and test Android before release
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -91,7 +88,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.8
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.9
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -133,4 +130,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-4.9.8
+    - codex/release-4.9.9

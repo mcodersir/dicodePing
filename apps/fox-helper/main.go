@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.9.8"
+const version = "4.9.9"
 
 type State struct {
 	Email              string `json:"email"`
@@ -110,7 +110,11 @@ func main() {
 	}
 	var result Response
 	var err error
-	opctx, opcancel := context.WithTimeout(ctx, 90*time.Second)
+	operationTimeout := 90 * time.Second
+	if req.Operation == "serve" {
+		operationTimeout = 35 * time.Second
+	}
+	opctx, opcancel := context.WithTimeout(ctx, operationTimeout)
 	switch req.Operation {
 	case "login":
 		if len(req.Email) > 254 || len(req.Password) > 1024 || !strings.Contains(req.Email, "@") {

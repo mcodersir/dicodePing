@@ -187,7 +187,8 @@ public class ProcessService : IDisposable
         {
             if (e.Data.IsNotEmpty())
             {
-                if (e.Data.Contains("sing-box started", StringComparison.OrdinalIgnoreCase)) Interlocked.Exchange(ref _startupCompleted, 1);
+                if (e.Data.Contains("sing-box started", StringComparison.OrdinalIgnoreCase) ||
+                    (e.Data.Contains("core: Xray", StringComparison.OrdinalIgnoreCase) && e.Data.Contains(" started", StringComparison.OrdinalIgnoreCase))) Interlocked.Exchange(ref _startupCompleted, 1);
                 lock (_outputLock)
                 {
                     _recentOutput.Enqueue(e.Data);

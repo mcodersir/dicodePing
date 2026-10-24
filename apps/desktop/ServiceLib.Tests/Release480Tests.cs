@@ -41,7 +41,7 @@ public class Release480Tests
         item.Profile = restored; Assert.True(CoreManager.RequiresIsolatedProbe(config, item));
     }
     [Fact]
-    public void OrdinaryXrayUsesNativeTunUnlessCompatibilityIsExplicitlyEnabled()
+    public void OrdinaryXrayKeepsNativeTunWhenLegacySettingsAreRetained()
     {
         var config = CoreConfigTestFactory.CreateConfig(); config.TunModeItem.EnableTun = true; config.TunModeItem.EnableLegacyProtect = false;
         CoreConfigTestFactory.BindAppManagerConfig(config);
@@ -50,7 +50,7 @@ public class Release480Tests
         Assert.Null(bridge);
         config.TunModeItem.EnableLegacyProtect = true;
         bridge = ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray);
-        Assert.NotNull(bridge); Assert.Equal(ECoreType.sing_box, bridge.CoreType);
+        Assert.Null(bridge);
         config.TunModeItem.EnableTun = false; Assert.Null(ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray));
     }
 }

@@ -36,10 +36,10 @@ public class NativeRuntimeTests
          "stats":{},"metrics":{"listen":"127.0.0.1:{{{{metricsPort}}}}"},"policy":{"system":{"statsOutboundUplink":true,"statsOutboundDownlink":true}}}
         """, ct);
         await File.WriteAllTextAsync(sfile, $$$$"""
-        {"log":{"level":"info"},"inbounds":[{"type":"tun","interface_name":"{{{{name}}}}","address":["172.30.250.1/30"],"mtu":1500,"auto_route":true,"route_address":["198.18.0.1/32"],"strict_route":false,"stack":"system"}],
-         "outbounds":[{"type":"socks","tag":"proxy","server":"127.0.0.1","server_port":{{{{xrayPort}}}}}],"route":{"auto_detect_interface":true}}
+        {"log":{"loglevel":"info"},"inbounds":[{"protocol":"tun","tag":"tun","settings":{"name":"{{{{name}}}}","gateway":["172.30.250.1/30"],"MTU":1500,"autoSystemRoutingTable":["198.18.0.1/32"],"autoSystemDnsToGateway":false}}],
+         "outbounds":[{"protocol":"socks","tag":"proxy","settings":{"servers":[{"address":"127.0.0.1","port":{{{{xrayPort}}}}}]}}]}
         """, ct);
-        var xbinary = Path.Combine(root!, "bin", "xray", "xray.exe"); var sbinary = Path.Combine(root!, "bin", "sing_box", "sing-box.exe");
+        var xbinary = Path.Combine(root!, "bin", "xray", "xray.exe"); var sbinary = Path.Combine(root!, "bin", "xray", "xray.exe");
         using var xray = new ProcessService(xbinary, "run -c " + xfile.AppendQuotes(), Path.GetDirectoryName(xbinary)!, true, false, null, (_,_)=>Task.CompletedTask);
         using var tun = new ProcessService(sbinary, "run -c " + sfile.AppendQuotes(), Path.GetDirectoryName(sbinary)!, true, false, null, (_,_)=>Task.CompletedTask);
         try {
@@ -57,7 +57,7 @@ public class NativeRuntimeTests
     {
         var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
         if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(root)) Assert.Skip("Windows driver loading is validated in Windows release CI.");
-        foreach (var relative in new[] { "wintun.dll", Path.Combine("bin", "xray", "wintun.dll"), Path.Combine("bin", "sing_box", "wintun.dll") })
+        foreach (var relative in new[] { "wintun.dll", Path.Combine("bin", "xray", "wintun.dll") })
         {
             var handle = System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(root!, relative));
             try { Assert.NotEqual(IntPtr.Zero, System.Runtime.InteropServices.NativeLibrary.GetExport(handle, "WintunCreateAdapter")); }
@@ -73,12 +73,11 @@ public class NativeRuntimeTests
         var name = "DicodePing_CI_" + Guid.NewGuid().ToString("N")[..8];
         var path = Path.Combine(Path.GetTempPath(), name + ".json");
         await File.WriteAllTextAsync(path, new JsonObject {
-            ["log"] = new JsonObject { ["level"] = "info" },
-            ["inbounds"] = new JsonArray(new JsonObject { ["type"] = "tun", ["tag"] = "tun", ["interface_name"] = name,
-                ["address"] = new JsonArray("172.30.250.1/30"), ["mtu"] = 1500, ["auto_route"] = false, ["strict_route"] = false, ["stack"] = "system" }),
-            ["outbounds"] = new JsonArray(new JsonObject { ["type"] = "direct", ["tag"] = "direct" })
+            ["log"] = new JsonObject { ["loglevel"] = "info" },
+            ["inbounds"] = new JsonArray(new JsonObject { ["protocol"] = "tun", ["tag"] = "tun", ["settings"] = new JsonObject { ["name"] = name, ["gateway"] = new JsonArray("172.30.250.1/30"), ["MTU"] = 1500, ["autoSystemDnsToGateway"] = false } }),
+            ["outbounds"] = new JsonArray(new JsonObject { ["protocol"] = "freedom", ["tag"] = "direct" })
         }.ToJsonString());
-        var binary = Path.Combine(root!, "bin", "sing_box", "sing-box.exe");
+        var binary = Path.Combine(root!, "bin", "xray", "xray.exe");
         using var child = new ProcessService(binary, "run -c " + path.AppendQuotes(), Path.GetDirectoryName(binary)!, true, false, null, (_, _) => Task.CompletedTask);
         try {
             await child.StartAsync(); await child.WaitForStartupAsync(TimeSpan.FromSeconds(35));
@@ -133,11 +132,6 @@ public class NativeRuntimeTests
     [InlineData(ECoreType.Xray, "entry")]
     [InlineData(ECoreType.Xray, "sni")]
     [InlineData(ECoreType.Xray, "custom")]
-    [InlineData(ECoreType.sing_box, "normal")]
-    [InlineData(ECoreType.sing_box, "tun")]
-    [InlineData(ECoreType.sing_box, "probe")]
-    [InlineData(ECoreType.sing_box, "entry")]
-    [InlineData(ECoreType.sing_box, "custom")]
     public async Task BundledRuntimeAcceptsGeneratedConfiguration(ECoreType core, string mode)
     {
         var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");

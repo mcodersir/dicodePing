@@ -14,12 +14,12 @@ import com.v2ray.ang.core.NativeProfileTemplates
 
 @Composable
 internal fun NativeMethodsDialog(onDismiss: () -> Unit, onImport: (String) -> Unit) {
-    var kind by remember { mutableStateOf("snell") }
+    var kind by remember { mutableStateOf("socks") }
     var name by remember { mutableStateOf("") }; var server by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("443") }; var user by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("1080") }; var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }; var extra by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }; var expanded by remember { mutableStateOf(false) }
-    val labels = listOf("Snell 4", "AnyTLS", "SSH", "Cisco / OpenConnect", "OpenVPN", stringResource(R.string.native_external))
+    val labels = listOf(stringResource(R.string.native_external))
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.native_methods_title)) },
         text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.native_methods_hint))

@@ -60,28 +60,9 @@ public class Release450Tests
     [InlineData("ssh")]
     [InlineData("openconnect")]
     [InlineData("openvpn-client")]
-    public async Task BundledRuntimeAcceptsNativeTemplatesAndIsolatedProbes(string kind)
+    public async Task RemovedEngineTemplatesReportUnsupportedInsteadOfSpawningMissingRuntime(string kind)
     {
-        var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");
-        if (string.IsNullOrEmpty(root)) Assert.Skip("Native runtimes are validated in release CI.");
-        CoreConfigTestFactory.BindAppManagerConfig(CoreConfigTestFactory.CreateConfig());
-        using var key = RSA.Create(2048);
-        var request = new CertificateRequest("CN=Dicode test CA", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
-        using var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
-        var raw = NativeProfileTemplates.Build(kind, "vpn.example.com", 443, "user", "abcdefghijklmnopqrstuvwxyz123456", kind == "openvpn-client" ? cert.ExportCertificatePem() : "");
-        foreach (var content in new[] { raw, CustomProbeConfiguration.Build(raw, ECoreType.sing_box, 21512) }) {
-            var file = Path.Combine(Path.GetTempPath(), "dicode-native-" + Guid.NewGuid() + ".json");
-            await File.WriteAllTextAsync(file, content);
-            try {
-                var binary = Path.Combine(root!, "bin", "sing_box", "sing-box" + (OperatingSystem.IsWindows() ? ".exe" : ""));
-                using var process = new System.Diagnostics.Process { StartInfo = new(binary) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true } };
-                foreach (var arg in new[] { "check", "-c", file }) process.StartInfo.ArgumentList.Add(arg);
-                process.Start(); var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-                try { await process.WaitForExitAsync(timeout.Token); } finally { if (!process.HasExited) process.Kill(true); }
-                Assert.True(process.ExitCode == 0, await stderr + await stdout);
-            } finally { File.Delete(file); }
-        }
+        Assert.Throws<NotSupportedException>(() => NativeProfileTemplates.Build(kind, "vpn.example.com", 443, "user", "password"));
+        await Task.CompletedTask;
     }
 }

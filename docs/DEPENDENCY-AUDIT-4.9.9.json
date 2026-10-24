@@ -1,0 +1,516 @@
+{
+  "checked": "2026-10-24",
+  "packages": [
+    {
+      "kind": "nuget",
+      "name": "Avalonia.AvaloniaEdit",
+      "current": "12.0.0",
+      "latest": "12.0.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/avalonia.avaloniaedit/index.json",
+      "key": null,
+      "selected": "12.0.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "Avalonia.Controls.DataGrid",
+      "current": "12.1.2",
+      "latest": "12.1.2",
+      "source": "https://api.nuget.org/v3-flatcontainer/avalonia.controls.datagrid/index.json",
+      "key": null,
+      "selected": "12.1.2"
+    },
+    {
+      "kind": "nuget",
+      "name": "Avalonia.Headless",
+      "current": "12.1.4",
+      "latest": "12.1.4",
+      "source": "https://api.nuget.org/v3-flatcontainer/avalonia.headless/index.json",
+      "key": null,
+      "selected": "12.1.4"
+    },
+    {
+      "kind": "nuget",
+      "name": "Avalonia.Desktop",
+      "current": "12.1.4",
+      "latest": "12.1.4",
+      "source": "https://api.nuget.org/v3-flatcontainer/avalonia.desktop/index.json",
+      "key": null,
+      "selected": "12.1.4"
+    },
+    {
+      "kind": "nuget",
+      "name": "AvaloniaUI.DiagnosticsSupport",
+      "current": "2.2.3",
+      "latest": "2.2.3",
+      "source": "https://api.nuget.org/v3-flatcontainer/avaloniaui.diagnosticssupport/index.json",
+      "key": null,
+      "selected": "2.2.3"
+    },
+    {
+      "kind": "nuget",
+      "name": "AwesomeAssertions",
+      "current": "9.6.0",
+      "latest": "9.6.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/awesomeassertions/index.json",
+      "key": null,
+      "selected": "9.6.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "DialogHost.Avalonia",
+      "current": "0.12.3",
+      "latest": "0.12.3",
+      "source": "https://api.nuget.org/v3-flatcontainer/dialoghost.avalonia/index.json",
+      "key": null,
+      "selected": "0.12.3"
+    },
+    {
+      "kind": "nuget",
+      "name": "IPNetwork2",
+      "current": "4.3.0",
+      "latest": "4.3.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/ipnetwork2/index.json",
+      "key": null,
+      "selected": "4.3.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "ReactiveUI.Avalonia",
+      "current": "12.1.2",
+      "latest": "12.1.2",
+      "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.avalonia/index.json",
+      "key": null,
+      "decision": "14.7.1 is unlisted (NuGet published 1900-01-01), not a current supported release. Keep latest listed compatible package 12.1.2.",
+      "selected": "12.1.2"
+    },
+    {
+      "kind": "nuget",
+      "name": "CliWrap",
+      "current": "3.10.5",
+      "latest": "3.10.5",
+      "source": "https://api.nuget.org/v3-flatcontainer/cliwrap/index.json",
+      "key": null,
+      "selected": "3.10.5"
+    },
+    {
+      "kind": "nuget",
+      "name": "Downloader",
+      "current": "5.10.1",
+      "latest": "5.10.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/downloader/index.json",
+      "key": null,
+      "selected": "5.10.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "Microsoft.NET.Test.Sdk",
+      "current": "18.11.0",
+      "latest": "18.11.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.net.test.sdk/index.json",
+      "key": null,
+      "selected": "18.11.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "H.NotifyIcon.Wpf",
+      "current": "2.4.1",
+      "latest": "2.4.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/h.notifyicon.wpf/index.json",
+      "key": null,
+      "selected": "2.4.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "MaterialDesignThemes",
+      "current": "5.4.0",
+      "latest": "5.4.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/materialdesignthemes/index.json",
+      "key": null,
+      "selected": "5.4.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "QRCoder",
+      "current": "1.8.1",
+      "latest": "1.8.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/qrcoder/index.json",
+      "key": null,
+      "selected": "1.8.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "ReactiveUI",
+      "current": "24.3.0",
+      "latest": "26.0.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/reactiveui/index.json",
+      "key": null,
+      "decision": "Retain 24.3.0: latest Avalonia adapter 12.1.2 requires ReactiveUI.Core interfaces removed/moved in 26.x; 26.0.1 fails compilation (CS7069).",
+      "selected": "24.3.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "ReactiveUI.SourceGenerators",
+      "current": "4.2.0",
+      "latest": "4.2.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.sourcegenerators/index.json",
+      "key": null,
+      "selected": "4.2.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "ReactiveUI.WPF",
+      "current": "24.3.0",
+      "latest": "26.0.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/reactiveui.wpf/index.json",
+      "key": null,
+      "decision": "Retain 24.3.0: latest Avalonia adapter 12.1.2 requires ReactiveUI.Core interfaces removed/moved in 26.x; 26.0.1 fails compilation (CS7069).",
+      "selected": "24.3.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "Semi.Avalonia",
+      "current": "12.1.0.1",
+      "latest": "12.1.0.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia/index.json",
+      "key": null,
+      "selected": "12.1.0.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "Semi.Avalonia.AvaloniaEdit",
+      "current": "12.0.0",
+      "latest": "12.0.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia.avaloniaedit/index.json",
+      "key": null,
+      "selected": "12.0.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "Semi.Avalonia.DataGrid",
+      "current": "12.1.0.1",
+      "latest": "12.1.0.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/semi.avalonia.datagrid/index.json",
+      "key": null,
+      "selected": "12.1.0.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "NLog",
+      "current": "6.2.2",
+      "latest": "6.2.2",
+      "source": "https://api.nuget.org/v3-flatcontainer/nlog/index.json",
+      "key": null,
+      "selected": "6.2.2"
+    },
+    {
+      "kind": "nuget",
+      "name": "sqlite-net-e",
+      "current": "1.11.285",
+      "latest": "1.11.285",
+      "source": "https://api.nuget.org/v3-flatcontainer/sqlite-net-e/index.json",
+      "key": null,
+      "selected": "1.11.285"
+    },
+    {
+      "kind": "nuget",
+      "name": "Repobot.SQLite.Unofficial",
+      "current": "3.54.1",
+      "latest": "3.54.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/repobot.sqlite.unofficial/index.json",
+      "key": null,
+      "selected": "3.54.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "TaskScheduler",
+      "current": "2.12.2",
+      "latest": "2.12.2",
+      "source": "https://api.nuget.org/v3-flatcontainer/taskscheduler/index.json",
+      "key": null,
+      "selected": "2.12.2"
+    },
+    {
+      "kind": "nuget",
+      "name": "WebDav.Client",
+      "current": "2.9.0",
+      "latest": "2.9.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/webdav.client/index.json",
+      "key": null,
+      "selected": "2.9.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "xunit.runner.visualstudio",
+      "current": "3.1.5",
+      "latest": "4.0.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/xunit.runner.visualstudio/index.json",
+      "key": null,
+      "selected": "4.0.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "xunit.v3",
+      "current": "3.2.2",
+      "latest": "4.0.2",
+      "source": "https://api.nuget.org/v3-flatcontainer/xunit.v3/index.json",
+      "key": null,
+      "decision": "Retain 3.2.2 on VSTest pipeline. 4.0.2 switches to MTP-only execution and rejects dotnet test VSTest on .NET 10.",
+      "selected": "3.2.2"
+    },
+    {
+      "kind": "nuget",
+      "name": "YamlDotNet",
+      "current": "18.1.0",
+      "latest": "18.1.0",
+      "source": "https://api.nuget.org/v3-flatcontainer/yamldotnet/index.json",
+      "key": null,
+      "selected": "18.1.0"
+    },
+    {
+      "kind": "nuget",
+      "name": "ZXing.Net.Bindings.SkiaSharp",
+      "current": "0.16.22",
+      "latest": "0.16.24",
+      "source": "https://api.nuget.org/v3-flatcontainer/zxing.net.bindings.skiasharp/index.json",
+      "key": null,
+      "selected": "0.16.24"
+    },
+    {
+      "kind": "nuget",
+      "name": "SkiaSharp.NativeAssets.Linux",
+      "current": "3.119.4",
+      "latest": "4.153.1",
+      "source": "https://api.nuget.org/v3-flatcontainer/skiasharp.nativeassets.linux/index.json",
+      "key": null,
+      "selected": "4.153.1"
+    },
+    {
+      "kind": "nuget",
+      "name": "System.Security.Cryptography.ProtectedData",
+      "current": "10.0.13",
+      "latest": "10.0.13",
+      "source": "https://api.nuget.org/v3-flatcontainer/system.security.cryptography.protecteddata/index.json",
+      "key": null,
+      "selected": "10.0.13"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.core:core-ktx",
+      "current": "1.19.1",
+      "latest": "1.19.1",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/core/core-ktx/maven-metadata.xml",
+      "key": "coreKtx",
+      "selected": "1.19.1"
+    },
+    {
+      "kind": "maven",
+      "name": "com.android.tools:desugar_jdk_libs",
+      "current": "2.1.5",
+      "latest": "2.1.5",
+      "source": "https://dl.google.com/dl/android/maven2/com/android/tools/desugar_jdk_libs/maven-metadata.xml",
+      "key": "desugarJdkLibs",
+      "selected": "2.1.5"
+    },
+    {
+      "kind": "maven",
+      "name": "com.jaredsburrows:gradle-license-plugin",
+      "current": "0.9.91",
+      "latest": "0.9.91",
+      "source": "https://repo.maven.apache.org/maven2/com/jaredsburrows/gradle-license-plugin/maven-metadata.xml",
+      "key": "gradleLicensePlugin",
+      "selected": "0.9.91"
+    },
+    {
+      "kind": "maven",
+      "name": "org.junit:junit-bom",
+      "current": "6.1.3",
+      "latest": "6.1.3",
+      "source": "https://repo.maven.apache.org/maven2/org/junit/junit-bom/maven-metadata.xml",
+      "key": "junit",
+      "selected": "6.1.3"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.test.ext:junit",
+      "current": "1.3.0",
+      "latest": "1.3.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/test/ext/junit/maven-metadata.xml",
+      "key": "junitVersion",
+      "selected": "1.3.0"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.test.espresso:espresso-core",
+      "current": "3.7.0",
+      "latest": "3.7.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/test/espresso/espresso-core/maven-metadata.xml",
+      "key": "espressoCore",
+      "selected": "3.7.0"
+    },
+    {
+      "kind": "maven",
+      "name": "com.tencent:mmkv-static",
+      "current": "1.3.17",
+      "latest": "2.4.3",
+      "source": "https://repo.maven.apache.org/maven2/com/tencent/mmkv-static/maven-metadata.xml",
+      "key": "mmkvStatic",
+      "decision": "Retain latest 1.x LTS supporting armeabi-v7a/x86; 2.x drops 32-bit ABI support.",
+      "selected": "1.3.17"
+    },
+    {
+      "kind": "maven",
+      "name": "com.google.code.gson:gson",
+      "current": "2.14.0",
+      "latest": "2.15.0",
+      "source": "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/maven-metadata.xml",
+      "key": "gson",
+      "selected": "2.15.0"
+    },
+    {
+      "kind": "maven",
+      "name": "com.squareup.okhttp3:okhttp",
+      "current": "5.5.0",
+      "latest": "5.5.1",
+      "source": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/okhttp/maven-metadata.xml",
+      "key": "okhttp",
+      "selected": "5.5.1"
+    },
+    {
+      "kind": "maven",
+      "name": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+      "current": "1.11.0",
+      "latest": "1.11.0",
+      "source": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-android/maven-metadata.xml",
+      "key": "kotlinxCoroutines",
+      "selected": "1.11.0"
+    },
+    {
+      "kind": "maven",
+      "name": "com.google.zxing:core",
+      "current": "3.5.4",
+      "latest": "3.5.4",
+      "source": "https://repo.maven.apache.org/maven2/com/google/zxing/core/maven-metadata.xml",
+      "key": "core",
+      "selected": "3.5.4"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.work:work-runtime-ktx",
+      "current": "2.12.0",
+      "latest": "2.12.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/work/work-runtime-ktx/maven-metadata.xml",
+      "key": "workRuntimeKtx",
+      "selected": "2.12.0"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.lifecycle:lifecycle-viewmodel-ktx",
+      "current": "2.11.0",
+      "latest": "2.11.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/lifecycle/lifecycle-viewmodel-ktx/maven-metadata.xml",
+      "key": "lifecycleViewmodelKtx",
+      "selected": "2.11.0"
+    },
+    {
+      "kind": "maven",
+      "name": "org.mockito:mockito-core",
+      "current": "5.24.0",
+      "latest": "5.24.0",
+      "source": "https://repo.maven.apache.org/maven2/org/mockito/mockito-core/maven-metadata.xml",
+      "key": "mockitoCore",
+      "selected": "5.24.0"
+    },
+    {
+      "kind": "maven",
+      "name": "org.mockito.kotlin:mockito-kotlin",
+      "current": "6.4.0",
+      "latest": "6.4.0",
+      "source": "https://repo.maven.apache.org/maven2/org/mockito/kotlin/mockito-kotlin/maven-metadata.xml",
+      "key": "mockitoKotlin",
+      "selected": "6.4.0"
+    },
+    {
+      "kind": "maven",
+      "name": "sh.calvin.reorderable:reorderable",
+      "current": "3.1.0",
+      "latest": "3.1.0",
+      "source": "https://repo.maven.apache.org/maven2/sh/calvin/reorderable/reorderable/maven-metadata.xml",
+      "key": "reorderable",
+      "selected": "3.1.0"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.camera:camera-core",
+      "current": "1.6.2",
+      "latest": "1.6.2",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/camera/camera-core/maven-metadata.xml",
+      "key": "camerax",
+      "selected": "1.6.2"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.activity:activity-compose",
+      "current": "1.13.0",
+      "latest": "1.13.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/activity/activity-compose/maven-metadata.xml",
+      "key": "activity",
+      "selected": "1.13.0"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.appcompat:appcompat",
+      "current": "1.8.0",
+      "latest": "1.8.0",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/appcompat/appcompat/maven-metadata.xml",
+      "key": "appcompat",
+      "selected": "1.8.0"
+    },
+    {
+      "kind": "maven",
+      "name": "androidx.compose:compose-bom",
+      "current": "2026.09.00",
+      "latest": "2026.09.00",
+      "source": "https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/maven-metadata.xml",
+      "key": "composeBom",
+      "selected": "2026.09.00"
+    },
+    {
+      "kind": "maven",
+      "name": "io.coil-kt.coil3:coil-compose",
+      "current": "3.6.3",
+      "latest": "3.6.3",
+      "source": "https://repo.maven.apache.org/maven2/io/coil-kt/coil3/coil-compose/maven-metadata.xml",
+      "key": "coil",
+      "selected": "3.6.3"
+    },
+    {
+      "kind": "nuget",
+      "name": "SkiaSharp",
+      "selected": "4.153.1",
+      "latest": "4.153.1",
+      "decision": "Pin managed and native versions together. Mixed 4.151/4.153 fails native ABI startup; matching 4.153.1 passed rendered GUI smoke tests."
+    }
+  ],
+  "toolchains": [
+    {
+      "name": "Gradle",
+      "latest": "9.8.2",
+      "source": "https://services.gradle.org/versions/current"
+    },
+    {
+      "name": "Go",
+      "latest": "go1.27.3",
+      "source": "https://go.dev/dl/?mode=json"
+    },
+    {
+      "name": "AGP",
+      "latest": "9.4.1",
+      "source": "https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml"
+    },
+    {
+      "name": "Kotlin",
+      "latest": "2.4.21",
+      "source": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml"
+    }
+  ]
+}

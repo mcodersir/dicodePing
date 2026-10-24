@@ -2437,4 +2437,6 @@ https://t.me/dicodeping</value>
   <data name="DicodeQuickConnect" xml:space="preserve"><value>Quick connect</value></data>
   <data name="DicodeBestConnect" xml:space="preserve"><value>Connect to best</value></data>
   <data name="DicodePrimaryEmpty" xml:space="preserve"><value>Dicode Config Checker returned no configs. Choose another subscription separately if needed.</value></data>
+  <data name="DicodeExportDiagnostics" xml:space="preserve"><value>Export diagnostic ZIP</value></data>
+<data name="DicodeRemovedCore" xml:space="preserve"><value>This custom configuration requires a removed engine. Import an Xray configuration or a protocol share link.</value></data>
 </root>

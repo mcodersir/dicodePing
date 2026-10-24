@@ -365,8 +365,7 @@ public class Global
 
     public static readonly List<string> CoreTypes =
     [
-        "Xray",
-        "sing_box"
+        "Xray"
     ];
 
     public static readonly HashSet<EConfigType> XraySupportConfigType =

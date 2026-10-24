@@ -11,8 +11,8 @@ public sealed class NativeMethodsWindow : Window
     {
         Title = FoxUi.T("DicodePing · روش‌های اتصال", "DicodePing \u00b7 Connection methods"); Width = 580; Height = 650; MinWidth = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        var kinds = new[] { "snell", "anytls", "ssh", "openconnect", "openvpn-client", "socks" };
-        var kind = new ComboBox { ItemsSource = new[] { "Snell 4", "AnyTLS", "SSH", "Cisco / OpenConnect", "OpenVPN", FoxUi.T("ابزار مستقل · SOCKS5", "External helper \u00b7 SOCKS5") }, SelectedIndex = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var kinds = new[] { "socks" };
+        var kind = new ComboBox { ItemsSource = new[] { FoxUi.T("ابزار مستقل · SOCKS5", "External helper \u00b7 SOCKS5") }, SelectedIndex = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
         var name = new TextBox { PlaceholderText = FoxUi.T("نام اتصال", "Connection name") };
         var server = new TextBox { PlaceholderText = FoxUi.T("نام سرور / IP", "Server hostname / IP") };
         var port = new NumericUpDown { Minimum = 1, Maximum = 65535, Value = 443 };
@@ -46,7 +46,7 @@ public sealed class NativeMethodsWindow : Window
         scan.Click += (_, _) => new CloudflareScannerWindow().ShowDialog(this);
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(20), Spacing = 12, Children = {
             new TextBlock { Text = FoxUi.T("روش‌های اتصال بیشتر", "More connection methods"), FontSize = 24 },
-            new TextBlock { Text = FoxUi.T("پروفایل‌ها با هستهٔ داخلی sing-box اجرا می‌شوند. تنظیمات پیشرفتهٔ سرور را در JSON پروفایل ویرایش کنید.", "Profiles use the bundled sing-box core. Edit advanced server settings in profile JSON."), TextWrapping = Avalonia.Media.TextWrapping.Wrap }, kind, name, server, port, username, password, extraLabel, extra, status, save, scan } } };
+            new TextBlock { Text = FoxUi.T("آدرس SOCKS ابزار مستقل را وارد کنید. اتصال با Xray برقرار می‌شود.", "Enter the SOCKS address of your external helper. Xray runs the connection."), TextWrapping = Avalonia.Media.TextWrapping.Wrap }, kind, name, server, port, username, password, extraLabel, extra, status, save, scan } } };
     }
 }
 public sealed class CloudflareScannerWindow : Window

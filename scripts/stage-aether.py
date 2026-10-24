@@ -7,7 +7,7 @@ args.add_argument("--android", action="store_true")
 args.add_argument("--rid")
 args.add_argument("--output", required=True)
 ns = args.parse_args()
-pins = json.loads(pathlib.Path(__file__).with_name("runtime-pins-4.9.8.json").read_text())
+pins = json.loads(pathlib.Path(__file__).with_name("runtime-pins-4.9.9.json").read_text())
 platforms = {"arm64-v8a": "android-arm64.tar.gz", "armeabi-v7a": "android-armv7.tar.gz", "x86_64": "android-x86_64.tar.gz"} if ns.android else {"win-x64": "windows-x86_64.zip", "linux-x64": "linux-x86_64.tar.gz", "osx-x64": "macos-x86_64.tar.gz", "osx-arm64": "macos-arm64.tar.gz"}
 def build_x64_transports(target, work):
     # The upstream ARM64 helpers already use 64 KB LOAD alignment. Its static

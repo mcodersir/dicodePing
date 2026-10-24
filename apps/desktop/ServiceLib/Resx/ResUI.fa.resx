@@ -2437,4 +2437,6 @@ https://t.me/dicodeping‏</value>
   <data name="DicodeQuickConnect" xml:space="preserve"><value>اتصال سریع</value></data>
   <data name="DicodeBestConnect" xml:space="preserve"><value>اتصال به بهترین</value></data>
   <data name="DicodePrimaryEmpty" xml:space="preserve"><value>ساب Dicode Config Checker فعلاً کانفیگی ندارد؛ در صورت نیاز ساب دیگری را جداگانه انتخاب کنید.</value></data>
+  <data name="DicodeExportDiagnostics" xml:space="preserve"><value>دریافت ZIP گزارش خطا</value></data>
+<data name="DicodeRemovedCore" xml:space="preserve"><value>این کانفیگ اختصاصی به هستهٔ حذف‌شده نیاز دارد. لینک سرور یا کانفیگ Xray وارد کنید.</value></data>
 </root>

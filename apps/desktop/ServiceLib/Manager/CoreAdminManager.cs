@@ -66,7 +66,7 @@ public class CoreAdminManager
         }
         _linuxSudoPid = procService.Id;
         try {
-            if (coreInfo.CoreType == ECoreType.sing_box) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
+            if (coreInfo.CoreType is ECoreType.sing_box or ECoreType.Xray) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
         } catch {
             await KillProcessAsLinuxSudo(); await procService.StopAsync(); procService.Dispose(); throw;
         }

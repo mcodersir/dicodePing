@@ -362,7 +362,7 @@ public partial class MainWindowViewModel : MyReactiveObject
         StatusBarViewModel.SmartConnectionRequested.AsObservable()
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(async _ => await ProfilesViewModel.ConnectBestAsync());
-        ProfilesViewModel.WhenAnyValue(x => x.IsConnected, x => x.ConnectionStatusText)
+        ProfilesViewModel.WhenAnyValue(x => x.IsConnected, x => x.ConnectionStatusText, (connected, status) => (connected, status))
             .ObserveOn(RxSchedulers.MainThreadScheduler)
             .Subscribe(state =>
             {

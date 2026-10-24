@@ -179,24 +179,32 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     @Volatile private var process: Process? = null
     val isAlive: Boolean get() = process?.isAlive == true
     @Volatile private var stopped = false
+    private val errorTail = java.util.ArrayDeque<String>()
+    private var operation = ""
     private fun launch(request: JSONObject): java.io.BufferedReader {
         val executable = File(context.applicationInfo.nativeLibraryDir, "libdicodefox.so")
         check(executable.isFile && executable.canExecute()) { "Fox helper is missing; install the full DicodePing APK" }
         val command = ProcessBuilder(executable.absolutePath).directory(context.cacheDir)
         listOf("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy").forEach { command.environment().remove(it) }
         check(!stopped) { "Fox start cancelled" }
+        operation = request.optString("operation")
         val child = command.start(); process = child
         if (stopped) { child.destroy(); error("Fox start cancelled") }
-        thread(isDaemon = true, name = "FoxPrivateErrors") { runCatching { child.errorStream.bufferedReader().useLines { lines -> lines.forEach { } } } }
+        thread(isDaemon = true, name = "FoxPrivateErrors") { runCatching { child.errorStream.bufferedReader().useLines { lines -> lines.forEach { line ->
+            val safe = com.v2ray.ang.util.DiagnosticArchive.redact(line).take(2048)
+            synchronized(errorTail) { if (errorTail.size >= 8) errorTail.removeFirst(); errorTail.addLast(safe) }
+            com.v2ray.ang.util.LogUtil.w(message = "Fox helper: $safe")
+        } } } }
         request.put("ca_bundle", FoxAccounts.roots())
         child.outputStream.bufferedWriter().apply { write(request.toString()); newLine(); flush() }
         return child.inputStream.bufferedReader()
     }
     private fun response(reader: java.io.BufferedReader): JSONObject {
         val child = process!!
-        val timer = thread(isDaemon = true) { try { Thread.sleep(100000); child.destroyForcibly() } catch (_: InterruptedException) { } }
+        val timer = thread(isDaemon = true) { try { Thread.sleep(if (operation == "serve") 45000 else 100000); child.destroyForcibly() } catch (_: InterruptedException) { } }
         try {
-            val result = JSONObject(reader.readLine() ?: "{}")
+            val line = reader.readLine() ?: throw FoxError("helper_exit", "Fox helper ended before readiness: " + synchronized(errorTail) { errorTail.joinToString("; ") })
+            val result = JSONObject(line)
             if (!result.optBoolean("ok")) throw FoxError(result.optString("error", "helper"), result.optString("message", "Fox helper did not start"))
             return result
         } finally { timer.interrupt() }

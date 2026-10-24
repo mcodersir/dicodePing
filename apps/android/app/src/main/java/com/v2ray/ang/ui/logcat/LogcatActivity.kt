@@ -82,11 +82,7 @@ class LogcatActivity : BaseComponentActivity() {
                     mkdirs()
                 }
 
-                shareDir.listFiles()?.forEach { it.delete() }
-
-                val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
-                val logFile = File(shareDir, "DicodePing_logcat_$timestamp.txt")
-                logFile.writeText(logText, Charsets.UTF_8)
+                val logFile = com.v2ray.ang.util.DiagnosticArchive.create(this@LogcatActivity, viewModel.allLogs())
 
                 val uri = FileProvider.getUriForFile(
                     this@LogcatActivity,
@@ -105,7 +101,7 @@ class LogcatActivity : BaseComponentActivity() {
 
             withContext(Dispatchers.Main) {
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
+                    type = "application/zip"
                     putExtra(Intent.EXTRA_STREAM, result.first)
                     putExtra(Intent.EXTRA_SUBJECT, result.second)
                     putExtra(Intent.EXTRA_TITLE, result.second)

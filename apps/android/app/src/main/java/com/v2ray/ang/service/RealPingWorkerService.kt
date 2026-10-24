@@ -141,14 +141,7 @@ class RealPingWorkerService(
                     SpeedtestManager.getProxyLocationInfo(result.foxPort)
                 }
             }
-            result.singBoxContent?.let { content ->
-                return@withLock com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
-                    helpers.add(helper); scope.ensureActive()
-                    helper.start(content, result.singBoxPort)
-                    scope.ensureActive()
-                    SpeedtestManager.getProxyLocationInfo(result.singBoxPort)
-                }
-            }
+
             if (profile.configType == EConfigType.AETHER && !CoreConfigContextBuilder.isChained(profile)) {
                 var location: SpeedtestManager.RemoteEndpointInfo? = null
                 AetherDelayTester.measureVia(context, guid, com.v2ray.ang.core.AetherCore.of(profile)) { port, _ ->
@@ -202,15 +195,7 @@ class RealPingWorkerService(
                 }
             }
         }
-        configResult.singBoxContent?.let { content ->
-            return RealPingExecutionLimiter.run(config.configType) {
-                com.v2ray.ang.core.SingBoxProcess(context).use { helper ->
-                    helpers.add(helper); scope.ensureActive()
-                    helper.start(content, configResult.singBoxPort)
-                    helper.measure(configResult.singBoxPort, SettingsManager.getDelayTestUrl())
-                }
-            }
-        }
+
         val aether = configResult.aetherCore
         if (aether != null) {
             // The configuration reaches the internet through an Aether outbound, so it is measured behind

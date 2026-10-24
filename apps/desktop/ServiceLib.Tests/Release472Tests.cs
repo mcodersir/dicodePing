@@ -14,7 +14,7 @@ public class Release472Tests
             var old = new ProfileItem { IndexId = "same-id", Subid = "same-sub", ConfigType = EConfigType.Custom, CoreType = ECoreType.Xray, Address = file, PreSocksPort = 20100 };
             var converted = FoxProfiles.ForConnection(old);
             Assert.Equal("same-id", converted.IndexId); Assert.Equal("same-sub", converted.Subid);
-            Assert.Equal(EConfigType.SOCKS, converted.ConfigType); Assert.Equal(ECoreType.sing_box, converted.CoreType);
+            Assert.Equal(EConfigType.SOCKS, converted.ConfigType); Assert.Equal(ECoreType.Xray, converted.CoreType);
             Assert.Equal("127.0.0.1", converted.Address); Assert.Equal(7854, converted.Port); Assert.Null(converted.PreSocksPort);
             Assert.Equal(new FoxProfile(id, "REC", 7854), FoxProfiles.Read(converted));
             Assert.Equal(EConfigType.Custom, old.ConfigType);

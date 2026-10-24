@@ -15,7 +15,9 @@ import (
 )
 
 func (p *provider) prepareRelay(ctx context.Context, country, listen string) (string, error) {
-	if _, err := p.account(ctx); err != nil {
+	// A proxy pass is the authorization gate. Optional account metadata must
+	// not prevent a working relay from starting on a filtered mobile network.
+	if err := p.refreshProxyPass(ctx, false); err != nil {
 		return "", err
 	}
 	country = strings.ToUpper(strings.TrimSpace(country))
@@ -26,10 +28,19 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	if err != nil {
 		return "", err
 	}
+	if country != "REC" {
+		selected := make([]Location, 0, len(candidates))
+		for _, candidate := range candidates {
+			if strings.EqualFold(country, candidate.CountryCode) {
+				selected = append(selected, candidate)
+			}
+		}
+		candidates = selected
+	}
 	p.streams = p.relayTransport()
 	p.relayPool = []*http.Transport{p.streams, p.relayTransport(), p.relayTransport(), p.relayTransport()}
 	reached := false
-	for index := 0; index < len(candidates); index++ {
+	for index := 0; index < len(candidates) && index < 4; index++ {
 		candidate := candidates[index]
 		if country != "REC" && !strings.EqualFold(country, candidate.CountryCode) {
 			continue
@@ -38,18 +49,8 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 			return "", ctx.Err()
 		}
 		p.selected = candidate
-		probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-		client := p.dohClient()
-		req, _ := http.NewRequestWithContext(probeCtx, "GET", "https://detectportal.firefox.com/success.txt", nil)
-		resp, e := client.Do(req)
-		if e == nil {
-			var body []byte
-			body, e = io.ReadAll(io.LimitReader(resp.Body, 8193))
-			resp.Body.Close()
-			reached = e == nil && resp.StatusCode == http.StatusOK && strings.TrimSpace(string(body)) == "success"
-		}
-		client.CloseIdleConnections()
-		cancel()
+		var e error
+		reached, e = p.probeRelay(ctx)
 		if reached {
 			break
 		}
@@ -81,6 +82,47 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 	}
 	return p.listener.Addr().String(), nil
 }
+
+// Validate a real HTTPS response through CONNECT. A single blocked probe host
+// does not reject a usable exit. There is no direct-network fallback.
+func (p *provider) probeRelay(ctx context.Context) (bool, error) {
+	targets := []struct {
+		url, body string
+		status    int
+	}{
+		{"https://detectportal.firefox.com/success.txt", "success", 200},
+		{"https://cp.cloudflare.com/generate_204", "", 204},
+	}
+	var last error
+	for _, target := range targets {
+		probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		client := p.dohClient()
+		req, _ := http.NewRequestWithContext(probeCtx, "GET", target.url, nil)
+		resp, err := client.Do(req)
+		ok := false
+		if err == nil {
+			body, readErr := io.ReadAll(io.LimitReader(resp.Body, 8193))
+			resp.Body.Close()
+			err = readErr
+			ok = err == nil && resp.StatusCode == target.status && strings.TrimSpace(string(body)) == target.body
+		}
+		client.CloseIdleConnections()
+		cancel()
+		if ok {
+			return true, nil
+		}
+		last = err
+		var api *ProviderError
+		if errors.As(err, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required") {
+			return false, api
+		}
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+	}
+	return false, last
+}
+
 func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, error) {
 	conn, err := p.openTunnelAttempt(ctx, authority, true)
 	var api *ProviderError

@@ -25,16 +25,26 @@ class FoxNativeTest {
         }
     }
 
-    @Test fun packagedSingBoxExecutesOnTheDevicePageSize() {
+    @Test fun diagnosticArchiveContainsFailureDetailsWithoutCredentials() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val executable = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
-        val process = ProcessBuilder(executable.absolutePath, "version").redirectErrorStream(true).start()
+        com.v2ray.ang.util.DiagnosticArchive.append("Fox startup fixture password=sentinel-secret Bearer sentinel-token")
+        val file = com.v2ray.ang.util.DiagnosticArchive.create(context, "native failure account@example.com")
         try {
-            assertTrue(process.waitFor(15, TimeUnit.SECONDS))
-            val output = process.inputStream.bufferedReader().readText()
-            assertEquals(output, 0, process.exitValue())
-            assertTrue(output, output.contains("1.14.3"))
-        } finally { if (process.isAlive) process.destroyForcibly() }
+            java.util.zip.ZipFile(file).use { zip ->
+                assertNotNull(zip.getEntry("device.txt"))
+                assertNotNull(zip.getEntry("application.log"))
+                val all = zip.entries().asSequence().map { zip.getInputStream(it).bufferedReader().readText() }.joinToString("\n")
+                assertTrue(all.contains("Fox startup fixture"))
+                assertFalse(all.contains("sentinel-secret"))
+                assertFalse(all.contains("sentinel-token"))
+                assertFalse(all.contains("account@example.com"))
+            }
+        } finally { file.delete() }
+    }
+
+    @Test fun removedEngineIsNotBundled() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assertFalse(File(context.applicationInfo.nativeLibraryDir, "libsingbox.so").exists())
     }
 
     @Test fun helperRunsAndLoadsAndroidTrustStoreWithoutLeakingCredentials() {
@@ -43,7 +53,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.8"))
+            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.9"))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.

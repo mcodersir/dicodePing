@@ -36,6 +36,7 @@ class AngApplication : Application() {
      */
     override fun onCreate() {
         super.onCreate()
+        com.v2ray.ang.util.DiagnosticArchive.initialize(this)
 
         MmkvManager.initialize(this)
 

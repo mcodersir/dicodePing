@@ -44,15 +44,10 @@ internal class Program
             return ProcUtils.RebootAsAdmin();
         }
 
-        // A TUN adapter changes routing tables on Linux and macOS, so DicodePing deliberately
-        // refuses to start without an elevated desktop session on those platforms as well.
-        if (Environment.UserName.Equals("root", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        Console.Error.WriteLine("DicodePing must be launched with administrator privileges (sudo).");
-        return false;
+        // Opening a desktop window never requires root. TUN elevation is checked
+        // when starting a tunnel, not before the UI or reports can be opened.
+        Environment.SetEnvironmentVariable(Global.LocalAppData, "1");
+        return true;
     }
 
     private static bool OnStartup(string[]? Args)

@@ -355,7 +355,7 @@
     <string name="title_logcat" translatable="false">Logcat</string>
     <string name="logcat_copy">کپی</string>
     <string name="logcat_clear">پاک کردن</string>
-    <string name="logcat_share">اشتراک‌گذاری گزارش</string>
+    <string name="logcat_share">اشتراک ZIP گزارش خطا</string>
     <string name="title_service_restart">راه‌اندازی مجدد خدمات</string>
     <string name="title_del_all_config">حذف تمام کانفیگ های گروه فعلی</string>
     <string name="title_del_duplicate_config">حذف کانفیگ های تکراری گروه فعلی</string>
@@ -812,7 +812,7 @@
     <string name="preparation_hint">نتایج در فهرست سرورها ذخیره می‌شوند تا پس از پایان آماده‌سازی سریع‌تر متصل شوید.</string>
     <string name="preparation_skip">ادامه بدون انتظار</string>
     <string name="native_methods_title">روش‌های اتصال بیشتر</string>
-    <string name="native_methods_hint">این پروفایل‌ها با هستهٔ داخلی sing-box اجرا می‌شوند. تنظیمات پیشرفته و گواهی کاربر را در JSON پروفایل ویرایش کنید.</string>
+    <string name="native_methods_hint">آدرس SOCKS ابزار مستقل را وارد کنید. اتصال با Xray برقرار می‌شود.</string>
     <string name="native_connection_name">نام اتصال</string>
     <string name="native_save_connection">ذخیرهٔ اتصال</string>
     <string name="native_external_hint">برای MasterDNS، DNSTT، VayDNS، MHR، MHR-CFW، MITM fronting و SNI Spoofing، ابتدا ابزار مستقل را اجرا کنید و آدرس SOCKS5 آن را وارد کنید. این ابزارها در بسته نیستند. گواهی ریشه خودکار نصب نمی‌شود.</string>
@@ -884,4 +884,6 @@
     <string name="connect_quick">اتصال سریع</string>
     <string name="fox_connecting">در حال آماده‌سازی مسیر روباه…</string>
     <string name="dicode_primary_empty">ساب Dicode Config Checker فعلاً کانفیگی ندارد. ساب اصلی تغییر نمی‌کند؛ در صورت نیاز ساب دیگری را جداگانه انتخاب کنید.</string>
+<string name="dicode_removed_core">این کانفیگ اختصاصی به هستهٔ حذف‌شده نیاز دارد. لینک سرور یا کانفیگ Xray وارد کنید.</string>
+<string name="fox_start_error">روباه شروع نشد (کد %1$s). فایل ZIP گزارش خطا را از بخش گزارش‌ها ارسال کنید.</string>
 </resources>

@@ -503,6 +503,16 @@ public class CoreManager
                 WindowsTunRuntime.StageDriver(fileName, Utils.GetBinConfigPath());
                 WindowsTunRuntime.PrepareRetry(Utils.GetBinConfigPath(configPath));
             }
+            if (isTunLaunch && coreInfo?.CoreType == ECoreType.Xray) {
+                var path = Utils.GetBinConfigPath(configPath);
+                if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
+                    var log = root["log"] as JsonObject ?? new JsonObject();
+                    if (log["loglevel"]?.ToString() is null or "none" or "error") log["loglevel"] = "warning";
+                    log.Remove("error"); // Capture startup confirmation and failures in Reports.
+                    root["log"] = log;
+                    await File.WriteAllTextAsync(path, root.ToJsonString());
+                }
+            }
             if (coreInfo?.CoreType == ECoreType.sing_box) {
                 var path = Utils.GetBinConfigPath(configPath);
                 if (JsonNode.Parse(await File.ReadAllTextAsync(path)) is JsonObject root) {
@@ -588,7 +598,7 @@ public class CoreManager
         try {
             await procService.StartAsync();
             AddProcessJob(procService.Handle);
-            if (coreInfo.CoreType == ECoreType.sing_box) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
+            if (coreInfo.CoreType == ECoreType.sing_box || (isTunLaunch && coreInfo.CoreType == ECoreType.Xray)) await procService.WaitForStartupAsync(TimeSpan.FromSeconds(30));
             else await Task.Delay(100);
             if (procService.HasExited) throw new IOException(ResUI.FailedToRunCore + Environment.NewLine + procService.RecentOutput);
         } catch { await procService.StopAsync(); procService.Dispose(); throw; }

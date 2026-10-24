@@ -6718,7 +6718,7 @@ namespace ServiceLib.Resx {
             get {
                 return ResourceManager.GetString("DicodeSpoAddSource", resourceCulture);
             }
-        }
+    }
                 public static string LvOverrideAddress => ResourceManager.GetString("LvOverrideAddress", resourceCulture);
         public static string LvOverridePort => ResourceManager.GetString("LvOverridePort", resourceCulture);
         public static string LvRequestHeaders => ResourceManager.GetString("LvRequestHeaders", resourceCulture);
@@ -6799,5 +6799,8 @@ namespace ServiceLib.Resx {
             public static string DicodeLocalSocksMissing => ResourceManager.GetString("DicodeLocalSocksMissing", resourceCulture);
             public static string DicodeTunUnverified => ResourceManager.GetString("DicodeTunUnverified", resourceCulture);
             public static string DicodeTrafficVerificationFailed => ResourceManager.GetString("DicodeTrafficVerificationFailed", resourceCulture);
+        public static string DicodeExportDiagnostics => ResourceManager.GetString("DicodeExportDiagnostics", resourceCulture) ?? "Export diagnostic ZIP";
+        public static string DicodeRemovedCore => ResourceManager.GetString("DicodeRemovedCore", resourceCulture) ?? "Unsupported custom engine";
+
 }
 }

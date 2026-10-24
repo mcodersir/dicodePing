@@ -53,6 +53,7 @@ object LogUtil {
     }
 
     private fun log(priority: Int, tag: String, message: String, throwable: Throwable? = null) {
+        if (priority >= Log.INFO) DiagnosticArchive.append("$priority $tag $message" + (throwable?.let { "\n" + it.stackTraceToString() } ?: ""))
         if (!isEnabled(priority)) return
 
         when {

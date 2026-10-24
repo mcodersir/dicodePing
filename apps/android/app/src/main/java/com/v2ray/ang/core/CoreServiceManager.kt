@@ -75,7 +75,6 @@ object CoreServiceManager {
 
     @Volatile private var foxProcess: FoxProcess? = null
     fun cancelFoxStartup(owner: Service? = null) { if (owner == null || sessionOwner.owns(owner)) foxProcess?.cancel() }
-    private var singBoxProcess: SingBoxProcess? = null
 
     /** The Aether core the running configuration depends on, null when it has no Aether outbound. */
     private var currentAether: AetherCore? = null
@@ -179,7 +178,11 @@ object CoreServiceManager {
      */
     private class StartFailure(message: String) : RuntimeException(message)
 
-    private fun userFacingReason(e: Exception): String = if (e is StartFailure) e.message.orEmpty() else ""
+    private fun userFacingReason(e: Exception): String = when (e) {
+        is StartFailure -> e.message.orEmpty()
+        is FoxError -> getService()?.getString(R.string.fox_start_error, e.code).orEmpty()
+        else -> ""
+    }
 
     @Throws(Exception::class)
     private fun doStartCoreLoop(service: Service, vpnInterface: ParcelFileDescriptor?) {
@@ -249,8 +252,6 @@ object CoreServiceManager {
         AetherCoreManager.stop()
 
         foxProcess?.close(); foxProcess = null
-        singBoxProcess?.close()
-        singBoxProcess = null
         try {
             result.foxAccountId?.let { id ->
                 val helper = FoxProcess(service); foxProcess = helper
@@ -265,26 +266,13 @@ object CoreServiceManager {
                     }
                 }
             }
-            result.singBoxContent?.let { nativeConfig ->
-                val helper = SingBoxProcess(service)
-                singBoxProcess = helper
-                helper.start(nativeConfig, result.singBoxPort) {
-                    service.mainExecutor.execute {
-                        if (singBoxProcess === helper && isServiceRunning()) {
-                            LogUtil.e(AppConfig.TAG, "sing-box stopped; stopping VPN without direct fallback")
-                            serviceControl?.get()?.stopService()
-                        }
-                    }
-                }
-            }
+
             launchNativeCore(service, guid, config, aether, result.content, vpnInterface, isReload)
             if (result.foxAccountId != null && foxProcess?.isAlive != true) throw StartFailure("Fox helper stopped during connection startup")
         } catch (e: Exception) {
             // Setup failed after this attempt spawned the Aether process; release it with the rest.
             AetherCoreManager.stop()
             foxProcess?.close(); foxProcess = null
-            singBoxProcess?.close()
-            singBoxProcess = null
             throw e
         }
     }
@@ -433,8 +421,6 @@ object CoreServiceManager {
         if (owner != null && !sessionOwner.release(owner)) return false
         isStarting = false
         foxProcess?.close(); foxProcess = null
-        singBoxProcess?.close()
-        singBoxProcess = null
         connectionTestScope.coroutineContext.cancelChildren()
         val service = owner ?: getService() ?: return false
 
