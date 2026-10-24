@@ -926,6 +926,7 @@ public partial class MainWindowViewModel : MyReactiveObject
                 NoticeManager.Instance.Enqueue(ResUI.CheckServerSettings);
                 return;
             }
+            if (!await StatusBarViewModel.EnsureTunPermissionAsync()) return;
             var allResult = await CoreConfigContextBuilder.BuildAll(_config, profileItem);
             if (NoticeManager.Instance.NotifyValidatorResult(allResult.CombinedValidatorResult) && !allResult.Success)
             {

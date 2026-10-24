@@ -513,6 +513,16 @@ public partial class StatusBarViewModel : MyReactiveObject
         ReloadRequested.Publish();
     }
 
+    public async Task<bool> EnsureTunPermissionAsync()
+    {
+        if (!_config.TunModeItem.EnableTun || Utils.IsWindows() || Utils.IsAdministrator()
+            || AppManager.Instance.LinuxSudoPwd.IsNotEmpty()) return true;
+        var password = await PasswordInputInteraction.HandleSafe(RxVoid.Default);
+        if (password.IsNullOrEmpty()) return false;
+        AppManager.Instance.LinuxSudoPwd = password;
+        return true;
+    }
+
     private bool AllowEnableTun()
     {
         if (Utils.IsWindows())
