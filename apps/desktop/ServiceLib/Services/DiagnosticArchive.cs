@@ -8,6 +8,7 @@ public static class DiagnosticArchive
 {
     public static string Redact(string text)
     {
+        text = Regex.Replace(text, @"(?i)(""(?:access_token|refresh_token|session_token|password|token|authorization|private_key|privateKey|secret)""\s*:\s*)""(?:\\.|[^""\\])*""", "$1\"[redacted]\"", RegexOptions.None, TimeSpan.FromSeconds(1));
         foreach (var pattern in new[] {
             @"(?i)Bearer\s+[^\s""']+",
             @"(?i)(?:vless|vmess|trojan|ss|socks5?)://[^\s""']+",

@@ -7,6 +7,15 @@ namespace ServiceLib.Tests;
 public class Release499Tests
 {
     [Fact]
+    public void DiagnosticRedactionRemovesQuotedPasswordsIncludingWhitespaceAndEscapes()
+    {
+        var safe = DiagnosticArchive.Redact("""{"password":"sensitive phrase with \"escaped\" quotes","access_token":"secret token"}""");
+        Assert.DoesNotContain("sensitive", safe);
+        Assert.DoesNotContain("escaped", safe);
+        Assert.DoesNotContain("secret token", safe);
+    }
+
+    [Fact]
     public async Task ImportedXrayJsonUsesTheReportedRuntimePortAndKeepsItsExit()
     {
         var source = Path.GetTempFileName(); var output = Path.GetTempFileName();

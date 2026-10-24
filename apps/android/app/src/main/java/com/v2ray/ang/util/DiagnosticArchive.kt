@@ -20,6 +20,7 @@ object DiagnosticArchive {
         }
     }
     fun redact(text: String): String = text
+        .replace(Regex("""(?i)(\x22(?:access_token|refresh_token|session_token|password|token|authorization|private_key|privateKey|secret)\x22\s*:\s*)\x22(?:\\.|[^\x22\\])*\x22"""), "$1\"[redacted]\"")
         .replace(Regex("(?i)(Bearer\\s+)[^\\s\"']+"), "$1[redacted]")
         .replace(Regex("(?i)(\"?(?:access_token|refresh_token|session_token|password|token|authorization|private_key|privateKey|secret)\"?\\s*[:=]\\s*\"?)[^\"\\s,}]+"), "$1[redacted]")
         .replace(Regex("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"), "[email]")
