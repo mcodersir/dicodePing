@@ -23,6 +23,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\..\apps\desktop\v2rayN.Desktop\Assets\DicodePing.ico
 
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\bin\sing_box"
+
 [Files]
 Source: "..\..\publish\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 

@@ -15,6 +15,11 @@ public class Release499Tests
         var node = new ProfileItem { IndexId = "saved", ConfigType = EConfigType.SOCKS, CoreType = ECoreType.sing_box,
             Address = "127.0.0.1", Port = 7854 };
         node.SetProtocolExtra(new ProtocolExtraItem { FoxAccountId = Guid.NewGuid().ToString("N"), FoxCountry = "REC" });
+        SQLiteHelper.Instance.CreateTable<FullConfigTemplateItem>();
+        SQLiteHelper.Instance.CreateTable<DNSItem>();
+        SQLiteHelper.Instance.CreateTable<RoutingItem>();
+        SQLiteHelper.Instance.CreateTable<ProfileItem>();
+        await SQLiteHelper.Instance.ReplaceAsync(new RoutingItem { Id = "499-default", IsActive = true, RuleSet = "[]" });
         var built = await CoreConfigContextBuilder.BuildAll(config, node);
         Assert.True(built.Success, string.Join(";", built.CombinedValidatorResult.Errors));
         Assert.Equal(ECoreType.Xray, built.MainResult.Context.RunCoreType);
