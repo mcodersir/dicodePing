@@ -1,4 +1,4 @@
-name: Android 4.9.9 preflight
+name: Android 4.9.91 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.9.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.91.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -36,14 +36,14 @@ jobs:
       run: |
         git config --global http.version HTTP/1.1
         for attempt in 1 2 3 4; do
-          if git clone --branch 2.3.12-P67 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+          if git clone --branch 2.3.13-P70 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
             break
           fi
           rm -rf native-upstream
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        test "$(git -C native-upstream rev-parse HEAD)" = "89c760cee27051ac7b6c391d376e528adfdc8a0c"
+        test "$(git -C native-upstream rev-parse HEAD)" = "500917403887d472588e4745015fd01305d12b9a"
         for attempt in 1 2 3 4; do
           if git -C native-upstream submodule update --init --recursive --depth 1; then
             break
@@ -51,9 +51,9 @@ jobs:
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.1
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.3
         git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
-        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "107a5083cb33d729a476c8282745dfc2f12e48e2"
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "c5584feca8f6df70ee53eb2879e034b849a3d15a"
         git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
         bash native-upstream/compile-hevtun.sh
         cp -r native-upstream/libs apps/android/app/
@@ -80,7 +80,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.9.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.91.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Compile and test Android before release
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -88,7 +88,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.9
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.91
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -130,4 +130,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-4.9.9
+    - codex/release-4.9.91

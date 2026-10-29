@@ -57,6 +57,7 @@ type provider struct {
 	state                             State
 	client                            *http.Client
 	authURL, guardianURL, settingsURL string
+	challengeOrigins                  []string
 	info                              AccountInfo
 	mutex                             sync.Mutex
 	passRefresh                       chan struct{}
@@ -144,7 +145,12 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 		if err != nil {
 			return nil, nil, err
 		}
+		// Fastly binds its challenge cookie to the client identity. The same
+		// FxA request must retain the identity used to acquire that cookie.
 		req.Header.Set("User-Agent", userAgent)
+		if strings.HasPrefix(address, p.authURL+"/") {
+			req.Header.Set("User-Agent", challengeUA)
+		}
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Content-Type", "application/json")
 		if session != "" {
@@ -197,6 +203,10 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 			case 429:
 				limited := proxyLimitError(resp.Header)
 				code, message = limited.Code, limited.Message
+			}
+			if errno == 102 {
+				code = "account_not_found"
+				message = "No Mozilla account exists for this email. Create a Mozilla account first."
 			}
 			if errno == 103 {
 				code = "credentials"

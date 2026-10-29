@@ -121,7 +121,7 @@ public class NativeRuntimeTests
             using var process = new Process { StartInfo = new ProcessStartInfo(alias, "version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false } };
             process.Start(); var output = process.StandardOutput.ReadToEndAsync(); using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try { await process.WaitForExitAsync(timeout.Token); } catch { process.Kill(true); throw; }
-            Assert.Equal(0,process.ExitCode); Assert.Contains("26.10.22", await output);
+            Assert.Equal(0,process.ExitCode); Assert.Contains("26.10.27", await output);
         } finally { Directory.Delete(folder,true); }
     }
 

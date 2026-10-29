@@ -26,8 +26,8 @@ def desktop_bundle(root: pathlib.Path, platform: str, output: pathlib.Path) -> p
         (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
             'CFBundleName': 'DicodePing', 'CFBundleDisplayName': 'DicodePing',
             'CFBundleIdentifier': 'ir.dicode.ping.desktop', 'CFBundlePackageType': 'APPL',
-            'CFBundleExecutable': 'DicodePing', 'CFBundleShortVersionString': '4.9.9',
-            'CFBundleVersion': '409900', 'NSHighResolutionCapable': True,
+            'CFBundleExecutable': 'DicodePing', 'CFBundleShortVersionString': '4.9.91',
+            'CFBundleVersion': '409910', 'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '12.0',
         }))
         subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(app)], check=True)
@@ -54,10 +54,10 @@ chmod +x "$dest/DicodePing.desktop"
             stage = pathlib.Path(tmp)
             shutil.copytree(root, stage / 'opt/dicodeping')
             control = stage / 'DEBIAN'; control.mkdir()
-            (control / 'control').write_text('Package: dicodeping\nVersion: 4.9.9\nArchitecture: amd64\nMaintainer: DicodePing\nDepends: libx11-6, libice6, libsm6, libfontconfig1, libglib2.0-0, sudo\nDescription: DicodePing graphical VPN client\n')
+            (control / 'control').write_text('Package: dicodeping\nVersion: 4.9.91\nArchitecture: amd64\nMaintainer: DicodePing\nDepends: libx11-6, libice6, libsm6, libfontconfig1, libglib2.0-0, sudo\nDescription: DicodePing graphical VPN client\n')
             entries = stage / 'usr/share/applications'; entries.mkdir(parents=True)
             (entries / 'dicodeping.desktop').write_text(entry)
-            subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(stage), str(output / 'DicodePing-4.9.9-linux-x64.deb')], check=True)
+            subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(stage), str(output / 'DicodePing-4.9.91-linux-x64.deb')], check=True)
     return root
 
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     args.output.mkdir(parents=True, exist_ok=True)
     if args.edition == 'desktop' and args.platform != 'windows-x64':
         args.root = desktop_bundle(args.root, args.platform, args.output)
-    archive = args.output / ("DicodePing-4.9.9-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
+    archive = args.output / ("DicodePing-4.9.91-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
     package(args.root, archive, args.platform == "windows-x64", args.edition == "cli")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         digest + "  " + archive.name + "\n", encoding="utf-8"
     )
     if args.platform == 'linux-x64' and args.edition == 'desktop':
-        deb = args.output / 'DicodePing-4.9.9-linux-x64.deb'
+        deb = args.output / 'DicodePing-4.9.91-linux-x64.deb'
         with (args.output / 'SHA256SUMS-linux-x64.txt').open('a') as sums:
             sums.write(hashlib.sha256(deb.read_bytes()).hexdigest() + '  ' + deb.name + '\n')
     print("Archived and verified", archive.name)

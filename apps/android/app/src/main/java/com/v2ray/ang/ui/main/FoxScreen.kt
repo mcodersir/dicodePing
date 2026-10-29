@@ -49,6 +49,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     val needsCode = stringResource(R.string.fox_needs_code)
     val fa = context.resources.configuration.locales[0].language == "fa"
     fun error(e: Exception) = if (fa && e is FoxError) when(e.code) {
+        "account_not_found" -> "حساب Mozilla با این ایمیل پیدا نشد؛ ابتدا در سایت موزیلا حساب بسازید."
         "credentials" -> "ایمیل یا رمز عبور درست نیست."
         "login_required" -> "نشست موزیلا منقضی یا رد شده است؛ دوباره وارد شوید."
         "activation_required" -> "فعال‌سازی Firefox VPN رد شد؛ دوباره تلاش کنید یا وارد حساب شوید."
@@ -98,6 +99,25 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                 Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = null, modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
 
+                    if (ready) {
+                    Button(onClick = {
+                        current?.let { account ->
+                            if (busy) return@Button
+                            busy = true; status = waiting
+                            scope.launch {
+                                try {
+                                    val guid = withContext(Dispatchers.IO) { account.country = country; FoxAccounts.save(context, account); FoxAccounts.sync(context, FoxAccounts.get(context, account.id)) }
+                                    onChanged(); onConnect(guid); onDismiss()
+                                } catch (e: Exception) { status = error(e) }
+                                finally { busy = false }
+                            }
+                        }
+                    }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
+                        Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = null, modifier = Modifier.size(28.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(R.string.fox_connect), style = MaterialTheme.typography.titleLarge)
+                    }
+                    }
                     if (isRunning) SponsorBanner("fox")
                     Text(stringResource(R.string.fox_hint))
                     Box {
@@ -138,19 +158,6 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         status = if (fa) "لینک SOCKS کپی شد؛ هنگام اتصال روباه پروکسی محلی فعال است." else "SOCKS link copied; the local proxy is active while Fox is connected."
                     }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "کپی لینک SOCKS روباه · 127.0.0.1:7854" else "Copy Fox SOCKS link · 127.0.0.1:7854") }
                     OutlinedButton(onClick = { current?.let { account -> run { account.country = country; FoxAccounts.save(context, account); FoxAccounts.refresh(context, account.id, true).id } } }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_refresh)) }
-                    Button(onClick = {
-                        current?.let { account ->
-                            if (busy) return@Button
-                            busy = true; status = waiting
-                            scope.launch {
-                                try {
-                                    val guid = withContext(Dispatchers.IO) { account.country = country; FoxAccounts.save(context, account); FoxAccounts.sync(context, FoxAccounts.get(context, account.id)) }
-                                    onChanged(); onConnect(guid); onDismiss()
-                                } catch (e: Exception) { status = error(e) }
-                                finally { busy = false }
-                            }
-                        }
-                    }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_connect)) }
                     TextButton(onClick = { current?.let { account -> run { FoxAccounts.remove(context, account.id); null } } }, enabled = !busy && current != null, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_remove)) }
                     }
                     Text(stringResource(R.string.fox_limits), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

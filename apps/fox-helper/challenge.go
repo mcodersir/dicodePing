@@ -57,7 +57,11 @@ func (p *provider) challengeFetch(ctx context.Context, method, address string, b
 	return data, resp.StatusCode, e
 }
 func (p *provider) challenge(ctx context.Context) error {
-	for _, origin := range []string{"https://api.accounts.firefox.com", "https://accounts.firefox.com"} {
+	origins := p.challengeOrigins
+	if origins == nil {
+		origins = []string{"https://api.accounts.firefox.com", "https://accounts.firefox.com"}
+	}
+	for _, origin := range origins {
 		page, status, e := p.challengeFetch(ctx, "GET", origin+"/", nil)
 		if e != nil {
 			return e

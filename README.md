@@ -1,8 +1,8 @@
-# DicodePing 4.9.9
+# DicodePing 4.9.91
 
 کلاینت اتصال برای **Windows، Linux، macOS و Android**، همراه نسخهٔ مستقل **CLI**. پروفایل‌ها را مدیریت کنید، کیفیت مسیر را با درخواست واقعی بسنجید و از فهرست سرورها متصل شوید.
 
-**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۷](docs/RELEASE-4.9.9.md)** · **[راهنمای CLI](docs/CLI.md)**
+**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۷](docs/RELEASE-4.9.91.md)** · **[راهنمای CLI](docs/CLI.md)**
 
 ## روباه 🦊
 
@@ -24,6 +24,6 @@
 
 ## توسعه و مجوز
 
-برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه از سورس همین نسخه در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.9.json` ثبت شده‌اند.
+برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه از سورس همین نسخه در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.91.json` ثبت شده‌اند.
 
 DicodePing تحت [GPL-3.0](LICENSE) منتشر می‌شود. مجوز اجزای مستقل و وابستگی‌ها همراه آن‌ها حفظ شده است. اقتباس پروتکل FoxyVPN تحت MIT انجام شده؛ [مجوز](apps/fox-helper/LICENSE-FoxyVPN.txt) و [توضیح](apps/fox-helper/NOTICE.md) همراه بستهٔ روباه قرار دارند. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.
