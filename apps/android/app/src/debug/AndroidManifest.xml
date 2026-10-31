@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- Test host exists only in debug APKs; never part of a release. -->
         <activity android:name="com.v2ray.ang.core.BrowserFixtureActivity"
-            android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+            android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     </application>
 </manifest>

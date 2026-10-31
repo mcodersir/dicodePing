@@ -5,7 +5,6 @@ import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.net.Uri
-import android.app.Activity
 import android.content.Intent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -27,7 +26,7 @@ internal object BrowserBridgeFixture {
   // Exercise the native browser independently of the Compose dashboard. The
   // dashboard has its own launch/navigation and signed-install smoke tests.
   val instrumentation=InstrumentationRegistry.getInstrumentation()
-  val intent=Intent(instrumentation.context,BrowserFixtureActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+  val intent=Intent(instrumentation.targetContext,BrowserFixtureActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
   ActivityScenario.launch<BrowserFixtureActivity>(intent).use { scenario ->
    var browser:WebView?=null
    scenario.onActivity { activity ->
@@ -75,5 +74,3 @@ internal object BrowserBridgeFixture {
   }
  }
 }
-
-class BrowserFixtureActivity : Activity()
