@@ -50,19 +50,14 @@ public sealed class FoxWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         FlowDirection = FoxUi.T("fa", "en") == "fa" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         var accounts = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        var email = new TextBox { PlaceholderText = FoxUi.T("ایمیل حساب Mozilla", "Mozilla account email"), FlowDirection = FlowDirection.LeftToRight };
-        var password = new TextBox { PlaceholderText = FoxUi.T("رمز عبور · ذخیره نمی‌شود", "Password · never saved"), PasswordChar = '●' };
-        var code = new TextBox { PlaceholderText = FoxUi.T("کد تأیید حساب", "Account verification code"), FlowDirection = FlowDirection.LeftToRight, IsVisible = false };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
         country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
-        var login = new Button { Content = FoxUi.T("ورود و افزودن حساب", "Sign in and add account"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        var verify = new Button { Content = FoxUi.T("تأیید کد", "Verify code"), IsVisible = false };
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var copyProxy = new Button { Content = FoxUi.T("کپی لینک SOCKS روباه · 127.0.0.1:7854", "Copy Fox SOCKS link · 127.0.0.1:7854"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var remove = new Button { Content = FoxUi.T("حذف حساب و ساب از برنامه", "Remove local account and subscription") };
-        foreach (var button in new[] { login, verify, refresh, connect, copyProxy, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
+        foreach (var button in new[] { refresh, connect, copyProxy, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
         connect.MinHeight = 68; connect.CornerRadius = new CornerRadius(20);
         connect.HorizontalContentAlignment = HorizontalAlignment.Center;
         connect.Classes.Add("accent");
@@ -71,14 +66,13 @@ public sealed class FoxWindow : Window
             new TextBlock { Text = FoxUi.T("اتصال به روباه", "Connect to Fox"), FontSize = 21, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center }
         } };
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
-        var openAccount = new Button { Content = FoxUi.T("۱ · باز کردن سایت Mozilla و ساخت حساب", "1 · Open Mozilla and create an account"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        openAccount.Click += (_, _) => ProcUtils.ProcessStart("https://accounts.firefox.com/signup");
         var browserLogin = new Button { Content = FoxUi.T("ورود امن با مرورگر موزیلا", "Sign in on Mozilla’s page"), MinHeight = 60, HorizontalAlignment = HorizontalAlignment.Stretch };
         var credentialsPanel = new StackPanel { Spacing = 12, Children = {
             new TextBlock { Text = FoxUi.T("با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید. کدهای تأیید را همان‌جا وارد کنید؛ Google و Apple پشتیبانی نمی‌شوند.", "Use your Firefox email and password on Mozilla’s official page. Complete verification there; Google and Apple are not supported."), TextWrapping = TextWrapping.Wrap }, browserLogin } };
         var verificationPanel = new StackPanel { Spacing = 12, Children = { new TextBlock { Text = FoxUi.T("ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap } } };
+        var reauthenticate = new Button { Content = FoxUi.T("ورود مجدد به حساب", "Sign in again"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
-            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, remove } };
+            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, reauthenticate, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
         var adding = false; bool busy = false;
@@ -87,35 +81,32 @@ public sealed class FoxWindow : Window
             var pending = !adding && account?.Pending == true;
             var ready = !adding && account is not null && !account.Pending;
             credentialsPanel.IsVisible = adding || account is null || pending;
-            browserLogin.IsEnabled = !busy;
+            browserLogin.IsEnabled = reauthenticate.IsEnabled = !busy;
             verificationPanel.IsVisible = pending;
             connectionPanel.IsVisible = ready;
             add.IsVisible = !adding && account is not null;
             back.IsVisible = adding && accounts.ItemCount > 0;
             steps.Text = credentialsPanel.IsVisible ? FoxUi.T("۱ · ورود به حساب", "1 · Sign in")
                 : pending ? FoxUi.T("۲ · تأیید حساب", "2 · Verify account") : FoxUi.T("۳ · انتخاب کشور و اتصال", "3 · Choose country and connect");
-            login.IsEnabled = !busy && !string.IsNullOrWhiteSpace(email.Text) && !string.IsNullOrEmpty(password.Text);
-            verify.IsEnabled = !busy && !string.IsNullOrWhiteSpace(code.Text);
             connect.IsVisible = ready;
             connect.IsEnabled = refresh.IsEnabled = !busy && ready;
             remove.IsEnabled = !busy && account is not null;
-            accounts.IsEnabled = country.IsEnabled = email.IsEnabled = password.IsEnabled = code.IsEnabled = add.IsEnabled = back.IsEnabled = !busy;
+            accounts.IsEnabled = country.IsEnabled = add.IsEnabled = back.IsEnabled = !busy;
         }
         var cts = new CancellationTokenSource(); Closed += (_, _) => cts.Cancel();
         async Task Load(string? id = null) {
             var saved = await FoxAccounts.ListAsync(); accounts.ItemsSource = saved; accounts.SelectedItem = saved.FirstOrDefault(a => a.Id == id) ?? saved.FirstOrDefault();
         }
-        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); verify.IsVisible = code.IsVisible = account.Pending; country.SelectedItem = account.Country; } Render(); }
+        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); country.SelectedItem = account.Country; } Render(); }
         accounts.SelectionChanged += (_, _) => { adding = false; Selection(); };
-        add.Click += (_, _) => { adding = true; email.Text = ""; code.Text = ""; status.Text = ""; Render(); email.Focus(); };
-        back.Click += (_, _) => { adding = false; password.Text = ""; Render(); };
-        email.TextChanged += (_, _) => Render(); password.TextChanged += (_, _) => Render(); code.TextChanged += (_, _) => Render();
+        add.Click += (_, _) => { adding = true; status.Text = ""; Render(); };
+        back.Click += (_, _) => { adding = false; Render(); };
         async Task Run(Func<Task> work) {
             if (busy) return; busy = true; Render();
             status.Text = FoxUi.T("در حال ارتباط امن با سرویس…", "Contacting the provider securely…");
             try { await work(); } catch (OperationCanceledException) { status.Text = FoxUi.T("لغو شد", "Cancelled"); }
             catch (Exception error) { status.Text = FoxUi.Error(error); await Load((accounts.SelectedItem as FoxAccount)?.Id); }
-            finally { password.Text = ""; busy = false; Render(); }
+            finally { busy = false; Render(); }
         }
         country.SelectionChanged += async (_, _) => {
             if (busy || adding || accounts.SelectedItem is not FoxAccount account || account.Pending
@@ -127,12 +118,14 @@ public sealed class FoxWindow : Window
             });
         };
         async Task RefreshViews() { await main.ProfilesViewModel.RefreshSubscriptions(); await main.ProfilesViewModel.RefreshServersBiz(); }
-        browserLogin.Click += async (_, _) => await Run(async () => {
+        async Task SignIn() { await Run(async () => {
             var account = await new FoxBrowserWindow().ShowDialog<FoxAccount?>(this);
-            if (account is null) return;
+            if (account is null) { status.Text = FoxUi.T("لغو شد", "Cancelled"); return; }
             adding = false; await Load(account.Id); await RefreshViews();
             status.Text = FoxUi.T("حساب تأیید شد؛ برای اتصال دکمهٔ بالای صفحه را بزنید.", "Account verified. Use the connect button at the top.");
-        });
+        }); }
+        browserLogin.Click += async (_, _) => await SignIn();
+        reauthenticate.Click += async (_, _) => await SignIn();
         refresh.Click += async (_, _) => await Run(async () => {
             if (accounts.SelectedItem is not FoxAccount account) return;
             account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account);

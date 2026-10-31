@@ -2,8 +2,6 @@ package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -36,7 +33,6 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     var countries by remember { mutableStateOf(listOf("REC")) }
     var expandedAccounts by remember { mutableStateOf(false) }
     var expandedCountries by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf("") }; var password by remember { mutableStateOf("") }; var code by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
     var browserLogin by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
@@ -77,10 +73,10 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
             } catch (e: Exception) {
                 status = error(e)
                 accounts = withContext(Dispatchers.IO) { FoxAccounts.list(context) }
-                selected = accounts.firstOrNull { it.email.equals(email.trim(), true) }?.id ?: selected ?: accounts.firstOrNull()?.id
+                selected = selected ?: accounts.firstOrNull()?.id
                 if (selected != null) adding = false
             }
-            finally { password = ""; busy = false }
+            finally { busy = false }
         }
     }
     LaunchedEffect(Unit) {
@@ -126,8 +122,8 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         DropdownMenu(expandedAccounts, { expandedAccounts = false }) { accounts.forEach { account -> DropdownMenuItem(text = { Text(account.email) }, onClick = { selected = account.id; country = account.country; adding = false; expandedAccounts = false }) } }
                     }
                     Text(stringResource(if (signIn) R.string.fox_step_login else if (pending) R.string.fox_step_verify else R.string.fox_step_connect), style = MaterialTheme.typography.titleMedium)
-                    if (current != null && !adding) TextButton(onClick = { adding = true; email = ""; code = ""; status = "" }, enabled = !busy) { Text(stringResource(R.string.fox_add_account)) }
-                    if (adding && current != null) TextButton(onClick = { adding = false; password = "" }, enabled = !busy) { Text(stringResource(R.string.fox_back_accounts)) }
+                    if (current != null && !adding) TextButton(onClick = { adding = true; status = "" }, enabled = !busy) { Text(stringResource(R.string.fox_add_account)) }
+                    if (adding && current != null) TextButton(onClick = { adding = false }, enabled = !busy) { Text(stringResource(R.string.fox_back_accounts)) }
                     if (ready) current?.let { account ->
                         val max = account.info.optLong("quota_max", -1); val remaining = account.info.optLong("quota_remaining", -1)
                         Text(if (max >= 0 && remaining >= 0) (if (fa) "مصرف‌شده: " else "Used: ") + String.format("%.2f GB · ", (max - remaining).coerceAtLeast(0) / 1e9) else "")
@@ -152,6 +148,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.primary)
                     if (ready) {
+                    TextButton(onClick = { browserLogin = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "ورود مجدد به حساب" else "Sign in again") }
                     if (ready) OutlinedButton(onClick = {
                         clipboard.setText(androidx.compose.ui.text.AnnotatedString(FoxAccounts.SHARE_URI))
                         status = if (fa) "لینک SOCKS کپی شد؛ هنگام اتصال روباه پروکسی محلی فعال است." else "SOCKS link copied; the local proxy is active while Fox is connected."
