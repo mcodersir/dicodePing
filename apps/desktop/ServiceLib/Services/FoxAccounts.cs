@@ -122,6 +122,15 @@ public static class FoxAccounts
         account.State = (result["state"] as JsonObject)?.DeepClone().AsObject() ?? throw new FoxException("provider", "No account session returned");
         await SaveAsync(account, create: true); if (!account.Pending) return await RefreshAsync(account.Id, true, token); return account;
     }
+    public static async Task<FoxAccount> CompleteBrowserLoginAsync(string email, string session, CancellationToken token)
+    {
+        var result = await RequestAsync(new JsonObject { ["operation"] = "browser_login", ["email"] = email, ["session_token"] = session }, token);
+        var account = (await ListAsync()).FirstOrDefault(a => string.Equals(a.Email, email, StringComparison.OrdinalIgnoreCase)) ?? new FoxAccount();
+        account.State = result["state"]!.DeepClone().AsObject();
+        await SaveAsync(account, create: true);
+        await FoxProfiles.SyncAsync(account);
+        return account;
+    }
     public static async Task<FoxAccount> VerifyAsync(string id, string code, CancellationToken token)
     {
         var account = await GetAsync(id); var result = await RequestAsync(new JsonObject { ["operation"] = "verify", ["code"] = code, ["state"] = account.State.DeepClone() }, token);

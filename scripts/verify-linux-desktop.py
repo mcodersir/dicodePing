@@ -3,7 +3,7 @@
 import os, pathlib, subprocess, tempfile, time
 
 assert os.geteuid() != 0, 'The GUI test must run as an ordinary desktop user'
-assert pathlib.Path('dist/DicodePing-4.9.91-linux-x64.deb').is_file()
+assert pathlib.Path('dist/DicodePing-4.9.92-linux-x64.deb').is_file()
 with tempfile.TemporaryDirectory(prefix='dicode-desktop-launch-') as temp:
     env = os.environ.copy(); env['DICODE_DATA_DIR'] = temp
     with open(pathlib.Path(temp) / 'gui.log', 'w+') as output:

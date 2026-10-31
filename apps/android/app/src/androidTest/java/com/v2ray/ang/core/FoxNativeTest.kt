@@ -10,6 +10,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class FoxNativeTest {
+    @Test fun browserSignInUsesNativeWebViewAndWaitsForOtpCompletion() = BrowserBridgeFixture.exercise()
     @Test fun packagedTransportHelpersExecuteOnTheDevicePageSize() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         for (name in listOf("liblyrebird.so", "libpsiphon-tunnel-core.so")) {

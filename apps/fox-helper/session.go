@@ -45,7 +45,7 @@ func (p *provider) refreshProxyPass(ctx context.Context, force bool) error {
 		p.mutex.Unlock()
 		return nil
 	}
-	snapshot := &provider{state: p.state, info: p.info, client: p.client, authURL: p.authURL, guardianURL: p.guardianURL, settingsURL: p.settingsURL}
+	snapshot := &provider{state: p.state, info: p.info, client: p.client, authURL: p.authURL, oauthURL: p.oauthURL, guardianURL: p.guardianURL, settingsURL: p.settingsURL}
 	oldState := p.state
 	p.mutex.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)

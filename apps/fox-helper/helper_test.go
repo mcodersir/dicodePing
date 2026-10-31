@@ -54,7 +54,7 @@ func TestAccountLoginRequiresVerificationAndRefreshKeepsSession(t *testing.T) {
 				t.Error("verification not authenticated")
 			}
 			io.WriteString(w, `{}`)
-		case "/oauth/token":
+		case "/oauth/token", "/token":
 			io.WriteString(w, `{"access_token":"access","refresh_token":"refresh","expires_in":3600}`)
 		default:
 			w.WriteHeader(404)
@@ -63,6 +63,7 @@ func TestAccountLoginRequiresVerificationAndRefreshKeepsSession(t *testing.T) {
 	defer server.Close()
 	p := newProvider(State{})
 	p.authURL = server.URL
+	p.oauthURL = server.URL
 	if e := p.login(context.Background(), "owner@example.com", "password123"); e != nil {
 		t.Fatal(e)
 	}
@@ -287,9 +288,14 @@ func TestActivationRejectionIsBoundedAndKeepsSession(t *testing.T) {
 	defer server.Close()
 	p := newProvider(State{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: time.Now().Unix() + 3600})
 	p.guardianURL = server.URL
+	oauth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"access_token":"renewed","expires_in":3600}`)
+	}))
+	defer oauth.Close()
+	p.oauthURL = oauth.URL
 	_, err := p.account(context.Background())
 	api, ok := err.(*ProviderError)
-	if !ok || api.Code != "activation_required" || calls != 2 || p.state.RefreshToken != "refresh" {
+	if !ok || api.Code != "activation_required" || calls != 3 || p.state.RefreshToken != "refresh" {
 		t.Fatal(err, calls)
 	}
 }

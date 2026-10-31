@@ -56,17 +56,29 @@ func (p *provider) challengeFetch(ctx context.Context, method, address string, b
 	data, e := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 	return data, resp.StatusCode, e
 }
-func (p *provider) challenge(ctx context.Context) error {
+func (p *provider) challenge(ctx context.Context) error { return p.challengeFrom(ctx, "", nil) }
+func (p *provider) challengeFrom(ctx context.Context, requestOrigin string, challengedBody []byte) error {
 	origins := p.challengeOrigins
 	if origins == nil {
 		origins = []string{"https://api.accounts.firefox.com", "https://accounts.firefox.com"}
+		if requestOrigin != "" {
+			origins = append([]string{requestOrigin}, origins...)
+		}
 	}
 	for _, origin := range origins {
-		page, status, e := p.challengeFetch(ctx, "GET", origin+"/", nil)
-		if e != nil {
-			return e
+		page := challengedBody
+		var status int
+		var e error
+		if origin != requestOrigin || challengePrefix.Find(page) == nil {
+			page, status, e = p.challengeFetch(ctx, "GET", origin+"/", nil)
+			if e != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				continue
+			}
 		}
-		if status >= 400 || !strings.Contains(string(page), "Client Challenge") {
+		if challengePrefix.Find(page) == nil {
 			continue
 		}
 		prefix := challengePrefix.FindString(string(page))
@@ -145,13 +157,19 @@ func (p *provider) challenge(ctx context.Context) error {
 				}
 				u, _ := url.Parse(origin + "/")
 				cookies := p.client.Jar.Cookies(u)
-				target, _ := url.Parse("https://api.accounts.firefox.com/")
-				for _, c := range cookies {
-					c.Domain = "firefox.com"
-					c.Path = "/"
-					c.Secure = true
+				target, _ := url.Parse(requestOrigin + "/")
+				if requestOrigin == "" {
+					target, _ = url.Parse("https://api.accounts.firefox.com/")
 				}
-				p.client.Jar.SetCookies(target, cookies)
+				// A clearance must never be copied to another provider domain.
+				if strings.HasSuffix(u.Hostname(), ".firefox.com") && strings.HasSuffix(target.Hostname(), ".firefox.com") {
+					for _, c := range cookies {
+						c.Domain = "firefox.com"
+						c.Path = "/"
+						c.Secure = true
+					}
+					p.client.Jar.SetCookies(target, cookies)
+				}
 				return nil
 			}
 			list, ok := result["ch"].([]any)

@@ -5,6 +5,11 @@
     <CentralPackageVersionOverrideEnabled>false</CentralPackageVersionOverrideEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="NativeWebView" Version="12.0.4.9" />
+    <PackageVersion Include="NativeWebView.Platform.Windows" Version="12.0.4.9" />
+    <PackageVersion Include="NativeWebView.Platform.macOS" Version="12.0.4.9" />
+    <PackageVersion Include="NativeWebView.Platform.Linux" Version="12.0.4.9" />
+
     <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageVersion Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageVersion Include="Avalonia.Headless" Version="12.1.4" />

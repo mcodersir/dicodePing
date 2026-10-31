@@ -12,6 +12,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+        <PackageReference Include="NativeWebView" />
+        <PackageReference Include="NativeWebView.Platform.Windows" />
+        <PackageReference Include="NativeWebView.Platform.macOS" />
+        <PackageReference Include="NativeWebView.Platform.Linux" />
+
 		<PackageReference Include="Avalonia.AvaloniaEdit" />
 		<PackageReference Include="Avalonia.Controls.DataGrid">
 			<TreatAsUsed>true</TreatAsUsed>

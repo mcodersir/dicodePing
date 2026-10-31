@@ -1,0 +1,76 @@
+{
+  "xray": "v26.10.27",
+  "android": "v26.10.27",
+  "aether": "v2.4.0",
+  "assets": {
+    "Xray-linux-64.zip": "b51ad47c1a184207618f7dfcbf393e22894df470fd472a677c53126336eb9705",
+    "Xray-macos-64.zip": "e07243ac14290df02c573f836329c70d4d15146c1ce59abae78c529815404e66",
+    "Xray-macos-arm64-v8a.zip": "4d83576538031dc2adb812dad3b45e16563654be16350e154f111c9484a1c197",
+    "Xray-windows-64.zip": "3b54e14380f5ff1772a7f084c619fa3511955d07c1ed6af4e41e5d542c065e15",
+    "aether-android-arm64.tar.gz": "02f1a1d673cf2f3e5592c90ce7ef4d6f03e218d41a333bdd175e0da92ce2073c",
+    "aether-android-armv7.tar.gz": "13a170d175eab5a64d69c6fa3c174430754f01171d616a00eba0b3598315da1d",
+    "aether-android-x86_64.tar.gz": "b8d18baf6b1efe120d04109f819d08ca822c1fafeb3d61297b0e035cf095ae07",
+    "aether-linux-x86_64.tar.gz": "975e4efd46613ad51b7c62b2f5a73fc34fd9661cc15ed273ab816341bfcc2fd1",
+    "aether-macos-arm64.tar.gz": "27e30c492d98a94a1c556dcd673412d0bc8fbbb7ae2b93d209ab8d8c8ba33ef6",
+    "aether-macos-x86_64.tar.gz": "a865832ed4d6a50e3e53f6157dd6219e33ac3e34e747a90a14f11f81be9a9da2",
+    "aether-windows-x86_64.zip": "21b1444628d37121e873878e2eddd7932215418af1a2a12470caee5809026f1a"
+  },
+  "fox": {
+    "version": "4.9.92",
+    "source": "apps/fox-helper",
+    "go": "1.27.3",
+    "protocol_reference": "FoxyVPN v1.0.8 (MIT)",
+    "reference_commit": "7501192dd9e5045de0a93fadf506474b5b911f62"
+  },
+  "android_build": {
+    "source_commit": "3be30ae8c718a6ff38bd569993860d25908595e8",
+    "health_patch_sha256": "f43e8c1b7e0937bc415f71173c3a0e3188ade34e0a78d33d545e19f00cbb838a",
+    "xray_commit": "e5acafbbaa5c1bc279ac40ebcb9f204dc7f8dce5"
+  },
+  "hev": {
+    "version": "2.19.3",
+    "source_commit": "c5584feca8f6df70ee53eb2879e034b849a3d15a"
+  },
+  "android_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202610230931/geoip.dat",
+      "sha256": "64b0916e95e53cd5334f0717f0da408164e5556a10820fcdf343cd6d3840aa61"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202610230931/geosite.dat",
+      "sha256": "a30ef400c28f1eb42644c0d9806d6e7b86ed8adf192cb3bd14fc15dea8d40353"
+    },
+    {
+      "name": "geoip-only-cn-private.dat",
+      "url": "https://github.com/Loyalsoldier/geoip/releases/download/202610230445/geoip-only-cn-private.dat",
+      "sha256": "86ddab90d8959c7c93ca0f8eceaec716a042ac025f604621afcd4e8186d8eaea"
+    }
+  ],
+  "mihomo": "v1.19.33",
+  "reference_sources": {
+    "android": {
+      "tag": "2.3.13-P70",
+      "commit": "500917403887d472588e4745015fd01305d12b9a"
+    },
+    "desktop": {
+      "tag": "7.25.6-P39",
+      "commit": "1745e8d95221126d8897ed48bd3fed3bdd525606"
+    }
+  },
+  "android_transport_sources": {
+    "lyrebird": {
+      "module": "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird",
+      "version": "v0.0.0-20260312101154-fc105a03c0e0",
+      "commit": "fc105a03c0e0acc2479301c361c012ffed359c43",
+      "zip_sha256": "e460a90a67c8831d5e8f70b652b39cba0bc05190412c7034bbb8c90fb1b9baff",
+      "go": "go1.27.3"
+    },
+    "psiphon": {
+      "repository": "https://github.com/CluvexStudio/psiphon-tunnel-core.git",
+      "commit": "83aa73b9b982e7421e00117f5b0c5aceb5dda452",
+      "go": "go1.26.10"
+    }
+  }
+}

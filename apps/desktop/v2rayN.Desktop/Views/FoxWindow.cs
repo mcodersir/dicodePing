@@ -73,10 +73,10 @@ public sealed class FoxWindow : Window
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
         var openAccount = new Button { Content = FoxUi.T("۱ · باز کردن سایت Mozilla و ساخت حساب", "1 · Open Mozilla and create an account"), HorizontalAlignment = HorizontalAlignment.Stretch };
         openAccount.Click += (_, _) => ProcUtils.ProcessStart("https://accounts.firefox.com/signup");
+        var browserLogin = new Button { Content = FoxUi.T("ورود امن با مرورگر موزیلا", "Sign in on Mozilla’s page"), MinHeight = 60, HorizontalAlignment = HorizontalAlignment.Stretch };
         var credentialsPanel = new StackPanel { Spacing = 12, Children = {
-            new TextBlock { Text = FoxUi.T("ابتدا در سایت Mozilla یک حساب بسازید و ایمیلتان را تأیید کنید. اگر حساب دارید، همین‌جا وارد شوید.", "Create a Mozilla account and verify your email on the website. Already registered? Sign in below."), TextWrapping = TextWrapping.Wrap },
-            openAccount, new TextBlock { Text = FoxUi.T("۲ · ایمیل و رمز همان حساب را وارد کنید؛ رمز ذخیره نمی‌شود.", "2 · Enter that account's email and password. Your password is not saved."), TextWrapping = TextWrapping.Wrap }, email, password, login } };
-        var verificationPanel = new StackPanel { Spacing = 12, Children = { code, verify } };
+            new TextBlock { Text = FoxUi.T("با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید. کدهای تأیید را همان‌جا وارد کنید؛ Google و Apple پشتیبانی نمی‌شوند.", "Use your Firefox email and password on Mozilla’s official page. Complete verification there; Google and Apple are not supported."), TextWrapping = TextWrapping.Wrap }, browserLogin } };
+        var verificationPanel = new StackPanel { Spacing = 12, Children = { new TextBlock { Text = FoxUi.T("ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap } } };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
             quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
@@ -86,7 +86,8 @@ public sealed class FoxWindow : Window
             var account = accounts.SelectedItem as FoxAccount;
             var pending = !adding && account?.Pending == true;
             var ready = !adding && account is not null && !account.Pending;
-            credentialsPanel.IsVisible = adding || account is null;
+            credentialsPanel.IsVisible = adding || account is null || pending;
+            browserLogin.IsEnabled = !busy;
             verificationPanel.IsVisible = pending;
             connectionPanel.IsVisible = ready;
             add.IsVisible = !adding && account is not null;
@@ -126,13 +127,11 @@ public sealed class FoxWindow : Window
             });
         };
         async Task RefreshViews() { await main.ProfilesViewModel.RefreshSubscriptions(); await main.ProfilesViewModel.RefreshServersBiz(); }
-        login.Click += async (_, _) => await Run(async () => {
-            var account = await FoxAccounts.LoginAsync(email.Text ?? "", password.Text ?? "", cts.Token); await Load(account.Id); await RefreshViews();
-            status.Text = account.Pending ? FoxUi.T("کد تأیید حساب را وارد کنید؛ هنوز اتصال فعال نشده است.", "Enter the account verification code. The connection is not active yet.") : FoxUi.T("حساب تأیید شد؛ ساب روباه با یک سرور اضافه شد.", "Account verified; Fox subscription with one profile added.");
-        });
-        verify.Click += async (_, _) => await Run(async () => {
-            if (accounts.SelectedItem is not FoxAccount account) return;
-            await FoxAccounts.VerifyAsync(account.Id, code.Text ?? "", cts.Token); code.Text = ""; await Load(account.Id); await RefreshViews(); status.Text = FoxUi.T("حساب تأیید شد و سرور اضافه شد.", "Account verified and profile added.");
+        browserLogin.Click += async (_, _) => await Run(async () => {
+            var account = await new FoxBrowserWindow().ShowDialog<FoxAccount?>(this);
+            if (account is null) return;
+            adding = false; await Load(account.Id); await RefreshViews();
+            status.Text = FoxUi.T("حساب تأیید شد؛ برای اتصال دکمهٔ بالای صفحه را بزنید.", "Account verified. Use the connect button at the top.");
         });
         refresh.Click += async (_, _) => await Run(async () => {
             if (accounts.SelectedItem is not FoxAccount account) return;

@@ -28,6 +28,7 @@ import (
 )
 
 const authBase = "https://api.accounts.firefox.com/v1"
+const oauthBase = "https://oauth.accounts.firefox.com/v1"
 const guardianBase = "https://vpn.mozilla.org"
 const settingsURL = "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records"
 const clientID = "5882386c6d801776"
@@ -57,6 +58,7 @@ type provider struct {
 	state                             State
 	client                            *http.Client
 	authURL, guardianURL, settingsURL string
+	oauthURL                          string
 	challengeOrigins                  []string
 	info                              AccountInfo
 	mutex                             sync.Mutex
@@ -79,7 +81,7 @@ type provider struct {
 func newProvider(s State) *provider {
 	jar, _ := cookiejar.New(nil)
 	transport := &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: (&net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second}).DialContext, TLSHandshakeTimeout: 15 * time.Second, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, ResponseHeaderTimeout: 30 * time.Second, IdleConnTimeout: 60 * time.Second}
-	p := &provider{tlsSplit: "sni", passRefresh: make(chan struct{}, 1), state: s, authURL: authBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
+	p := &provider{tlsSplit: "sni", passRefresh: make(chan struct{}, 1), state: s, authURL: authBase, oauthURL: oauthBase, guardianURL: guardianBase, settingsURL: settingsURL, client: &http.Client{Transport: transport, Jar: jar, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}}
 	transport.DialTLSContext = p.dialControlTLS
 	return p
 }
@@ -147,10 +149,7 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 		}
 		// Fastly binds its challenge cookie to the client identity. The same
 		// FxA request must retain the identity used to acquire that cookie.
-		req.Header.Set("User-Agent", userAgent)
-		if strings.HasPrefix(address, p.authURL+"/") {
-			req.Header.Set("User-Agent", challengeUA)
-		}
+		req.Header.Set("User-Agent", challengeUA)
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Content-Type", "application/json")
 		if session != "" {
@@ -176,7 +175,8 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 			return nil, nil, readErr
 		}
 		if resp.StatusCode == 406 && attempt < 4 {
-			if err = p.challenge(ctx); err != nil {
+			u, _ := url.Parse(address)
+			if err = p.challengeFrom(ctx, u.Scheme+"://"+u.Host, raw); err != nil {
 				return nil, nil, err
 			}
 			continue
@@ -203,6 +203,10 @@ func (p *provider) request(ctx context.Context, method, address, session, bearer
 			case 429:
 				limited := proxyLimitError(resp.Header)
 				code, message = limited.Code, limited.Message
+			}
+			if errno == 104 {
+				code = "session_unconfirmed"
+				message = "Complete email or two-factor verification in the Mozilla sign-in page."
 			}
 			if errno == 102 {
 				code = "account_not_found"
@@ -308,7 +312,10 @@ func (p *provider) ensureAuth(ctx context.Context) error {
 	if p.state.RefreshToken == "" {
 		return &ProviderError{Code: "login_required", Message: "Sign in to your Mozilla account"}
 	}
-	data, _, err := p.request(ctx, "POST", p.authURL+"/oauth/token", "", "", map[string]any{"client_id": clientID, "grant_type": "refresh_token", "refresh_token": p.state.RefreshToken, "scope": scope})
+	data, _, err := p.request(ctx, "POST", p.oauthURL+"/token", "", "", map[string]any{"client_id": clientID, "grant_type": "refresh_token", "refresh_token": p.state.RefreshToken, "scope": scope})
+	if api, ok := err.(*ProviderError); ok && (api.Status == 400 || api.Status == 401 || api.Status == 403) {
+		return &ProviderError{Code: "login_required", Status: api.Status, Message: "The Mozilla session expired. Sign in again with the browser."}
+	}
 	if err != nil {
 		return err
 	}
@@ -334,9 +341,9 @@ func (p *provider) account(ctx context.Context) (AccountInfo, error) {
 			n := number(max)
 			p.info.QuotaMax = &n
 		}
-	} else if api, ok := err.(*ProviderError); !ok || (api.Status != 401 && api.Status != 403) {
-		return AccountInfo{}, err
-	}
+	} else if ctx.Err() != nil {
+		return AccountInfo{}, ctx.Err()
+	} // A successful proxy pass already proves entitlement; optional status must not veto it.
 	return p.info, nil
 }
 func (p *provider) proxyPassLocked(ctx context.Context) (string, error) {
@@ -350,6 +357,13 @@ func (p *provider) proxyPassLocked(ctx context.Context) (string, error) {
 		return "", err
 	}
 	data, headers, err := p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/token", "", p.state.AccessToken, nil)
+	if api, ok := err.(*ProviderError); ok && (api.Status == 401 || api.Status == 403) && p.state.RefreshToken != "" {
+		p.state.ExpiresAt = 0
+		if refreshErr := p.ensureAuth(ctx); refreshErr != nil {
+			return "", refreshErr
+		}
+		data, headers, err = p.request(ctx, "GET", p.guardianURL+"/api/v1/fpn/token", "", p.state.AccessToken, nil)
+	}
 	if api, ok := err.(*ProviderError); ok && (api.Status == 401 || api.Status == 403) {
 		// Existing accounts may need Guardian activation even when status
 		// advertises limited bandwidth. Never reject before this official step.

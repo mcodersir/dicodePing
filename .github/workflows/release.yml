@@ -1,4 +1,4 @@
-name: Release 4.9.91 Stable
+name: Release 4.9.92 Stable
 permissions:
   actions: read
   contents: write
@@ -73,7 +73,7 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore and build the independent desktop client
-      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.91
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=4.9.92
     - name: Render desktop layout on Linux
       if: runner.os == 'Linux'
       run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -85,9 +85,15 @@ jobs:
         python scripts/check-pool-sources.py "$env:POOL_LIVE_FIXTURES"
         if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
         dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+    - name: Verify actual native Firefox WebChannel handoff
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
+        if ($LASTEXITCODE -ne 0) { throw 'Native browser sign-in handoff failed' }
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
-        true -p:Version=4.9.91 -o publish
+        true -p:Version=4.9.92 -o publish
     - name: Bundle verified Xray and Mihomo runtimes
       shell: pwsh
       run: |
@@ -161,7 +167,7 @@ jobs:
       run: |
         $versions = @{}
         $checks = @(
-          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.91' },
+          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.92' },
           @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.10.27' },
           @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.4.0' },
           @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = '1.19.33' }
@@ -182,7 +188,7 @@ jobs:
     - name: Publish independent CLI with verified runtimes
       shell: pwsh
       run: |
-        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.9.91 -o cli-publish
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=4.9.92 -o cli-publish
         if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
         Copy-Item publish/bin cli-publish/bin -Recurse -Force
         Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -216,8 +222,8 @@ jobs:
       shell: pwsh
       run: |
         choco install innosetup --no-progress --yes
-        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=4.9.91 .github\installer\DicodePing.iss
-        $installer = Get-Item dist\DicodePing-4.9.91-windows-x64-installer.exe
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=4.9.92 .github\installer\DicodePing.iss
+        $installer = Get-Item dist\DicodePing-4.9.92-windows-x64-installer.exe
         Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
     - uses: actions/upload-artifact@v7
       with:
@@ -250,7 +256,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.91.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.92.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -302,7 +308,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.91.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.92.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
     - name: Build signed installable APKs
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -315,8 +321,8 @@ jobs:
         echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
         export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.91
-        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.91
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.92
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.92
     - name: Stage APK and checksums
       run: |
         mkdir -p dist-android
@@ -345,10 +351,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "4.9.9"}
-          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.9"}
-          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.9"}
-          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.9"}
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "4.9.91"}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.91"}
           - {api: 35, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
     steps:
       - uses: actions/checkout@v7
@@ -382,7 +388,7 @@ jobs:
           target: ${{ matrix.target }}
           ram-size: 4096M
           disable-animations: true
-          script: python3 scripts/verify-android-installation.py --version 4.9.91 --code 45991000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-4.9.91-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.91-${{ matrix.alternate }}.apk
+          script: python3 scripts/verify-android-installation.py --version 4.9.92 --code 45992000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-4.9.92-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.92-${{ matrix.alternate }}.apk
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -438,14 +444,14 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         RELEASE_SHA: ${{ github.sha }}
       run: |
-        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.91 > tag-ref.json 2> tag-ref-error.txt; then
+        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.92 > tag-ref.json 2> tag-ref-error.txt; then
           existing=$(jq -r '.object.sha' tag-ref.json)
           if [ "$existing" != "$RELEASE_SHA" ]; then
             echo "Release tag points to another commit; refusing to replace it."
             exit 1
           fi
         elif jq -e '.status == "404" or .status == 404' tag-ref.json > /dev/null; then
-          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.91 -f sha="$RELEASE_SHA"
+          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.92 -f sha="$RELEASE_SHA"
         else
           cat tag-ref-error.txt
           exit 1
@@ -453,26 +459,26 @@ jobs:
     - uses: softprops/action-gh-release@v2
       id: draft_release
       with:
-        tag_name: v4.9.91
+        tag_name: v4.9.92
         target_commitish: ${{ github.sha }}
-        name: DicodePing 4.9.91 — Stable
+        name: DicodePing 4.9.92 — Stable
         draft: true
         prerelease: false
         make_latest: false
         generate_release_notes: false
-        body_path: docs/RELEASE-4.9.91.md
+        body_path: docs/RELEASE-4.9.92.md
         files: artifacts/*
     - name: Verify every uploaded package before publishing the stable release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
-        gh release download v4.9.91 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        gh release download v4.9.92 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
         python - <<'PYVERIFY'
         import json, pathlib, re
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
-        expected = {'DicodePing-4.9.91-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        expected = {'DicodePing-4.9.92-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
         assert len(expected) == 15 and len(assets) == 24 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
@@ -489,10 +495,10 @@ jobs:
 on:
   push:
     tags:
-    - v4.9.91
+    - v4.9.92
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish 4.9.91 after every build and native check succeeds
+        description: Publish 4.9.92 after every build and native check succeeds
         type: boolean
         default: false

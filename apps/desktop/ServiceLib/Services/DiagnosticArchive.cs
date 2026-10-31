@@ -8,14 +8,14 @@ public static class DiagnosticArchive
 {
     public static string Redact(string text)
     {
-        text = Regex.Replace(text, @"(?i)(""(?:access_token|refresh_token|session_token|password|token|authorization|private_key|privateKey|secret)""\s*:\s*)""(?:\\.|[^""\\])*""", "$1\"[redacted]\"", RegexOptions.None, TimeSpan.FromSeconds(1));
+        text = Regex.Replace(text, @"(?i)(""(?:access_token|refresh_token|session_token|sessionToken|authPW|password|token|authorization|private_key|privateKey|secret)""\s*:\s*)""(?:\\.|[^""\\])*""", "$1\"[redacted]\"", RegexOptions.None, TimeSpan.FromSeconds(1));
         foreach (var pattern in new[] {
             @"(?i)Bearer\s+[^\s""']+",
             @"(?i)(?:vless|vmess|trojan|ss|socks5?)://[^\s""']+",
             @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
             @"(?i)\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b" })
             text = Regex.Replace(text, pattern, "[redacted]", RegexOptions.None, TimeSpan.FromSeconds(1));
-        return Regex.Replace(text, "(?i)(\"?(?:access_token|refresh_token|session_token|password|token|authorization|private_key|privateKey|secret)\"?\\s*[:=]\\s*\"?)[^\"\\s,}]+", "$1[redacted]", RegexOptions.None, TimeSpan.FromSeconds(1));
+        return Regex.Replace(text, "(?i)(\"?(?:access_token|refresh_token|session_token|sessionToken|authPW|password|token|authorization|private_key|privateKey|secret)\"?\\s*[:=]\\s*\"?)[^\"\\s,}]+", "$1[redacted]", RegexOptions.None, TimeSpan.FromSeconds(1));
     }
 
     public static void Write(Stream output)

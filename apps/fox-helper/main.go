@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.9.91"
+const version = "4.9.92"
 
 type State struct {
 	Email              string `json:"email"`
@@ -32,6 +32,7 @@ type Request struct {
 	Email            string `json:"email,omitempty"`
 	Password         string `json:"password,omitempty"`
 	Code             string `json:"code,omitempty"`
+	SessionToken     string `json:"session_token,omitempty"`
 	Country          string `json:"country,omitempty"`
 	Listen           string `json:"listen,omitempty"`
 	State            State  `json:"state"`
@@ -111,6 +112,9 @@ func main() {
 	var result Response
 	var err error
 	operationTimeout := 90 * time.Second
+	if req.Operation == "browser_login" {
+		operationTimeout = 30 * time.Second
+	}
 	if req.Operation == "serve" {
 		operationTimeout = 35 * time.Second
 	}
@@ -124,6 +128,10 @@ func main() {
 		err = p.login(opctx, strings.TrimSpace(req.Email), req.Password)
 		req.Password = ""
 		result = Response{OK: err == nil, NeedsVerification: p.state.SessionToken != "", State: &p.state}
+	case "browser_login":
+		err = p.browserLogin(opctx, req.Email, req.SessionToken)
+		req.SessionToken = ""
+		result = Response{OK: err == nil, State: &p.state}
 	case "verify":
 		if len(req.Code) < 4 || len(req.Code) > 16 {
 			err = &ProviderError{Code: "input", Message: "Enter the verification code"}

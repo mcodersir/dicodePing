@@ -102,6 +102,13 @@ internal object FoxAccounts {
         if (!account.pending) refresh(context, account.id, true)
         return get(context, account.id)
     }
+    fun browserLogin(context: Context, email: String, session: String): FoxAccount {
+        val result = request(context, JSONObject().put("operation", "browser_login").put("email", email).put("session_token", session))
+        val account = list(context).firstOrNull { it.email.equals(email, true) } ?: FoxAccount(UUID.randomUUID().toString().replace("-", ""), "REC", JSONObject(), JSONObject())
+        account.state = result.getJSONObject("state"); save(context, account, create = true)
+        sync(context, account) // Quota metadata is fetched by connection/refresh, not a second login gate.
+        return account
+    }
     fun verify(context: Context, id: String, code: String): FoxAccount {
         val account = get(context, id)
         val result = request(context, JSONObject().put("operation", "verify").put("code", code.trim()).put("state", account.state))

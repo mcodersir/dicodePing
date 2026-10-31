@@ -38,6 +38,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     var expandedCountries by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }; var password by remember { mutableStateOf("") }; var code by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
+    var browserLogin by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
     val current = accounts.firstOrNull { it.id == selected }
     fun countryLabel(value: String) = if (value == "REC") context.getString(R.string.fox_recommended) else java.util.Locale("", value).getDisplayCountry(context.resources.configuration.locales[0]) + " · " + value
@@ -139,16 +140,14 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
                     }
                     if (signIn) {
-                    Text(if (fa) "۱ · حساب Mozilla بسازید و ایمیل را در سایت تأیید کنید. اگر حساب دارید، مستقیم وارد شوید." else "1 · Create a Mozilla account and verify your email on its website, or use an existing account.")
-                    OutlinedButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://accounts.firefox.com/signup"))) }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "باز کردن سایت ساخت حساب Mozilla" else "Open Mozilla account registration") }
-                    Text(if (fa) "۲ · ایمیل و رمز همان حساب را وارد کنید؛ رمز ذخیره نمی‌شود." else "2 · Enter your account email and password. Your password is not saved.")
-                    OutlinedTextField(email, { email = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_email)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                    OutlinedTextField(password, { password = it }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                    Button(onClick = { run { FoxAccounts.login(context, email, password).id } }, enabled = !busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_login)) }
+                        Text(if (fa) "با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید؛ کدهای تأیید را هم همان‌جا وارد کنید. ورود Google و Apple در این صفحه پشتیبانی نمی‌شود." else "Use your Firefox email and password on Mozilla’s official page. Complete verification there. Google and Apple sign-in are not supported here.")
+                        Button(onClick = { browserLogin = true }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)) {
+                            Text(if (fa) "ورود امن با مرورگر موزیلا" else "Sign in on Mozilla’s page")
+                        }
                     }
-                    if (pending && current != null) {
-                        OutlinedTextField(code, { code = it.take(16) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, autoCorrectEnabled = false), label = { Text(stringResource(R.string.fox_code)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                        Button(onClick = { run { FoxAccounts.verify(context, current.id, code).id.also { code = "" } } }, enabled = !busy && code.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_verify)) }
+                    if (pending) {
+                        Text(if (fa) "ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید." else "Complete the previous sign-in on Mozilla’s official page.")
+                        Button(onClick = { browserLogin = true }, enabled = !busy) { Text(if (fa) "ادامهٔ ورود با مرورگر" else "Continue in browser") }
                     }
                     if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     if (status.isNotBlank()) Text(status, color = MaterialTheme.colorScheme.primary)
@@ -165,4 +164,15 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
             }
         }
     }
+    if (browserLogin) FoxBrowserLogin(
+        onDismiss = { browserLogin = false },
+        onComplete = { id ->
+            scope.launch {
+                accounts = withContext(Dispatchers.IO) { FoxAccounts.list(context) }
+                selected = id; country = accounts.firstOrNull { it.id == id }?.country ?: "REC"
+                adding = false; browserLogin = false; onChanged(); status = verified
+            }
+        }
+    )
+
 }

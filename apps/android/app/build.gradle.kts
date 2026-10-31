@@ -16,8 +16,8 @@ android {
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
         // Monotonic shared version code permits switching architecture without a downgrade.
-        versionCode = 409910
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.91"
+        versionCode = 409920
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.92"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -180,6 +180,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.webkit:webkit:1.18.0")
     // Core Libraries
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
 
