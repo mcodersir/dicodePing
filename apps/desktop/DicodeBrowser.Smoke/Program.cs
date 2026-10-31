@@ -6,7 +6,11 @@ using NativeWebView.Core;
 using ServiceLib.Services;
 using System.Text.Json;
 
-AppBuilder.Configure<BrowserSmokeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+public static class Program
+{
+ [STAThread]
+ public static void Main(string[] args) => AppBuilder.Configure<BrowserSmokeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+}
 
 public sealed class BrowserSmokeApp : Application
 {
@@ -58,6 +62,6 @@ public sealed class BrowserSmokeApp : Application
   };
   var timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(45)};
   timer.Tick+=(_,_)=>Finish(4,"FAIL native browser handoff timed out");timer.Start();
-  window.Show();base.OnFrameworkInitializationCompleted();
+  base.OnFrameworkInitializationCompleted();
  }
 }

@@ -65,6 +65,8 @@ jobs:
         run: |
           dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
           if ($LASTEXITCODE -ne 0) { throw 'Desktop regression tests failed' }
+          dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Native browser sign-in handoff failed' }
           dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=4.9.92 -o isolated-publish
           if ($LASTEXITCODE -ne 0) { throw 'Desktop publish failed' }
           if (-not (Test-Path isolated-publish/DicodePing.exe)) { throw 'Desktop executable was not published' }
