@@ -5,10 +5,12 @@ import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.net.Uri
+import android.app.Activity
+import android.content.Intent
 import androidx.test.core.app.ActivityScenario
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import com.v2ray.ang.ui.main.MainActivity
 import org.json.JSONObject
 import org.junit.Assert.*
 import java.io.ByteArrayInputStream
@@ -22,13 +24,17 @@ internal object BrowserBridgeFixture {
   val latch=CountDownLatch(1);val pending=AtomicBoolean(false);val sessions=AtomicInteger(0)
   var failure:String?=null
   val nonce="android-native-fixture";val token="12".repeat(32)
-  ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+  // Exercise the native browser independently of the Compose dashboard. The
+  // dashboard has its own launch/navigation and signed-install smoke tests.
+  val instrumentation=InstrumentationRegistry.getInstrumentation()
+  val intent=Intent(instrumentation.context,BrowserFixtureActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+  ActivityScenario.launch<BrowserFixtureActivity>(intent).use { scenario ->
    var browser:WebView?=null
    scenario.onActivity { activity ->
     assertTrue("System WebView lacks origin-bound messaging",WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER))
     val view=WebView(activity);browser=view;activity.setContentView(view)
     view.settings.javaScriptEnabled=true;view.settings.domStorageEnabled=true
-    val script=activity.assets.open("fox-browser.js").bufferedReader().use{it.readText()}.replace("__DICODE_NONCE__",JSONObject.quote(nonce))
+    val script=instrumentation.targetContext.assets.open("fox-browser.js").bufferedReader().use{it.readText()}.replace("__DICODE_NONCE__",JSONObject.quote(nonce))
     WebViewCompat.addWebMessageListener(view,"dicodeFox",setOf("https://accounts.firefox.com")){_,message,origin,mainFrame,_->
      if(mainFrame && origin.scheme=="https" && origin.host=="accounts.firefox.com"){
       val data=JSONObject(message.data ?: "{}")
@@ -69,3 +75,5 @@ internal object BrowserBridgeFixture {
   }
  }
 }
+
+class BrowserFixtureActivity : Activity()
