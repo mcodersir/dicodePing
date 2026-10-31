@@ -22,6 +22,12 @@ const fs=require('fs');const{chromium}=require('playwright');
  if(messages.length!==1||messages[0].nonce!=='fixture-nonce'||messages[0].session_token!=='12'.repeat(32))throw Error('Verified handoff missing/duplicated');
  await page.evaluate(()=>window.__dicodeFoxRetry());await new Promise(r=>setTimeout(r,100));
  if(messages.length!==2)throw Error('Interactive retry is broken');
+ await page.evaluate(()=>{
+  window.__dicodeFoxWaiting();
+  document.dispatchEvent(new CustomEvent('WebChannelMessageToChrome',{bubbles:true,detail:JSON.stringify({id:'account_updates',message:{command:'fxaccounts:verified',data:{sessionToken:'34'.repeat(32)},messageId:'verified'}})}));
+ });await new Promise(r=>setTimeout(r,100));
+ if(messages.length!==3||messages[2].session_token!=='34'.repeat(32))throw Error('Rotated verification session was lost');
+
  const foreign=await context.newPage();let leaks=[];await foreign.exposeFunction('capture',v=>leaks.push(v));
  await foreign.addInitScript({content:"window.dicodeFox={postMessage:value=>window.capture(value)};\n"+source.replace('__DICODE_NONCE__',JSON.stringify('fixture-nonce'))});
  await foreign.route('https://foreign.invalid/**',r=>r.fulfill({status:200,contentType:'text/html',body:'<html><body>Foreign fixture</body></html>'}));await foreign.goto('https://foreign.invalid/');

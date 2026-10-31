@@ -31,7 +31,12 @@ function message(event){
    const value=String(d.sessionToken||d.token||'').trim();
    if(/^[a-f0-9]{64}$/i.test(value)){token=value;email=String(d.email||'').trim();if(d.verified!==false)sendSession();}
    if(m.messageId)reply(m.messageId,cmd,{ok:true});
-  }else if(typeof cmd==='string'&&cmd.includes('verified')){sendSession();}
+  }else if(typeof cmd==='string'&&cmd.includes('verified')){
+   const value=String(d.sessionToken||d.token||'').trim();
+   if(/^[a-f0-9]{64}$/i.test(value))token=value;
+   if(typeof d.email==='string'&&d.email.trim())email=d.email.trim();
+   sendSession();
+  }
  }catch(_){}
 }
 window.addEventListener('WebChannelMessageToChrome',message);
@@ -43,7 +48,7 @@ if(window.fetch){const old=window.fetch;window.fetch=function(...args){return ol
 const open=XMLHttpRequest.prototype.open,send=XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.open=function(method,url,...rest){this.__dicodeVerify=isVerify(url);return open.call(this,method,url,...rest);};
 XMLHttpRequest.prototype.send=function(...args){this.addEventListener('load',()=>{if(this.__dicodeVerify&&this.status>=200&&this.status<300)sendSession();});return send.apply(this,args);};
-function navigated(){if(/^\/(signin\/confirmed|connect_another_device|pair|settings|complete)(\/|$)/.test(location.pathname))sendSession();}
+function navigated(){if(/^\/(signin\/confirmed|signup\/confirmed|connect_another_device|pair|settings|complete)(_|\/|$)/.test(location.pathname))sendSession();}
 for(const name of ['pushState','replaceState']){const old=history[name];history[name]=function(...args){const r=old.apply(this,args);navigated();return r;};}
 window.addEventListener('popstate',navigated);window.addEventListener('hashchange',navigated);
 })();
