@@ -19,6 +19,10 @@ jobs:
           cache: false
       - run: go test -race -timeout 60s ./...
         working-directory: apps/fox-helper
+      - name: Keep Fox engine identical to 4.9.92
+        run: |
+          git fetch --depth 1 origin 0f9aedae0e44e828b1e5aab2ea30b7337bff812d
+          git diff --exit-code FETCH_HEAD -- apps/fox-helper
 
   desktop:
     runs-on: ubuntu-latest

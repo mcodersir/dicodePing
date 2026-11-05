@@ -7,8 +7,10 @@ parser.add_argument('--alternate',type=pathlib.Path)
 parser.add_argument('--version', default='4.9.2')
 parser.add_argument('--code', type=int, default=45920100)
 parser.add_argument('--baselines', nargs='*', default=['4.8.0','4.9.0','4.9.1','4.9.2'])
+parser.add_argument('--package', default='ir.dicode.ping.fdroid')
+parser.add_argument('--remote', action='store_true')
 args=parser.parse_args()
-root=pathlib.Path('install-check'); package='ir.dicode.ping.fdroid'; results=[]
+root=pathlib.Path('install-check'); root.mkdir(exist_ok=True); package=args.package; results=[]
 def adb(*args):
     r=subprocess.run(['adb',*args],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
     print('adb',' '.join(args),'exit',r.returncode,'\n'+r.stdout,flush=True)
@@ -49,6 +51,10 @@ try:
                 assert launch.returncode==0 and 'Status: ok' in launch.stdout,'Release activity could not start'
                 time.sleep(3)
                 assert adb('shell','pidof',package).returncode==0,'Release crashed after launch'
+                if args.remote:
+                    for key in ['KEYCODE_DPAD_DOWN', 'KEYCODE_DPAD_RIGHT', 'KEYCODE_DPAD_UP', 'KEYCODE_BACK']:
+                        assert adb('shell','input','keyevent',key).returncode==0
+                    assert adb('shell','pidof',package).returncode==0,'TV app crashed during remote navigation'
             adb('shell','am','force-stop',package)
     if args.alternate:
         r=adb('install','--no-streaming','-r',str(args.alternate))

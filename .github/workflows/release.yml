@@ -18,6 +18,10 @@ jobs:
         cache: false
     - run: go test -race ./...
       working-directory: apps/fox-helper
+    - name: Preserve original 4.9.92 Fox engine
+      run: |
+        git fetch --depth 1 origin 0f9aedae0e44e828b1e5aab2ea30b7337bff812d
+        git diff --exit-code FETCH_HEAD -- apps/fox-helper
   desktop:
     strategy:
       fail-fast: false
@@ -405,6 +409,39 @@ jobs:
           path: |
             install-check/installation-results.json
             install-check/package-manager-logcat.txt
+  tv-install:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 27
+      - uses: android-actions/setup-android@v4
+      - run: sudo chmod a+rw /dev/kvm
+      - name: Launch signed TV build on an Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: android-tv
+          ram-size: 4096M
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --version 4.9.98 --code 45998000 --baselines --candidate dist-android/DicodePing-4.9.98-tv-universal.apk
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tv-installation-evidence
+          path: install-check/
   publish:
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
     needs:
@@ -412,6 +449,7 @@ jobs:
     - desktop
     - android
     - install
+    - tv-install
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7

@@ -43,9 +43,27 @@ class FoxNativeTest {
         } finally { file.delete() }
     }
 
-    @Test fun removedEngineIsNotBundled() {
+    @Test fun independentSingBoxIsBundledAndExecutable() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        assertFalse(File(context.applicationInfo.nativeLibraryDir, "libsingbox.so").exists())
+        val executable = File(context.applicationInfo.nativeLibraryDir, "libsingbox.so")
+        assertTrue(executable.isFile)
+        val process = ProcessBuilder(executable.absolutePath, "version").redirectErrorStream(true).start()
+        try {
+            assertTrue(process.waitFor(15, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("1.15.0-alpha.13"))
+        } finally { if (process.isAlive) process.destroyForcibly() }
+    }
+
+    @Test fun independentSingBoxStartsAndStopsWithoutChangingFox() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val port = java.net.ServerSocket(0).use { it.localPort }
+        val config = SingBoxConfig.prepare("""{"outbounds":[{"type":"direct","tag":"direct"}]}""", port)
+        val helper = SingBoxProcess(context)
+        try { helper.start(config, port); assertTrue(helper.isAlive) }
+        finally { helper.close() }
+        assertFalse(helper.isAlive)
     }
 
     @Test fun helperRunsAndLoadsAndroidTrustStoreWithoutLeakingCredentials() {

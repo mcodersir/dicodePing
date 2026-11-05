@@ -678,13 +678,16 @@ public sealed class AppManager
 
     public ECoreType GetCoreType(ProfileItem? profileItem, EConfigType eConfigType)
     {
+        // Fox always keeps its original Xray bridge. The independently
+        // bundled sing-box engine is only selected for other profiles.
+        if (FoxProfiles.Read(profileItem) is not null) return ECoreType.Xray;
         if (profileItem?.CoreType != null)
         {
-            return profileItem.CoreType == ECoreType.sing_box && eConfigType != EConfigType.Custom ? ECoreType.Xray : (ECoreType)profileItem.CoreType;
+            return (ECoreType)profileItem.CoreType;
         }
 
         var item = _config.CoreTypeItem?.FirstOrDefault(it => it.ConfigType == eConfigType);
-        return item?.CoreType is null or ECoreType.sing_box ? ECoreType.Xray : item.CoreType;
+        return item?.CoreType ?? ECoreType.Xray;
     }
 
     #endregion Core Type
