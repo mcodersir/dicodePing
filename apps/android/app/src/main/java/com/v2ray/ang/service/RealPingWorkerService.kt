@@ -227,7 +227,8 @@ class RealPingWorkerService(
         // chains, remote DNS and slow handshakes before the actual core can try.
 
         return RealPingExecutionLimiter.run(config.configType) {
-            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
+            if (configResult.routedProbe) CoreNativeManager.measureRoutedDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
+            else CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
         }
     }
 
@@ -240,7 +241,8 @@ class RealPingWorkerService(
         RealPingExecutionLimiter.run(config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
                 job.ensureActive()
-                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
+                val delay = if (configResult.routedProbe) CoreNativeManager.measureRoutedDelay(configResult.content, service.url, batch)
+                    else CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
                 if (delay >= 0L) {
                     passed++
                 } else if (service.strict) {

@@ -87,6 +87,14 @@ object CoreNativeManager {
         }
     }
 
+    /** Run only in the test process, which does not own the active VPN. */
+    fun measureRoutedDelay(config: String, testUrl: String, batch: String): Long = try {
+        Libv2ray.measureRoutedDelayInBatch(batch, config, testUrl)
+    } catch (e: Exception) {
+        LogUtil.e(AppConfig.TAG, "Failed to measure routed profile", e)
+        -1L
+    }
+
     /**
      * End the measurements of a batch at once: the running ones return -1, and so do those that start later.
      *

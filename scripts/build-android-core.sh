@@ -8,6 +8,8 @@ test "$(git -C "$native_root" rev-parse HEAD)" = faad7a00ee2934ac101a677681523f6
 git -C "$native_root" apply --check "$project_root/scripts/patches/android-core-health.patch"
 git -C "$native_root" apply "$project_root/scripts/patches/android-core-health.patch"
 cp "$project_root/scripts/patches/libv2ray_dicode_health_test.go.txt" "$native_root/libv2ray_dicode_health_test.go"
+cp "$project_root/scripts/patches/libv2ray_dicode_routed.go.txt" "$native_root/libv2ray_dicode_routed.go"
+cp "$project_root/scripts/patches/libv2ray_dicode_routed_test.go.txt" "$native_root/libv2ray_dicode_routed_test.go"
 # The source-built AAR has no pre-generated Geo assets. Bundle the files
 # referenced by default/user routing in the APK; native Xray can read APK assets
 # directly, including before the UI has copied them into the user asset folder.

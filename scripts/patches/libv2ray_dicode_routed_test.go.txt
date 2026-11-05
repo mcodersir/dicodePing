@@ -1,0 +1,21 @@
+package libv2ray
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func TestRoutedDelayKeepsRouteWithBlockFirst(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(12 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	const config = `{"inbounds":[],"outbounds":[{"tag":"block","protocol":"blackhole"},{"tag":"selected","protocol":"freedom"}],"routing":{"rules":[{"type":"field","network":"tcp","outboundTag":"selected"}]}}`
+	delay, err := MeasureRoutedDelayInBatch("serverless-routed-fixture", config, server.URL)
+	if err != nil || delay <= 0 {
+		t.Fatalf("full routing probe did not reach the fixture: delay=%d err=%v", delay, err)
+	}
+}

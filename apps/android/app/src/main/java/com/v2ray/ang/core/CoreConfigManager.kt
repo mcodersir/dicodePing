@@ -195,6 +195,7 @@ object CoreConfigManager {
 
         val serverless = json.get("remarks")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
             ?.asString?.startsWith("Serverless-", ignoreCase = true) == true && json.has("dns") && json.has("routing")
+        result.routedProbe = serverless
         if (!serverless && result.singBoxContent == null) applyDomainFilterToCustomConfig(json)
 
         // Last, so that the entries for the Aether core go after everything else the app adds.

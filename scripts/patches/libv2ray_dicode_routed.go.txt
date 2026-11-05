@@ -1,0 +1,53 @@
+package libv2ray
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	core "github.com/xtls/xray-core/core"
+	coreserial "github.com/xtls/xray-core/infra/conf/serial"
+)
+
+// MeasureRoutedDelayInBatch measures a full routing profile in the Android
+// test process. The shared outbound probe deliberately discards DNS/routing
+// and forces the first outbound, which is a block for Serverless profiles.
+func MeasureRoutedDelayInBatch(batch, config, address string) (int64, error) {
+	ctx := acquireDelayBatch(batch)
+	defer releaseDelayBatch(batch)
+	ctx, cancel := context.WithTimeout(ctx, 16*time.Second)
+	defer cancel()
+	loaded, err := coreserial.LoadJSONConfig(strings.NewReader(config))
+	if err != nil {
+		return -1, err
+	}
+	// Only core.Dial may enter the probe: never open the imported listeners.
+	loaded.Inbound = nil
+	// Xray has process-wide dialer state. Wait for the shared test instance
+	// (including OpenExit users) to drain before starting a full instance.
+	for {
+		delayInstance.Lock()
+		if delayInstance.users == 0 {
+			break
+		}
+		delayInstance.Unlock()
+		select {
+		case <-ctx.Done():
+			return -1, ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+	defer delayInstance.Unlock()
+	if err := ctx.Err(); err != nil {
+		return -1, err
+	}
+	inst, err := core.New(loaded)
+	if err != nil {
+		return -1, err
+	}
+	defer inst.Close()
+	if err := inst.Start(); err != nil {
+		return -1, err
+	}
+	return measureInstDelay(ctx, inst, "", address)
+}
