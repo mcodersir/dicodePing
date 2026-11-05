@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const version = "4.9.93"
+const version = "4.9.94"
 
 type State struct {
 	Email              string `json:"email"`
@@ -49,6 +49,7 @@ type Response struct {
 	Locations         []Location   `json:"locations,omitempty"`
 	Country           string       `json:"country,omitempty"`
 	Listen            string       `json:"listen,omitempty"`
+	HTTPVersion       int          `json:"http_version,omitempty"`
 }
 type ProviderError struct {
 	Code    string
@@ -161,7 +162,7 @@ func main() {
 		listener, err = p.prepareRelay(opctx, req.Country, req.Listen)
 		if err == nil {
 			opcancel()
-			output(Response{OK: true, Event: "ready", State: &p.state, Account: &p.info, Country: p.selected.CountryCode, Listen: listener})
+			output(Response{OK: true, Event: "ready", State: &p.state, Account: &p.info, Country: p.selected.CountryCode, Listen: listener, HTTPVersion: p.engine.version})
 			p.onState = func(s State) { output(Response{OK: true, Event: "state", State: &s}) }
 			p.onAccount = func(info AccountInfo) { output(Response{OK: true, Event: "quota", Account: &info}) }
 			// Refresh allowance independently of the active stream. Network failures

@@ -357,7 +357,7 @@ public class CoreManager
     {
         if (_processService is { HasExited: false } && preContext != null)
         {
-            var preCoreType = preContext?.Node?.CoreType ?? ECoreType.sing_box;
+            var preCoreType = preContext.RunCoreType;
             var fileName = Utils.GetBinConfigPath(Global.CorePreConfigFileName);
             // Already generated and hashed with the main config under the lifecycle gate.
             if (File.Exists(fileName))

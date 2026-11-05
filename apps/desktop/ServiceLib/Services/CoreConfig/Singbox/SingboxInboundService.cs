@@ -2,6 +2,12 @@ namespace ServiceLib.Services.CoreConfig;
 
 public partial class CoreConfigSingboxService
 {
+    internal List<Inbound4Sbox> GenerateRuntimeInbounds()
+    {
+        GenInbounds();
+        return _coreConfig.inbounds;
+    }
+
     private void GenInbounds()
     {
         try

@@ -1,0 +1,22 @@
+{
+  "version": "v1.14.4",
+  "assets": {
+    "sing-box-1.14.4-darwin-amd64.tar.gz": {
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-darwin-amd64.tar.gz",
+      "sha256": "eae86b9b033bba50b7c44ab719e4bfac0aca05efd28483390ed3aa510f32db25"
+    },
+    "sing-box-1.14.4-darwin-arm64.tar.gz": {
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-darwin-arm64.tar.gz",
+      "sha256": "0d8c7f5ed5d587b0f1a5e9772a708ec3bfa4ac4c9329604b01d8d9c2ba406838"
+    },
+    "sing-box-1.14.4-linux-amd64.tar.gz": {
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-amd64.tar.gz",
+      "sha256": "699a1b510aa4396b2176d32d1181920399ebf1e267835da6f3b598d0f7c24968"
+    },
+    "sing-box-1.14.4-windows-amd64.zip": {
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-windows-amd64.zip",
+      "sha256": "99185d75d314a07dbba4a130c8ad986cbeb629a07927975636b341ca61f991df"
+    }
+  },
+  "android_source_commit": "c005f35300ce76427dc285481ec5695f5b179cd2"
+}

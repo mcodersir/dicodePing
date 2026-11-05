@@ -135,20 +135,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(countryLabel(country)) }
                         DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
                     }
-                    if (ready) current?.let { account ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            listOf(2, 3).forEach { version ->
-                                FilterChip(selected = account.httpVersion == version, enabled = !busy,
-                                    onClick = {
-                                        val updated = account.copy(httpVersion = version)
-                                        FoxAccounts.save(context, updated)
-                                        accounts = accounts.map { if (it.id == updated.id) updated else it }
-                                    },
-                                    label = { Text("HTTP/$version") })
-                            }
-                        }
-                        Text(if (fa) "تغییر پروتکل در اتصال بعدی اعمال می‌شود. HTTP/3 به UDP نیاز دارد؛ در صورت مسدودبودن آن، HTTP/2 را انتخاب کنید." else "Protocol changes apply on the next connection. HTTP/3 requires UDP; choose HTTP/2 if your network blocks it.")
-                    }
+
                     if (signIn) {
                         Text(if (fa) "با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید؛ کدهای تأیید را هم همان‌جا وارد کنید. ورود Google و Apple در این صفحه پشتیبانی نمی‌شود." else "Use your Firefox email and password on Mozilla’s official page. Complete verification there. Google and Apple sign-in are not supported here.")
                         Button(onClick = { browserLogin = true }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)) {

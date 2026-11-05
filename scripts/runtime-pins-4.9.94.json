@@ -1,0 +1,89 @@
+{
+  "xray": "v26.11.1",
+  "android": "v26.11.1",
+  "aether": "v2.4.0",
+  "assets": {
+    "Xray-linux-64.zip": "7f4410d6e17ce87acaf968c8a2b4d1ee6bfd2b387225834fc35d3105af9fa9f9",
+    "Xray-macos-64.zip": "450bdf781bcbb7b8ffa89e5145c98500c0481bcc93c2753393cdf3b03fb9a4d3",
+    "Xray-macos-arm64-v8a.zip": "ca5dc783f749597a88b2ab609f3a3c1e73b3c2318ef0e688ab2434a5d528dd88",
+    "Xray-windows-64.zip": "9f7cfd2f14a4974339de3e0a8fd23447e7bb8a0e04c2df10cd324d188947032c",
+    "aether-android-arm64.tar.gz": "02f1a1d673cf2f3e5592c90ce7ef4d6f03e218d41a333bdd175e0da92ce2073c",
+    "aether-android-armv7.tar.gz": "13a170d175eab5a64d69c6fa3c174430754f01171d616a00eba0b3598315da1d",
+    "aether-android-x86_64.tar.gz": "b8d18baf6b1efe120d04109f819d08ca822c1fafeb3d61297b0e035cf095ae07",
+    "aether-linux-x86_64.tar.gz": "975e4efd46613ad51b7c62b2f5a73fc34fd9661cc15ed273ab816341bfcc2fd1",
+    "aether-macos-arm64.tar.gz": "27e30c492d98a94a1c556dcd673412d0bc8fbbb7ae2b93d209ab8d8c8ba33ef6",
+    "aether-macos-x86_64.tar.gz": "a865832ed4d6a50e3e53f6157dd6219e33ac3e34e747a90a14f11f81be9a9da2",
+    "aether-windows-x86_64.zip": "21b1444628d37121e873878e2eddd7932215418af1a2a12470caee5809026f1a"
+  },
+  "fox": {
+    "version": "4.9.94",
+    "source": "apps/fox-helper",
+    "go": "1.27.3",
+    "protocol_reference": "FoxyVPN v2.0.0 / Vauth sing-box v1.0.0-masque",
+    "reference_commit": "9be46c8d5c37b5832a879ec78b2c8d75f3286c20",
+    "upgrade_status": "Embedded sing-box HTTP/2 + HTTP/3 QUIC relay; dynamic bearer rotation, uTLS for H2; local H2/H3 echo and no-fallback tests pass; platform CI pending"
+  },
+  "android_build": {
+    "source_commit": "faad7a00ee2934ac101a677681523f6375b27f86",
+    "health_patch_sha256": "f43e8c1b7e0937bc415f71173c3a0e3188ade34e0a78d33d545e19f00cbb838a",
+    "xray_commit": "9bcf269d4af6179bc83d10e1e7ef8739d5325559"
+  },
+  "hev": {
+    "version": "2.19.3",
+    "source_commit": "c5584feca8f6df70ee53eb2879e034b849a3d15a"
+  },
+  "android_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611031217/geoip.dat",
+      "sha256": "c29b34a9c1de35968286a47e540d534b3063e50b064a19073ac7d13cc21857e1"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611031217/geosite.dat",
+      "sha256": "a996f406d945d57bd079a6deceb12daa965e7ed2635437fe98d34f7055c41c87"
+    },
+    {
+      "name": "geoip-only-cn-private.dat",
+      "url": "https://github.com/Loyalsoldier/geoip/releases/download/202611050019/geoip-only-cn-private.dat",
+      "sha256": "597cddf20e767b9c581a299197d8bb59bee5298fae7fe35b9f65a8f1de105106"
+    }
+  ],
+  "mihomo": "v1.19.33",
+  "reference_sources": {
+    "android": {
+      "tag": "2.3.15-P71",
+      "commit": "e7a52cfc94389ca4ef1cb10e9595a9dba5cb0564"
+    },
+    "desktop": {
+      "tag": "7.25.6-P40",
+      "commit": "004a0b63cca463883f9b0a52dfbb469652c3b569"
+    }
+  },
+  "android_transport_sources": {
+    "lyrebird": {
+      "module": "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird",
+      "version": "v0.0.0-20261104192811-59ac7e400c38",
+      "commit": "59ac7e400c384773f5584dbe366516ad04a33d9f",
+      "zip_sha256": "78430c34574dc289bf19c22e5b2e855efe04808007ff1d7e537e2d2c1655357d",
+      "go": "go1.27.3"
+    },
+    "psiphon": {
+      "repository": "https://github.com/CluvexStudio/psiphon-tunnel-core.git",
+      "commit": "2956a96b56fe09b99e72a8eb4bed3e79d29e3543",
+      "go": "go1.26.10"
+    }
+  },
+  "desktop_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611042203/geoip.dat",
+      "sha256": "06c1d50d0013af57ffe78c5af93f0dc6aa998890f3ee231393816f9117810c4a"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611042203/geosite.dat",
+      "sha256": "916fea0cea925cc47f09001dfac652d5e8edb6db69ff13ad68e2b4ac9e8ecc1b"
+    }
+  ]
+}

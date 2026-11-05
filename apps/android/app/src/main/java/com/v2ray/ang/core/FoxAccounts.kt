@@ -219,7 +219,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     fun execute(request: JSONObject): JSONObject = launch(request).use { response(it) }
     fun start(id: String, country: String, port: Int, onExit: (() -> Unit)? = null) {
         val account = FoxAccounts.get(context, id)
-        val reader = launch(JSONObject().put("operation", "serve").put("http_version", account.httpVersion).put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
+        val reader = launch(JSONObject().put("operation", "serve").put("http_version", 0).put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
         val result = response(reader)
         FoxAccounts.updateSession(context, id, result.getJSONObject("state"), result.optJSONObject("account"))
         java.net.Socket().use { socket ->

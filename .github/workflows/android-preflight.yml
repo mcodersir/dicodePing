@@ -1,4 +1,4 @@
-name: Android 4.9.93 preflight
+name: Android 4.9.94 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -26,9 +26,10 @@ jobs:
         path: |
           apps/android/app/libs
           apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/singbox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
+        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.94.json', 'scripts/singbox-pins-4.9.94.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -71,6 +72,9 @@ jobs:
       run: bash scripts/build-android-core.sh
       env:
         ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+    - name: Build aligned standalone Android sing-box
+      if: steps.android-native.outputs.cache-hit != 'true'
+      run: python scripts/stage-singbox-android.py
     - name: Save verified Android native payloads
       if: steps.android-native.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
@@ -78,9 +82,10 @@ jobs:
         path: |
           apps/android/app/libs
           apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/singbox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
+        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.94.json', 'scripts/singbox-pins-4.9.94.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
     - name: Compile and test Android before release
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -88,7 +93,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin assembleTvDebug compileTvDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.93
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin assembleTvDebug compileTvDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.94
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -118,7 +123,7 @@ jobs:
         working-directory: apps/android
         script: |
           test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
-          ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.core.FoxNativeTest
+          ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.core.FoxNativeTest,com.v2ray.ang.core.SingBoxNativeTest
     - name: Preserve Android test diagnostics
       if: always()
       uses: actions/upload-artifact@v7
@@ -133,4 +138,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-4.9.93
+    - codex/release-4.9.94

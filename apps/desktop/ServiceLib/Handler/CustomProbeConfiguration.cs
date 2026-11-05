@@ -7,6 +7,19 @@ public static class CustomProbeConfiguration
     {
         if (core is not (ECoreType.Xray or ECoreType.sing_box)) throw new NotSupportedException("Custom probes require Xray or sing-box JSON");
         var root = JsonNode.Parse(content) as JsonObject ?? throw new InvalidOperationException("Invalid custom JSON");
+        if (core == ECoreType.Xray && CoreConfigHandler.IsServerless(root))
+        {
+            var source = (root["inbounds"] as JsonArray)?.OfType<JsonObject>()
+                .FirstOrDefault(i => i["protocol"]?.ToString() is "mixed" or "socks")
+                ?? throw new InvalidOperationException("Serverless profile has no local listener");
+            var listener = source.DeepClone().AsObject();
+            listener["listen"] = Global.Loopback;
+            listener["port"] = port;
+            root["inbounds"] = new JsonArray(listener);
+            root.Remove("api");
+            FakeDnsPolicy.Apply(root);
+            return root.ToJsonString();
+        }
         var outbounds = (root["outbounds"] as JsonArray)?.OfType<JsonObject>() ?? [];
         if (core == ECoreType.sing_box)
             outbounds = outbounds.Concat((root["endpoints"] as JsonArray)?.OfType<JsonObject>() ?? []);

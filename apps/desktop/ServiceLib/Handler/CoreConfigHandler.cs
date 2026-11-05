@@ -85,7 +85,35 @@ public static class CoreConfigHandler
             File.Copy(addressFileName, fileName);
             File.SetAttributes(fileName, FileAttributes.Normal); //Copy will keep the attributes of addressFileName, so we need to add write permissions to fileName just in case of addressFileName is a read-only file.
 
-            if (node.CoreType is null or ECoreType.Xray && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject root)
+            if (context.RunCoreType == ECoreType.sing_box)
+            {
+                var custom = JsonNode.Parse(await File.ReadAllTextAsync(fileName))!.AsObject();
+                var inbounds = custom["inbounds"] as JsonArray ?? new JsonArray();
+                var generated = new CoreConfigSingboxService(context).GenerateRuntimeInbounds();
+                var local = inbounds.OfType<JsonObject>().FirstOrDefault(i => i["type"]?.ToString() is "mixed" or "socks" or "http");
+                var mixed = JsonNode.Parse(JsonUtils.Serialize(generated.First(i => i.type == "mixed")))!.AsObject();
+                if (local is not null)
+                {
+                    mixed["tag"] = local["tag"]?.DeepClone() ?? JsonValue.Create("socks");
+                    inbounds.Remove(local);
+                }
+                inbounds.Insert(0, mixed);
+                if (!context.IsTunEnabled)
+                    foreach (var tun in inbounds.OfType<JsonObject>().Where(i => i["type"]?.ToString() == "tun").ToList()) inbounds.Remove(tun);
+                else if (!inbounds.OfType<JsonObject>().Any(i => i["type"]?.ToString() == "tun"))
+                    foreach (var tun in generated.Where(i => i.type == "tun")) inbounds.Add(JsonNode.Parse(JsonUtils.Serialize(tun)));
+                if (context.IsTunEnabled)
+                {
+                    var route = custom["route"] as JsonObject ?? new JsonObject();
+                    if (route["default_interface"] is null && route["auto_detect_interface"] is null)
+                        route["auto_detect_interface"] = true;
+                    custom["route"] = route;
+                }
+                custom["inbounds"] = inbounds;
+                custom.Remove("remarks");
+                await File.WriteAllTextAsync(fileName, custom.ToJsonString());
+            }
+            if (context.RunCoreType == ECoreType.Xray && JsonNode.Parse(await File.ReadAllTextAsync(fileName)) is JsonObject root)
             {
                 root.Remove("dicodeFox");
                 var generated = new CoreConfigV2rayService(context).GenerateRuntimeInbounds();
@@ -94,12 +122,19 @@ public static class CoreConfigHandler
                 var mixed = JsonNode.Parse(JsonUtils.Serialize(generated.First(i => i.protocol == "mixed")))!.AsObject();
                 if (local is not null) {
                     mixed["tag"] = local["tag"]?.DeepClone() ?? JsonValue.Create("socks");
+                    if (local["sniffing"] is JsonObject sniff) mixed["sniffing"] = sniff.DeepClone();
+                    if (local["streamSettings"] is JsonObject stream) mixed["streamSettings"] = stream.DeepClone();
                     inbounds.Remove(local);
                 }
                 inbounds.Insert(0, mixed);
                 foreach (var oldTun in inbounds.OfType<JsonObject>().Where(i => i["protocol"]?.ToString() == "tun").ToList()) inbounds.Remove(oldTun);
                 if (context.IsTunEnabled) {
-                    foreach (var tun in generated.Where(i => i.protocol == "tun")) inbounds.Add(JsonNode.Parse(JsonUtils.Serialize(tun)));
+                    foreach (var tun in generated.Where(i => i.protocol == "tun"))
+                    {
+                        var tunJson = JsonNode.Parse(JsonUtils.Serialize(tun))!.AsObject();
+                        if (local?["sniffing"] is JsonObject sniff) tunJson["sniffing"] = sniff.DeepClone();
+                        inbounds.Add(tunJson);
+                    }
                 }
                 root["inbounds"] = inbounds;
 
@@ -112,9 +147,10 @@ public static class CoreConfigHandler
                     system["statsOutboundUplink"] = true; system["statsOutboundDownlink"] = true;
                     policy["system"] = system; root["policy"] = policy;
                 }
+                FakeDnsPolicy.Apply(root);
                 await File.WriteAllTextAsync(fileName, root.ToJsonString());
+                if (!IsServerless(root)) ApplyDomainFilterToCustomConfig(config, fileName);
             }
-            ApplyDomainFilterToCustomConfig(config, fileName);
 
             //check again
             if (!File.Exists(fileName))
@@ -134,6 +170,10 @@ public static class CoreConfigHandler
             return ret;
         }
     }
+
+    public static bool IsServerless(JsonObject root) =>
+        root["remarks"]?.ToString().StartsWith("Serverless-", StringComparison.OrdinalIgnoreCase) == true
+        && root["dns"] is JsonObject && root["routing"] is JsonObject;
 
     private static void ApplyDomainFilterToCustomConfig(Config config, string fileName)
     {

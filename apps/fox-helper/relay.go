@@ -49,23 +49,18 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 			return "", ctx.Err()
 		}
 		p.selected = candidate
-		if p.useSingBox {
-			if p.engine != nil {
-				p.engine.Close()
-			}
-			p.engine, err = p.newSingRelay()
-			if err != nil {
-				return "", err
-			}
-		}
-		var e error
-		reached, e = p.probeRelay(ctx)
+		reached, err = p.probeLocation(ctx)
 		if reached {
 			break
 		}
 		var api *ProviderError
-		if errors.As(e, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required") {
+		if errors.As(err, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required" || api.Code == "rate_limited") {
+			p.closeRelays()
 			return "", api
+		}
+		if ctx.Err() != nil {
+			p.closeRelays()
+			return "", ctx.Err()
 		}
 		if country == "REC" && index == 0 {
 			// Catalog fallback is needed only when the recommended anycast route fails.
@@ -90,6 +85,52 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 		return "", &ProviderError{Code: "port_in_use", Message: "The Fox local SOCKS port is occupied. Stop the other proxy or use its SOCKS profile."}
 	}
 	return p.listener.Addr().String(), nil
+}
+
+// Auto tests HTTP/2 first (works on networks that block QUIC), then HTTP/3
+// on the same location. Only a validated transport becomes the active relay.
+func (p *provider) probeLocation(ctx context.Context) (bool, error) {
+	if !p.useSingBox {
+		return p.probeRelay(ctx)
+	}
+	return p.probeTransports(ctx, p.probeRelay)
+}
+
+func (p *provider) probeTransports(ctx context.Context, probe func(context.Context) (bool, error)) (bool, error) {
+	versions := []int{p.httpVersion}
+	if p.httpVersion == 0 {
+		versions = []int{2, 3}
+	}
+	var last error
+	for _, version := range versions {
+		if ctx.Err() != nil {
+			return false, ctx.Err()
+		}
+		if p.engine != nil {
+			p.engine.Close()
+			p.engine = nil
+		}
+		engine, err := p.newSingRelayVersion(version)
+		if err != nil {
+			last = err
+			continue
+		}
+		p.engine = engine
+		attempt, cancel := context.WithTimeout(ctx, 8*time.Second)
+		ok, err := probe(attempt)
+		cancel()
+		if ok {
+			return true, nil
+		}
+		p.engine.Close()
+		p.engine = nil
+		last = err
+		var api *ProviderError
+		if errors.As(err, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required" || api.Code == "rate_limited") {
+			return false, err
+		}
+	}
+	return false, last
 }
 
 // Validate a real HTTPS response through CONNECT. A single blocked probe host
@@ -122,7 +163,7 @@ func (p *provider) probeRelay(ctx context.Context) (bool, error) {
 		}
 		last = err
 		var api *ProviderError
-		if errors.As(err, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required") {
+		if errors.As(err, &api) && (api.Code == "quota_exceeded" || api.Code == "login_required" || api.Code == "rate_limited") {
 			return false, api
 		}
 		if ctx.Err() != nil {

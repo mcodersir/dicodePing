@@ -19,7 +19,8 @@ import (
 // Each helper process owns one account. Bearer rotation updates new CONNECT
 // requests without closing transports carrying established application streams.
 type singRelay struct {
-	client *singHTTP.Client
+	client  *singHTTP.Client
+	version int
 }
 
 type singUplink struct{ p *provider }
@@ -55,6 +56,10 @@ func (d singUplink) ListenPacket(ctx context.Context, destination M.Socksaddr) (
 }
 
 func (p *provider) newSingRelay() (*singRelay, error) {
+	return p.newSingRelayVersion(p.httpVersion)
+}
+
+func (p *provider) newSingRelayVersion(version int) (*singRelay, error) {
 	singHTTP.SetDynamicBearerToken(p.pass)
 	enabled := true
 	bearer, err := singHTTP.AcquireBearerTokenProvider(nil, &enabled)
@@ -69,7 +74,6 @@ func (p *provider) newSingRelay() (*singRelay, error) {
 	if p.rootPEM != "" {
 		tls.Certificate = []string{p.rootPEM}
 	}
-	version := p.httpVersion
 	if version == 0 {
 		version = 2
 	}
@@ -87,7 +91,7 @@ func (p *provider) newSingRelay() (*singRelay, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &singRelay{client: client}, nil
+	return &singRelay{client: client, version: version}, nil
 }
 
 func (r *singRelay) Close() {

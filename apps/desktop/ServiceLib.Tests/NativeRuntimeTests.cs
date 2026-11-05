@@ -132,6 +132,9 @@ public class NativeRuntimeTests
     [InlineData(ECoreType.Xray, "entry")]
     [InlineData(ECoreType.Xray, "sni")]
     [InlineData(ECoreType.Xray, "custom")]
+    [InlineData(ECoreType.sing_box, "probe")]
+    [InlineData(ECoreType.sing_box, "normal")]
+    [InlineData(ECoreType.sing_box, "tun")]
     public async Task BundledRuntimeAcceptsGeneratedConfiguration(ECoreType core, string mode)
     {
         var root = Environment.GetEnvironmentVariable("DICODE_RUNTIME_TEST_ROOT");

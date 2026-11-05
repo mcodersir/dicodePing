@@ -680,11 +680,11 @@ public sealed class AppManager
     {
         if (profileItem?.CoreType != null)
         {
-            return profileItem.CoreType == ECoreType.sing_box && eConfigType != EConfigType.Custom ? ECoreType.Xray : (ECoreType)profileItem.CoreType;
+            return (ECoreType)profileItem.CoreType;
         }
 
         var item = _config.CoreTypeItem?.FirstOrDefault(it => it.ConfigType == eConfigType);
-        return item?.CoreType is null or ECoreType.sing_box ? ECoreType.Xray : item.CoreType;
+        return item?.CoreType ?? ECoreType.Xray;
     }
 
     #endregion Core Type
