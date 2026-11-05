@@ -356,6 +356,7 @@ jobs:
           - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
           - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.91"}
           - {api: 35, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
+          - {api: 35, apkAbi: universal, alternate: arm64-v8a, target: default, baseline: "", edition: "TV-", package: "ir.dicode.ping.tv", code: 4409930}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -388,7 +389,7 @@ jobs:
           target: ${{ matrix.target }}
           ram-size: 4096M
           disable-animations: true
-          script: python3 scripts/verify-android-installation.py --version 4.9.93 --code 45993000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-4.9.93-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.93-${{ matrix.alternate }}.apk
+          script: python3 scripts/verify-android-installation.py --version 4.9.93 --package ${{ matrix.package || 'ir.dicode.ping.fdroid' }} --code ${{ matrix.code || 45993000 }} --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-${{ matrix.edition }}4.9.93-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-${{ matrix.edition }}4.9.93-${{ matrix.alternate }}.apk
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7

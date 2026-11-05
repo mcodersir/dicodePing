@@ -37,7 +37,7 @@
 | [2dust/v2rayNG #6404](https://github.com/2dust/v2rayNG/issues/6404) | UI change proposal, about the Subscription info panel | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [2dust/v2rayNG #6403](https://github.com/2dust/v2rayNG/issues/6403) | [Feature Request] Support Multiple Parallel Tunnels with Load Balancing | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [2dust/v2rayNG #6397](https://github.com/2dust/v2rayNG/issues/6397) | [Feature Request] 希望支持将策略组固定在节点列表顶部（置顶显示） | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
-| [2dust/v2rayNG #6392](https://github.com/2dust/v2rayNG/issues/6392) | 链式代理，落地机使用socks5和ss时，能测试通延迟，但是无法访问任何网站 | باز است: مشکل SOCKS/SS این گزارش روی دستگاه بازتولید نشده. اصلاح زنجیرهٔ XHTTP و رد گام نامعتبر جای تأیید این سناریو را نمی‌گیرد. |
+| [2dust/v2rayNG #6392](https://github.com/2dust/v2rayNG/issues/6392) | 链式代理，落地机使用socks5和ss时，能测试通延迟，但是无法访问任何网站 | تست زندهٔ کانفیگ تولیدشدهٔ دسکتاپ برای SOCKS→SOCKS و SOCKS→SS با HTTP واقعی و شمارندهٔ هر دو گام موفق شد. سناریوی اختصاصی اندروید و شبکهٔ گزارش‌دهنده هنوز تأیید نشده. |
 | [2dust/v2rayNG #6389](https://github.com/2dust/v2rayNG/issues/6389) | 链式代理输入部分节点名称不出现候选节点 | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [2dust/v2rayNG #6388](https://github.com/2dust/v2rayNG/issues/6388) | Setting to strip "inbound" for custom JSON | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [2dust/v2rayNG #6386](https://github.com/2dust/v2rayNG/issues/6386) | trojan://5f4988cb-ef48-4a29-a7e4-bdfde510918b@id-msa2.feristore.my.id:443?mode=gun&security=tls&type=grpc&serviceName=trojan&sni=id-msa2.feristore.my.id#aldo782 | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |

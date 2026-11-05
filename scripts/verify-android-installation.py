@@ -6,9 +6,10 @@ parser.add_argument('--candidate',type=pathlib.Path)
 parser.add_argument('--alternate',type=pathlib.Path)
 parser.add_argument('--version', default='4.9.2')
 parser.add_argument('--code', type=int, default=45920100)
+parser.add_argument('--package', default='ir.dicode.ping.fdroid')
 parser.add_argument('--baselines', nargs='*', default=['4.8.0','4.9.0','4.9.1','4.9.2'])
 args=parser.parse_args()
-root=pathlib.Path('install-check'); package='ir.dicode.ping.fdroid'; results=[]
+root=pathlib.Path('install-check'); package=args.package; results=[]
 def adb(*args):
     r=subprocess.run(['adb',*args],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
     print('adb',' '.join(args),'exit',r.returncode,'\n'+r.stdout,flush=True)
