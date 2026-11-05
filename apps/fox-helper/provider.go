@@ -53,10 +53,11 @@ type Location struct {
 	Port        int    `json:"port"`
 }
 type provider struct {
-	roots      *x509.CertPool
-	rootPEM    string
-	engine     *singRelay
-	useSingBox bool
+	roots       *x509.CertPool
+	rootPEM     string
+	engine      *singRelay
+	useSingBox  bool
+	httpVersion int
 
 	state                             State
 	client                            *http.Client

@@ -5,7 +5,7 @@
 | گزارش | عنوان | وضعیت در این تغییر |
 | --- | --- | --- |
 | [Vauth/FoxyVPN #69](https://github.com/Vauth/FoxyVPN/issues/69) | `vpn.mozilla.org` DNS lookup does not go through DoH | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
-| [Vauth/FoxyVPN #68](https://github.com/Vauth/FoxyVPN/issues/68) | Not HTTP/3 | باز است: Fox فعلی H2 دارد؛ HTTP/3 و TFO به‌عنوان قابلیت انجام‌شده ادعا نمی‌شوند. |
+| [Vauth/FoxyVPN #68](https://github.com/Vauth/FoxyVPN/issues/68) | Not HTTP/3 | HTTP/3 واقعی در تست محلی QUIC همراه TCP trap تأیید شد؛ آزمون دستگاه و شبکهٔ اپراتور باقی است. |
 | [Vauth/FoxyVPN #66](https://github.com/Vauth/FoxyVPN/issues/66) | TFO | باز است: Fox فعلی H2 دارد؛ HTTP/3 و TFO به‌عنوان قابلیت انجام‌شده ادعا نمی‌شوند. |
 | [Vauth/FoxyVPN #64](https://github.com/Vauth/FoxyVPN/issues/64) | [Feature Request] Make IPv4/IPv6 preference apply only to Fastly edge nodes (not globally) | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [Vauth/FoxyVPN #63](https://github.com/Vauth/FoxyVPN/issues/63) | local lan connection not working | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
@@ -14,7 +14,7 @@
 | [Vauth/FoxyVPN #32](https://github.com/Vauth/FoxyVPN/issues/32) | [Feature Request] Built-in scanner for Custom Edge IPs | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattNG #54](https://github.com/patterniha/PattNG/issues/54) | آپدیت نشدن لینک ساب | خطای گزارش به زنجیرهٔ اعتماد گواهی مربوط است؛ TLS verification غیرفعال نشده. اصلاح اختصاصی تأیید نشده. |
 | [patterniha/PattNG #51](https://github.com/patterniha/PattNG/issues/51) | [FR] Auto check after connect | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
-| [patterniha/PattNG #47](https://github.com/patterniha/PattNG/issues/47) | Feature request: Allow the Connect button to be activated with an Android TV remote | باز است: نسخهٔ TV و تست D-pad اختصاصی تکمیل نشده‌اند. |
+| [patterniha/PattNG #47](https://github.com/patterniha/PattNG/issues/47) | Feature request: Allow the Connect button to be activated with an Android TV remote | نسخهٔ TV و تست D-pad اختصاصی اضافه شدند؛ اجرای تست در CI در انتظار است. |
 | [patterniha/PattNG #46](https://github.com/patterniha/PattNG/issues/46) | [Feature Request] Support XDRIVE transport in UI forms and VLESS share links | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattNG #45](https://github.com/patterniha/PattNG/issues/45) | PattNG+Aether on PC+Android(New Method) | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattN #41](https://github.com/patterniha/PattN/issues/41) | [Bug]: Real Delay results are not persisted after app restart - نتایج Real Delay بعد از بستن برنامه پاک می‌شود | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |

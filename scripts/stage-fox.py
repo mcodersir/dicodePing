@@ -22,7 +22,7 @@ def build(goos, arch, output, android=False):
         cc = ndk / 'toolchains/llvm/prebuilt' / host / 'bin' / (triple + '29-clang')
         assert cc.is_file(), 'Pinned Android NDK 29 is required'; env['CC'] = str(cc)
     output = output.resolve(); output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([go, 'build', '-tags=with_utls,badlinkname', '-trimpath', '-ldflags=-s -w -buildid= -checklinkname=0', *extra, '-o', str(output), '.'], cwd=ROOT/'apps/fox-helper', env=env, check=True)
+    subprocess.run([go, 'build', '-tags=with_utls,with_quic,badlinkname', '-trimpath', '-ldflags=-s -w -buildid= -checklinkname=0', *extra, '-o', str(output), '.'], cwd=ROOT/'apps/fox-helper', env=env, check=True)
     output.chmod(0o755)
     versions[str(output.relative_to(args.output.resolve()))] = {'version':'4.9.93', 'go':'1.27.3', 'sha256':hashlib.sha256(output.read_bytes()).hexdigest()}
 if args.android:

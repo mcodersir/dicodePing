@@ -29,10 +29,10 @@ import java.net.InetSocketAddress
 import kotlin.concurrent.thread
 
 internal class FoxError(val code: String, message: String) : Exception(message)
-internal data class FoxAccount(val id: String, var country: String, var state: JSONObject, var info: JSONObject) {
+internal data class FoxAccount(val id: String, var country: String, var state: JSONObject, var info: JSONObject, var httpVersion: Int = 2) {
     val email: String get() = state.optString("email")
     val pending: Boolean get() = state.optString("session_token").isNotBlank()
-    fun json() = JSONObject().put("id", id).put("country", country).put("state", state).put("info", info)
+    fun json() = JSONObject().put("id", id).put("country", country).put("state", state).put("info", info).put("http_version", httpVersion)
 }
 internal data class FoxProfile(val accountId: String, val country: String)
 internal object FoxAccounts {
@@ -62,7 +62,7 @@ internal object FoxAccounts {
         val clear = cipher.doFinal(encrypted.copyOfRange(12, encrypted.size))
         try {
             val array = JSONArray(clear.toString(Charsets.UTF_8))
-            return (0 until array.length()).map { val item = array.getJSONObject(it); FoxAccount(item.getString("id"), item.optString("country", "REC"), item.getJSONObject("state"), item.optJSONObject("info") ?: JSONObject()) }
+            return (0 until array.length()).map { val item = array.getJSONObject(it); FoxAccount(item.getString("id"), item.optString("country", "REC"), item.getJSONObject("state"), item.optJSONObject("info") ?: JSONObject(), item.optInt("http_version", 2).takeIf { it == 3 } ?: 2) }
         } finally { clear.fill(0) }
     }
     private fun write(context: Context, all: List<FoxAccount>) {
@@ -219,7 +219,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     fun execute(request: JSONObject): JSONObject = launch(request).use { response(it) }
     fun start(id: String, country: String, port: Int, onExit: (() -> Unit)? = null) {
         val account = FoxAccounts.get(context, id)
-        val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
+        val reader = launch(JSONObject().put("operation", "serve").put("http_version", account.httpVersion).put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
         val result = response(reader)
         FoxAccounts.updateSession(context, id, result.getJSONObject("state"), result.optJSONObject("account"))
         java.net.Socket().use { socket ->

@@ -25,6 +25,7 @@ type State struct {
 	VerificationMethod string `json:"verification_method,omitempty"`
 }
 type Request struct {
+	HTTPVersion      int    `json:"http_version,omitempty"`
 	TLSFragmentation string `json:"tls_fragmentation,omitempty"`
 	BindInterface    string `json:"bind_interface,omitempty"`
 	Roots            string `json:"ca_bundle,omitempty"`
@@ -95,6 +96,11 @@ func main() {
 	// Both desktop and Android execute this helper. The production transport
 	// uses the pinned FoxyVPN 2 sing-box fork; legacy fixtures remain available.
 	p.useSingBox = true
+	if req.HTTPVersion != 0 && req.HTTPVersion != 2 && req.HTTPVersion != 3 {
+		output(Response{Error: "input", Message: "Fox supports HTTP/2 or HTTP/3"})
+		os.Exit(2)
+	}
+	p.httpVersion = req.HTTPVersion
 	if req.TLSFragmentation != "" {
 		switch req.TLSFragmentation {
 		case "sni", "first_byte", "off":

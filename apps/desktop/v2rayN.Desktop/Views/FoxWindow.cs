@@ -52,6 +52,7 @@ public sealed class FoxWindow : Window
         var accounts = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
+        var httpVersion = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "HTTP/2", "HTTP/3 (QUIC)" }, SelectedIndex = 0 };
         country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -72,7 +73,9 @@ public sealed class FoxWindow : Window
         var verificationPanel = new StackPanel { Spacing = 12, Children = { new TextBlock { Text = FoxUi.T("ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap } } };
         var reauthenticate = new Button { Content = FoxUi.T("ورود مجدد به حساب", "Sign in again"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
-            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, reauthenticate, remove } };
+            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country,
+            httpVersion, new TextBlock { Text = FoxUi.T("HTTP/3 به UDP نیاز دارد؛ اگر شبکه آن را مسدود کرده، HTTP/2 را انتخاب کنید.", "HTTP/3 requires UDP. Choose HTTP/2 if your network blocks it."), TextWrapping = TextWrapping.Wrap },
+            copyProxy, refresh, reauthenticate, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
         var adding = false; bool busy = false;
@@ -97,7 +100,7 @@ public sealed class FoxWindow : Window
         async Task Load(string? id = null) {
             var saved = await FoxAccounts.ListAsync(); accounts.ItemsSource = saved; accounts.SelectedItem = saved.FirstOrDefault(a => a.Id == id) ?? saved.FirstOrDefault();
         }
-        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); country.SelectedItem = account.Country; } Render(); }
+        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); country.SelectedItem = account.Country; httpVersion.SelectedIndex = account.HttpVersion == 3 ? 1 : 0; } Render(); }
         accounts.SelectionChanged += (_, _) => { adding = false; Selection(); };
         add.Click += (_, _) => { adding = true; status.Text = ""; Render(); };
         back.Click += (_, _) => { adding = false; Render(); };
@@ -128,13 +131,13 @@ public sealed class FoxWindow : Window
         reauthenticate.Click += async (_, _) => await SignIn();
         refresh.Click += async (_, _) => await Run(async () => {
             if (accounts.SelectedItem is not FoxAccount account) return;
-            account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account);
+            account.Country = country.SelectedItem?.ToString() ?? "REC"; account.HttpVersion = httpVersion.SelectedIndex == 1 ? 3 : 2; await FoxAccounts.SaveAsync(account);
             await FoxAccounts.RefreshAsync(account.Id, true, cts.Token); await Load(account.Id); await RefreshViews(); status.Text = FoxUi.T("سهمیه و ساب تازه شدند؛ یک سرور برای این حساب باقی می‌ماند.", "Allowance and subscription refreshed; this account retains one profile.");
         });
         connect.Click += async (_, _) => await Run(async () => {
             var requestVersion = main.ProfilesViewModel.ConnectionRequestVersion;
             if (accounts.SelectedItem is not FoxAccount account || account.Pending) throw new FoxException("login_required", "Complete account sign-in first");
-            account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account); await FoxProfiles.SyncAsync(account); await RefreshViews();
+            account.Country = country.SelectedItem?.ToString() ?? "REC"; account.HttpVersion = httpVersion.SelectedIndex == 1 ? 3 : 2; await FoxAccounts.SaveAsync(account); await FoxProfiles.SyncAsync(account); await RefreshViews();
             var sub = (await AppManager.Instance.SubItems()).First(s => s.Url == "dicode-fox://" + account.Id); var node = (await AppManager.Instance.ProfileItems(sub.Id)).Single();
             await main.ConnectPoolProfileAsync(node.IndexId, cts.Token, requestVersion);
             status.Text = CoreManager.Instance.IsRunning ? FoxUi.T("روباه فعال شد؛ جزئیات و ترافیک در خانه دیده می‌شوند.", "Fox is active; connection details and traffic are shown on Home.") : FoxUi.T("اتصال برقرار نشد؛ گزارش را بررسی کنید.", "Connection did not start; check the log.");

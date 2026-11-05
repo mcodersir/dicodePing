@@ -21,7 +21,7 @@
     "go": "1.27.3",
     "protocol_reference": "FoxyVPN v2.0.0 / Vauth sing-box v1.0.0-masque",
     "reference_commit": "9be46c8d5c37b5832a879ec78b2c8d75f3286c20",
-    "upgrade_status": "Embedded sing-box HTTP/2 relay with uTLS and dynamic bearer rotation; HTTP/3 pending protected UDP uplink"
+    "upgrade_status": "Embedded sing-box HTTP/2 + HTTP/3 QUIC relay; dynamic bearer rotation, uTLS for H2; local H2/H3 echo and no-fallback tests pass; platform CI pending"
   },
   "android_build": {
     "source_commit": "faad7a00ee2934ac101a677681523f6375b27f86",

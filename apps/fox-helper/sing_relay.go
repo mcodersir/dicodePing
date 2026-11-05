@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	singHTTP "github.com/sagernet/sing-box/transport/http"
+	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 )
 
@@ -70,9 +71,21 @@ func (p *provider) newSingRelay() (*singRelay, error) {
 	if p.rootPEM != "" {
 		tls.Certificate = []string{p.rootPEM}
 	}
+	version := p.httpVersion
+	if version == 0 {
+		version = 2
+	}
+	if version == 3 {
+		// QUIC uses Go TLS, not the TCP uTLS handshake adapter. Keeping
+		// uTLS enabled here makes every H3 connection fail before sending UDP.
+		tls.UTLS = nil
+		tls.RecordFragment = false
+	}
 	client, err := singHTTP.NewClientWithTLS(context.Background(), log.NewNOPFactory().Logger(), singUplink{p},
 		option.ServerOptions{Server: p.selected.Host, ServerPort: uint16(p.selected.Port)}, tls,
-		singHTTP.ClientOptions{Version: 2, DisableVersionFallback: true, BearerToken: bearer, Headers: http.Header{"User-Agent": []string{userAgent}}})
+		singHTTP.ClientOptions{Version: version, DisableVersionFallback: true, BearerToken: bearer,
+			HTTP2Options: option.HTTP2Options{IdleTimeout: badoption.Duration(30 * time.Second), KeepAlivePeriod: badoption.Duration(15 * time.Second)},
+			Headers:      http.Header{"User-Agent": []string{userAgent}}})
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +105,7 @@ func (p *provider) openSingTunnel(ctx context.Context, authority string) (net.Co
 	if err != nil {
 		return nil, err
 	}
-	singHTTP.SetDynamicBearerToken(pass)
+	p.syncSingToken()
 	conn, err := p.engine.client.DialContext(ctx, "tcp", M.ParseSocksaddr(authority))
 	if err == nil {
 		return conn, nil
@@ -115,14 +128,20 @@ func (p *provider) openSingTunnel(ctx context.Context, authority string) (net.Co
 			return nil, err
 		}
 	}
-	pass, err = p.proxyPass(ctx)
+	_, err = p.proxyPass(ctx)
 	if err != nil {
 		return nil, err
 	}
-	singHTTP.SetDynamicBearerToken(pass)
+	p.syncSingToken()
 	conn, err = p.engine.client.DialContext(ctx, "tcp", M.ParseSocksaddr(authority))
 	if err != nil && (strings.Contains(err.Error(), "authentication required") || strings.Contains(err.Error(), "401 Unauthorized")) {
 		return nil, &ProviderError{Code: "login_required", Message: "The proxy pass was rejected; sign in again"}
 	}
 	return conn, err
+}
+
+func (p *provider) syncSingToken() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	singHTTP.SetDynamicBearerToken(p.pass)
 }

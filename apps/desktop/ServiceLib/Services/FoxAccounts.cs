@@ -10,6 +10,7 @@ public sealed class FoxAccount
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Country { get; set; } = "REC";
+    public int HttpVersion { get; set; } = 2;
     public JsonObject State { get; set; } = new();
     public JsonObject Info { get; set; } = new();
     public string Email => State["email"]?.ToString() ?? "";
@@ -147,7 +148,7 @@ public static class FoxAccounts
     {
         var account = await GetAsync(id); var process = Helper();
         try {
-            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["bind_interface"] = bindInterface.NullIfEmpty() ?? PhysicalUplink.Find(), ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
+            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["http_version"] = account.HttpVersion, ["bind_interface"] = bindInterface.NullIfEmpty() ?? PhysicalUplink.Find(), ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
                 if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { await UpdateSessionAsync(id, state); }
                 if (message["event"]?.ToString() == "quota" && message["account"] is JsonObject info) await UpdateQuotaAsync(id, info);
             }, token);

@@ -80,6 +80,7 @@ public class Release491Tests
                     await stream.WriteAsync(Encoding.UTF8.GetBytes(response), stop.Token);
                 }
             } catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            catch (SocketException e) when (stop.IsCancellationRequested && e.SocketErrorCode is SocketError.OperationAborted or SocketError.Interrupted) { }
         });
         try {
             var proxy = new WebProxy($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}");
