@@ -143,7 +143,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                                     label = { Text("HTTP/$version") })
                             }
                         }
-                        Text(if (fa) "HTTP/3 به UDP نیاز دارد؛ اگر شبکه آن را مسدود کرده، HTTP/2 را انتخاب کنید." else "HTTP/3 requires UDP. Choose HTTP/2 if your network blocks it.")
+                        Text(if (fa) "تغییر پروتکل در اتصال بعدی اعمال می‌شود. HTTP/3 به UDP نیاز دارد؛ در صورت مسدودبودن آن، HTTP/2 را انتخاب کنید." else "Protocol changes apply on the next connection. HTTP/3 requires UDP; choose HTTP/2 if your network blocks it.")
                     }
                     if (signIn) {
                         Text(if (fa) "با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید؛ کدهای تأیید را هم همان‌جا وارد کنید. ورود Google و Apple در این صفحه پشتیبانی نمی‌شود." else "Use your Firefox email and password on Mozilla’s official page. Complete verification there. Google and Apple sign-in are not supported here.")

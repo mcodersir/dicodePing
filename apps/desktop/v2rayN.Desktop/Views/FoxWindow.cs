@@ -74,7 +74,7 @@ public sealed class FoxWindow : Window
         var reauthenticate = new Button { Content = FoxUi.T("ورود مجدد به حساب", "Sign in again"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
             quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country,
-            httpVersion, new TextBlock { Text = FoxUi.T("HTTP/3 به UDP نیاز دارد؛ اگر شبکه آن را مسدود کرده، HTTP/2 را انتخاب کنید.", "HTTP/3 requires UDP. Choose HTTP/2 if your network blocks it."), TextWrapping = TextWrapping.Wrap },
+            httpVersion, new TextBlock { Text = FoxUi.T("تغییر پروتکل در اتصال بعدی اعمال می‌شود. HTTP/3 به UDP نیاز دارد؛ در صورت مسدودبودن آن، HTTP/2 را انتخاب کنید.", "Protocol changes apply on the next connection. HTTP/3 requires UDP; choose HTTP/2 if your network blocks it."), TextWrapping = TextWrapping.Wrap },
             copyProxy, refresh, reauthenticate, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
