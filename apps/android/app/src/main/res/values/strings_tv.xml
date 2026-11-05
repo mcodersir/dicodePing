@@ -1,0 +1,10 @@
+<resources>
+    <string name="tv_connect">Connect</string>
+    <string name="tv_disconnect">Disconnect</string>
+    <string name="tv_update">Update subscriptions</string>
+    <string name="tv_import">Import from clipboard</string>
+    <string name="tv_fox">Fox account</string>
+    <string name="tv_profiles">Connection profiles</string>
+    <string name="tv_empty">Add a subscription or import a profile to start.</string>
+    <string name="tv_remote_hint">Use the arrows to select a profile, then choose Connect.</string>
+</resources>

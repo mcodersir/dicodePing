@@ -1,0 +1,10 @@
+<resources>
+    <string name="tv_connect">اتصال</string>
+    <string name="tv_disconnect">قطع اتصال</string>
+    <string name="tv_update">به‌روزرسانی اشتراک‌ها</string>
+    <string name="tv_import">ورود از کلیپ‌بورد</string>
+    <string name="tv_fox">حساب روباه</string>
+    <string name="tv_profiles">پروفایل‌های اتصال</string>
+    <string name="tv_empty">برای شروع اشتراک اضافه کنید یا پروفایل وارد کنید.</string>
+    <string name="tv_remote_hint">با دکمه‌های جهت پروفایل را انتخاب کنید، سپس اتصال را بزنید.</string>
+</resources>

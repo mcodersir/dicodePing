@@ -49,6 +49,15 @@ func (p *provider) prepareRelay(ctx context.Context, country, listen string) (st
 			return "", ctx.Err()
 		}
 		p.selected = candidate
+		if p.useSingBox {
+			if p.engine != nil {
+				p.engine.Close()
+			}
+			p.engine, err = p.newSingRelay()
+			if err != nil {
+				return "", err
+			}
+		}
 		var e error
 		reached, e = p.probeRelay(ctx)
 		if reached {
@@ -124,6 +133,9 @@ func (p *provider) probeRelay(ctx context.Context) (bool, error) {
 }
 
 func (p *provider) openTunnel(ctx context.Context, authority string) (net.Conn, error) {
+	if p.useSingBox {
+		return p.openSingTunnel(ctx, authority)
+	}
 	conn, err := p.openTunnelAttempt(ctx, authority, true)
 	var api *ProviderError
 	// Retry establishment on a different carrier only before any application
@@ -239,10 +251,15 @@ func (p *provider) openDialTunnel(ctx context.Context, address string) (net.Conn
 		}
 		return nil, err
 	}
-	original := conn.(*tunnelConn).cancel
-	conn.(*tunnelConn).cancel = func() { original(); cancel() }
-	return conn, nil
+	return &lifetimeConn{Conn: conn, cancel: cancel}, nil
 }
+
+type lifetimeConn struct {
+	net.Conn
+	cancel context.CancelFunc
+}
+
+func (c *lifetimeConn) Close() error { c.cancel(); return c.Conn.Close() }
 func (p *provider) dohClient() *http.Client {
 	return &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil, ForceAttemptHTTP2: true, DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		// net/http cancels its DialContext after acquiring a connection. That

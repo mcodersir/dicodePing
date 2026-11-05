@@ -53,7 +53,10 @@ type Location struct {
 	Port        int    `json:"port"`
 }
 type provider struct {
-	roots *x509.CertPool
+	roots      *x509.CertPool
+	rootPEM    string
+	engine     *singRelay
+	useSingBox bool
 
 	state                             State
 	client                            *http.Client
@@ -94,6 +97,7 @@ func (p *provider) installRoots(pem string) error {
 		return &ProviderError{Code: "trust", Message: "The platform trust store could not be loaded"}
 	}
 	p.roots = roots
+	p.rootPEM = pem
 	p.client.Transport.(*http.Transport).TLSClientConfig.RootCAs = roots
 	return nil
 }

@@ -125,10 +125,13 @@ object UpdateCheckerManager {
     }
 
     private fun getDownloadUrl(release: GitHubRelease, abi: String): String {
-        // Release assets are product-branded and distribution-neutral. Prefer the
-        // exact ABI, then universal, and finally any APK as a safe last resort.
-        val apkAssets = release.assets.filter { it.name.endsWith(".apk", true) }
-        val asset = apkAssets.firstOrNull { it.name.contains(abi, true) }
+        // TV and mobile have distinct package identities. Never propose an APK
+        // from the other edition, even when the architecture happens to match.
+        val apkAssets = release.assets.filter {
+            it.name.endsWith(".apk", true) && it.name.startsWith("DicodePing-", true) &&
+                it.name.startsWith("DicodePing-TV-", true) == com.v2ray.ang.BuildConfig.TV_EDITION
+        }
+        val asset = apkAssets.firstOrNull { it.name.endsWith("-$abi.apk", true) }
             ?: apkAssets.firstOrNull { it.name.contains("universal", true) }
             ?: apkAssets.firstOrNull()
 

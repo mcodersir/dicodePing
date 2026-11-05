@@ -92,6 +92,9 @@ func main() {
 		os.Exit(2)
 	}
 	p := newProvider(req.State)
+	// Both desktop and Android execute this helper. The production transport
+	// uses the pinned FoxyVPN 2 sing-box fork; legacy fixtures remain available.
+	p.useSingBox = true
 	if req.TLSFragmentation != "" {
 		switch req.TLSFragmentation {
 		case "sni", "first_byte", "off":

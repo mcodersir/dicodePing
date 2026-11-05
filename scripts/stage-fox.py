@@ -22,7 +22,7 @@ def build(goos, arch, output, android=False):
         cc = ndk / 'toolchains/llvm/prebuilt' / host / 'bin' / (triple + '29-clang')
         assert cc.is_file(), 'Pinned Android NDK 29 is required'; env['CC'] = str(cc)
     output = output.resolve(); output.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([go, 'build', '-trimpath', '-ldflags=-s -w -buildid=', *extra, '-o', str(output), '.'], cwd=ROOT/'apps/fox-helper', env=env, check=True)
+    subprocess.run([go, 'build', '-tags=with_utls,badlinkname', '-trimpath', '-ldflags=-s -w -buildid= -checklinkname=0', *extra, '-o', str(output), '.'], cwd=ROOT/'apps/fox-helper', env=env, check=True)
     output.chmod(0o755)
     versions[str(output.relative_to(args.output.resolve()))] = {'version':'4.9.93', 'go':'1.27.3', 'sha256':hashlib.sha256(output.read_bytes()).hexdigest()}
 if args.android:
@@ -32,7 +32,7 @@ else:
     assert args.rid
     goos, arch = {'win-x64':('windows','amd64'), 'linux-x64':('linux','amd64'), 'osx-x64':('darwin','amd64'), 'osx-arm64':('darwin','arm64')}[args.rid]
     build(goos, arch, args.output/('dicode-fox.exe' if goos == 'windows' else 'dicode-fox')); legal = args.output
-for name in ['LICENSE-FoxyVPN.txt', 'NOTICE.md']: shutil.copy2(ROOT/'apps/fox-helper'/name, legal/name)
+for name in ['LICENSE-FoxyVPN.txt', 'LICENSE-sing-box.txt', 'NOTICE.md']: shutil.copy2(ROOT/'apps/fox-helper'/name, legal/name)
 goroot = pathlib.Path(subprocess.check_output([go, 'env', 'GOROOT'], text=True).strip())
 shutil.copy2(goroot/'LICENSE', legal/'LICENSE-Go.txt')
 shutil.copy2(ROOT/'LICENSE', legal/'LICENSE-DicodePing.txt')

@@ -17,6 +17,7 @@ android {
         targetSdk = 36
         // Monotonic shared version code permits switching architecture without a downgrade.
         versionCode = 409930
+        buildConfigField("boolean", "TV_EDITION", "false")
         versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.93"
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
@@ -66,6 +67,12 @@ android {
 
     flavorDimensions.add("distribution")
     productFlavors {
+        create("tv") {
+            dimension = "distribution"
+            applicationIdSuffix = ".tv"
+            buildConfigField("String", "DISTRIBUTION", "\"DicodePing TV\"")
+            buildConfigField("boolean", "TV_EDITION", "true")
+        }
         create("fdroid") {
             dimension = "distribution"
             applicationIdSuffix = ".fdroid"
@@ -110,7 +117,8 @@ android {
                 .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
                 .forEach { output ->
                     val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
+                    val edition = if (variant.productFlavors.any { it.name == "tv" }) "TV-" else ""
+                    output.outputFileName = "DicodePing-${edition}${variant.versionName}-${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
                             // Switching between Universal and an ABI is not a downgrade.
@@ -131,7 +139,8 @@ android {
                     else
                         "universal"
 
-                    output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
+                    val edition = if (variant.productFlavors.any { it.name == "tv" }) "TV-" else ""
+                    output.outputFileName = "DicodePing-${edition}${variant.versionName}-${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
                             (1000000 * versionCodes[abi]!!).plus(variant.versionCode)

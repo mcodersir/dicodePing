@@ -19,9 +19,9 @@
     "version": "4.9.93",
     "source": "apps/fox-helper",
     "go": "1.27.3",
-    "protocol_reference": "FoxyVPN v1.0.8 (MIT)",
-    "reference_commit": "7501192dd9e5045de0a93fadf506474b5b911f62",
-    "upgrade_status": "FoxyVPN 2.0.0 MASQUE migration pending; existing helper retained; not release-ready"
+    "protocol_reference": "FoxyVPN v2.0.0 / Vauth sing-box v1.0.0-masque",
+    "reference_commit": "9be46c8d5c37b5832a879ec78b2c8d75f3286c20",
+    "upgrade_status": "Embedded sing-box HTTP/2 relay with uTLS and dynamic bearer rotation; HTTP/3 pending protected UDP uplink"
   },
   "android_build": {
     "source_commit": "faad7a00ee2934ac101a677681523f6375b27f86",

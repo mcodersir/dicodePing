@@ -88,7 +88,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.93
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin assembleTvDebug compileTvDebugAndroidTestKotlin --no-daemon -PdicodeVersion=4.9.93
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -104,6 +104,7 @@ jobs:
         working-directory: apps/android
         script: |
           trap 'adb logcat -d > app/build/remote-test-logcat.txt' EXIT; ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64
+          ./gradlew connectedTvDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.TvMainRemoteTest
     - name: Test native executables and probes on 16 KB Android
       timeout-minutes: 15
       uses: reactivecircus/android-emulator-runner@v2

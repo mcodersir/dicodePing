@@ -1,0 +1,128 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
+	singHTTP "github.com/sagernet/sing-box/transport/http"
+	M "github.com/sagernet/sing/common/metadata"
+)
+
+// Each helper process owns one account. Bearer rotation updates new CONNECT
+// requests without closing transports carrying established application streams.
+type singRelay struct {
+	client    *singHTTP.Client
+	refreshMu sync.Mutex
+}
+
+type singUplink struct{ p *provider }
+
+func (d singUplink) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	address := destination.String()
+	if destination.IsFqdn() {
+		resolver := d.p.edgeResolver
+		if resolver == nil {
+			resolver = d.p.bootstrapEdge
+		}
+		if ips, err := resolver(ctx, destination.Fqdn); err == nil {
+			for _, ip := range ips {
+				attempt, cancel := context.WithTimeout(ctx, 5*time.Second)
+				conn, err := d.p.relayDialer().DialContext(attempt, network, net.JoinHostPort(ip.String(), strconv.Itoa(int(destination.Port))))
+				cancel()
+				if err == nil {
+					return conn, nil
+				}
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+			}
+		}
+	}
+	return d.p.relayDialer().DialContext(ctx, network, address)
+}
+
+func (d singUplink) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	// H2 CONNECT uses TCP. Do not accidentally create an unbound UDP socket
+	// outside the Android/Windows physical-interface protection contract.
+	return nil, errors.New("raw UDP uplink is unavailable; use HTTP/2")
+}
+
+func (p *provider) newSingRelay() (*singRelay, error) {
+	singHTTP.SetDynamicBearerToken(p.pass)
+	enabled := true
+	bearer, err := singHTTP.AcquireBearerTokenProvider(nil, &enabled)
+	if err != nil {
+		return nil, err
+	}
+	tls := option.OutboundTLSOptions{
+		Enabled: true, ServerName: p.selected.Host,
+		UTLS:           &option.OutboundUTLSOptions{Enabled: true, Fingerprint: "chrome"},
+		RecordFragment: p.tlsSplit != "off",
+	}
+	if p.rootPEM != "" {
+		tls.Certificate = []string{p.rootPEM}
+	}
+	client, err := singHTTP.NewClientWithTLS(context.Background(), log.NewNOPFactory().Logger(), singUplink{p},
+		option.ServerOptions{Server: p.selected.Host, ServerPort: uint16(p.selected.Port)}, tls,
+		singHTTP.ClientOptions{Version: 2, DisableVersionFallback: true, BearerToken: bearer, Headers: http.Header{"User-Agent": []string{userAgent}}})
+	if err != nil {
+		return nil, err
+	}
+	return &singRelay{client: client}, nil
+}
+
+func (r *singRelay) Close() {
+	_ = r.client.Close()
+	singHTTP.SetDynamicBearerToken("")
+}
+
+func (p *provider) openSingTunnel(ctx context.Context, authority string) (net.Conn, error) {
+	if p.engine == nil {
+		return nil, errors.New("Fox sing-box transport is not initialized")
+	}
+	pass, err := p.proxyPass(ctx)
+	if err != nil {
+		return nil, err
+	}
+	singHTTP.SetDynamicBearerToken(pass)
+	conn, err := p.engine.client.DialContext(ctx, "tcp", M.ParseSocksaddr(authority))
+	if err == nil {
+		return conn, nil
+	}
+	// The pinned fork reports HTTP 407 with this stable error. Refresh once,
+	// and never retry after application bytes have been sent.
+	if !strings.Contains(err.Error(), "authentication required") && !strings.Contains(err.Error(), "401 Unauthorized") {
+		return nil, err
+	}
+	p.engine.refreshMu.Lock()
+	defer p.engine.refreshMu.Unlock()
+	p.mutex.Lock()
+	stale := p.pass == pass
+	if stale {
+		p.passExpiry = 0
+	}
+	p.mutex.Unlock()
+	if stale {
+		if err := p.refreshProxyPass(ctx, true); err != nil {
+			return nil, err
+		}
+	}
+	pass, err = p.proxyPass(ctx)
+	if err != nil {
+		return nil, err
+	}
+	singHTTP.SetDynamicBearerToken(pass)
+	conn, err = p.engine.client.DialContext(ctx, "tcp", M.ParseSocksaddr(authority))
+	if err != nil && (strings.Contains(err.Error(), "authentication required") || strings.Contains(err.Error(), "401 Unauthorized")) {
+		return nil, &ProviderError{Code: "login_required", Message: "The proxy pass was rejected; sign in again"}
+	}
+	return conn, err
+}

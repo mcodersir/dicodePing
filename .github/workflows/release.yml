@@ -16,7 +16,7 @@ jobs:
       with:
         go-version: 1.27.3
         cache: false
-    - run: go test -race ./...
+    - run: go test -tags=with_utls,badlinkname -ldflags=-checklinkname=0 -race ./...
       working-directory: apps/fox-helper
   desktop:
     strategy:
@@ -322,7 +322,7 @@ jobs:
         export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
         chmod +x gradlew
         ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=4.9.93
-        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=4.9.93
+        ./gradlew assembleFdroidRelease assembleTvRelease --no-daemon -PdicodeVersion=4.9.93
     - name: Stage APK and checksums
       run: |
         mkdir -p dist-android
@@ -487,7 +487,8 @@ jobs:
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
         expected = {'DicodePing-4.9.93-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
-        assert len(expected) == 15 and len(assets) == 24 and expected <= assets.keys()
+        expected.update('DicodePing-TV-4.9.93-' + abi + '.apk' for abi in ['universal', 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'])
+        assert len(expected) == 20 and len(assets) == 29 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
             for line in file.read_text(encoding='utf-8-sig').splitlines():
@@ -497,7 +498,7 @@ jobs:
         assert set(checks) == expected
         for name in expected:
             assert assets[name]['size'] > 0 and assets[name]['digest'] == 'sha256:' + checks[name], name
-        print('All 15 packages and 9 checksum files verified; safe to publish.')
+        print('All 20 packages and 9 checksum files verified; safe to publish.')
         PYVERIFY
         gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
 on:

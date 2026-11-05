@@ -84,7 +84,12 @@ func (p *provider) nextRelay() *http.Transport {
 	return p.relayPool[(p.relayNext.Add(1)-1)%uint64(len(p.relayPool))]
 }
 func (p *provider) closeRelays() {
-	p.streams.CloseIdleConnections()
+	if p.engine != nil {
+		p.engine.Close()
+	}
+	if p.streams != nil {
+		p.streams.CloseIdleConnections()
+	}
 	for _, tr := range p.relayPool {
 		tr.CloseIdleConnections()
 	}

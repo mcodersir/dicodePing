@@ -50,6 +50,10 @@ fun MainScreen(
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
 ) {
+    if (com.v2ray.ang.BuildConfig.TV_EDITION) {
+        TvMainScreen(mainViewModel, onAction, onNavigate)
+        return
+    }
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val groups = uiState.groups
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()

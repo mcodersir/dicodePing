@@ -132,7 +132,7 @@ class MainActivity : HelperBaseComponentActivity() {
         val promptCount = remember {
             MmkvManager.decodeSettingsInt(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 0)
         }
-        val showTelegramPrompt = remember { mutableStateOf(promptCount < 3) }
+        val showTelegramPrompt = remember { mutableStateOf(promptCount < 3 && !com.v2ray.ang.BuildConfig.TV_EDITION) }
         fun dismissTelegramPrompt() {
             MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, promptCount + 1)
             showTelegramPrompt.value = false
