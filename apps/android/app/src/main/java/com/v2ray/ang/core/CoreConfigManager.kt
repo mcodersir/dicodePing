@@ -169,6 +169,9 @@ object CoreConfigManager {
             }
         }
 
+        if (fox == null && result.singBoxConfig == null && !forTest) {
+            CustomInboundPolicy.apply(json, SettingsManager.getSocksPort(), MmkvManager.decodeSettingsBool(AppConfig.PREF_PROXY_SHARING))
+        }
         val dependency = AetherDependency.ofCustom(json)
         aetherFailure(context, configContext.guid, dependency)?.let { return it }
         if (dependency is AetherDependency.Single) result.aetherCore = dependency.core

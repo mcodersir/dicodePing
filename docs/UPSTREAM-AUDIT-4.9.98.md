@@ -60,3 +60,13 @@ FoxyVPN 2.0.0 was reviewed at e692202dbdf0a5dbbff8ce8bba000f62a9039451; 2.0.1 re
 - Desktop graphical build: succeeded, 0 errors.
 - Android, TV, Windows and macOS runtime acceptance: pending CI/device checks.
 - Iran-specific carrier reachability, battery, RAM and speed: not measured; no performance percentage or universal reachability claim.
+
+## Additional validation
+
+- The current Serverless-for-Iran v58 fragA, fragB and oob JSON configurations were fetched and accepted by the actual pinned Xray 26.11.1 binary (`run -test`); this is configuration validation, not an Iran carrier connectivity test.
+- Ten generated configurations were accepted by actual Xray/sing-box binaries on Linux.
+- Fifteen focused desktop regression tests passed, including a database flush containing duplicate IDs.
+- The independent sing-box traffic fixture could not start locally because this workspace denies netlink sockets. The same fixture is required on the release runners; local denial is not counted as a successful traffic test.
+- The provided desktop 4.9.93 log shows subscription timeouts/refused localhost connections and destination DNS timeouts, alongside a successful v58-fragA probe. These entries do not establish a single universal root cause or prove Android behavior. No TLS verification bypass was added.
+
+Latest full desktop run: 230 passed, 16 skipped for missing native/platform prerequisites, 0 failed (246 total). The separate native configuration run passed all 10 cases.

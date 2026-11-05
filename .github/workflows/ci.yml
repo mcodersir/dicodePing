@@ -92,7 +92,9 @@ jobs:
           python scripts/test_elf_alignment.py
 
   web-ui:
-    runs-on: ubuntu-latest
+    # Playwright 1.56's browser dependencies support Ubuntu 24.04; the
+    # ubuntu-latest rollout to 26.04 breaks apt before any UI test runs.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6

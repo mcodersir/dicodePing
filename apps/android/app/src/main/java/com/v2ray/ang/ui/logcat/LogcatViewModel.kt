@@ -60,7 +60,7 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
 
     fun copyLogcat() {
         val all = filteredLogs.value.joinToString("\n")
-        Utils.setClipboard(app, all)
+        Utils.setClipboard(app, com.v2ray.ang.util.DiagnosticArchive.redact(all))
         toast(R.string.toast_success)
     }
 

@@ -166,6 +166,8 @@ jobs:
       run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
     - name: Bundle and execute independent sing-box engine
       run: python scripts/stage-singbox.py --rid ${{ matrix.rid }} --output publish/bin/sing_box
+    - name: Exercise real traffic through independent sing-box
+      run: python scripts/verify-independent-singbox.py --root publish
     - name: Bundle verified Aether and Psiphon helpers
       run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
     - name: Execute bundled cores in the ephemeral runner
@@ -339,6 +341,9 @@ jobs:
       run: |
         mkdir -p dist-android
         find apps/android/app/build/outputs/apk -type f -name '*.apk' -exec cp {} dist-android/ \;
+        # The standalone TV edition is Universal; avoid publishing redundant
+        # ABI variants that are not listed on the download page.
+        find dist-android -name '*-tv-*.apk' ! -name '*-tv-universal.apk' -delete
         # AGP may keep the internal compatibility flavor in the generated
         # filename; never expose that implementation detail in releases.
         for apk in dist-android/*-fdroid-*.apk; do
@@ -525,7 +530,7 @@ jobs:
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
         expected = {'DicodePing-4.9.98-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
-        assert len(expected) == 15 and len(assets) == 24 and expected <= assets.keys()
+        assert len(expected) == 16 and len(assets) == 25 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
             for line in file.read_text(encoding='utf-8-sig').splitlines():
@@ -535,7 +540,7 @@ jobs:
         assert set(checks) == expected
         for name in expected:
             assert assets[name]['size'] > 0 and assets[name]['digest'] == 'sha256:' + checks[name], name
-        print('All 15 packages and 9 checksum files verified; safe to publish.')
+        print('All 16 packages and 9 checksum files verified; safe to publish.')
         PYVERIFY
         gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
 on:

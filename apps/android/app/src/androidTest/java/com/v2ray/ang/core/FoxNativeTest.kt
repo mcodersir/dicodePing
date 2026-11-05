@@ -59,10 +59,23 @@ class FoxNativeTest {
     @Test fun independentSingBoxStartsAndStopsWithoutChangingFox() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val port = java.net.ServerSocket(0).use { it.localPort }
+        val fixture = java.net.ServerSocket(0)
+        val responder = kotlin.concurrent.thread {
+            runCatching { fixture.accept().use { socket ->
+                socket.soTimeout = 5000
+                val reader = socket.getInputStream().bufferedReader()
+                while (!reader.readLine().isNullOrEmpty()) { }
+                socket.getOutputStream().write("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n".toByteArray())
+                socket.getOutputStream().flush()
+            } }
+        }
         val config = SingBoxConfig.prepare("""{"outbounds":[{"type":"direct","tag":"direct"}]}""", port)
         val helper = SingBoxProcess(context)
-        try { helper.start(config, port); assertTrue(helper.isAlive) }
-        finally { helper.close() }
+        try {
+            helper.start(config, port); assertTrue(helper.isAlive)
+            assertTrue(AetherDelayTester.requestDelay(port, "http://127.0.0.1:${fixture.localPort}/generate_204") > 0)
+        }
+        finally { helper.close(); fixture.close(); responder.join(5000) }
         assertFalse(helper.isAlive)
     }
 

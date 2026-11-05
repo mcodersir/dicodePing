@@ -1,25 +1,27 @@
 {
-  "version": "1.14.3",
+  "version": "1.15.0-alpha.13",
+  "source_commit": "824dbcfb4dd0a95921840b1737b950cde590241e",
+  "build": "source with 16 KB ELF alignment; prebuilt Android binaries are not used",
   "assets": [
     {
-      "name": "sing-box-1.14.3-android-386.tar.gz",
-      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-386.tar.gz",
-      "sha256": "5812c457335efa711116cbc0b01a4810a95f0838ef2b1693e88bf06446160161"
+      "name": "sing-box-1.15.0-alpha.13-android-386.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-386.tar.gz",
+      "sha256": "d698ca6b8c287a4de7c8853da6897caca9eeacc8d8dec143bb4ddc97b3169d6d"
     },
     {
-      "name": "sing-box-1.14.3-android-amd64.tar.gz",
-      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-amd64.tar.gz",
-      "sha256": "a84a5aea86ad0588b76e23051e9e59405a7ed52358acfb9710cfaa055fe60e4a"
+      "name": "sing-box-1.15.0-alpha.13-android-amd64.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-amd64.tar.gz",
+      "sha256": "f3ff384c372a906b68eab36405b1e3765539bf4f574d99a0ef7b22e6a40599b7"
     },
     {
-      "name": "sing-box-1.14.3-android-arm.tar.gz",
-      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-arm.tar.gz",
-      "sha256": "0c0df4fbf85656896d5b604e9eb4e556c1a3f68dd615b0ece3f9f6bd5adab5d6"
+      "name": "sing-box-1.15.0-alpha.13-android-arm.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-arm.tar.gz",
+      "sha256": "b4cdc347f27f9be4609ea3c29e98bf7045f3bdf033277c5ecad125e42c652435"
     },
     {
-      "name": "sing-box-1.14.3-android-arm64.tar.gz",
-      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.14.3/sing-box-1.14.3-android-arm64.tar.gz",
-      "sha256": "149569b5dbf01958e6598beb3a13078d6fc0e353ef06f4aff85f5f28bc23593b"
+      "name": "sing-box-1.15.0-alpha.13-android-arm64.tar.gz",
+      "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-arm64.tar.gz",
+      "sha256": "0ee45a6bf91edc27ca3497ca5c65048c65ce0c73305997f3b66e742ccdba30cd"
     }
   ]
 }

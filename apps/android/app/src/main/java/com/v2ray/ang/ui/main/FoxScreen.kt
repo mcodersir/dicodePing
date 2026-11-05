@@ -88,6 +88,15 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
             countries = listOf("REC") + (0 until locations.length()).map { locations.getJSONObject(it).getString("country_code") }.distinct()
         } catch (e: Exception) { status = error(e) }
     }
+    // Read quota events already written by the original helper. This does not
+    // add requests to the provider or change the Fox connection engine.
+    LaunchedEffect(isRunning) {
+        if (isRunning) while (true) {
+            kotlinx.coroutines.delay(30_000)
+            if (!busy) runCatching { withContext(Dispatchers.IO) { FoxAccounts.list(context) } }
+                .onSuccess { accounts = it }
+        }
+    }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
