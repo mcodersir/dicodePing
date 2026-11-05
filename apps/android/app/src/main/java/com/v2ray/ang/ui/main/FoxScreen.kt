@@ -139,7 +139,11 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             listOf(2, 3).forEach { version ->
                                 FilterChip(selected = account.httpVersion == version, enabled = !busy,
-                                    onClick = { run { account.httpVersion = version; FoxAccounts.save(context, account); account.id } },
+                                    onClick = {
+                                        val updated = account.copy(httpVersion = version)
+                                        FoxAccounts.save(context, updated)
+                                        accounts = accounts.map { if (it.id == updated.id) updated else it }
+                                    },
                                     label = { Text("HTTP/$version") })
                             }
                         }

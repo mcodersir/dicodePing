@@ -259,7 +259,7 @@ object CoreConfigManager {
         if (!hasFakeDnsServer(json)) return
         json.get("inbounds")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { element ->
             val inbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
-            if (inbound.get("protocol")?.asString !in listOf("mixed", "socks", "http", "tun")) return@forEach
+            if (inbound.get("protocol")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString !in listOf("mixed", "socks", "http", "tun")) return@forEach
             val sniffing = inbound.get("sniffing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
             val overrides = sniffing.get("destOverride")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray()
             if (overrides.none { it.isJsonPrimitive && it.asString == "fakedns" }) overrides.add("fakedns")
