@@ -1,0 +1,12 @@
+{
+  "version": "4.9.93",
+  "release_ready": false,
+  "blockers": [
+    "FoxyVPN 2.0.0 MASQUE engine migration is not implemented; current Fox helper retains the 1.0.8 protocol reference.",
+    "Dedicated TV edition and its remote/device acceptance tests are not implemented.",
+    "Android full application build, APK signing/upgrade and Windows/macOS runtime tests have not run in this session.",
+    "The 43 upstream reports have been retrieved, but their individual acceptance scenarios are not all reproduced or resolved.",
+    "GitHub credential use was rejected by automatic approval review; no push, tag, release or deployment occurred.",
+    "Public download page remains on the actual published 4.9.92 until the new packages pass release checks."
+  ]
+}

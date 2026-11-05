@@ -89,6 +89,18 @@ class AngApplication : Application() {
         if (primary != null) subscriptionOrder.add(0, AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID)
         MmkvManager.encodeSubsList(subscriptionOrder)
 
+        // Keep JSON profiles (including OOB) intact in their own subscription.
+        if (!MmkvManager.decodeSettingsBool("dicode-serverless-provisioned-4993", false)) {
+            if (MmkvManager.decodeSubscriptions().none {
+                    it.subscription.url.substringBefore('#') == AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL
+                }) {
+                MmkvManager.encodeSubscription(AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_ID,
+                    SubscriptionItem(remarks = "Patterniha-S", url = AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL,
+                        enabled = true, autoUpdate = true, updateInterval = 60))
+            }
+            MmkvManager.encodeSettings("dicode-serverless-provisioned-4993", true)
+        }
+
         AppLocaleManager.initialize(this)
 
         // Initialize WorkManager with the custom configuration

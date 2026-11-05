@@ -28,11 +28,13 @@ public static class AutoStartupHandler
         }
         else if (Utils.IsMacOS())
         {
-            await ClearTaskOSX();
-
             if (config.GuiItem.AutoRun)
             {
                 await SetTaskOSX();
+            }
+            else
+            {
+                await ClearTaskOSX();
             }
         }
 
@@ -183,7 +185,9 @@ public static class AutoStartupHandler
             var launchAgentPath = GetLaunchAgentPathMacOS();
             if (File.Exists(launchAgentPath))
             {
-                var args = new[] { "-c", $"launchctl unload -w \"{launchAgentPath}\"" };
+                // Unloading the LaunchAgent kills the current app when launchd owns it.
+                // Disable future launches without terminating this connection.
+                var args = new[] { "-c", $"launchctl disable gui/$(id -u)/{Global.AppName}-LaunchAgent" };
                 await Utils.GetCliWrapOutput(Global.LinuxBash, args);
 
                 File.Delete(launchAgentPath);
@@ -204,7 +208,7 @@ public static class AutoStartupHandler
             var launchAgentPath = GetLaunchAgentPathMacOS();
             await File.WriteAllTextAsync(launchAgentPath, plistContent);
 
-            var args = new[] { "-c", $"launchctl load -w \"{launchAgentPath}\"" };
+            var args = new[] { "-c", $"launchctl enable gui/$(id -u)/{Global.AppName}-LaunchAgent; launchctl load \"{launchAgentPath}\"" };
             await Utils.GetCliWrapOutput(Global.LinuxBash, args);
         }
         catch (Exception ex)

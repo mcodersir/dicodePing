@@ -157,6 +157,22 @@ public class CoreConfigV2rayServiceTests
         hasDialerChain.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("c1")]
+    [InlineData("n1")]
+    public void ProxyChain_WithMissingSelfOrRepeatedHop_MustNotSilentlyShorten(string secondHop)
+    {
+        var config = CoreConfigTestFactory.CreateConfig(ECoreType.Xray);
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var first = CoreConfigTestFactory.CreateSocksNode(ECoreType.Xray, "n1", "entry");
+        var chain = CoreConfigTestFactory.CreateProxyChainNode(ECoreType.Xray, "c1", "chain", ["n1", secondHop]);
+        var context = CoreConfigTestFactory.CreateContext(config, chain, ECoreType.Xray);
+        context.AllProxiesMap[first.IndexId] = first;
+        context.AllProxiesMap[chain.IndexId] = chain;
+        new CoreConfigV2rayService(context).GenerateClientConfigContent().Success.Should().BeFalse();
+    }
+
     [Fact]
     public void GenerateClientConfigContent_PolicyGroupWithProxyChain_ShouldBuildCombinedOutbounds()
     {

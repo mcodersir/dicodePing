@@ -29,6 +29,8 @@ object AppConfig {
     // DicodeSpo: the "sources" subscription. Never fetched; its content is
     // aggregated from the free-config sources at update time.
     const val DICODE_SECONDARY_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt"
+    const val DICODE_SERVERLESS_SUBSCRIPTION_ID = "__dicode_serverless_subscription__"
+    const val DICODE_SERVERLESS_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Serverless-for-Iran/refs/heads/main/Subscription/Serverless-for-Iran.json"
     // Kept only to migrate previous installations.
     const val DICODE_SPO_SUBSCRIPTION_ID = "DicodeSpoSub"
     const val DICODE_SPO_SUBSCRIPTION_URL = "https://dicodeping.local/dicode-spo/sources"

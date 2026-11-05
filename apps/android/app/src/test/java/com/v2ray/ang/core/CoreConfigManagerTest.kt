@@ -16,6 +16,32 @@ import org.junit.jupiter.api.Test
 
 class CoreConfigManagerTest {
 
+    @Test
+    fun xhttpDownloadFollowsTheChainAndPreservesSocketOptions() {
+        val outbound = socks("example.com", 443)
+        outbound.streamSettings = V2rayConfig.OutboundBean.StreamSettingsBean(
+            network = "xhttp",
+            xhttpSettings = V2rayConfig.OutboundBean.StreamSettingsBean.XhttpSettingsBean(
+                extra = JsonUtil.parseString("""{"downloadSettings":{"address":"download.example.com","sockopt":{"tcpFastOpen":true}},"scMaxEachPostBytes":1000000}""")
+            )
+        )
+        CoreConfigManager.applyChainDialer(outbound, "entry-hop")
+        assertEquals("entry-hop", outbound.streamSettings?.sockopt?.dialerProxy)
+        val extra = JsonUtil.parseString(JsonUtil.toJson(outbound.streamSettings?.xhttpSettings?.extra))!!.asJsonObject
+        val download = extra.getAsJsonObject("downloadSettings")
+        assertEquals("download.example.com", download.get("address").asString)
+        assertEquals("entry-hop", download.getAsJsonObject("sockopt").get("dialerProxy").asString)
+        assertTrue(download.getAsJsonObject("sockopt").get("tcpFastOpen").asBoolean)
+        assertEquals(1000000, extra.get("scMaxEachPostBytes").asInt)
+    }
+
+    @Test
+    fun socksHopWithoutTransportStillGetsItsChainDialer() {
+        val outbound = socks("exit.example.com", 1080)
+        CoreConfigManager.applyChainDialer(outbound, "entry-hop")
+        assertEquals("entry-hop", outbound.streamSettings?.sockopt?.dialerProxy)
+    }
+
     private fun socks(address: String, port: Int) = V2rayConfig.OutboundBean(
         protocol = "socks",
         settings = V2rayConfig.OutboundBean.OutSettingsBean(address = address, port = port),

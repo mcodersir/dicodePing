@@ -546,7 +546,7 @@ object CoreConfigManager {
         CoreOutboundBuilder.applyChainTargetStrategies(chain)
         for (i in 0 until chainOutbounds.size - 1) {
             if (i == aetherHop) continue
-            chainOutbounds[i].ensureSockopt().dialerProxy = chainOutbounds[i + 1].tag
+            applyChainDialer(chainOutbounds[i], chainOutbounds[i + 1].tag)
         }
 
         if (prepend) {
@@ -555,6 +555,19 @@ object CoreConfigManager {
             v2rayConfig.outbounds.addAll(chainOutbounds)
         }
         chainOutbounds.forEach { existingTags.add(it.tag) }
+    }
+
+    /** XHTTP can use a separate download transport; both legs must follow the same chain. */
+    internal fun applyChainDialer(outbound: V2rayConfig.OutboundBean, tag: String) {
+        outbound.ensureSockopt().dialerProxy = tag
+        val xhttp = outbound.streamSettings?.xhttpSettings ?: return
+        val extra = xhttp.extra?.let { JsonUtil.parseString(JsonUtil.toJson(it)) }
+            ?.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val download = extra.get("downloadSettings")?.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val sockopt = download.get("sockopt")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+        sockopt.addProperty("dialerProxy", tag)
+        download.add("sockopt", sockopt)
+        xhttp.extra = extra
     }
 
     /**

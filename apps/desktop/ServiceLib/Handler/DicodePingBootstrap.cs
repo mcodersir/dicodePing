@@ -5,6 +5,7 @@ public static class DicodePingBootstrap
 {
     public const string DefaultSubscriptionUrl = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt";
     public const string SecondarySubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt";
+    public const string ServerlessSubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Serverless-for-Iran/refs/heads/main/Subscription/Serverless-for-Iran.json";
     public const string LegacySourcesUrl = "https://dicodeping.local/dicode-spo/sources";
 
     public static async Task EnsureDefaultsAsync(Config config, bool freshInstall = false)
@@ -16,6 +17,18 @@ public static class DicodePingBootstrap
             await ConfigHandler.DeleteSubItem(config, item.Id);
 
         subscriptions = await AppManager.Instance.SubItems() ?? [];
+        if (!config.GuiItem.ServerlessProvisioned4993)
+        {
+            if (!subscriptions.Any(item => string.Equals(item.Url?.Split('#')[0], ServerlessSubscriptionUrl, StringComparison.OrdinalIgnoreCase)))
+                await ConfigHandler.AddSubItem(config, new SubItem
+                {
+                    Id = string.Empty, Remarks = "Patterniha-S", Url = ServerlessSubscriptionUrl,
+                    Enabled = true, AutoUpdateInterval = 1,
+                });
+            // A user may remove this feed; it must not reappear on the next launch.
+            config.GuiItem.ServerlessProvisioned4993 = true;
+            await ConfigHandler.SaveConfig(config);
+        }
         var checker = subscriptions.FirstOrDefault(item => string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase));
         if (checker is null && !freshInstall) return;
         checker ??= new SubItem { Id = string.Empty, Enabled = true, AutoUpdateInterval = 1 };

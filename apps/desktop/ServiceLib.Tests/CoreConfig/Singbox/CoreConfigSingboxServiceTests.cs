@@ -235,6 +235,22 @@ public class CoreConfigSingboxServiceTests
             (o.detour ?? string.Empty).StartsWith("chain-proxy-1-", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("c1")]
+    [InlineData("n1")]
+    public void ProxyChain_WithMissingSelfOrRepeatedHop_MustNotSilentlyShorten(string secondHop)
+    {
+        var config = CoreConfigTestFactory.CreateConfig(ECoreType.sing_box);
+        CoreConfigTestFactory.BindAppManagerConfig(config);
+        var first = CoreConfigTestFactory.CreateSocksNode(ECoreType.sing_box, "n1", "entry");
+        var chain = CoreConfigTestFactory.CreateProxyChainNode(ECoreType.sing_box, "c1", "chain", ["n1", secondHop]);
+        var context = CoreConfigTestFactory.CreateContext(config, chain, ECoreType.sing_box);
+        context.AllProxiesMap[first.IndexId] = first;
+        context.AllProxiesMap[chain.IndexId] = chain;
+        new CoreConfigSingboxService(context).GenerateClientConfigContent().Success.Should().BeFalse();
+    }
+
     [Fact]
     public void GenerateClientConfigContent_PolicyGroupWithProxyChain_ShouldBuildCombinedOutbounds()
     {

@@ -697,11 +697,12 @@ public partial class CoreConfigSingboxService
         var nodes = new List<ProfileItem>();
         foreach (var nodeId in Utils.String2List(_node.GetProtocolExtra().ChildItems) ?? [])
         {
-            if (context.AllProxiesMap.TryGetValue(nodeId, out var node))
-            {
-                nodes.Add(node);
-            }
+            if (!context.AllProxiesMap.TryGetValue(nodeId, out var node) || node.IndexId == _node.IndexId)
+                throw new InvalidOperationException("Proxy chain contains a missing or self-referencing hop.");
+            nodes.Add(node);
         }
+        if (nodes.Count == 0 || nodes.Select(node => node.IndexId).Distinct().Count() != nodes.Count)
+            throw new InvalidOperationException("Proxy chain must contain distinct, resolvable hops.");
         // Based on actual network flow instead of data packets
         var nodesReverse = nodes.AsEnumerable().Reverse().ToList();
         var resultOutbounds = new List<BaseServer4Sbox>();

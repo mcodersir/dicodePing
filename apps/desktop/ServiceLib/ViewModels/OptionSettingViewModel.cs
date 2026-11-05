@@ -314,6 +314,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
             NoticeManager.Instance.Enqueue(ResUI.FillFragmentParameterError);
             return;
         }
+        var autoRunChanged = AutoRun != _config.GuiItem.AutoRun;
         var needReboot = EnableStatistics != _config.GuiItem.EnableStatistics
                           || DisplayRealTimeSpeed != _config.GuiItem.DisplayRealTimeSpeed
                         || EnableDragDropSort != _config.UiItem.EnableDragDropSort
@@ -410,7 +411,8 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
 
         if (await ConfigHandler.SaveConfig(_config) == 0)
         {
-            await AutoStartupHandler.UpdateTask(_config);
+            if (autoRunChanged)
+                await AutoStartupHandler.UpdateTask(_config);
             AppManager.Instance.Reset();
 
             NoticeManager.Instance.Enqueue(needReboot ? ResUI.NeedRebootTips : ResUI.OperationSuccess);

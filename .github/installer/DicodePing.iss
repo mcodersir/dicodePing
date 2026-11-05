@@ -1,6 +1,6 @@
 #define MyAppName "DicodePing"
 #ifndef MyAppVersion
-#define MyAppVersion "4.9.92"
+#define MyAppVersion "4.9.93"
 #endif
 #define MyAppPublisher "DicodePing"
 #define MyAppExeName "DicodePing.exe"
