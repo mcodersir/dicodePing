@@ -8,6 +8,7 @@ data class ProfileItem(
     val configVersion: Int = 4,
     val configType: EConfigType,
     var subscriptionId: String = "",
+    var subscriptionManaged: Boolean = false,
     var addedTime: Long = System.currentTimeMillis(),
 
     var remarks: String = "",

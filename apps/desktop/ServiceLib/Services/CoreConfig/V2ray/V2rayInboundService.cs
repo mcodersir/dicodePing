@@ -87,7 +87,7 @@ public partial class CoreConfigV2rayService
                     tunInbound.settings.autoOutboundsInterface = bindInterface;
                 }
                 tunInbound.sniffing = inbound.sniffing;
-                if (_config.RoutingBasicItem.DomainFilterMode != "off" && _config.RoutingBasicItem.DomainFilterList is { Count: > 0 })
+                if (_config.SimpleDNSItem.FakeIP != true && _config.RoutingBasicItem.DomainFilterMode != "off" && _config.RoutingBasicItem.DomainFilterList is { Count: > 0 })
                     tunInbound.sniffing.routeOnly = true;
                 // PattN: respect the user's Route Only setting in TUN mode (upstream forces true)
                 // tunInbound.sniffing.routeOnly = true;
@@ -183,7 +183,9 @@ public partial class CoreConfigV2rayService
 
         if (_config.SimpleDNSItem.FakeIP == true)
         {
-            // Ensure destOverride contains "fakedns" if FakeIP is enabled
+            inbound.sniffing.enabled = true;
+            inbound.sniffing.routeOnly = false;
+            // Fake addresses cannot be sent unchanged to freedom/direct.
             inbound.sniffing.destOverride ??= [];
             if (!inbound.sniffing.destOverride.Contains("fakedns"))
             {

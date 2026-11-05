@@ -389,7 +389,7 @@ object MmkvManager {
                 decodeServerList(subscriptionId)
             } else {
                 replacedServers.filter { guid ->
-                    decodeServerConfig(guid)?.configType?.isGroupType() == true
+                    decodeServerConfig(guid)?.let { it.configType.isGroupType() && !it.subscriptionManaged } == true
                 }.toMutableList()
             }
             val indexedServers = serverList.toHashSet()

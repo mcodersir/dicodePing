@@ -326,6 +326,7 @@ object AngConfigManager {
                 parsed.rawConfig == null || MmkvManager.decodeServerRaw(it) == parsed.rawConfig
             }
             val key = old ?: Utils.getUuid()
+            parsed.profile.subscriptionManaged = subid.isNotBlank()
             keyToProfile[key] = parsed.profile
             parsed.rawConfig?.let { raw -> rawConfigs[key] = raw }
         }

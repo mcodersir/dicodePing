@@ -15,6 +15,19 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CoreConfigManagerTest {
+    @Test
+    fun fakeDnsRestoresDestinationsAndPreservesOtherSniffers() {
+        for (servers in listOf("[\"fakedns\"]", "[{\"address\":\"fakedns\"}]")) {
+            val json = JsonUtil.parseString("""{"dns":{"servers":$servers},"inbounds":[{"protocol":"tun","sniffing":{"enabled":false,"routeOnly":true,"destOverride":["tls"]}}]}""")!!.asJsonObject
+            CoreConfigManager.restoreFakeDnsDestinations(json)
+            CoreConfigManager.restoreFakeDnsDestinations(json)
+            val sniffing = json.getAsJsonArray("inbounds")[0].asJsonObject.getAsJsonObject("sniffing")
+            assertTrue(sniffing.get("enabled").asBoolean)
+            assertFalse(sniffing.get("routeOnly").asBoolean)
+            assertEquals(listOf("tls", "fakedns"), sniffing.getAsJsonArray("destOverride").map { it.asString })
+        }
+    }
+
 
     @Test
     fun xhttpDownloadFollowsTheChainAndPreservesSocketOptions() {

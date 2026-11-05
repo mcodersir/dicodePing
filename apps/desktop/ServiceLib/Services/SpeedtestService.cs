@@ -358,10 +358,8 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         foreach (var lst in lstTest)
         {
             var ret = await RunRealPingAsync(lst, completedIds, ct);
-            if (ret == false)
-            {
-                lstFailed.AddRange(lst);
-            }
+            if (ret == false) lstFailed.AddRange(lst);
+            else lstFailed.AddRange(lst.Where(x => x.AllowTest && x.LastDelay <= 0));
             await Task.Delay(_delayInterval, ct);
         }
 
@@ -602,6 +600,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
         var webProxy = new WebProxy($"socks5://{Global.Loopback}:{it.Port}");
         var responseTime = await ConnectionHandler.GetRealPingTime(webProxy, ct);
 
+        it.LastDelay = responseTime;
         if (updateDelay)
         {
             ProfileExManager.Instance.SetTestDelay(it.IndexId, responseTime);

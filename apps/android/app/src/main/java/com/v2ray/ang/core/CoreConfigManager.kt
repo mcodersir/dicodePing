@@ -185,6 +185,7 @@ object CoreConfigManager {
 
         // Last, so that the entries for the Aether core go after everything else the app adds.
         fun serialized(): ConfigResult {
+            restoreFakeDnsDestinations(json)
             val core = result.aetherCore
             if (routeAether && core != null) {
                 val secondaryPort = AetherCoreManager.secondarySocksPort
@@ -243,6 +244,8 @@ object CoreConfigManager {
                 // The injected inbound must be able to map the fake IPs of a fakedns config back
                 // to domains; the user's own inbounds are left as written
                 if (hasFakeDnsServer(json)) {
+                    inboundTun.sniffing?.enabled = true
+                    inboundTun.sniffing?.routeOnly = false
                     inboundTun.sniffing?.destOverride?.let { if ("fakedns" !in it) it.add("fakedns") }
                 }
                 inboundsJson.add(JsonUtil.parseString(JsonUtil.toJson(inboundTun)))
@@ -250,6 +253,21 @@ object CoreConfigManager {
         }
 
         return serialized()
+    }
+
+    internal fun restoreFakeDnsDestinations(json: JsonObject) {
+        if (!hasFakeDnsServer(json)) return
+        json.get("inbounds")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { element ->
+            val inbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            if (inbound.get("protocol")?.asString !in listOf("mixed", "socks", "http", "tun")) return@forEach
+            val sniffing = inbound.get("sniffing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+            val overrides = sniffing.get("destOverride")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray()
+            if (overrides.none { it.isJsonPrimitive && it.asString == "fakedns" }) overrides.add("fakedns")
+            sniffing.addProperty("enabled", true)
+            sniffing.addProperty("routeOnly", false)
+            sniffing.add("destOverride", overrides)
+            inbound.add("sniffing", sniffing)
+        }
     }
 
     /**
@@ -276,9 +294,9 @@ object CoreConfigManager {
             val inbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
             val sniffing = inbound.get("sniffing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
             sniffing.addProperty("enabled", true)
-            sniffing.addProperty("routeOnly", true)
+            sniffing.addProperty("routeOnly", !hasFakeDnsServer(json))
             sniffing.add("destOverride", JsonArray().apply {
-                add("http"); add("tls"); add("quic")
+                add("http"); add("tls"); add("quic"); if (hasFakeDnsServer(json)) add("fakedns")
             })
             inbound.add("sniffing", sniffing)
         }
@@ -1078,6 +1096,7 @@ object CoreConfigManager {
             }
         }
         if (fakedns) {
+            inbound1.sniffing?.routeOnly = false
             inbound1.sniffing?.destOverride?.add("fakedns")
         }
 

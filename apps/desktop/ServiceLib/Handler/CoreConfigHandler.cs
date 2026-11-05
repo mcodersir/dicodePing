@@ -41,6 +41,9 @@ public static class CoreConfigHandler
                 rules.Insert(0, new JsonObject { ["network"] = "udp", ["port"] = new JsonArray(443), ["action"] = "reject" });
                 route["rules"] = rules; foxRoot["route"] = route; content = foxRoot.ToJsonString();
             }
+            if (context.RunCoreType == ECoreType.Xray && JsonNode.Parse(content) is JsonObject xrayRoot) {
+                FakeDnsPolicy.Apply(xrayRoot); content = xrayRoot.ToJsonString();
+            }
             result.Data = EntryHopConfiguration.Apply(content, context);
         }
         if (fileName.IsNotEmpty() && result.Data != null)

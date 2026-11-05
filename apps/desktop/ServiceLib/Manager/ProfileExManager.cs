@@ -59,9 +59,11 @@ public class ProfileExManager
             List<ProfileExItem> lstInserts = [];
             List<ProfileExItem> lstUpdates = [];
 
+            var drained = new HashSet<string>(StringComparer.Ordinal);
             while (_queIndexIds.TryDequeue(out var id))
             {
                 _queuedIndexIds.TryRemove(id, out _);
+                if (!drained.Add(id)) continue;
                 var item = lstExists.FirstOrDefault(t => t.IndexId == id);
                 var itemNew = _lstProfileEx?.FirstOrDefault(t => t.IndexId == id);
                 if (itemNew is null)

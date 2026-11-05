@@ -1,4 +1,4 @@
-name: Release 4.9.93 preparation
+name: Release 4.9.93
 permissions:
   actions: read
   contents: write
