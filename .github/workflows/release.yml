@@ -48,7 +48,7 @@ jobs:
           mihomo_binary: mihomo
           mihomo_sha256: 5d93c5bd42c4622c5814e0b5beccf63dfc9afdea9a4c82c9bc77306bb2c85d57
           artifact: linux-x64
-        - runner: macos-14
+        - runner: macos-15
           rid: osx-x64
           xray_asset: Xray-macos-64.zip
           xray_sha256: 450bdf781bcbb7b8ffa89e5145c98500c0481bcc93c2753393cdf3b03fb9a4d3
@@ -57,7 +57,7 @@ jobs:
           mihomo_binary: mihomo
           mihomo_sha256: 8a25f913eac60134338d2cb32ce68ac1b64e0714f2f833bdd63bc1fd777e2b19
           artifact: macos-x64
-        - runner: macos-14
+        - runner: macos-15
           rid: osx-arm64
           xray_asset: Xray-macos-arm64-v8a.zip
           xray_sha256: ca5dc783f749597a88b2ab609f3a3c1e73b3c2318ef0e688ab2434a5d528dd88
