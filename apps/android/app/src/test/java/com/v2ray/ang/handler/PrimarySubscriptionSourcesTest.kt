@@ -16,7 +16,7 @@ class PrimarySubscriptionSourcesTest {
         val first = com.v2ray.ang.dto.entities.ProfileItem.create(com.v2ray.ang.enums.EConfigType.VLESS).apply {
             server = "example.org"; serverPort = "443"; password = "secret"; remarks = "Sponsor A"
         }
-        val renamed = first.copy(remarks = "Sponsor B", addedTime = first.addedTime + 1, subscriptionId = "second")
+        val renamed = first.copy(remarks = "Sponsor B", addedTime = first.addedTime + 1, subscriptionId = "second", subscriptionManaged = true)
         assertEquals(1, listOf(first, renamed).distinctBy { it.duplicateIdentity() }.size)
         assertEquals(2, listOf(first, renamed.copy(password = "other")).distinctBy { it.duplicateIdentity() }.size)
     }

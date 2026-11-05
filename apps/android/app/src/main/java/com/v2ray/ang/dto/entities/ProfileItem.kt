@@ -228,7 +228,8 @@ data class ProfileItem(
      * - remarks
      * - description
      *
-     * All other fields, including configType, are included in the comparison.
+     * Subscription ownership is bookkeeping, not part of a server identity.
+     * All connection fields, including configType, are included in the comparison.
      *
      * Returns a copy; the caller must not modify it further.
      */
@@ -236,6 +237,7 @@ data class ProfileItem(
         copy(
             configVersion = 0,
             subscriptionId = "",
+            subscriptionManaged = false,
             addedTime = 0L,
             remarks = "",
             description = null
