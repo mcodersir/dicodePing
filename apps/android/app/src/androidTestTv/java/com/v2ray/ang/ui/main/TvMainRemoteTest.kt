@@ -14,7 +14,7 @@ import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.util.Utils
-import org.junit.Assume.assumeTrue
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -22,7 +22,7 @@ class TvMainRemoteTest {
     @get:Rule val compose = createEmptyComposeRule()
 
     @Test fun remoteSelectsProfilesAndOpensSettings() {
-        assumeTrue(BuildConfig.TV_EDITION)
+        assertTrue("TV test must run against the TV edition", BuildConfig.TV_EDITION)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.grantRuntimePermission(
             instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS,
