@@ -11,6 +11,7 @@ parser.add_argument('--package', default='ir.dicode.ping.fdroid')
 parser.add_argument('--remote', action='store_true')
 args=parser.parse_args()
 root=pathlib.Path('install-check'); root.mkdir(exist_ok=True); package=args.package; results=[]
+needs_data_fixture = bool(args.baselines or args.alternate)
 def adb(*args):
     r=subprocess.run(['adb',*args],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
     print('adb',' '.join(args),'exit',r.returncode,'\n'+r.stdout,flush=True)
@@ -23,6 +24,7 @@ try:
     results.append({'scenario': 'device page size', 'success': page_size in ('4096', '16384'), 'output': page_size})
     if args.candidate:
         assert args.candidate.is_file()
+    if args.candidate and needs_data_fixture:
         adb('root'); adb('wait-for-device')
     for previous in [None]+args.baselines:
         adb('uninstall',package)
@@ -43,7 +45,7 @@ try:
                 assert f'versionCode={args.code} ' in info.stdout and f'versionName={args.version}' in info.stdout
                 if previous:
                     assert 'keep-my-data' in adb('shell','cat',marker).stdout,'Upgrade lost existing app data'
-            if args.candidate and previous is None:
+            if args.candidate and previous is None and needs_data_fixture:
                 r=adb('shell','sh','-c',f"'mkdir -p {marker.rsplit('/',1)[0]} && echo keep-my-data > {marker}'")
                 assert r.returncode==0, 'Cannot create fresh-install data fixture'
             launch=adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
