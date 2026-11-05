@@ -61,7 +61,7 @@ class FoxNativeTest {
         val port = java.net.ServerSocket(0).use { it.localPort }
         val fixture = java.net.ServerSocket(0)
         val responder = kotlin.concurrent.thread {
-            runCatching { fixture.accept().use { socket ->
+            runCatching { while (!fixture.isClosed) fixture.accept().use { socket ->
                 socket.soTimeout = 5000
                 val reader = socket.getInputStream().bufferedReader()
                 while (!reader.readLine().isNullOrEmpty()) { }

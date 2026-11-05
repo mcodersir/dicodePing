@@ -1,4 +1,7 @@
 name: Release 4.9.98 Stable
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
 permissions:
   actions: read
   contents: write

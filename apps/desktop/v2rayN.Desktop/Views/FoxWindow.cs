@@ -36,8 +36,9 @@ public static class FoxUi
     public static string Quota(FoxAccount account)
     {
         var maximum = account.Info["quota_max"]?.GetValue<long>(); var remaining = account.Info["quota_remaining"]?.GetValue<long>();
-        var text = maximum is null || remaining is null ? T("سهمیه هنوز توسط سرویس گزارش نشده است.", "The provider has not reported an allowance yet.")
-            : T($"مصرف‌شده: {Math.Max(0, maximum.Value - remaining.Value) / 1e9:0.##} GB · باقی‌مانده: {remaining / 1e9:0.##} از {maximum / 1e9:0.##} GB", $"Used: {Math.Max(0, maximum.Value - remaining.Value) / 1e9:0.##} GB · Remaining: {remaining / 1e9:0.##} of {maximum / 1e9:0.##} GB");
+        var allowance = FoxQuota.From(maximum, remaining);
+        var text = allowance is not { } quota ? T("سهمیه هنوز توسط سرویس گزارش نشده است.", "The provider has not reported an allowance yet.")
+            : T($"مصرف‌شده: {quota.Used / 1e9:0.##} GB · باقی‌مانده: {quota.Remaining / 1e9:0.##} از {quota.Maximum / 1e9:0.##} GB", $"Used: {quota.Used / 1e9:0.##} GB · Remaining: {quota.Remaining / 1e9:0.##} of {quota.Maximum / 1e9:0.##} GB");
         if (account.Info["quota_reset"]?.GetValue<long>() is > 0 and <= 253402300799L and var reset) text += " · " + T("بازنشانی: ", "Reset: ") + DateTimeOffset.FromUnixTimeSeconds(reset).ToLocalTime().ToString("yyyy-MM-dd");
         return text;
     }
