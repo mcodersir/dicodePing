@@ -439,8 +439,11 @@ jobs:
       - name: Launch signed TV build on an Android TV emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
-          arch: x86_64
+          # API 36 TV revision 1 crashes SystemUI before our APK is installed
+          # (VectorDrawable resource inflation), leaving every app without focus.
+          # Use the stable Android 14 TV image for the signed remote-control gate.
+          api-level: 34
+          arch: x86
           target: android-tv
           ram-size: 4096M
           disable-animations: true
