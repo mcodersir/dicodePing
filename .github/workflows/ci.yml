@@ -17,7 +17,7 @@ jobs:
         with:
           go-version: 1.27.3
           cache: false
-      - run: go test -tags=with_utls,with_quic,badlinkname -ldflags=-checklinkname=0 -race -timeout 60s ./...
+      - run: go test '-tags=with_utls,with_quic,badlinkname' -ldflags=-checklinkname=0 -race -timeout 60s ./...
         working-directory: apps/fox-helper
 
   desktop:
@@ -58,7 +58,7 @@ jobs:
           go-version: 1.27.3
           cache: false
       - name: Verify Windows Fox socket interface binding
-        run: go test -tags=with_utls,with_quic,badlinkname -ldflags=-checklinkname=0 -timeout 60s ./...
+        run: go test '-tags=with_utls,with_quic,badlinkname' -ldflags=-checklinkname=0 -timeout 60s ./...
         working-directory: apps/fox-helper
       - name: Build and test in an ephemeral Windows runner
         shell: pwsh

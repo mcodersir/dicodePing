@@ -16,7 +16,7 @@ jobs:
       with:
         go-version: 1.27.3
         cache: false
-    - run: go test -tags=with_utls,with_quic,badlinkname -ldflags=-checklinkname=0 -race ./...
+    - run: go test '-tags=with_utls,with_quic,badlinkname' -ldflags=-checklinkname=0 -race ./...
       working-directory: apps/fox-helper
   desktop:
     strategy:
