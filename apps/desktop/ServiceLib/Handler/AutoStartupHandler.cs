@@ -28,11 +28,13 @@ public static class AutoStartupHandler
         }
         else if (Utils.IsMacOS())
         {
-            await ClearTaskOSX();
-
             if (config.GuiItem.AutoRun)
             {
                 await SetTaskOSX();
+            }
+            else
+            {
+                await ClearTaskOSX();
             }
         }
 
@@ -183,9 +185,8 @@ public static class AutoStartupHandler
             var launchAgentPath = GetLaunchAgentPathMacOS();
             if (File.Exists(launchAgentPath))
             {
-                var args = new[] { "-c", $"launchctl unload -w \"{launchAgentPath}\"" };
-                await Utils.GetCliWrapOutput(Global.LinuxBash, args);
-
+                // Removing the next-login registration must not unload the
+                // LaunchAgent that owns this running process (launchd kills it).
                 File.Delete(launchAgentPath);
             }
         }
@@ -202,10 +203,16 @@ public static class AutoStartupHandler
         {
             var plistContent = GenerateLaunchAgentPlist();
             var launchAgentPath = GetLaunchAgentPathMacOS();
-            await File.WriteAllTextAsync(launchAgentPath, plistContent);
-
-            var args = new[] { "-c", $"launchctl load -w \"{launchAgentPath}\"" };
-            await Utils.GetCliWrapOutput(Global.LinuxBash, args);
+            if (!File.Exists(launchAgentPath) || await File.ReadAllTextAsync(launchAgentPath) != plistContent)
+            {
+                var pending = launchAgentPath + ".tmp";
+                await File.WriteAllTextAsync(pending, plistContent);
+                File.Move(pending, launchAgentPath, overwrite: true);
+            }
+            // Enable for the next login without restarting the current agent.
+            var uid = (await Utils.GetCliWrapOutput("/usr/bin/id", new[] { "-u" })).Trim();
+            if (uint.TryParse(uid, out _))
+                await Utils.GetCliWrapOutput("/bin/launchctl", new[] { "enable", $"gui/{uid}/{Global.AppName}-LaunchAgent" });
         }
         catch (Exception ex)
         {

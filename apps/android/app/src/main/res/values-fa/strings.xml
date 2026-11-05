@@ -352,7 +352,7 @@
     <string name="title_root_lan_sharing">اشتراک VPN با شبکهٔ محلی / دستگاه‌های متصل (کاربران Root)</string>
     <string name="summary_root_lan_sharing">ترافیک دستگاه‌های متصل به نقطهٔ اتصال Wi-Fi و USB را از VPN عبور می‌دهد.</string>
 
-    <string name="title_logcat" translatable="false">Logcat</string>
+    <string name="title_logcat">گزارش</string>
     <string name="logcat_copy">کپی</string>
     <string name="logcat_clear">پاک کردن</string>
     <string name="logcat_share">اشتراک ZIP گزارش خطا</string>

@@ -14,4 +14,6 @@ data class ConfigResult(
     var foxAccountId: String? = null,
     var foxCountry: String = "REC",
     var foxPort: Int = 0,
+    var singBoxConfig: String? = null,
+    var singBoxPort: Int = 0,
 )

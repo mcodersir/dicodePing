@@ -58,10 +58,14 @@ public class ProfileExManager
             var lstExists = await SQLiteHelper.Instance.TableAsync<ProfileExItem>().ToListAsync();
             List<ProfileExItem> lstInserts = [];
             List<ProfileExItem> lstUpdates = [];
+            var drainedIds = new HashSet<string>(StringComparer.Ordinal);
 
             while (_queIndexIds.TryDequeue(out var id))
             {
                 _queuedIndexIds.TryRemove(id, out _);
+                // A producer can enqueue this ID again while the same flush
+                // is draining. Include its latest object once per DB batch.
+                if (!drainedIds.Add(id)) continue;
                 var item = lstExists.FirstOrDefault(t => t.IndexId == id);
                 var itemNew = _lstProfileEx?.FirstOrDefault(t => t.IndexId == id);
                 if (itemNew is null)

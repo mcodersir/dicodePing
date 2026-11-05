@@ -2,9 +2,9 @@
 set -euo pipefail
 project_root=$(cd "$(dirname "$0")/.." && pwd)
 native_root="$project_root/native-upstream/AndroidLibXrayLite"
-git -C "$native_root" fetch --depth 1 origin 3be30ae8c718a6ff38bd569993860d25908595e8
+git -C "$native_root" fetch --depth 1 origin faad7a00ee2934ac101a677681523f6375b27f86
 git -C "$native_root" checkout --detach FETCH_HEAD
-test "$(git -C "$native_root" rev-parse HEAD)" = 3be30ae8c718a6ff38bd569993860d25908595e8
+test "$(git -C "$native_root" rev-parse HEAD)" = faad7a00ee2934ac101a677681523f6375b27f86
 git -C "$native_root" apply --check "$project_root/scripts/patches/android-core-health.patch"
 git -C "$native_root" apply "$project_root/scripts/patches/android-core-health.patch"
 cp "$project_root/scripts/patches/libv2ray_dicode_health_test.go.txt" "$native_root/libv2ray_dicode_health_test.go"
@@ -13,7 +13,7 @@ cp "$project_root/scripts/patches/libv2ray_dicode_health_test.go.txt" "$native_r
 # directly, including before the UI has copied them into the user asset folder.
 python "$project_root/scripts/stage-android-geodata.py"
 cd "$native_root"
-go mod edit -replace=github.com/xtls/xray-core=github.com/patterniha/xray-core@e5acafbbaa5c1bc279ac40ebcb9f204dc7f8dce5
+go mod edit -replace=github.com/xtls/xray-core=github.com/patterniha/xray-core@9bcf269d4af6179bc83d10e1e7ef8739d5325559
 go mod tidy
 go test -timeout 120s ./...
 # Match the module's pinned mobile bindings instead of installing an unbounded latest tool.

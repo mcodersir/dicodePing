@@ -16,8 +16,9 @@ android {
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
         // Monotonic shared version code permits switching architecture without a downgrade.
-        versionCode = 409920
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.92"
+        versionCode = 409980
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "4.9.98"
+        buildConfigField("boolean", "TV_BUILD", "false")
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
@@ -77,6 +78,12 @@ android {
             dimension = "distribution"
             buildConfigField("String", "DISTRIBUTION", "\"Play Store\"")
         }
+        create("tv") {
+            dimension = "distribution"
+            applicationIdSuffix = ".tv"
+            buildConfigField("String", "DISTRIBUTION", "\"Android TV\"")
+            buildConfigField("boolean", "TV_BUILD", "true")
+        }
     }
 
     sourceSets {
@@ -99,7 +106,8 @@ android {
 
     applicationVariants.all {
         val variant = this
-        val isFdroid = variant.productFlavors.any { it.name == "fdroid" }
+        val isTv = variant.productFlavors.any { it.name == "tv" }
+        val isFdroid = variant.productFlavors.any { it.name == "fdroid" } || isTv
         if (isFdroid) {
             val versionCodes =
                 mapOf(
@@ -110,7 +118,7 @@ android {
                 .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
                 .forEach { output ->
                     val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
+                    output.outputFileName = "DicodePing-${variant.versionName}-${if (isTv) "tv-" else ""}${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
                             // Switching between Universal and an ABI is not a downgrade.
@@ -131,7 +139,7 @@ android {
                     else
                         "universal"
 
-                    output.outputFileName = "DicodePing-${variant.versionName}-${abi}.apk"
+                    output.outputFileName = "DicodePing-${variant.versionName}-${if (isTv) "tv-" else ""}${abi}.apk"
                     if (versionCodes.containsKey(abi)) {
                         output.versionCodeOverride =
                             (1000000 * versionCodes[abi]!!).plus(variant.versionCode)

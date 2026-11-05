@@ -51,6 +51,10 @@ public sealed class FoxWindow : Window
         FlowDirection = FoxUi.T("fa", "en") == "fa" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         var accounts = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var status = new TextBlock { TextWrapping = TextWrapping.Wrap }; var quota = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var quotaBar = new ProgressBar { Minimum = 0, Maximum = 1, Height = 10, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var allowancePanel = new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Background = new SolidColorBrush(Color.Parse("#187F8798")), Child = new StackPanel { Spacing = 10, Children = {
+            new TextBlock { Text = FoxUi.T("سهمیهٔ روباه", "Fox allowance"), FontWeight = FontWeight.SemiBold }, quotaBar, quota
+        } } };
         var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
         country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
@@ -72,7 +76,7 @@ public sealed class FoxWindow : Window
         var verificationPanel = new StackPanel { Spacing = 12, Children = { new TextBlock { Text = FoxUi.T("ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap } } };
         var reauthenticate = new Button { Content = FoxUi.T("ورود مجدد به حساب", "Sign in again"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
-            quota, new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, reauthenticate, remove } };
+            new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, reauthenticate, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
         var adding = false; bool busy = false;
@@ -89,6 +93,7 @@ public sealed class FoxWindow : Window
             steps.Text = credentialsPanel.IsVisible ? FoxUi.T("۱ · ورود به حساب", "1 · Sign in")
                 : pending ? FoxUi.T("۲ · تأیید حساب", "2 · Verify account") : FoxUi.T("۳ · انتخاب کشور و اتصال", "3 · Choose country and connect");
             connect.IsVisible = ready;
+            allowancePanel.IsVisible = ready;
             connect.IsEnabled = refresh.IsEnabled = !busy && ready;
             remove.IsEnabled = !busy && account is not null;
             accounts.IsEnabled = country.IsEnabled = add.IsEnabled = back.IsEnabled = !busy;
@@ -97,7 +102,13 @@ public sealed class FoxWindow : Window
         async Task Load(string? id = null) {
             var saved = await FoxAccounts.ListAsync(); accounts.ItemsSource = saved; accounts.SelectedItem = saved.FirstOrDefault(a => a.Id == id) ?? saved.FirstOrDefault();
         }
-        void Selection() { if (accounts.SelectedItem is FoxAccount account) { quota.Text = FoxUi.Quota(account); country.SelectedItem = account.Country; } Render(); }
+        void Selection() { if (accounts.SelectedItem is FoxAccount account) {
+            quota.Text = FoxUi.Quota(account); country.SelectedItem = account.Country;
+            var allowance = FoxQuota.From(account.Info["quota_max"]?.GetValue<long>(), account.Info["quota_remaining"]?.GetValue<long>());
+            quotaBar.IsVisible = allowance.HasValue; quotaBar.Value = allowance?.Fraction ?? 0;
+            quotaBar.Foreground = new SolidColorBrush(Color.Parse(allowance?.Fraction >= 0.9 ? "#D95D64" : "#C77739"));
+            Avalonia.Automation.AutomationProperties.SetName(quotaBar, quota.Text);
+        } Render(); }
         accounts.SelectionChanged += (_, _) => { adding = false; Selection(); };
         add.Click += (_, _) => { adding = true; status.Text = ""; Render(); };
         back.Click += (_, _) => { adding = false; Render(); };
@@ -160,7 +171,7 @@ public sealed class FoxWindow : Window
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(22), Spacing = 13, Children = {
             new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 32, Height = 32, Stretch = Stretch.Uniform, StrokeThickness = 1.8, Stroke = new SolidColorBrush(Color.Parse("#C77739")), HorizontalAlignment = HorizontalAlignment.Left },
             new TextBlock { Text = FoxUi.T("روباه", "Fox"), FontSize = 28, FontWeight = FontWeight.SemiBold },
-            connect,
+            connect, allowancePanel,
             new TextBlock { Text = FoxUi.T("اتصال غیررسمی Firefox VPN با حساب شما. سهمیه و موقعیت‌های مجاز را Mozilla تعیین می‌کند؛ معمولاً تا ۵۰ گیگابایت در ماه برای حساب واجد شرایط. رمز عبور ذخیره نمی‌شود.", "Unofficial Firefox VPN connection using your account. Mozilla controls eligibility, locations and allowance, usually up to 50 GB/month for eligible accounts. Passwords are never stored."), TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = FoxUi.T("حساب‌های شما", "Your accounts"), FontWeight = FontWeight.SemiBold }, accounts, add, back, new SponsorBanner { Placement = "fox" }, steps, credentialsPanel, verificationPanel, connectionPanel, status,
             new TextBlock { Text = FoxUi.T("TCP و DNS رمزگذاری‌شده پشتیبانی می‌شوند؛ UDP عمومی پشتیبانی نمی‌شود. حذف ساب آن را خودکار برنمی‌گرداند؛ دکمهٔ تازه‌سازی امکان افزودن دوباره را دارد.", "Supports TCP and encrypted DNS, not arbitrary UDP. Deleted subscriptions stay deleted until you explicitly sync them again."), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 }

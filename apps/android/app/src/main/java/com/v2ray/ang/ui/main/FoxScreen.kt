@@ -16,12 +16,14 @@ import com.v2ray.ang.R
 import com.v2ray.ang.core.FoxAccount
 import com.v2ray.ang.core.FoxAccounts
 import com.v2ray.ang.core.FoxError
+import com.v2ray.ang.core.FoxQuota
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: (String) -> Unit) {
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -115,6 +117,22 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         Text(stringResource(R.string.fox_connect), style = MaterialTheme.typography.titleLarge)
                     }
                     }
+                    if (ready) current?.let { account ->
+                        val allowance = FoxQuota.from(account.info.optLong("quota_max", -1), account.info.optLong("quota_remaining", -1))
+                        Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(if (fa) "سهمیهٔ روباه" else "Fox allowance", style = MaterialTheme.typography.titleSmall)
+                                if (allowance == null) Text(stringResource(R.string.fox_quota_unknown), style = MaterialTheme.typography.bodySmall)
+                                else {
+                                    LinearProgressIndicator(progress = { allowance.fraction }, modifier = Modifier.fillMaxWidth().height(10.dp), color = if (allowance.fraction >= 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest, strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
+                                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text((if (fa) "مصرف: " else "Used: ") + String.format("%.2f GB", allowance.used / 1e9), style = MaterialTheme.typography.bodySmall)
+                                        Text((if (fa) "مانده: " else "Left: ") + String.format("%.2f / %.2f GB", allowance.remaining / 1e9, allowance.maximum / 1e9), style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
                     if (isRunning) SponsorBanner("fox")
                     Text(stringResource(R.string.fox_hint))
                     Box {
@@ -126,8 +144,6 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     if (adding && current != null) TextButton(onClick = { adding = false }, enabled = !busy) { Text(stringResource(R.string.fox_back_accounts)) }
                     if (ready) current?.let { account ->
                         val max = account.info.optLong("quota_max", -1); val remaining = account.info.optLong("quota_remaining", -1)
-                        Text(if (max >= 0 && remaining >= 0) (if (fa) "مصرف‌شده: " else "Used: ") + String.format("%.2f GB · ", (max - remaining).coerceAtLeast(0) / 1e9) else "")
-                        Text(if (max >= 0 && remaining >= 0) (if (fa) "باقی‌مانده: " else "Remaining: ") + String.format("%.2f / %.2f GB", remaining / 1e9, max / 1e9) else stringResource(R.string.fox_quota_unknown))
                         val reset = account.info.optLong("quota_reset", 0)
                         if (reset in 1..253402300799L) Text((if (fa) "بازنشانی: " else "Reset: ") + DateFormat.getDateInstance().format(Date(reset * 1000)))
                     }

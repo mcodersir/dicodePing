@@ -37,3 +37,5 @@ web-qa-*.png
 /apps/android/app/src/main/assets/*.dat.tmp
 
 /native-singbox/
+
+/native-upstream-singbox/

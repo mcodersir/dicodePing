@@ -360,7 +360,7 @@
     <string name="title_root_lan_sharing">Share VPN with LAN / tethered devices (root users)</string>
     <string name="summary_root_lan_sharing">Route traffic from Wi-Fi hotspot and USB-tethered devices through the VPN.</string>
 
-    <string name="title_logcat" translatable="false">Logcat</string>
+    <string name="title_logcat">Reports</string>
     <string name="logcat_copy">Copy</string>
     <string name="logcat_clear">Clear</string>
     <string name="logcat_share">Share diagnostic ZIP</string>

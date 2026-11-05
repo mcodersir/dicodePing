@@ -24,6 +24,7 @@ object AppConfig {
     const val DEFAULT_SUBSCRIPTION_ID = "__default_subscription__"
     const val DICODE_SECONDARY_SUBSCRIPTION_ID = "__dicode_secondary_subscription__"
     const val DICODE_PRIMARY_SUBSCRIPTION_ID = "__dicode_primary_subscription__"
+    const val DICODE_SERVERLESS_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/patterniha/Serverless-for-Iran/refs/heads/main/Subscription/Serverless-for-Iran.json#Patterniha-S"
     const val DICODE_PRIMARY_SUBSCRIPTION_URL = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt"
 
     // DicodeSpo: the "sources" subscription. Never fetched; its content is

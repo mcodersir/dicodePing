@@ -150,7 +150,10 @@ object CoreConfigManager {
             val port = if (forTest) Utils.findRandomFreePort() else FoxAccounts.LOCAL_PORT; result.foxAccountId = fox.accountId; result.foxCountry = fox.country; result.foxPort = port
             SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
         } else if (SingBoxConfig.isConfig(raw)) {
-            return ConfigResult(false, configContext.guid, errorMessage = context.getString(com.v2ray.ang.R.string.dicode_removed_core), localizedError = true)
+            val port = Utils.findRandomFreePort()
+            result.singBoxConfig = SingBoxConfig.prepare(raw, port)
+            result.singBoxPort = port
+            SingBoxConfig.xrayBridge(port, SettingsManager.getSocksPort())
         } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         if (fox != null) {

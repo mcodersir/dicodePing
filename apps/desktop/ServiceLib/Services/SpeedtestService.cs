@@ -362,6 +362,10 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
             {
                 lstFailed.AddRange(lst);
             }
+            else
+            {
+                lstFailed.AddRange(lst.Where(item => item.AllowTest && item.Delay <= 0));
+            }
             await Task.Delay(_delayInterval, ct);
         }
 
@@ -572,8 +576,19 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
 
                 innerCt.ThrowIfCancellationRequested();
 
-                await DoRealPing(it, completedIds, innerCt, updateDelay);
-                if (blSpeedTest) await DoSpeedTest(it, completedIds, innerCt);
+                var delay = await DoRealPing(it, completedIds, innerCt, updateDelay);
+                if (delay <= 0)
+                {
+                    // Release the failed instance before creating an isolated
+                    // retry; never leave two cores competing for the same port.
+                    await processService.StopAsync();
+                    processService.Dispose();
+                    processService = null;
+                    innerCt.ThrowIfCancellationRequested();
+                    processService = await CoreManager.Instance.LoadCoreConfigSpeedtest(it, innerCt);
+                    if (processService != null) delay = await DoRealPing(it, completedIds, innerCt, updateDelay);
+                }
+                if (blSpeedTest && delay > 0) await DoSpeedTest(it, completedIds, innerCt);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -601,6 +616,7 @@ public class SpeedtestService(Config config, Func<SpeedTestResult, Task> updateF
     {
         var webProxy = new WebProxy($"socks5://{Global.Loopback}:{it.Port}");
         var responseTime = await ConnectionHandler.GetRealPingTime(webProxy, ct);
+        it.Delay = responseTime;
 
         if (updateDelay)
         {

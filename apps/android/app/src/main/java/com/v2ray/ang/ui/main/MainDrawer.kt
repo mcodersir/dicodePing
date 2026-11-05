@@ -54,6 +54,7 @@ private val primaryDrawerItems = listOf(
     MainDestination.TrafficReport,
     MainDestination.Routing,
     MainDestination.UserAssets,
+    MainDestination.Logcat,
     MainDestination.Settings
 )
 

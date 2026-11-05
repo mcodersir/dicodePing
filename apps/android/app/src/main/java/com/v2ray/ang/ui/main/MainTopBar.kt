@@ -59,7 +59,7 @@ fun MainTopBar(
     val inputModeManager = LocalInputModeManager.current
     LaunchedEffect(Unit) {
         val television = (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-        if (television && !showSearch) {
+        if (television && !showSearch && !com.v2ray.ang.BuildConfig.TV_BUILD) {
             // Compose clickable controls reject focus in touch mode. TV starts with remote input.
             inputModeManager.requestInputMode(InputMode.Keyboard)
             initialFocus.requestFocus()

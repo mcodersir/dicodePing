@@ -6,10 +6,18 @@ public static class DicodePingBootstrap
     public const string DefaultSubscriptionUrl = "https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt";
     public const string SecondarySubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Free-Configs/main/configs.txt";
     public const string LegacySourcesUrl = "https://dicodeping.local/dicode-spo/sources";
+    public const string ServerlessSubscriptionUrl = "https://raw.githubusercontent.com/patterniha/Serverless-for-Iran/refs/heads/main/Subscription/Serverless-for-Iran.json#Patterniha-S";
 
     public static async Task EnsureDefaultsAsync(Config config, bool freshInstall = false)
     {
         var subscriptions = await AppManager.Instance.SubItems() ?? [];
+        if (!config.GuiItem.ServerlessProvisioned4998)
+        {
+            if (!subscriptions.Any(item => string.Equals(item.Url?.Split('#')[0], ServerlessSubscriptionUrl.Split('#')[0], StringComparison.OrdinalIgnoreCase)))
+                await ConfigHandler.AddSubItem(config, new SubItem { Id = string.Empty, Remarks = "Patterniha · Serverless", Url = ServerlessSubscriptionUrl, Enabled = true, AutoUpdateInterval = 1 });
+            config.GuiItem.ServerlessProvisioned4998 = true;
+            await ConfigHandler.SaveConfig(config);
+        }
         foreach (var item in subscriptions.Where(item =>
                      string.Equals(item.Url, LegacySourcesUrl, StringComparison.OrdinalIgnoreCase)
                      || (item.Remarks?.StartsWith("DicodeSpo", StringComparison.OrdinalIgnoreCase) ?? false)))

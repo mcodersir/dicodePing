@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui.main
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +32,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -75,6 +80,14 @@ fun MainScreen(
     // PattNG: a move of a profile the storage refused is told once, each refusal by its number, so that one set again
     // right after the last was told is told too; the groups are shown anew, as stored.
     val context = LocalContext.current
+    val connectFocus = remember { FocusRequester() }
+    val inputMode = LocalInputModeManager.current
+    LaunchedEffect(uiState.preparationVisible) {
+        if (com.v2ray.ang.BuildConfig.TV_BUILD && !uiState.preparationVisible) {
+            inputMode.requestInputMode(InputMode.Keyboard)
+            connectFocus.requestFocus()
+        }
+    }
     val failureText = stringResource(R.string.toast_failure)
     val moveRefusal = uiState.moveRefusal
     LaunchedEffect(moveRefusal) {
@@ -250,7 +263,7 @@ fun MainScreen(
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = { dispatchAction(MainAction.ToggleService) }, modifier = Modifier.remoteFocus(), containerColor = MaterialTheme.colorScheme.primary) {
+                FloatingActionButton(onClick = { dispatchAction(MainAction.ToggleService) }, modifier = Modifier.remoteFocus().focusRequester(connectFocus).then(if (com.v2ray.ang.BuildConfig.TV_BUILD) Modifier.size(80.dp) else Modifier), containerColor = MaterialTheme.colorScheme.primary) {
                     Icon(painterResource(if (isRunning) R.drawable.ic_stop_24dp else R.drawable.ic_play_24dp), stringResource(if (isRunning) R.string.acc_stop else R.string.fab_manual_connect))
                 }
             },
