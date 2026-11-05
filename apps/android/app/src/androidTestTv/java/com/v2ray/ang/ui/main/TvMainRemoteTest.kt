@@ -59,9 +59,11 @@ class TvMainRemoteTest {
                 // Instrumentation cleanup uninstalls the app, so keep the
                 // screenshot outside its private directory until CI pulls it.
                 compose.waitForIdle()
-                android.os.ParcelFileDescriptor.AutoCloseInputStream(
-                    instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download && screencap -p /sdcard/Download/dicode-tv-preview.png")
-                ).use { it.readBytes() }
+                listOf("mkdir -p /sdcard/Download", "screencap -p /sdcard/Download/dicode-tv-preview.png").forEach { command ->
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                        instrumentation.uiAutomation.executeShellCommand(command)
+                    ).use { it.readBytes() }
+                }
                 compose.onNodeWithText(settings).performSemanticsAction(SemanticsActions.RequestFocus)
                 remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(5_000) { compose.onAllNodesWithText("DicodePing TV").fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }
