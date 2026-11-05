@@ -44,6 +44,8 @@ public partial class CoreConfigSingboxService
 
     private List<BaseServer4Sbox> BuildGroupProxyOutbounds(string baseTagName = Global.ProxyTag)
     {
+        if (context.GenerationAncestors.Contains(_node.IndexId) || context.GenerationAncestors.Count >= 64)
+            throw new InvalidOperationException("Proxy group contains a cycle or exceeds the nesting limit.");
         var proxyOutboundList = new List<BaseServer4Sbox>();
         switch (_node.ConfigType)
         {
@@ -681,11 +683,11 @@ public partial class CoreConfigSingboxService
 
             if (node.ConfigType.IsGroupType())
             {
-                var childProfiles = new CoreConfigSingboxService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                var childProfiles = new CoreConfigSingboxService(context.ForChild(node)).BuildGroupProxyOutbounds(currentTag);
                 resultOutbounds.AddRange(childProfiles);
                 continue;
             }
-            var outbound = new CoreConfigSingboxService(context with { Node = node, }).BuildProxyOutbound();
+            var outbound = new CoreConfigSingboxService(context.ForChild(node)).BuildProxyOutbound();
             outbound.tag = currentTag;
             resultOutbounds.Add(outbound);
         }
@@ -713,7 +715,7 @@ public partial class CoreConfigSingboxService
             var dialerProxyTag = i != nodesReverse.Count - 1 ? $"chain-{baseTagName}-{i + 1}-{nodesReverse[i + 1].Remarks}" : null;
             if (node.ConfigType.IsGroupType())
             {
-                var childProfiles = new CoreConfigSingboxService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                var childProfiles = new CoreConfigSingboxService(context.ForChild(node)).BuildGroupProxyOutbounds(currentTag);
                 if (!dialerProxyTag.IsNullOrEmpty())
                 {
                     var chainEndNodes =
@@ -765,7 +767,7 @@ public partial class CoreConfigSingboxService
                 resultOutbounds.AddRange(childProfiles);
                 continue;
             }
-            var outbound = new CoreConfigSingboxService(context with { Node = node, }).BuildProxyOutbound();
+            var outbound = new CoreConfigSingboxService(context.ForChild(node)).BuildProxyOutbound();
 
             outbound.tag = currentTag;
 

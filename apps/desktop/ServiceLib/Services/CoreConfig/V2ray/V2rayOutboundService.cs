@@ -34,6 +34,8 @@ public partial class CoreConfigV2rayService
 
     private List<Outbounds4Ray> BuildGroupProxyOutbounds(string baseTagName = Global.ProxyTag)
     {
+        if (context.GenerationAncestors.Contains(_node.IndexId) || context.GenerationAncestors.Count >= 64)
+            throw new InvalidOperationException("Proxy group contains a cycle or exceeds the nesting limit.");
         var proxyOutboundList = new List<Outbounds4Ray>();
         switch (_node.ConfigType)
         {
@@ -702,11 +704,11 @@ public partial class CoreConfigV2rayService
 
             if (node.ConfigType.IsGroupType())
             {
-                var childProfiles = new CoreConfigV2rayService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                var childProfiles = new CoreConfigV2rayService(context.ForChild(node)).BuildGroupProxyOutbounds(currentTag);
                 resultOutbounds.AddRange(childProfiles);
                 continue;
             }
-            var outbound = new CoreConfigV2rayService(context with { Node = node, }).BuildProxyOutbound();
+            var outbound = new CoreConfigV2rayService(context.ForChild(node)).BuildProxyOutbound();
             outbound.tag = currentTag;
             resultOutbounds.Add(outbound);
         }
@@ -734,7 +736,7 @@ public partial class CoreConfigV2rayService
             var dialerProxyTag = i != nodesReverse.Count - 1 ? $"chain-{baseTagName}-{i + 1}-{nodesReverse[i + 1].Remarks}" : null;
             if (node.ConfigType.IsGroupType())
             {
-                var childProfiles = new CoreConfigV2rayService(context with { Node = node, }).BuildGroupProxyOutbounds(currentTag);
+                var childProfiles = new CoreConfigV2rayService(context.ForChild(node)).BuildGroupProxyOutbounds(currentTag);
                 if (!dialerProxyTag.IsNullOrEmpty())
                 {
                     var chainEndNodes =
@@ -786,7 +788,7 @@ public partial class CoreConfigV2rayService
                 resultOutbounds.AddRange(childProfiles);
                 continue;
             }
-            var outbound = new CoreConfigV2rayService(context with { Node = node, }).BuildProxyOutbound();
+            var outbound = new CoreConfigV2rayService(context.ForChild(node)).BuildProxyOutbound();
 
             outbound.tag = currentTag;
 

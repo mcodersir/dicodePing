@@ -10,6 +10,12 @@ public record CoreConfigContext
     public DNSItem? RawDnsItem { get; init; }
     public SimpleDNSItem SimpleDnsItem { get; init; } = new();
     public Dictionary<string, ProfileItem> AllProxiesMap { get; init; } = new();
+    public HashSet<string> GenerationAncestors { get; init; } = [];
+
+    public CoreConfigContext ForChild(ProfileItem child) => this with {
+        Node = child,
+        GenerationAncestors = [.. GenerationAncestors, Node.IndexId]
+    };
     public Config AppConfig { get; init; } = new();
     public FullConfigTemplateItem? FullConfigTemplate { get; init; } = new();
 
