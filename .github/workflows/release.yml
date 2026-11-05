@@ -256,7 +256,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -308,7 +308,7 @@ jobs:
           apps/android/app/src/main/assets/fox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ runner.os }}-dicode-native-v2-ndk29-go1.27.3-${{ hashFiles('scripts/runtime-pins-4.9.93.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**') }}
     - name: Build signed installable APKs
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
@@ -356,7 +356,7 @@ jobs:
           - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
           - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.91"}
           - {api: 35, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
-          - {api: 35, apkAbi: universal, alternate: arm64-v8a, target: default, baseline: "", edition: "TV-", package: "ir.dicode.ping.tv", code: 4409930}
+          - {api: 35, apkAbi: universal, alternate: x86_64, target: default, baseline: "", edition: "TV-", package: "ir.dicode.ping.tv", code: 4409930}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6

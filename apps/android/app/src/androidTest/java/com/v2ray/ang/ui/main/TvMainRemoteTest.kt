@@ -48,7 +48,11 @@ class TvMainRemoteTest {
                 compose.onNodeWithText("TV profile one").performSemanticsAction(SemanticsActions.RequestFocus)
                 remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == first }
-                remoteKey(KeyEvent.KEYCODE_DPAD_DOWN)
+                // Profiles can be ordered newest-first. Follow the actual
+                // screen geometry instead of assuming their insertion order.
+                val one = compose.onNodeWithText("TV profile one").fetchSemanticsNode().boundsInRoot
+                val two = compose.onNodeWithText("TV profile two").fetchSemanticsNode().boundsInRoot
+                remoteKey(if (two.top < one.top) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN)
                 compose.onNodeWithText("TV profile two").assertIsFocused()
                 remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }

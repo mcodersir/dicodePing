@@ -2,10 +2,12 @@
   "version": "4.9.93",
   "release_ready": false,
   "blockers": [
-    "FoxyVPN 2 sing-box HTTP/2 migration passes local transport tests; HTTP/3 and target platform checks are pending.",
-    "TV edition is implemented; Android build, remote navigation and signed APK verification are pending CI.",
-    "Windows/macOS builds and Android signing/upgrade checks are pending CI.",
-    "The 43 upstream reports are documented individually; all reports have not been reproduced or resolved.",
-    "GitHub access is verified with the user-authorized credential. No release has been published yet."
+    "Final TV remote-navigation test after correcting fixture order has not completed.",
+    "Final commit platform builds, signed TV installation and release checksums must pass CI before publication."
+  ],
+  "known_limits": [
+    "No claim that all 43 upstream reports or feature requests are resolved.",
+    "No live connectivity verification on Iranian mobile operators.",
+    "TFO and arbitrary UDP relay are not claimed as supported."
   ]
 }
