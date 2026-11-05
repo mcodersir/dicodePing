@@ -351,10 +351,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "4.9.91"}
-          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
-          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91"}
-          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.91"}
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "4.9.91 4.9.92"}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91 4.9.92"}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.91 4.9.92"}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.91 4.9.92"}
           - {api: 35, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
           - {api: 35, apkAbi: universal, alternate: x86_64, target: default, baseline: "", edition: "TV-", package: "ir.dicode.ping.tv", code: 4409930}
     steps:

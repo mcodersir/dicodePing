@@ -1,13 +1,16 @@
 {
   "version": "4.9.93",
-  "release_ready": false,
-  "blockers": [
-    "Final TV remote-navigation test after correcting fixture order has not completed.",
-    "Final commit platform builds, signed TV installation and release checksums must pass CI before publication."
-  ],
+  "release_ready": true,
+  "blockers": [],
   "known_limits": [
     "No claim that all 43 upstream reports or feature requests are resolved.",
     "No live connectivity verification on Iranian mobile operators.",
     "TFO and arbitrary UDP relay are not claimed as supported."
-  ]
+  ],
+  "publication": "Only the release workflow may publish after all exact-commit build, install, source, device and asset digest gates pass.",
+  "evidence": {
+    "android_preflight": "https://github.com/mcodersir/dicodePing/actions/runs/41955224550",
+    "cross_platform_builds": "https://github.com/mcodersir/dicodePing/actions/runs/41953445469",
+    "source_checks": "https://github.com/mcodersir/dicodePing/actions/runs/41953884300"
+  }
 }

@@ -20,7 +20,7 @@
 | [patterniha/PattN #41](https://github.com/patterniha/PattN/issues/41) | [Bug]: Real Delay results are not persisted after app restart - نتایج Real Delay بعد از بستن برنامه پاک می‌شود | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattN #40](https://github.com/patterniha/PattN/issues/40) | [Feature request]: Compile with older GLIBC | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattN #37](https://github.com/patterniha/PattN/issues/37) | [Feature Request] Support XDRIVE transport in UI forms and VLESS share links | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
-| [patterniha/PattN #36](https://github.com/patterniha/PattN/issues/36) | [Feature request]: Reproducible standalone Windows MASQUE-H2 support | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
+| [patterniha/PattN #36](https://github.com/patterniha/PattN/issues/36) | [Feature request]: Reproducible standalone Windows MASQUE-H2 support | مسیر HTTP/2 از موتور پین‌شدهٔ Vauth/sing-box در helper مستقل ادغام شد؛ بیلد Windows و تست‌های H2 و تمدید bearer موفق بودند. |
 | [patterniha/PattN #34](https://github.com/patterniha/PattN/issues/34) | [Feature request]: Any Outer SNI can be used for Cloudflare ECH as long as it's behind Orange Cloud. | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattN #31](https://github.com/patterniha/PattN/issues/31) | [Feature request]: پیشنهاد اضافه شدن گزینه بای‌پاس SNI-Block و اعمال خودکار تنظیمات TLS/Cipher در به‌‌روزرسانی سابسکرایب‌ها | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |
 | [patterniha/PattN #23](https://github.com/patterniha/PattN/issues/23) | [Feature request]: پیشنهاد جدید | خوانده شد؛ بازتولید و رفع اختصاصی تأیید نشده است. |

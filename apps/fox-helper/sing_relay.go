@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/log"
@@ -20,8 +19,7 @@ import (
 // Each helper process owns one account. Bearer rotation updates new CONNECT
 // requests without closing transports carrying established application streams.
 type singRelay struct {
-	client    *singHTTP.Client
-	refreshMu sync.Mutex
+	client *singHTTP.Client
 }
 
 type singUplink struct{ p *provider }
@@ -113,21 +111,16 @@ func (p *provider) openSingTunnel(ctx context.Context, authority string) (net.Co
 	// The pinned fork reports HTTP 407 with this stable error. Refresh once,
 	// and never retry after application bytes have been sent.
 	if !strings.Contains(err.Error(), "authentication required") && !strings.Contains(err.Error(), "401 Unauthorized") {
-		return nil, err
+		return nil, p.singRelayError(err)
 	}
-	p.engine.refreshMu.Lock()
-	defer p.engine.refreshMu.Unlock()
 	p.mutex.Lock()
-	stale := p.pass == pass
-	if stale {
+	if p.pass == pass {
+		p.pass = ""
 		p.passExpiry = 0
 	}
 	p.mutex.Unlock()
-	if stale {
-		if err := p.refreshProxyPass(ctx, true); err != nil {
-			return nil, err
-		}
-	}
+	// proxyPass shares the existing cancellable refresh gate. Concurrent
+	// rejections renew once; short-lived callers can leave while renewal runs.
 	_, err = p.proxyPass(ctx)
 	if err != nil {
 		return nil, err
@@ -137,7 +130,20 @@ func (p *provider) openSingTunnel(ctx context.Context, authority string) (net.Co
 	if err != nil && (strings.Contains(err.Error(), "authentication required") || strings.Contains(err.Error(), "401 Unauthorized")) {
 		return nil, &ProviderError{Code: "login_required", Message: "The proxy pass was rejected; sign in again"}
 	}
-	return conn, err
+	return conn, p.singRelayError(err)
+}
+
+func (p *provider) singRelayError(err error) error {
+	if err == nil || !strings.Contains(err.Error(), "429 ") {
+		return err
+	}
+	p.mutex.Lock()
+	exhausted := p.info.QuotaRemaining != nil && *p.info.QuotaRemaining <= 0
+	p.mutex.Unlock()
+	if exhausted {
+		return &ProviderError{Code: "quota_exceeded", Status: 429, Message: "The provider reports no remaining VPN allowance"}
+	}
+	return proxyLimitError(nil)
 }
 
 func (p *provider) syncSingToken() {

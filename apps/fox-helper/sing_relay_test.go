@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -13,6 +14,53 @@ import (
 	"testing"
 	"time"
 )
+
+func TestSingRelayPreservesBoundedAuthAndRateLimitErrors(t *testing.T) {
+	for _, status := range []int{401, 407, 429} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			var tokens, connects atomic.Int32
+			guardian := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				tokens.Add(1)
+				_, _ = w.Write([]byte(`{"token":"fresh","expires_at":9999999999}`))
+			}))
+			defer guardian.Close()
+			edge := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { connects.Add(1); w.WriteHeader(status) }))
+			edge.EnableHTTP2 = true
+			edge.StartTLS()
+			defer edge.Close()
+			host, port, _ := net.SplitHostPort(edge.Listener.Addr().String())
+			p := newProvider(State{AccessToken: "access", ExpiresAt: time.Now().Unix() + 3600})
+			p.guardianURL = guardian.URL
+			p.useSingBox = true
+			p.pass, p.passExpiry = "initial", time.Now().Unix()+3600
+			p.selected = Location{Host: host, Port: mustPort(port)}
+			if err := p.installRoots(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: edge.Certificate().Raw}))); err != nil {
+				t.Fatal(err)
+			}
+			p.tlsSplit = "off"
+			var err error
+			p.engine, err = p.newSingRelay()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer p.closeRelays()
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_, err = p.openTunnel(ctx, "destination.invalid:443")
+			var providerError *ProviderError
+			if !errors.As(err, &providerError) {
+				t.Fatal("provider error became an unclassified network failure", err)
+			}
+			if status == 429 {
+				if providerError.Code != "rate_limited" || connects.Load() != 1 || tokens.Load() != 0 {
+					t.Fatal("rate limiting caused renewal or incorrect quota exhaustion", providerError, connects.Load(), tokens.Load())
+				}
+			} else if providerError.Code != "login_required" || connects.Load() != 2 || tokens.Load() != 1 {
+				t.Fatal("rejected credentials were not renewed exactly once", providerError, connects.Load(), tokens.Load())
+			}
+		})
+	}
+}
 
 func TestSingRelayRotatesBearerWithoutDroppingActiveStream(t *testing.T) {
 	var refreshes atomic.Int32
