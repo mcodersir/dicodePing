@@ -2,7 +2,6 @@ package com.v2ray.ang.ui.main
 
 import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
@@ -57,9 +56,12 @@ class TvMainRemoteTest {
                 compose.onNodeWithText("TV profile two").assertIsFocused()
                 remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(3_000) { MmkvManager.getSelectServer() == second }
-                java.io.File(instrumentation.targetContext.cacheDir, "tv-preview.png").outputStream().use {
-                    compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-                }
+                // Instrumentation cleanup uninstalls the app, so keep the
+                // screenshot outside its private directory until CI pulls it.
+                compose.waitForIdle()
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                    instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Download && screencap -p /sdcard/Download/dicode-tv-preview.png")
+                ).use { it.readBytes() }
                 compose.onNodeWithText(settings).performSemanticsAction(SemanticsActions.RequestFocus)
                 remoteKey(KeyEvent.KEYCODE_DPAD_CENTER)
                 compose.waitUntil(5_000) { compose.onAllNodesWithText("DicodePing TV").fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty() }

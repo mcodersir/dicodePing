@@ -43,9 +43,13 @@ class FoxNativeTest {
         } finally { file.delete() }
     }
 
-    @Test fun removedEngineIsNotBundled() {
+    @Test fun standaloneSingBoxAndFoxAreBothPackaged() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        assertFalse(File(context.applicationInfo.nativeLibraryDir, "libsingbox.so").exists())
+        for (name in listOf("libsingbox.so", "libdicodefox.so")) {
+            val binary = File(context.applicationInfo.nativeLibraryDir, name)
+            assertTrue("Missing native runtime: $name", binary.isFile)
+            assertTrue("Native runtime is not executable: $name", binary.canExecute())
+        }
     }
 
     @Test fun helperRunsAndLoadsAndroidTrustStoreWithoutLeakingCredentials() {

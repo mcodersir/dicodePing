@@ -110,7 +110,8 @@ jobs:
         script: |
           trap 'adb logcat -d > app/build/remote-test-logcat.txt' EXIT; ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64
           ./gradlew connectedTvDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.ui.main.TvMainRemoteTest
-          adb exec-out run-as ir.dicode.ping.tv cat cache/tv-preview.png > app/build/tv-preview.png
+          adb pull /sdcard/Download/dicode-tv-preview.png app/build/tv-preview.png
+          python -c "from pathlib import Path; assert Path('app/build/tv-preview.png').read_bytes().startswith(b'\x89PNG\r\n\x1a\n')"
     - name: Test native executables and probes on 16 KB Android
       timeout-minutes: 15
       uses: reactivecircus/android-emulator-runner@v2
