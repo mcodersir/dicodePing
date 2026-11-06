@@ -451,7 +451,7 @@ jobs:
           api-level: 34
           arch: x86
           target: android-tv
-          # Keep the headless TV guest on GLES; Vulkan caused a guest reboot.
+          # Use GLES in the headless TV guest after its observed restart.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
           ram-size: 4096M
           disable-animations: true
