@@ -1,11 +1,39 @@
-const fs=require('fs');const{chromium}=require('playwright');
+const fs=require('fs');const crypto=require('crypto');const{chromium}=require('playwright');
 (async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});try{
- const source=fs.readFileSync('apps/android/app/src/main/assets/fox-browser.js','utf8');
- if(source!==fs.readFileSync('apps/desktop/ServiceLib/Resources/fox-browser.js','utf8'))throw Error('Browser bridge copies differ');
+ const source=fs.readFileSync(process.env.FOX_BROWSER_SOURCE||'apps/android/app/src/main/assets/fox-browser.js','utf8');
+ if(!process.env.FOX_BROWSER_SOURCE && source!==fs.readFileSync('apps/desktop/ServiceLib/Resources/fox-browser.js','utf8'))throw Error('Browser bridge copies differ');
  const context=await browser.newContext();let messages=[];const page=await context.newPage();
- await page.exposeFunction('capture',value=>messages.push(JSON.parse(value)));
+ let pendingSession=null;
+ await page.exposeFunction('capture',async value=>{
+  const data=JSON.parse(value);
+  if(data.kind==='pending_session'){pendingSession=data;return;}
+  if(data.kind==='bridge_ready'){
+   if(pendingSession)await page.evaluate(([token,email])=>window.__dicodeFoxRestore(token,email),[pendingSession.session_token,pendingSession.email]);
+   return;
+  }
+  messages.push(data);
+ });
  await page.addInitScript({content:"window.dicodeFox={postMessage:value=>window.capture(value)};\n"+source.replace('__DICODE_NONCE__',JSON.stringify('fixture-nonce'))});
  await page.route('https://accounts.firefox.com/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><html><body>Owned WebChannel test fixture</body></html>'}));
+ let exchangeCount=0,exchangeError=null,reject=false;
+ await page.route('https://api.accounts.firefox.com/v1/oauth/token',async route=>{
+  const request=route.request(),headers={'Access-Control-Allow-Origin':'https://accounts.firefox.com','Access-Control-Allow-Headers':'authorization,content-type','Access-Control-Allow-Methods':'POST'};
+  if(request.method()==='OPTIONS'){await route.fulfill({status:204,headers});return;}
+  try {
+   exchangeCount++;
+   if(request.method()!=='POST')throw Error('OAuth method');
+   const h=Object.fromEntries([...request.headers().authorization.matchAll(/(id|ts|nonce|mac|hash)="([^"]+)"/g)].map(m=>[m[1],m[2]]));
+   const key=[Buffer.from('12'.repeat(32),'hex'),Buffer.from('34'.repeat(32),'hex')].map(session=>Buffer.from(crypto.hkdfSync('sha256',session,Buffer.alloc(32),'identity.mozilla.com/picl/v1/sessionToken',64))).find(k=>k.subarray(0,32).toString('hex')===h.id);
+   if(!key)throw Error('Invalid OAuth Hawk key derivation');
+   const hash=crypto.createHash('sha256').update('hawk.1.payload\napplication/json\n'+request.postData()+'\n').digest('base64');
+   const normalized=`hawk.1.header\n${h.ts}\n${h.nonce}\nPOST\n/v1/oauth/token\napi.accounts.firefox.com\n443\n${hash}\n\n`;
+   const mac=crypto.createHmac('sha256',key.subarray(32)).update(normalized).digest('base64');
+   if(h.hash!==hash || h.mac!==mac || Math.abs(Date.now()/1000-Number(h.ts))>10)throw Error('Invalid signed browser OAuth request');
+   const body=JSON.parse(request.postData());if(body.client_id!=='5882386c6d801776'||body.grant_type!=='fxa-credentials'||body.access_type!=='offline')throw Error('OAuth scope/body changed');
+  }catch(error){exchangeError=error;}
+  await route.fulfill({status:reject?400:200,headers,contentType:'application/json',body:JSON.stringify(reject?{errno:104}:{access_token:'a1'.repeat(32),refresh_token:'b2'.repeat(32),expires_in:3600})});
+ });
+ const until=async predicate=>{for(let n=0;n<150;n++){if(predicate())return;await new Promise(r=>setTimeout(r,20));}throw Error('Browser grant transition timed out');};
  await page.goto('https://accounts.firefox.com/');
  const responses=await page.evaluate(()=>{
   let result=[];window.addEventListener('WebChannelMessageToContent',e=>result.push(typeof e.detail==='string'?JSON.parse(e.detail):e.detail));
@@ -18,20 +46,28 @@ const fs=require('fs');const{chromium}=require('playwright');
  if(messages.length)throw Error('Unconfirmed session delivered too early');
  await page.evaluate(()=>history.pushState({},'', '/signin/confirmed'));
  await page.waitForFunction(()=>window.__dicodeFoxHooked);
- await new Promise(r=>setTimeout(r,100));
- if(messages.length!==1||messages[0].nonce!=='fixture-nonce'||messages[0].session_token!=='12'.repeat(32))throw Error('Verified handoff missing/duplicated');
- await page.evaluate(()=>window.__dicodeFoxRetry());await new Promise(r=>setTimeout(r,100));
+ await until(()=>messages.length===1);
+ if(messages.length!==1||messages[0].nonce!=='fixture-nonce'||messages[0].kind!=='grant'||messages[0].access_token!=='a1'.repeat(32))throw Error('Verified handoff missing/duplicated');
+ await page.evaluate(()=>window.__dicodeFoxRetry());await until(()=>messages.length===2);
  if(messages.length!==2)throw Error('Interactive retry is broken');
  await page.evaluate(()=>{
   window.__dicodeFoxWaiting();
   document.dispatchEvent(new CustomEvent('WebChannelMessageToChrome',{bubbles:true,detail:JSON.stringify({id:'account_updates',message:{command:'fxaccounts:verified',data:{sessionToken:'34'.repeat(32)},messageId:'verified'}})}));
- });await new Promise(r=>setTimeout(r,100));
- if(messages.length!==3||messages[2].session_token!=='34'.repeat(32))throw Error('Rotated verification session was lost');
+ });await until(()=>messages.length===3);
+ if(messages.length!==3||messages[2].kind!=='grant')throw Error('Rotated verification session was lost');
 
+ if(exchangeError)throw exchangeError;
+ if(exchangeCount!==3)throw Error('Missing browser-side OAuth exchanges');
+ reject=true;await page.evaluate(()=>window.__dicodeFoxRetry());await until(()=>exchangeCount===4);await new Promise(r=>setTimeout(r,100));
+ if(messages.length!==3)throw Error('Unconfirmed browser grant was accepted');
+ reject=false;await page.evaluate(()=>window.__dicodeFoxRetry());await until(()=>messages.length===4);
+ if(exchangeError)throw exchangeError;
+ await page.reload();await until(()=>messages.length===5);
+ if(messages[4].kind!=='grant')throw Error('Full-page verification lost the pending session');
  const foreign=await context.newPage();let leaks=[];await foreign.exposeFunction('capture',v=>leaks.push(v));
  await foreign.addInitScript({content:"window.dicodeFox={postMessage:value=>window.capture(value)};\n"+source.replace('__DICODE_NONCE__',JSON.stringify('fixture-nonce'))});
  await foreign.route('https://foreign.invalid/**',r=>r.fulfill({status:200,contentType:'text/html',body:'<html><body>Foreign fixture</body></html>'}));await foreign.goto('https://foreign.invalid/');
  if(await foreign.evaluate(()=>!!window.__dicodeFoxHooked))throw Error('Bridge installed on foreign origin');
  if(leaks.length)throw Error('Foreign session leaked');
- console.log('PASS actual Chromium WebChannel: status/link replies, OTP handoff, deduplication, retry, origin isolation');
+ console.log('PASS actual Chromium WebChannel: status/link replies, OTP gating, signed OAuth exchange, unconfirmed-grant rejection, retry, origin isolation');
  }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});

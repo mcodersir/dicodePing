@@ -52,7 +52,8 @@ try:
             if args.candidate:
                 assert launch.returncode==0 and 'Status: ok' in launch.stdout,'Release activity could not start'
                 time.sleep(3)
-                assert adb('shell','pidof',package).returncode==0,'Release crashed after launch'
+                assert adb('get-state').returncode==0, 'Emulator disconnected/rebooted after launch; app crash is not established'
+                assert adb('shell','pidof',package).returncode==0,'Release process exited after launch; inspect app logcat'
                 if args.remote:
                     for key in ['KEYCODE_DPAD_DOWN', 'KEYCODE_DPAD_RIGHT', 'KEYCODE_DPAD_UP', 'KEYCODE_BACK']:
                         assert adb('shell','input','keyevent',key).returncode==0

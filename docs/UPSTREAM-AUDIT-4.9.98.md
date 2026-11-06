@@ -70,3 +70,11 @@ FoxyVPN 2.0.0 was reviewed at e692202dbdf0a5dbbff8ce8bba000f62a9039451; 2.0.1 re
 - The provided desktop 4.9.93 log shows subscription timeouts/refused localhost connections and destination DNS timeouts, alongside a successful v58-fragA probe. These entries do not establish a single universal root cause or prove Android behavior. No TLS verification bypass was added.
 
 Latest full desktop run: 230 passed, 16 skipped for missing native/platform prerequisites, 0 failed (246 total). The separate native configuration run passed all 10 cases.
+
+## Browser verification follow-up
+
+FoxyVPN 2 exchanges the confirmed FxA session for OAuth tokens inside its sign-in WebView. DicodePing previously handed that session to the native helper, using a separate HTTP/browser identity. Both clients now perform the standard Hawk-signed exchange on the official browser page, then save the grant in the existing encrypted account vault. The original helper is unchanged and remains the fallback when browser crypto/network support is unavailable.
+
+The Chromium regression failed against the previous bridge and passed against this implementation. It independently checks the Hawk HKDF, payload hash and MAC, rejects errno 104, verifies retry, rotated sessions and full-page verification redirects, and prevents foreign-origin handoff. Desktop grant parser tests cover nonce/origin binding, invalid payloads, pending sessions and page readiness. Native platform fixtures exercise the bridge using test-only OAuth responses; these are not proof of a live Mozilla account login. Mandatory Mozilla verification is not bypassed.
+
+The Android 14 TV attempt lost its emulator connection after a successful cold launch; subsequent logcat began at a new system boot. It is recorded as an emulator restart, not a proven app crash. Signed installation/remote navigation remains a required release gate.

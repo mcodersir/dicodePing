@@ -32,6 +32,11 @@ public sealed class BrowserSmokeApp : Application
    e.ContentType="text/html";e.ResponseBody="""
     <!doctype html><html><body><h1>Local WebChannel integration fixture</h1><script>
     let replied=false;
+    const realFetch=window.fetch;
+    window.fetch=function(url,options){
+     if(url==='https://api.accounts.firefox.com/v1/oauth/token')return Promise.resolve(new Response(JSON.stringify({access_token:'a1'.repeat(32),refresh_token:'b2'.repeat(32),expires_in:3600}),{status:200}));
+     return realFetch.apply(this,arguments);
+    };
     function read(e){try{let d=typeof e.detail==='string'?JSON.parse(e.detail):e.detail;if(d.message.command==='fxaccounts:fxa_status')replied=true;}catch(_){}}
     window.addEventListener('WebChannelMessageToContent',read);
     document.addEventListener('WebChannelMessageToContent',read);
@@ -52,9 +57,10 @@ public sealed class BrowserSmokeApp : Application
   web.WebMessageReceived+=(_,e)=>Dispatcher.UIThread.Post(()=>{
    var payload=e.Message??e.Json;
    if(payload?.StartsWith('"')==true)payload=JsonSerializer.Deserialize<string>(payload);
-   var session=FoxBrowserProtocol.Parse(web.CurrentUrl?.ToString(),payload,nonce);
+   if(FoxBrowserProtocol.IsReady(web.CurrentUrl?.ToString(),payload,nonce)||FoxBrowserProtocol.ParsePending(web.CurrentUrl?.ToString(),payload,nonce) is not null)return;
+   var session=FoxBrowserProtocol.ParseGrant(web.CurrentUrl?.ToString(),payload,nonce);
    if(session is null){Finish(2,"FAIL native origin/session contract");return;}
-   Finish(0,"PASS actual native browser: document-start WebChannel, status reply, OTP completion, private session handoff");
+   Finish(0,"PASS actual native browser: document-start WebChannel, status reply, OTP completion, browser OAuth grant handoff");
   });
   window.Opened+=async(_,_)=>{
    try{await web.InitializeAsync();web.Navigate("https://accounts.firefox.com/dicode-local-fixture");}

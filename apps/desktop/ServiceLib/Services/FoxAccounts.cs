@@ -131,6 +131,16 @@ public static class FoxAccounts
         await FoxProfiles.SyncAsync(account);
         return account;
     }
+    public static async Task<FoxAccount> CompleteBrowserGrantAsync(JsonObject state, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var email = state["email"]!.GetValue<string>();
+        var account = (await ListAsync()).FirstOrDefault(a => string.Equals(a.Email, email, StringComparison.OrdinalIgnoreCase)) ?? new FoxAccount();
+        account.State = state.DeepClone().AsObject();
+        await SaveAsync(account, create: true);
+        await FoxProfiles.SyncAsync(account);
+        return account;
+    }
     public static async Task<FoxAccount> VerifyAsync(string id, string code, CancellationToken token)
     {
         var account = await GetAsync(id); var result = await RequestAsync(new JsonObject { ["operation"] = "verify", ["code"] = code, ["state"] = account.State.DeepClone() }, token);

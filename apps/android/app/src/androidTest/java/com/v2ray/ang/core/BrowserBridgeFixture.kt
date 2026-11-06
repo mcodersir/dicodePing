@@ -39,8 +39,8 @@ internal object BrowserBridgeFixture {
       val data=JSONObject(message.data ?: "{}")
       when(data.optString("kind")){
        "otp-pending"->pending.set(true)
-       "session"->{
-        if(!pending.get()||data.optString("nonce")!=nonce||data.optString("session_token")!=token)failure="Premature/untrusted session handoff"
+       "grant"->{
+        if(!pending.get()||data.optString("nonce")!=nonce||data.optString("access_token")!="a1".repeat(32) || FoxBrowserGrant.state(data)==null)failure="Premature/untrusted session handoff"
         sessions.incrementAndGet();latch.countDown()
        }
       }
@@ -50,6 +50,11 @@ internal object BrowserBridgeFixture {
     if(documentStart)WebViewCompat.addDocumentStartJavaScript(view,script,setOf("https://accounts.firefox.com"))
     val html="""<!doctype html><html><body><h1>Local WebChannel fixture</h1><script>
       var statusReplied=false;
+      const realFetch=window.fetch;
+      window.fetch=function(url,options){
+        if(url==='https://api.accounts.firefox.com/v1/oauth/token')return Promise.resolve(new Response(JSON.stringify({access_token:'a1'.repeat(32),refresh_token:'b2'.repeat(32),expires_in:3600}),{status:200}));
+        return realFetch.apply(this,arguments);
+      };
       window.addEventListener('WebChannelMessageToContent',function(e){try{var d=typeof e.detail==='string'?JSON.parse(e.detail):e.detail;if(d.message.command==='fxaccounts:fxa_status')statusReplied=true;}catch(_){}});
       function msg(command,data,id){document.dispatchEvent(new CustomEvent('WebChannelMessageToChrome',{bubbles:true,detail:JSON.stringify({id:'account_updates',message:{command:command,data:data,messageId:id}})}));}
       window.addEventListener('load',async function(){

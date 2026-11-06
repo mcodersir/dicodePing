@@ -109,6 +109,14 @@ internal object FoxAccounts {
         sync(context, account) // Quota metadata is fetched by connection/refresh, not a second login gate.
         return account
     }
+    fun browserGrant(context: Context, data: JSONObject): FoxAccount {
+        val state = FoxBrowserGrant.state(data) ?: throw FoxError("input", "Invalid Mozilla browser grant")
+        val email = state.getString("email")
+        val account = list(context).firstOrNull { it.email.equals(email, true) } ?: FoxAccount(UUID.randomUUID().toString().replace("-", ""), "REC", JSONObject(), JSONObject())
+        account.state = state; save(context, account, create = true)
+        sync(context, account)
+        return account
+    }
     fun verify(context: Context, id: String, code: String): FoxAccount {
         val account = get(context, id)
         val result = request(context, JSONObject().put("operation", "verify").put("code", code.trim()).put("state", account.state))

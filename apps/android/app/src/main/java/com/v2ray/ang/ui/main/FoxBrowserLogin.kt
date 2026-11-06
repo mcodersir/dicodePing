@@ -37,18 +37,32 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
     var status by remember { mutableStateOf("") }
     var web by remember { mutableStateOf<WebView?>(null) }
     var disposed by remember { mutableStateOf(false) }
+    var pendingSession by remember { mutableStateOf("") }
+    var pendingEmail by remember { mutableStateOf("") }
     val script = remember { context.assets.open("fox-browser.js").bufferedReader().use { it.readText() }.replace("__DICODE_NONCE__", JSONObject.quote(nonce)) }
-    DisposableEffect(Unit) { onDispose { disposed = true } }
+    DisposableEffect(Unit) { onDispose { disposed = true; pendingSession = ""; pendingEmail = "" } }
     fun receive(view: WebView, payload: String) {
         if (disposed || busy || payload.length > 8192 || !foxTrustedOrigin(Uri.parse(view.url ?: ""))) return
         val data = runCatching { JSONObject(payload) }.getOrNull() ?: return
-        if (data.optString("nonce") != nonce || data.optString("kind") != "session") return
+        if (data.optString("nonce") != nonce) return
+        if (data.optString("kind") == "pending_session") {
+            val session=data.optString("session_token");val accountEmail=data.optString("email")
+            if (Regex("^[a-fA-F0-9]{64}$").matches(session) && accountEmail.length<=254 && accountEmail.contains('@')) { pendingSession=session;pendingEmail=accountEmail }
+            return
+        }
+        if (data.optString("kind") == "bridge_ready") {
+            if (pendingSession.isNotEmpty()) view.evaluateJavascript("window.__dicodeFoxRestore && window.__dicodeFoxRestore(" + JSONObject.quote(pendingSession) + "," + JSONObject.quote(pendingEmail) + ")", null)
+            return
+        }
+        val grant = data.optString("kind") == "grant"
+        if (!grant && data.optString("kind") != "session") return
+        if (grant && com.v2ray.ang.core.FoxBrowserGrant.state(data) == null) return
         val token = data.optString("session_token"); val email = data.optString("email")
-        if (!Regex("^[a-fA-F0-9]{64}$").matches(token) || email.length > 254 || !email.contains('@')) return
+        if (!grant && (!Regex("^[a-fA-F0-9]{64}$").matches(token) || email.length > 254 || !email.contains('@'))) return
         busy = true; status = if (fa) "در حال تأیید نشست امن…" else "Verifying account session…"
         scope.launch {
             try {
-                val account = withContext(Dispatchers.IO) { FoxAccounts.browserLogin(context, email, token) }
+                val account = withContext(Dispatchers.IO) { if (grant) FoxAccounts.browserGrant(context, data) else FoxAccounts.browserLogin(context, email, token) }
                 if (!disposed) onComplete(account.id)
             } catch (e: Exception) {
                 if (!disposed) {
@@ -96,7 +110,10 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
                                     if (!documentStart && foxTrustedOrigin(Uri.parse(url ?: ""))) view.evaluateJavascript(script, null)
                                 }
                                 override fun onPageFinished(view: WebView, url: String?) {
-                                    if (!documentStart && foxTrustedOrigin(Uri.parse(url ?: ""))) view.evaluateJavascript(script, null)
+                                    if (!documentStart && foxTrustedOrigin(Uri.parse(url ?: ""))) {
+                                        view.evaluateJavascript(script, null)
+                                        if (pendingSession.isNotEmpty()) view.evaluateJavascript("window.__dicodeFoxRestore && window.__dicodeFoxRestore(" + JSONObject.quote(pendingSession) + "," + JSONObject.quote(pendingEmail) + ")", null)
+                                    }
                                 }
                             }
                             // Cookies and browser storage are never added to logs or diagnostic ZIPs.

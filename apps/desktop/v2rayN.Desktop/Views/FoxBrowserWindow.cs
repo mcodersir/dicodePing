@@ -22,9 +22,9 @@ public sealed class FoxBrowserWindow : Window
             status, retry, close } };
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         layout.Children.Add(bar); Grid.SetRow(host, 1); layout.Children.Add(host); Content = layout;
-        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false;
+        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; (string Email, string Session)? pending = null;
         close.Click += (_, _) => Close();
-        Closed += (_, _) => { disposed = true; cancellation.Cancel(); web?.Dispose(); };
+        Closed += (_, _) => { disposed = true; pending = null; cancellation.Cancel(); web?.Dispose(); };
         retry.Click += async (_, _) => { try { if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
         Opened += async (_, _) => {
             try {
@@ -45,12 +45,25 @@ public sealed class FoxBrowserWindow : Window
                     string? payload = e.Message ?? e.Json;
                     // WebView2 reports a JS string as JSON; decode once, never log it.
                     if (payload?.StartsWith('"') == true) { try { payload = System.Text.Json.JsonSerializer.Deserialize<string>(payload); } catch { return; } }
+                    var captured = FoxBrowserProtocol.ParsePending(web.CurrentUrl?.ToString(), payload, nonce);
+                    if (captured is not null) { pending = captured; return; }
+                    if (FoxBrowserProtocol.IsReady(web.CurrentUrl?.ToString(), payload, nonce)) {
+                        if (pending is not null) {
+                            var restore = "window.__dicodeFoxRestore && window.__dicodeFoxRestore(" + System.Text.Json.JsonSerializer.Serialize(pending.Value.Session) + "," + System.Text.Json.JsonSerializer.Serialize(pending.Value.Email) + ")";
+                            try { await web.ExecuteScriptAsync(restore, cancellation.Token); } catch (OperationCanceledException) { }
+                            catch (Exception) { status.Text = FoxUi.T("صفحهٔ ورود آمادهٔ ادامه نیست؛ دوباره تلاش کنید.", "The sign-in page is not ready to continue. Retry."); retry.IsVisible = true; }
+                        }
+                        return;
+                    }
                     var session = FoxBrowserProtocol.Parse(web.CurrentUrl?.ToString(), payload, nonce);
-                    if (session is null) return;
+                    var grant = FoxBrowserProtocol.ParseGrant(web.CurrentUrl?.ToString(), payload, nonce);
+                    if (session is null && grant is null) return;
                     busy = true; retry.IsVisible = false; close.IsEnabled = false;
                     status.Text = FoxUi.T("در حال تأیید نشست امن…", "Verifying account session…");
                     try {
-                        var account = await FoxAccounts.CompleteBrowserLoginAsync(session.Value.Email, session.Value.Session, cancellation.Token);
+                        var account = grant is not null
+                            ? await FoxAccounts.CompleteBrowserGrantAsync(grant, cancellation.Token)
+                            : await FoxAccounts.CompleteBrowserLoginAsync(session!.Value.Email, session.Value.Session, cancellation.Token);
                         if (!disposed) Close(account);
                     } catch (OperationCanceledException) { }
                     catch (Exception error) {
