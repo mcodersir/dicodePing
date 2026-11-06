@@ -16,6 +16,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.webkit.ProxyConfig
+import androidx.webkit.ProxyController
+import com.v2ray.ang.core.FoxProcess
 import com.v2ray.ang.core.FoxAccounts
 import com.v2ray.ang.core.FoxError
 import kotlinx.coroutines.Dispatchers
@@ -39,8 +42,13 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
     var disposed by remember { mutableStateOf(false) }
     var pendingSession by remember { mutableStateOf("") }
     var pendingEmail by remember { mutableStateOf("") }
+    val signInProxy = remember { FoxProcess(context) }
     val script = remember { context.assets.open("fox-browser.js").bufferedReader().use { it.readText() }.replace("__DICODE_NONCE__", JSONObject.quote(nonce)) }
-    DisposableEffect(Unit) { onDispose { disposed = true; pendingSession = ""; pendingEmail = "" } }
+    DisposableEffect(Unit) { onDispose {
+        disposed = true; pendingSession = ""; pendingEmail = ""
+        signInProxy.close()
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) ProxyController.getInstance().clearProxyOverride({ it.run() }, {})
+    } }
     fun receive(view: WebView, payload: String) {
         if (disposed || busy || payload.length > 8192 || !foxTrustedOrigin(Uri.parse(view.url ?: ""))) return
         val data = runCatching { JSONObject(payload) }.getOrNull() ?: return
@@ -94,7 +102,7 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
                         settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         settings.saveFormData = false
                         importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-                        settings.userAgentString = "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
+                        settings.userAgentString = "Mozilla/5.0 (Android 14; Mobile; rv:158.0) Gecko/158.0 Firefox/158.0"
                         android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
                             status = if (fa) "Android System WebView را به‌روز کنید و دوباره وارد شوید." else "Update Android System WebView and sign in again."
@@ -117,7 +125,20 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
                                 }
                             }
                             // Cookies and browser storage are never added to logs or diagnostic ZIPs.
-                            loadUrl("https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email")
+                            val loginUrl = "https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email"
+                            val browser = this
+                            scope.launch {
+                                try {
+                                    val address = withContext(Dispatchers.IO) { signInProxy.startSignInProxy() }
+                                    if (!disposed && WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                                        ProxyController.getInstance().setProxyOverride(ProxyConfig.Builder().addProxyRule("http://$address").build(), { it.run() }) {
+                                            browser.post { if (!disposed) browser.loadUrl(loginUrl) }
+                                        }
+                                    } else if (!disposed) browser.loadUrl(loginUrl)
+                                } catch (e: Exception) {
+                                    if (!disposed) { status = if (fa) "مسیر امن ورود آماده نشد؛ دوباره تلاش کنید." else "The sign-in route could not start. Retry." }
+                                }
+                            }
                         }
                     } } catch (e: Exception) {
                         android.widget.TextView(ctx).apply { text = if (fa) "مرورگر سیستم اندروید آماده نیست؛ Android System WebView را به‌روز کنید." else "Android System WebView is unavailable. Update it and retry." }

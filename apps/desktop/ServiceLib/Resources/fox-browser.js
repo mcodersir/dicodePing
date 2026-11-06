@@ -1,4 +1,4 @@
-// Firefox Accounts WebChannel integration adapted from FoxyVPN 1.0.8/2.0.0 (MIT).
+// Firefox Accounts WebChannel integration; native OAuth recovery uses Arman VPN v1.0.11 (GPL-3.0).
 (function(){
 'use strict';
 if (window!==window.top || location.origin!=='https://accounts.firefox.com' || window.__dicodeFoxHooked) return;
@@ -50,7 +50,7 @@ function sendSession(){
  inFlight=true;
  const session=token,accountEmail=email;
  browserGrant(session,accountEmail).catch(()=>{
-  // Preserve the original 4.9.92 login path if WebCrypto/CORS is unavailable.
+  // Use the native Arman OAuth code/PKCE recovery when WebCrypto, CORS or direct token exchange fails.
   // Do not print response bodies, tokens, cookies, or request headers.
   if(session===token && accountEmail===email)post({kind:'session',session_token:session});
  });

@@ -225,6 +225,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
         } finally { timer.interrupt() }
     }
     fun execute(request: JSONObject): JSONObject = launch(request).use { response(it) }
+    fun startSignInProxy(): String = response(launch(JSONObject().put("operation", "signin_proxy"))).getString("listen")
     fun start(id: String, country: String, port: Int, onExit: (() -> Unit)? = null) {
         val account = FoxAccounts.get(context, id)
         val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))

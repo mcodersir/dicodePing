@@ -115,6 +115,16 @@ public static class FoxAccounts
         try { return await process.StartPrivateProtocolAsync(request, null, timeout.Token); }
         finally { await process.StopAsync(); }
     }
+    public static async Task<(ProcessService Process, string Address)> OpenSignInProxyAsync(CancellationToken token)
+    {
+        var process = Helper();
+        try {
+            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "signin_proxy" }, null, token);
+            var address = result["listen"]?.GetValue<string>() ?? throw new FoxException("helper", "Missing browser proxy address");
+            if (!System.Net.IPEndPoint.TryParse(address, out var endpoint) || !System.Net.IPAddress.IsLoopback(endpoint.Address)) throw new FoxException("helper", "Invalid browser proxy address");
+            return (process, address);
+        } catch { await process.StopAsync(); process.Dispose(); throw; }
+    }
     public static async Task<FoxAccount> LoginAsync(string email, string password, CancellationToken token)
     {
         var result = await RequestAsync(new JsonObject { ["operation"] = "login", ["email"] = email.Trim(), ["password"] = password }, token);

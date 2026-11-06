@@ -23,11 +23,14 @@ public sealed class FoxBrowserWindow : Window
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         layout.Children.Add(bar); Grid.SetRow(host, 1); layout.Children.Add(host); Content = layout;
         NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; (string Email, string Session)? pending = null;
+        ServiceLib.Services.ProcessService? signInProxy = null;
         close.Click += (_, _) => Close();
-        Closed += (_, _) => { disposed = true; pending = null; cancellation.Cancel(); web?.Dispose(); };
+        Closed += async (_, _) => { disposed = true; pending = null; cancellation.Cancel(); web?.Dispose(); if (signInProxy is not null) { await signInProxy.StopAsync(); signInProxy.Dispose(); } };
         retry.Click += async (_, _) => { try { if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
         Opened += async (_, _) => {
             try {
+                var proxy = await FoxAccounts.OpenSignInProxyAsync(cancellation.Token);
+                signInProxy = proxy.Process;
                 if (OperatingSystem.IsWindows()) NativeWebView.Platform.Windows.NativeWebViewPlatformWindowsModule.RegisterDefault();
                 else if (OperatingSystem.IsMacOS()) NativeWebView.Platform.macOS.NativeWebViewPlatformMacOSModule.RegisterDefault();
                 else NativeWebView.Platform.Linux.NativeWebViewPlatformLinuxModule.RegisterDefault();
@@ -37,6 +40,7 @@ public sealed class FoxBrowserWindow : Window
                 web.InstanceConfiguration.ControllerOptions.IsGeneralAutofillEnabled = false;
                 web.InstanceConfiguration.ControllerOptions.RedactNavigationDetails = true;
                 web.InstanceConfiguration.EnvironmentOptions.UserDataFolder = Path.Combine(FoxAccounts.Folder, "Browser");
+                web.InstanceConfiguration.EnvironmentOptions.Proxy.Server = "http://" + proxy.Address;
                 web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce), NativeWebViewScriptFrameScope.MainFrame));
                 web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsTrusted(e.Uri?.ToString())) e.Cancel = true; };
                 web.NewWindowRequested += (_, e) => { e.Handled = true; };
@@ -76,7 +80,7 @@ public sealed class FoxBrowserWindow : Window
                 });
                 host.Children.Add(web);
                 await web.InitializeAsync(cancellation.Token);
-                web.SetUserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0");
+                web.SetUserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0");
                 web.Navigate(FoxBrowserProtocol.LoginUrl);
             } catch (OperationCanceledException) { }
             catch (Exception) {

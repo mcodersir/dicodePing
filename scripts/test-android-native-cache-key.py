@@ -6,7 +6,7 @@ class CacheKeyTests(unittest.TestCase):
     def test_android_core_change_invalidates(self):
         other=copy.deepcopy(self.value);other['pins']['android_build']['xray_commit']='different';self.assertNotEqual(cache.cache_key(other),cache.cache_key(self.value))
     def test_original_fox_source_change_invalidates(self):
-        other=copy.deepcopy(self.value);name=next(n for n in other['files'] if n.endswith('provider.go'));other['files'][name]='changed';self.assertNotEqual(cache.cache_key(other),cache.cache_key(self.value))
+        other=copy.deepcopy(self.value);name=next(n for n in other['files'] if n.endswith('main.go'));other['files'][name]='changed';self.assertNotEqual(cache.cache_key(other),cache.cache_key(self.value))
     def test_native_recipe_or_toolchain_change_invalidates(self):
         for field in ['native_steps','toolchains']:
             other=copy.deepcopy(self.value);other['recipes'][cache.WORKFLOWS[0]][field]='changed';self.assertNotEqual(cache.cache_key(other),cache.cache_key(self.value))
