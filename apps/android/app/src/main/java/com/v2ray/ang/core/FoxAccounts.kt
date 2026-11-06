@@ -216,7 +216,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     }
     private fun response(reader: java.io.BufferedReader): JSONObject {
         val child = process!!
-        val timer = thread(isDaemon = true) { try { Thread.sleep(if (operation == "serve") 45000 else 100000); child.destroyForcibly() } catch (_: InterruptedException) { } }
+        val timer = thread(isDaemon = true) { try { Thread.sleep(if (operation == "serve") 75000 else 100000); child.destroyForcibly() } catch (_: InterruptedException) { } }
         try {
             val line = reader.readLine() ?: throw FoxError("helper_exit", "Fox helper ended before readiness: " + synchronized(errorTail) { errorTail.joinToString("; ") })
             val result = JSONObject(line)

@@ -119,7 +119,7 @@ public static class FoxAccounts
     {
         var process = Helper();
         try {
-            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "signin_proxy" }, null, token);
+            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "signin_proxy", ["bind_interface"] = PhysicalUplink.Find() }, null, token);
             var address = result["listen"]?.GetValue<string>() ?? throw new FoxException("helper", "Missing browser proxy address");
             if (!System.Net.IPEndPoint.TryParse(address, out var endpoint) || !System.Net.IPAddress.IsLoopback(endpoint.Address)) throw new FoxException("helper", "Invalid browser proxy address");
             return (process, address);

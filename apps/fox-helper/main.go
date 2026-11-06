@@ -253,7 +253,11 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 		return err
 	}
 	e := &engine{state: req.State}
-	opctx, finish := context.WithTimeout(ctx, 95*time.Second)
+	operationTimeout := 95 * time.Second
+	if req.Operation == "serve" {
+		operationTimeout = 65 * time.Second
+	}
+	opctx, finish := context.WithTimeout(ctx, operationTimeout)
 	defer finish()
 	result := Response{OK: true}
 	switch req.Operation {
