@@ -28,3 +28,18 @@ func DicodePass(ctx context.Context, endpoint string, auth *runtimeAuth) (*runti
 	}
 	return fresh, pass, err
 }
+
+// DicodeUsage follows upstream's explicit-refresh HEAD/GET policy without
+// reactivating the account or replacing unrelated state.
+func DicodeUsage(ctx context.Context, endpoint string, auth *runtimeAuth, manual bool) (*runtimeAuth, *guardian.ProxyUsage, error) {
+	fresh, err := FreshRuntimeAuth(ctx, auth)
+	if err != nil {
+		return auth, nil, err
+	}
+	fetch := guardian.FetchProxyUsage
+	if manual {
+		fetch = guardian.RefreshProxyUsage
+	}
+	usage, err := fetch(ctx, endpoint, fresh.Token.AccessToken)
+	return fresh, usage, err
+}

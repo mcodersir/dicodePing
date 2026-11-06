@@ -100,37 +100,13 @@ object UpdateCheckerManager {
         }
     }
 
-    private fun compareVersions(version1: String, version2: String): Int {
-        // SemVer rule: 3.0.0 is newer than 3.0.0-pre.12. The old numeric-only
-        // comparison incorrectly treated the prerelease counter as a fourth
-        // stable version segment and prevented migration to the stable build.
-        val numberRegex = Regex("\\d+")
-        val v1 = numberRegex.findAll(version1).map { it.value.toInt() }.toList()
-        val v2 = numberRegex.findAll(version2).map { it.value.toInt() }.toList()
-
-        for (i in 0 until 3) {
-            val num1 = v1.getOrElse(i) { 0 }
-            val num2 = v2.getOrElse(i) { 0 }
-            if (num1 != num2) return num1 - num2
-        }
-        val pre1 = version1.contains('-')
-        val pre2 = version2.contains('-')
-        if (pre1 != pre2) return if (pre1) -1 else 1
-        for (i in 3 until maxOf(v1.size, v2.size)) {
-            val num1 = v1.getOrElse(i) { 0 }
-            val num2 = v2.getOrElse(i) { 0 }
-            if (num1 != num2) return num1 - num2
-        }
-        return 0
-    }
+    private fun compareVersions(version1: String, version2: String): Int = ReleaseCompatibility.compareVersions(version1, version2)
 
     private fun getDownloadUrl(release: GitHubRelease, abi: String): String {
         // Release assets are product-branded and distribution-neutral. Prefer the
         // exact ABI, then universal, and finally any APK as a safe last resort.
-        val apkAssets = release.assets.filter { it.name.endsWith(".apk", true) }
-        val asset = apkAssets.firstOrNull { it.name.contains(abi, true) }
-            ?: apkAssets.firstOrNull { it.name.contains("universal", true) }
-            ?: apkAssets.firstOrNull()
+        val name = ReleaseCompatibility.selectApk(release.assets.map { it.name }, abi, BuildConfig.TV_BUILD)
+        val asset = release.assets.firstOrNull { it.name == name }
 
         return asset?.browserDownloadUrl
             ?: throw IllegalStateException("No compatible APK found")

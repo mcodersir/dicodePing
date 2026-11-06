@@ -29,6 +29,12 @@ import java.util.UUID
 
 internal fun foxTrustedOrigin(uri: Uri?): Boolean = uri?.scheme == "https" && uri.host == "accounts.firefox.com" && (uri.port == -1 || uri.port == 443) && uri.userInfo == null
 
+internal fun foxAllowedNavigation(uri: Uri?): Boolean {
+    if (uri?.scheme != "https" || (uri.port != -1 && uri.port != 443) || uri.userInfo != null) return false
+    val host=uri.host ?: return false
+    return foxTrustedOrigin(uri) || host in setOf("accounts.google.com","accounts.youtube.com","appleid.apple.com","idmsa.apple.com","iforgot.apple.com") || listOf("firefox.com","mozilla.com","mozilla.org","mozilla.net").any { host==it || host.endsWith(".$it") }
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit) {
@@ -43,10 +49,11 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
     var pendingSession by remember { mutableStateOf("") }
     var pendingEmail by remember { mutableStateOf("") }
     val signInProxy = remember { FoxProcess(context) }
+    val loginProcess = remember { FoxProcess(context) }
     val script = remember { context.assets.open("fox-browser.js").bufferedReader().use { it.readText() }.replace("__DICODE_NONCE__", JSONObject.quote(nonce)) }
     DisposableEffect(Unit) { onDispose {
         disposed = true; pendingSession = ""; pendingEmail = ""
-        signInProxy.close()
+        signInProxy.close(); loginProcess.close()
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) ProxyController.getInstance().clearProxyOverride({ it.run() }, {})
     } }
     fun receive(view: WebView, payload: String) {
@@ -84,7 +91,7 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
         busy = true; status = if (fa) "در حال تأیید نشست امن…" else "Verifying account session…"
         scope.launch {
             try {
-                val account = withContext(Dispatchers.IO) { if (grant) FoxAccounts.browserGrant(context, data) else FoxAccounts.browserLogin(context, email, token) }
+                val account = withContext(Dispatchers.IO) { if (grant) FoxAccounts.browserGrant(context, data) else FoxAccounts.browserLogin(context, email, token, loginProcess) }
                 if (!disposed) onComplete(account.id)
             } catch (e: Exception) {
                 if (!disposed) {
@@ -127,7 +134,7 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
                             val documentStart = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
                             if (documentStart) WebViewCompat.addDocumentStartJavaScript(this, script, setOf("https://accounts.firefox.com"))
                             webViewClient = object : WebViewClient() {
-                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = request.isForMainFrame && !foxTrustedOrigin(request.url)
+                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = request.isForMainFrame && !foxAllowedNavigation(request.url)
                                 override fun onPageStarted(view: WebView, url: String?, icon: android.graphics.Bitmap?) {
                                     if (!documentStart && foxTrustedOrigin(Uri.parse(url ?: ""))) view.evaluateJavascript(script, null)
                                 }

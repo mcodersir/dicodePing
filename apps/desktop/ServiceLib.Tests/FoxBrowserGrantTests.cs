@@ -52,4 +52,14 @@ public class FoxBrowserGrantTests
         Assert.Null(FoxBrowserProtocol.ParseError("https://accounts.firefox.com",payload,"other"));
         Assert.Null(FoxBrowserProtocol.ParseError("https://accounts.firefox.com",payload.Replace("verification_required","untrusted error body"),"fixture"));
     }
+    [Theory]
+    [InlineData("https://accounts.google.com/signin")]
+    [InlineData("https://appleid.apple.com/auth/authorize")]
+    public void ProviderNavigationNeverGetsTheFirefoxBridge(string url) { Assert.True(FoxBrowserProtocol.IsAllowedNavigation(url));Assert.False(FoxBrowserProtocol.IsTrusted(url));Assert.Null(FoxBrowserProtocol.ParseGrant(url,Payload(),"fixture")); }
+    [Theory]
+    [InlineData("https://accounts.google.com.evil.test")]
+    [InlineData("https://accounts.google.com:8443")]
+    [InlineData("https://evil@accounts.google.com")]
+    [InlineData("http://accounts.google.com")]
+    public void RejectsUntrustedProviderNavigation(string url)=>Assert.False(FoxBrowserProtocol.IsAllowedNavigation(url));
 }

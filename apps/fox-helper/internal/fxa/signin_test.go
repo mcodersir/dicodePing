@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -31,6 +32,73 @@ func useFxaFixture(t *testing.T, handler func(r *http.Request, body map[string]a
 		status, text := handler(r, body)
 		return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(text)), Request: r}, nil
 	}))
+}
+
+func TestOAuthTokenTriesHTTP2BeforeAuthorizationCode(t *testing.T) {
+	const tokenURL = fxaAuthServer + "/oauth/token"
+	const tokenJSON = `{"access_token":"fixture-access","refresh_token":"fixture-refresh"}`
+	for _, tc := range []struct {
+		name       string
+		status     int
+		wantGrants string
+	}{
+		{"HTTP/2 succeeds", http.StatusOK, "original HTTP/2"},
+		{"HTTP/2 is refused", http.StatusNotAcceptable, "original HTTP/2 authorization exchange"},
+		{"HTTP/2 cannot connect", 0, "original HTTP/2 authorization exchange"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			checkGrant := func(r *http.Request, body map[string]any) {
+				t.Helper()
+				if r.URL.String() != tokenURL || r.Method != http.MethodPost ||
+					!strings.HasPrefix(r.Header.Get("Authorization"), "Hawk ") || body["grant_type"] != "fxa-credentials" ||
+					body["client_id"] != firefoxClientID || body["scope"] != oauthScope || body["access_type"] != "offline" {
+					t.Fatal("expected the session-authenticated offline VPN grant")
+				}
+			}
+			var grants []string
+			useFxaFixture(t, func(r *http.Request, body map[string]any) (int, string) {
+				switch r.URL.String() {
+				case tokenURL:
+					grants = append(grants, "original")
+					checkGrant(r, body)
+					return http.StatusNotAcceptable, ""
+				case fxaAuthServer + "/oauth/authorization":
+					grants = append(grants, "authorization")
+					state, _ := body["state"].(string)
+					return http.StatusOK, `{"code":"fixture-code","state":"` + state + `"}`
+				case fxaOAuthTokenURL:
+					grants = append(grants, "exchange")
+					if body["grant_type"] != "authorization_code" || body["code"] != "fixture-code" {
+						t.Fatal("expected authorization code redemption")
+					}
+					return http.StatusOK, tokenJSON
+				default:
+					t.Fatalf("unexpected OAuth target %s", r.URL)
+					return 0, ""
+				}
+			})
+			sendHTTP2 := func(r *http.Request) (*http.Response, error) {
+				grants = append(grants, "HTTP/2")
+				defer r.Body.Close()
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatalf("cannot read the retried grant: %v", err)
+				}
+				checkGrant(r, body)
+				if tc.status == 0 {
+					return nil, errors.New("fixture connection failure")
+				}
+				return &http.Response{StatusCode: tc.status, Body: io.NopCloser(strings.NewReader(tokenJSON)), Request: r}, nil
+			}
+			token, err := fxaOAuthToken(context.Background(), strings.Repeat("00", 32), sendHTTP2)
+			if err != nil || token.AccessToken != "fixture-access" || token.RefreshToken != "fixture-refresh" {
+				t.Fatalf("token exchange failed: %v", err)
+			}
+			if got := strings.Join(grants, " "); got != tc.wantGrants {
+				t.Fatalf("tried %q, want %q", got, tc.wantGrants)
+			}
+		})
+	}
 }
 
 func TestOAuthTokenUsesAuthorizationCodeAfter406(t *testing.T) {
@@ -85,6 +153,88 @@ func TestOAuthTokenUsesAuthorizationCodeAfter406(t *testing.T) {
 				}
 			} else if err != nil || token.AccessToken != "fixture-access" || token.RefreshToken != "fixture-refresh" || calls != 3 {
 				t.Fatalf("sign-in via authorization code failed: %v (calls=%d)", err, calls)
+			}
+		})
+	}
+}
+
+func TestOAuthTokenSharesChallengeRecoveryBetweenGrants(t *testing.T) {
+	const cookieName = "oauth-retry-fixture"
+	const prefix = "/_fs-ch-oauthFixture"
+	const tokenPath = "/v1/oauth/token"
+	const authorizationPath = "/v1/oauth/authorization"
+	const tokenJSON = `{"access_token":"fixture-access","refresh_token":"fixture-refresh"}`
+	for _, tc := range []struct {
+		name          string
+		primaryStatus int
+		wantRequests  []string
+	}{
+		{"original grant succeeds after challenge", http.StatusOK, []string{tokenPath, authorizationPath, tokenPath}},
+		{"alternate grant succeeds after challenge", http.StatusNotAcceptable, []string{tokenPath, authorizationPath, tokenPath, authorizationPath, "/v1/token"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			previous := controlplane.Transport()
+			t.Cleanup(func() {
+				controlplane.SetTransport(previous)
+				for _, target := range []string{fxaAuthServer + "/", fxaSiteURL} {
+					u, _ := url.Parse(target)
+					controlplane.SetCookies(u, []*http.Cookie{{Name: cookieName, MaxAge: -1}})
+				}
+			})
+
+			var requests []string
+			var solves int
+			controlplane.SetTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				response := func(status int, body string) *http.Response {
+					return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body)), Request: r}
+				}
+				switch r.URL.Path {
+				case tokenPath, authorizationPath, "/v1/token":
+					requests = append(requests, r.URL.Path)
+					if len(requests) > len(tc.wantRequests) || r.URL.Path != tc.wantRequests[len(requests)-1] {
+						t.Fatalf("unexpected grant requests %v, want %v", requests, tc.wantRequests)
+					}
+					if len(requests) <= 2 {
+						return response(http.StatusNotAcceptable, ""), nil
+					}
+					if r.URL.Path == "/v1/token" {
+						return response(http.StatusOK, tokenJSON), nil
+					}
+					if _, err := r.Cookie(cookieName); err != nil {
+						t.Fatalf("grant retried without the challenge cookie: %s", r.URL.Path)
+					}
+					if r.URL.Path == tokenPath {
+						return response(tc.primaryStatus, tokenJSON), nil
+					}
+					var body struct{ State string }
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.State == "" {
+						t.Fatal("expected alternate authorization with a state")
+					}
+					return response(http.StatusOK, `{"code":"fixture-code","state":"`+body.State+`"}`), nil
+				case "/":
+					if _, err := r.Cookie(cookieName); err == nil {
+						return response(http.StatusOK, "normal page"), nil
+					}
+					return response(http.StatusOK, `Client Challenge <script src="`+prefix+`/script.js"></script>`), nil
+				case prefix + "/script.js":
+					return response(http.StatusOK, `init([{"ty":"clientmetrics","data":{}}], "fixture-token", "`+prefix+`")`), nil
+				case prefix + "/fst-post-back":
+					solves++
+					resp := response(http.StatusOK, `{"status":"success"}`)
+					resp.Header.Set("Set-Cookie", cookieName+"=cleared; Path=/; Secure")
+					return resp, nil
+				default:
+					t.Fatalf("unexpected request to %s", r.URL.Path)
+					return nil, nil
+				}
+			}))
+
+			token, err := OAuthToken(context.Background(), strings.Repeat("00", 32))
+			if err != nil || token.AccessToken != "fixture-access" || token.RefreshToken != "fixture-refresh" {
+				t.Fatalf("token exchange failed after alternate 406: %v", err)
+			}
+			if len(requests) != len(tc.wantRequests) || solves != 1 {
+				t.Fatalf("got grant requests %v and %d solves, want %v and one solve", requests, solves, tc.wantRequests)
 			}
 		})
 	}

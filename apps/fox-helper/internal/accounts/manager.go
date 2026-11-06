@@ -353,16 +353,11 @@ const (
 	ReasonQuotaExhausted = "quota_exhausted"
 	// ReasonSignInRequired: the account must be signed in again.
 	ReasonSignInRequired = "signin_required"
-	// ReasonSignInConfirm: Mozilla wants the sign-in confirmed with a code.
+	// Older builds stored these reasons for automatic password sign-ins.
 	ReasonSignInConfirm = "signin_confirm"
-	// ReasonSignInFailed: the automatic sign-in failed (Detail says why).
-	ReasonSignInFailed = "signin_failed"
-	// ReasonSignInWait: new tokens stopped working soon after the last
-	// automatic sign-in; the next one is at RetryAt.
-	ReasonSignInWait = "signin_wait"
-	// ReasonSignInRetry: the automatic sign-in could not finish (Detail);
-	// it is tried again at RetryAt.
-	ReasonSignInRetry = "signin_retry"
+	ReasonSignInFailed  = "signin_failed"
+	ReasonSignInWait    = "signin_wait"
+	ReasonSignInRetry   = "signin_retry"
 	// ReasonNotEntitled: Guardian refused the account.
 	ReasonNotEntitled = "not_entitled"
 )

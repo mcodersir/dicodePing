@@ -22,7 +22,7 @@ public sealed class FoxBrowserWindow : Window
         var host = new Grid();
         var bar = new StackPanel { Margin = new Thickness(12), Spacing = 8, Children = {
             new TextBlock { Text = "accounts.firefox.com", FontSize = 16 },
-            new TextBlock { Text = FoxUi.T("ایمیل و رمز Firefox و کد تأیید را در صفحهٔ رسمی وارد کنید. ورود Google و Apple پشتیبانی نمی‌شود.", "Use your Firefox email, password and verification code on the official page. Google and Apple sign-in are not supported here."), TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = FoxUi.T("ورود، ساخت حساب و واردکردن کد تأیید را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in, account creation and verification on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap },
             status, retry, close } };
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         layout.Children.Add(bar); Grid.SetRow(host, 1); layout.Children.Add(host); Content = layout;
@@ -46,8 +46,8 @@ public sealed class FoxBrowserWindow : Window
                 web.InstanceConfiguration.EnvironmentOptions.UserDataFolder = Path.Combine(FoxAccounts.Folder, "Browser");
                 ConfigureSignInProxy(web, proxy.Address);
                 web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce), NativeWebViewScriptFrameScope.MainFrame));
-                web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsTrusted(e.Uri?.ToString())) e.Cancel = true; };
-                web.NewWindowRequested += (_, e) => { e.Handled = true; };
+                web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsAllowedNavigation(e.Uri?.ToString())) e.Cancel = true; };
+                web.NewWindowRequested += (_, e) => { e.Handled = true; if (FoxBrowserProtocol.IsAllowedNavigation(e.Uri?.ToString())) web.Navigate(e.Uri!.ToString()); };
                 web.WebMessageReceived += (_, e) => Dispatcher.UIThread.Post(async () => {
                     if (disposed) return;
                     string? payload = e.Message ?? e.Json;

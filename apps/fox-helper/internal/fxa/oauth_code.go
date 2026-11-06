@@ -37,22 +37,25 @@ func exchangeSessionWithOAuthCode(ctx context.Context, hawkID string, hawkKey []
 		"code_challenge":        base64.RawURLEncoding.EncodeToString(challenge[:]),
 		"code_challenge_method": "S256",
 	})
-	resp, err := fxaDo(ctx, func() (*http.Request, error) {
-		req, err := newOAuthJSONRequest(ctx, authorizeURL, authorizeBody)
-		if err != nil {
-			return nil, err
-		}
-		header, err := hawkHeader(http.MethodPost, authorizeURL, hawkID, hawkKey, string(authorizeBody))
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Authorization", header)
-		return req, nil
-	})
+	authorizeRequest, err := newOAuthJSONRequest(ctx, authorizeURL, authorizeBody)
+	if err != nil {
+		return nil, fmt.Errorf("creating OAuth authorization request: %w", err)
+	}
+	header, err := hawkHeader(http.MethodPost, authorizeURL, hawkID, hawkKey, string(authorizeBody))
+	if err != nil {
+		return nil, fmt.Errorf("signing OAuth authorization request: %w", err)
+	}
+	authorizeRequest.Header.Set("Authorization", header)
+	resp, err := controlplane.Do(authorizeRequest)
 	if err != nil {
 		return nil, fmt.Errorf("requesting OAuth authorization code: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotAcceptable {
+		// The original token request and this alternate grant share recovery.
+		logx.Info("OAuth authorization returned HTTP 406")
+		return nil, nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, oauthCodeError(resp, "OAuth authorization")
 	}

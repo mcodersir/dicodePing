@@ -163,9 +163,10 @@ func (b *fxaResponseBody) Close() error {
 	return b.ReadCloser.Close()
 }
 
-// on406 may handle the first 406 before the challenge solver runs. A nil
-// response and error leave the original challenge path available.
-func fxaDoWith406Fallback(ctx context.Context, newRequest func() (*http.Request, error), on406 func(context.Context) (*http.Response, error)) (response *http.Response, err error) {
+// on406 can try an alternate request when the original returns 406. It
+// receives the number of completed challenge solves. A nil response and
+// error leave the original challenge path available.
+func fxaDoWith406Fallback(ctx context.Context, newRequest func() (*http.Request, error), on406 func(context.Context, int) (*http.Response, error)) (response *http.Response, err error) {
 	requestCtx := ctx
 	var cancel context.CancelFunc
 	if timeout, ok := ctx.Value(requestTimeoutKey{}).(time.Duration); ok {
@@ -204,9 +205,6 @@ func fxaDoWith406Fallback(ctx context.Context, newRequest func() (*http.Request,
 		io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 		resp.Body.Close()
 
-		if solved == maxChallengeAttempts {
-			return nil, fmt.Errorf("%w: still HTTP 406 after %d solved challenges", ErrChallengeBlocked, solved)
-		}
 		if solved == 0 {
 			if cancel != nil {
 				cancel()
@@ -214,12 +212,13 @@ func fxaDoWith406Fallback(ctx context.Context, newRequest func() (*http.Request,
 			recoveryCtx, finishRecovery := context.WithTimeout(ctx, fxaChallengeBudget)
 			requestCtx, cancel = recoveryCtx, finishRecovery
 		}
-		// A solved cookie may unlock the OAuth host even when the API host
-		// remains blocked. Retry the alternate after each solved challenge.
 		if on406 != nil {
-			if alternate, err := on406(requestCtx); alternate != nil || err != nil {
+			if alternate, err := on406(requestCtx, solved); alternate != nil || err != nil {
 				return alternate, err
 			}
+		}
+		if solved == maxChallengeAttempts {
+			return nil, fmt.Errorf("%w: still HTTP 406 after %d solved challenges", ErrChallengeBlocked, solved)
 		}
 
 		logx.Info("the account server answered HTTP 406 (Fastly's bot check); solving its challenge attempt=%d", solved+1)
@@ -396,8 +395,7 @@ func SessionVerified(ctx context.Context, sessionToken string) (bool, error) {
 // DestroySession ends a session token once its OAuth tokens are issued.
 // Left alive, it stays in the account's connected services as an
 // "unknown" session next to the device record; the program needs only the
-// refresh token (and signs in again with the stored password when that
-// stops working).
+// refresh token for background OAuth renewal.
 func DestroySession(ctx context.Context, sessionToken string) error {
 	hawkID, hawkKey, err := deriveHawkCredentials(sessionToken, "sessionToken")
 	if err != nil {
@@ -430,7 +428,7 @@ func DestroySession(ctx context.Context, sessionToken string) error {
 	return nil
 }
 
-func fxaOAuthToken(ctx context.Context, sessionToken string) (*TokenResponse, error) {
+func fxaOAuthToken(ctx context.Context, sessionToken string, sendHTTP2 func(*http.Request) (*http.Response, error)) (*TokenResponse, error) {
 	hawkID, hawkKey, err := deriveHawkCredentials(sessionToken, "sessionToken")
 	if err != nil {
 		return nil, fmt.Errorf("deriving hawk credentials: %w", err)
@@ -446,7 +444,7 @@ func fxaOAuthToken(ctx context.Context, sessionToken string) (*TokenResponse, er
 
 	tokenURL := fxaAuthServer + "/oauth/token"
 
-	resp, err := fxaDoWith406Fallback(ctx, func() (*http.Request, error) {
+	newRequest := func(ctx context.Context) (*http.Request, error) {
 		authHeader, err := hawkHeader("POST", tokenURL, hawkID, hawkKey, string(bodyJSON))
 		if err != nil {
 			return nil, fmt.Errorf("generating hawk header: %w", err)
@@ -457,7 +455,15 @@ func fxaOAuthToken(ctx context.Context, sessionToken string) (*TokenResponse, er
 		}
 		req.Header.Set("Authorization", authHeader)
 		return req, nil
-	}, func(ctx context.Context) (*http.Response, error) {
+	}
+	resp, err := fxaDoWith406Fallback(ctx, func() (*http.Request, error) {
+		return newRequest(ctx)
+	}, func(ctx context.Context, solved int) (*http.Response, error) {
+		if sendHTTP2 != nil && solved <= 1 {
+			if response, err := tryOAuthTokenHTTP2(ctx, newRequest, sendHTTP2); response != nil || err != nil {
+				return response, err
+			}
+		}
 		return exchangeSessionWithOAuthCode(ctx, hawkID, hawkKey)
 	})
 	if err != nil {
@@ -483,6 +489,31 @@ func fxaOAuthToken(ctx context.Context, sessionToken string) (*TokenResponse, er
 	return &tok, nil
 }
 
+// tryOAuthTokenHTTP2 repeats the same grant over HTTP/2. If that transport
+// cannot reach FxA or is also challenged, the existing recovery can continue.
+func tryOAuthTokenHTTP2(ctx context.Context, newRequest func(context.Context) (*http.Request, error), send func(*http.Request) (*http.Response, error)) (*http.Response, error) {
+	req, err := newRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := send(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if !errors.Is(err, controlplane.ErrDirectHTTP2Unavailable) {
+			logx.Info("direct OAuth HTTP/2 retry ended without an HTTP response")
+		}
+		return nil, nil
+	}
+	logx.Info("direct OAuth HTTP/2 retry returned HTTP %d", resp.StatusCode)
+	if resp.StatusCode == http.StatusNotAcceptable {
+		resp.Body.Close()
+		return nil, nil
+	}
+	return resp, nil
+}
+
 func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
 	body := map[string]interface{}{
 		"client_id":     firefoxClientID,
@@ -503,7 +534,10 @@ func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, 
 	}
 	resp, err := fxaDoWith406Fallback(ctx, func() (*http.Request, error) {
 		return newRequest(fxaAuthServer + "/oauth/token")
-	}, func(ctx context.Context) (*http.Response, error) {
+	}, func(ctx context.Context, solved int) (*http.Response, error) {
+		if solved != 0 {
+			return nil, nil
+		}
 		req, err := newRequest(fxaOAuthTokenURL)
 		if err != nil {
 			return nil, err
@@ -568,7 +602,12 @@ func VerifySession(ctx context.Context, sessionToken, code string) error {
 }
 
 func OAuthToken(ctx context.Context, sessionToken string) (*TokenResponse, error) {
-	return fxaOAuthToken(ctx, sessionToken)
+	return fxaOAuthToken(ctx, sessionToken, nil)
+}
+
+// OAuthTokenDirect enables the HTTP/2 fallback for an interactive direct sign-in.
+func OAuthTokenDirect(ctx context.Context, sessionToken string) (*TokenResponse, error) {
+	return fxaOAuthToken(ctx, sessionToken, controlplane.DoDirectHTTP2)
 }
 
 func RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {

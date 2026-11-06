@@ -54,9 +54,11 @@ func firefoxPlatform(goos, goarch string) string {
 	return "X11; Linux x86_64"
 }
 
-// ApplyFirefoxHeaders sets the User-Agent and Accept headers Firefox sends
-// with every control plane API request.
+// ApplyFirefoxHeaders sets the common control-plane request headers.
 func ApplyFirefoxHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", FirefoxUserAgent())
 	req.Header.Set("Accept", "*/*")
+	// Keep net/http from adding gzip as the sole encoding. That header was
+	// associated with HTTP 406 on the HTTP/1.1 OAuth path in live A/B tests.
+	req.Header.Set("Accept-Encoding", "identity")
 }

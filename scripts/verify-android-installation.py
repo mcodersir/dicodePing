@@ -9,9 +9,10 @@ parser.add_argument('--code', type=int, default=45920100)
 parser.add_argument('--baselines', nargs='*', default=['4.8.0','4.9.0','4.9.1','4.9.2'])
 parser.add_argument('--package', default='ir.dicode.ping.fdroid')
 parser.add_argument('--remote', action='store_true')
+parser.add_argument('--no-data-fixture', action='store_true')
 args=parser.parse_args()
 root=pathlib.Path('install-check'); root.mkdir(exist_ok=True); package=args.package; results=[]
-needs_data_fixture = bool(args.baselines or args.alternate)
+needs_data_fixture = bool(args.baselines or args.alternate) and not args.no_data_fixture
 def adb(*args):
     r=subprocess.run(['adb',*args],text=True,encoding='utf-8',errors='replace',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
     print('adb',' '.join(args),'exit',r.returncode,'\n'+r.stdout,flush=True)
@@ -32,7 +33,7 @@ try:
         if previous:
             r=adb('install','--no-streaming',str(root/(previous+'.apk')))
             results.append({'scenario':'baseline '+previous,'success':r.returncode==0,'output':r.stdout})
-            if args.candidate and r.returncode==0:
+            if args.candidate and needs_data_fixture and r.returncode==0:
                 adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
                 adb('shell','am','force-stop',package)
                 r=adb('shell','sh','-c',f"'mkdir -p {marker.rsplit('/',1)[0]} && echo keep-my-data > {marker}'")
@@ -43,7 +44,7 @@ try:
             info=adb('shell','dumpsys','package',package)
             if args.candidate:
                 assert f'versionCode={args.code} ' in info.stdout and f'versionName={args.version}' in info.stdout
-                if previous:
+                if previous and needs_data_fixture:
                     assert 'keep-my-data' in adb('shell','cat',marker).stdout,'Upgrade lost existing app data'
             if args.candidate and previous is None and needs_data_fixture:
                 r=adb('shell','sh','-c',f"'mkdir -p {marker.rsplit('/',1)[0]} && echo keep-my-data > {marker}'")

@@ -292,7 +292,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
                 return new UpdateResult(false, message);
             }
 
-            if (curVersion >= version)
+            if (type == ECoreType.v2rayN ? DicodeReleaseOrder.Compare(curVersion.ToString(), version.ToString()) >= 0 : curVersion >= version)
             {
                 return new UpdateResult(false, message);
             }

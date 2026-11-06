@@ -33,7 +33,6 @@ func TestFailureCode(t *testing.T) {
 	}{
 		{"nil", nil, ""},
 		{"reauth", fmt.Errorf("renewing: %w", fxa.ErrReauthRequired), FailureSignIn},
-		{"relogin", &ReloginError{Reason: "confirm", err: fxa.ErrReauthRequired}, FailureSignIn},
 		{"quota", &passQuotaError{}, FailureQuota},
 		{"quota 429", &guardian.HTTPError{Operation: "pass", StatusCode: 429}, FailureQuota},
 		{"not entitled", &guardian.HTTPError{Operation: "pass", StatusCode: 403}, FailureNotEntitled},

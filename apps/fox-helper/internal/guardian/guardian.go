@@ -6,6 +6,7 @@ package guardian
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -102,10 +103,9 @@ func fetchProxyPass(ctx context.Context, endpoint, accessToken string) (*ProxyPa
 	return info, nil
 }
 
-// fetchProxyUsage reads the quota headers with a HEAD request to the token
-// endpoint, as Firefox does, without minting a new pass.
-func fetchProxyUsage(ctx context.Context, endpoint, accessToken string) (*ProxyUsage, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, guardianURL(endpoint, "/api/v1/fpn/token"), nil)
+// fetchProxyUsage reads the quota headers from the token endpoint.
+func fetchProxyUsage(ctx context.Context, method, endpoint, accessToken string) (*ProxyUsage, error) {
+	req, err := http.NewRequestWithContext(ctx, method, guardianURL(endpoint, "/api/v1/fpn/token"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,20 @@ func FetchProxyPass(ctx context.Context, endpoint, accessToken string) (*ProxyPa
 
 // FetchProxyUsage returns the account's quota state without minting a pass.
 func FetchProxyUsage(ctx context.Context, endpoint, accessToken string) (*ProxyUsage, error) {
-	return fetchProxyUsage(ctx, endpoint, accessToken)
+	return fetchProxyUsage(ctx, http.MethodHead, endpoint, accessToken)
+}
+
+// RefreshProxyUsage handles an explicit quota refresh. If HEAD is refused,
+// read the quota headers from a pass request and discard the pass itself.
+func RefreshProxyUsage(ctx context.Context, endpoint, accessToken string) (*ProxyUsage, error) {
+	usage, err := FetchProxyUsage(ctx, endpoint, accessToken)
+	if errors.Is(err, ErrNotEntitled) {
+		usage, err = fetchProxyUsage(ctx, http.MethodGet, endpoint, accessToken)
+		if errors.Is(err, ErrNotEntitled) {
+			return nil, fmt.Errorf("Mozilla denied access to this account's VPN quota (HTTP 403): %w", ErrNotEntitled)
+		}
+	}
+	return usage, err
 }
 
 func FetchUserInfo(ctx context.Context, endpoint, accessToken string) (*Entitlement, error) {

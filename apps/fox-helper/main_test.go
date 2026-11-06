@@ -26,10 +26,14 @@ func TestBrowserSession406UsesArmanCodeGrant(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		var data map[string]string
-		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-			t.Error(err)
+		if r.Method == http.MethodPost {
+			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+				t.Error(err)
+			}
 		}
 		switch {
+		case r.URL.Path == "/v1/recovery_email/status":
+			io.WriteString(w, `{"verified":true}`)
 		case r.URL.Path == "/v1/oauth/token" && data["grant_type"] == "fxa-credentials":
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Hawk ") {
 				t.Error("missing session authentication")
@@ -67,7 +71,7 @@ func TestBrowserSession406UsesArmanCodeGrant(t *testing.T) {
 	if err := e.session(context.Background(), "fixture@example.test", strings.Repeat("12", 32)); err != nil {
 		t.Fatal(failure(err))
 	}
-	if calls != 3 || e.state.AccessToken != "new-access-fixture" || e.state.RefreshToken != "new-refresh-fixture" || e.state.SessionToken != "" {
+	if calls != 4 || e.state.AccessToken != "new-access-fixture" || e.state.RefreshToken != "new-refresh-fixture" || e.state.SessionToken != "" {
 		t.Fatal("alternate grant was not committed to the private state")
 	}
 }

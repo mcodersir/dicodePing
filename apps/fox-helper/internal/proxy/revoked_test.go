@@ -67,10 +67,8 @@ func revokedFixture(t *testing.T, verified bool, acceptOld bool) (logins, device
 	return logins, devices
 }
 
-// Device registration is where a revoked refresh token shows first (in the
-// user's test, at every start for 24 hours while Guardian kept accepting
-// the access token): the account signs in again at once.
-func TestRevokedRefreshTokenSignsInAgainAtOnce(t *testing.T) {
+// Device registration can discover a revoked refresh token before renewal.
+func TestRevokedRefreshTokenRequiresUserSignIn(t *testing.T) {
 	pool, accs := newTestAccountPool(t, "a")
 	id := accs["a"].ID
 	if err := pool.store.SetPassword(id, "secret"); err != nil {
@@ -80,26 +78,16 @@ func TestRevokedRefreshTokenSignsInAgainAtOnce(t *testing.T) {
 
 	pool.EnsureDevice(context.Background(), id)
 
-	if logins.Load() != 1 {
-		t.Fatalf("expected one automatic sign-in, got %d", logins.Load())
+	if logins.Load() != 0 || devices.Load() != 0 {
+		t.Fatal("device rejection must not start an automatic sign-in")
 	}
-	if creds, _ := pool.store.Credentials(id); creds.RefreshToken != "new-refresh" {
-		t.Fatal("the new tokens must be stored")
-	}
-	waitForCondition(t, 5*time.Second, func() bool {
-		acc, err := pool.store.Get(id)
-		return err == nil && acc.DeviceID == "dev-new" && devices.Load() == 1
-	})
-	if a := accountStatus(t, pool, id); a.Status != accounts.StatusReady {
+	if a := accountStatus(t, pool, id); a.Status != accounts.StatusReauthRequired {
 		t.Fatalf("status %s %q", a.Status, a.Reason)
 	}
 }
 
-// When the sign-in needs a confirmation code, the account is marked for
-// "Sign in again" so the user hears of it now, unless it is the only
-// account the proxy can use: its access token still works until it
-// expires.
-func TestRevokedRefreshTokenNeedingCode(t *testing.T) {
+// Keep the only active account until its current access token expires.
+func TestRevokedRefreshTokenKeepsOnlyActiveAccount(t *testing.T) {
 	t.Run("another account takes over", func(t *testing.T) {
 		pool, accs := newTestAccountPool(t, "a", "b")
 		id := accs["a"].ID
@@ -132,9 +120,8 @@ func TestRevokedRefreshTokenNeedingCode(t *testing.T) {
 	})
 }
 
-// A 401 in the quota check renews at once (refresh, then a new sign-in)
-// instead of waiting for the next scheduled renewal.
-func TestQuotaCheckRefusedTokenRenewsNow(t *testing.T) {
+// A quota rejection can attempt an OAuth refresh without a password sign-in.
+func TestQuotaCheckRefusedTokenDoesNotSignIn(t *testing.T) {
 	pool, accs := newTestAccountPool(t, "a")
 	id := accs["a"].ID
 	if err := pool.mgr.Activate(id); err != nil {
@@ -163,15 +150,10 @@ func TestQuotaCheckRefusedTokenRenewsNow(t *testing.T) {
 	}
 	controller.checkQuota()
 
-	if logins.Load() != 1 {
-		t.Fatalf("expected one automatic sign-in, got %d", logins.Load())
+	if logins.Load() != 0 || devices.Load() != 0 {
+		t.Fatal("a refused quota token must not start an automatic sign-in")
 	}
-	if session.currentToken() == "pass-a" {
-		t.Fatal("expected the session to carry the new pass")
+	if session.currentToken() != "pass-a" {
+		t.Fatal("failed renewal must keep the existing pass")
 	}
-	// The sign-in registers the new token's device in the background.
-	waitForCondition(t, 5*time.Second, func() bool {
-		acc, err := pool.store.Get(id)
-		return err == nil && acc.DeviceID == "dev-new" && devices.Load() == 1
-	})
 }

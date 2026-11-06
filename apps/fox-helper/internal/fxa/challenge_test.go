@@ -228,11 +228,12 @@ func TestChallengeSlotWaiterGivesUp(t *testing.T) {
 	}
 }
 
-// The solver's requests carry the User-Agent the API calls do.
-func TestChallengeRequestsCarryFirefoxUserAgent(t *testing.T) {
-	var got []string
+// The solver's requests use the same User-Agent and encoding as the API calls.
+func TestChallengeRequestsCarryFirefoxHeaders(t *testing.T) {
+	type headers struct{ userAgent, encoding string }
+	var got []headers
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = append(got, r.Header.Get("User-Agent"))
+		got = append(got, headers{r.Header.Get("User-Agent"), r.Header.Get("Accept-Encoding")})
 		_, _ = w.Write([]byte(`{"auth":"a"}`))
 	}))
 	defer server.Close()
@@ -246,9 +247,12 @@ func TestChallengeRequestsCarryFirefoxUserAgent(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("requests seen: %d", len(got))
 	}
-	for _, ua := range got {
-		if ua != controlplane.FirefoxUserAgent() {
-			t.Fatalf("User-Agent %q, want %q", ua, controlplane.FirefoxUserAgent())
+	for _, h := range got {
+		if h.userAgent != controlplane.FirefoxUserAgent() {
+			t.Fatalf("User-Agent %q, want %q", h.userAgent, controlplane.FirefoxUserAgent())
+		}
+		if h.encoding != "identity" {
+			t.Fatalf("Accept-Encoding = %q, want identity", h.encoding)
 		}
 	}
 }

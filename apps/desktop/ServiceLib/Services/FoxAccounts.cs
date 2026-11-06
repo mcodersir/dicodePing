@@ -110,7 +110,7 @@ public static class FoxAccounts
     }
     public static async Task<JsonObject> RequestAsync(JsonObject request, CancellationToken token = default)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(100));
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromSeconds(request["operation"]?.ToString() == "browser_login" ? 910 : 100));
         using var process = Helper();
         try { return await process.StartPrivateProtocolAsync(request, null, timeout.Token); }
         finally { await process.StopAsync(); }

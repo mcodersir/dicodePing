@@ -7,6 +7,13 @@ public static class FoxBrowserProtocol
     public const string LoginUrl = "https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email";
     public static bool IsTrusted(string? address) => Uri.TryCreate(address, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps && uri.IdnHost == "accounts.firefox.com" && uri.Port == 443 && string.IsNullOrEmpty(uri.UserInfo);
+    public static bool IsAllowedNavigation(string? address)
+    {
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.Port != 443 || !string.IsNullOrEmpty(uri.UserInfo)) return false;
+        var host=uri.IdnHost;
+        return IsTrusted(address) || host is "accounts.google.com" or "accounts.youtube.com" or "appleid.apple.com" or "idmsa.apple.com" or "iforgot.apple.com"
+            || new[]{"firefox.com","mozilla.com","mozilla.org","mozilla.net"}.Any(d=>host==d||host.EndsWith("."+d,StringComparison.Ordinal));
+    }
     public static string Script(string nonce)
     {
         using var stream = typeof(FoxBrowserProtocol).Assembly.GetManifestResourceStream("DicodePing.FoxBrowser.js")!;

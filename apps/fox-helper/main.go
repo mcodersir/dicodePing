@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "4.9.985"
+const version = "4.9.99"
 
 type State struct {
 	Email              string `json:"email"`
@@ -110,7 +110,7 @@ func failure(err error) Response {
 	case errors.Is(err, context.Canceled):
 		r.Error = "cancelled"
 		r.Message = "Cancelled"
-	case fxa.Errno(err) == 104:
+	case fxa.Errno(err) == 104 || fxa.Errno(err) == 138:
 		r.Error = "session_unconfirmed"
 		r.Message = "Complete email or two-factor verification in the Mozilla page."
 	case fxa.Errno(err) == 102:
@@ -171,7 +171,34 @@ func (e *engine) session(ctx context.Context, email, token string) error {
 		return &ProviderError{Code: "input", Message: "The Mozilla page did not return a valid session."}
 	}
 	e.state = State{Email: email, SessionToken: token}
-	grant, err := fxa.OAuthToken(ctx, token)
+	// Same confirmation and propagation wait as Arman's interactive sign-in.
+	for {
+		verified, err := fxa.SessionVerified(ctx, token)
+		if err == nil && verified {
+			break
+		}
+		if fxa.Errno(err) != 0 {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+	var grant *fxa.TokenResponse
+	for attempt := 0; ; attempt++ {
+		grant, err = fxa.OAuthToken(ctx, token)
+		errno := fxa.Errno(err)
+		if err == nil || attempt >= 9 || (errno != 104 && errno != 138) {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
 	if err != nil {
 		return err
 	}
@@ -258,6 +285,9 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 	if req.Operation == "serve" {
 		operationTimeout = 150 * time.Second
 	}
+	if req.Operation == "browser_login" {
+		operationTimeout = 15 * time.Minute
+	}
 	opctx, finish := context.WithTimeout(ctx, operationTimeout)
 	defer finish()
 	result := Response{OK: true}
@@ -273,7 +303,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 		}
 		e.state = State{Email: fxa.SignedInEmail(req.Email, login, nil), SessionToken: login.SessionToken, VerificationMethod: login.VerificationMethod}
 		if login.Verified && login.VerificationReason == "" {
-			grant, err := fxa.OAuthToken(opctx, login.SessionToken)
+			grant, err := fxa.OAuthTokenDirect(opctx, login.SessionToken)
 			if err != nil {
 				return err
 			}
@@ -299,7 +329,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 		if err != nil {
 			return err
 		}
-		grant, err := fxa.OAuthToken(opctx, e.state.SessionToken)
+		grant, err := fxa.OAuthTokenDirect(opctx, e.state.SessionToken)
 		if err != nil {
 			return err
 		}
@@ -333,7 +363,15 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 		}
 		output(result)
 		return nil
-	case "status", "refresh", "serve":
+	case "status", "refresh":
+		auth := proxy.DicodeAuth(e.auth(), time.Now(), e.save)
+		_, usage, err := proxy.DicodeUsage(opctx, guardian.DefaultEndpoint, auth, true)
+		if err != nil {
+			return err
+		}
+		info := accountUsage(usage)
+		result.Account = &info
+	case "serve":
 		auth := proxy.DicodeAuth(e.auth(), time.Now(), e.save)
 		fresh, pass, err := proxy.DicodePass(opctx, guardian.DefaultEndpoint, auth)
 		if err != nil {
@@ -452,7 +490,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 }
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.12)")
+		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.13)")
 		return
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

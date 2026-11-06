@@ -1,12 +1,12 @@
-# DicodePing 4.9.985
+# DicodePing 4.9.99
 
 کلاینت اتصال برای **Windows، Linux، macOS و Android**، همراه نسخهٔ مستقل **CLI**. پروفایل‌ها را مدیریت کنید، کیفیت مسیر را با درخواست واقعی بسنجید و از فهرست سرورها متصل شوید.
 
-**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۹۸](docs/RELEASE-4.9.985.md)** · **[راهنمای CLI](docs/CLI.md)**
+**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۹۹](docs/RELEASE-4.9.99.md)** · **[راهنمای CLI](docs/CLI.md)**
 
-این نسخه پیش‌انتشار است؛ ورود زنده با حساب واقعی پشت بررسی Fastly متوقف شد و رفع کامل آن تأیید نشده است.
+روباه این نسخه بر پایهٔ سورس دقیق Arman VPN v1.0.13 ساخته می‌شود.
 
-هستهٔ روباه در این نسخه بر پایهٔ armanlife/arman-vpn-client v1.0.12 بازسازی شده است: بازیابی ورود با OAuth code و PKCE، تمدید جایگزین توکن، مرورگر ورود مستقل از VPN و انتقال HTTP/2. [یادداشت نسخه](docs/RELEASE-4.9.985.md) و [مبنای دقیق سورس](apps/fox-helper/UPSTREAM.json) تغییرات را ثبت می‌کنند.
+هستهٔ روباه در این نسخه بر پایهٔ armanlife/arman-vpn-client v1.0.13 بازسازی شده است: بازیابی ورود با OAuth code و PKCE، تمدید جایگزین توکن، مرورگر ورود مستقل از VPN و انتقال HTTP/2. [یادداشت نسخه](docs/RELEASE-4.9.99.md) و [مبنای دقیق سورس](apps/fox-helper/UPSTREAM.json) تغییرات را ثبت می‌کنند.
 
 ## روباه 🦊
 
@@ -28,6 +28,6 @@
 
 ## توسعه و مجوز
 
-برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه بر پایهٔ Arman VPN v1.0.12 در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها، مبنای سورس روباه و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.985.json` ثبت شده‌اند.
+برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه بر پایهٔ Arman VPN v1.0.13 در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها، مبنای سورس روباه و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.99.json` ثبت شده‌اند.
 
 DicodePing تحت [GPL-3.0](LICENSE) منتشر می‌شود. مجوز اجزای مستقل و وابستگی‌ها همراه آن‌ها حفظ شده است. هستهٔ جدید Arman VPN تحت GPL-3.0 است و سورس متناظر در همین مخزن قرار دارد؛ مجوز پیشین FoxyVPN تحت MIT نیز حفظ شده است؛ [مجوز](apps/fox-helper/LICENSE-FoxyVPN.txt) و [توضیح](apps/fox-helper/NOTICE.md) همراه بستهٔ روباه قرار دارند. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.

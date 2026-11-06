@@ -232,6 +232,18 @@ func (s *Store) SaveDevice(id, deviceID, deviceToken string) error {
 	return s.writeAccountLocked(current)
 }
 
+// SaveUsage updates an account's quota without replacing its other fields.
+func (s *Store) SaveUsage(id string, usage Usage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, err := s.readAccountLocked(id)
+	if err != nil {
+		return err
+	}
+	current.Usage = &usage
+	return s.writeAccountLocked(current)
+}
+
 // Credentials returns the stored OAuth credentials of an account.
 func (s *Store) Credentials(id string) (*fxa.SavedTokens, error) {
 	if err := validID(id); err != nil {
@@ -333,6 +345,12 @@ func (s *Store) readAccountLocked(id string) (Account, error) {
 	}
 	if acc.Status == "" {
 		acc.Status = StatusReady
+	}
+	switch acc.ReasonCode {
+	case ReasonSignInConfirm, ReasonSignInFailed, ReasonSignInWait, ReasonSignInRetry:
+		acc.Status = StatusReauthRequired
+		acc.ReasonCode, acc.Reason, acc.ReasonDetail = ReasonSignInRequired, "Firefox Account sign-in required", ""
+		acc.RetryAt = time.Time{}
 	}
 	return acc, nil
 }

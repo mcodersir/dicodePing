@@ -61,9 +61,9 @@ public sealed class BrowserSmokeApp : Application
    var payload=e.Message??e.Json;
    if(payload?.StartsWith('"')==true)payload=JsonSerializer.Deserialize<string>(payload);
    if(FoxBrowserProtocol.IsProgress(web.CurrentUrl?.ToString(),payload,nonce)||FoxBrowserProtocol.IsReady(web.CurrentUrl?.ToString(),payload,nonce)||FoxBrowserProtocol.ParsePending(web.CurrentUrl?.ToString(),payload,nonce) is not null)return;
-   var session=FoxBrowserProtocol.ParseGrant(web.CurrentUrl?.ToString(),payload,nonce);
+   var session=FoxBrowserProtocol.Parse(web.CurrentUrl?.ToString(),payload,nonce);
    if(session is null){Finish(2,"FAIL native origin/session contract");return;}
-   Finish(0,"PASS actual native browser: document-start WebChannel, status reply, OTP completion, browser OAuth grant handoff");
+   Finish(0,"PASS actual native browser: document-start WebChannel, status reply and session handoff to the native confirmation core");
   });
   window.Opened+=async(_,_)=>{
    try{await web.InitializeAsync();web.Navigate("https://accounts.firefox.com/dicode-local-fixture");}

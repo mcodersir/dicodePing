@@ -161,7 +161,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
                     }
                     if (signIn) {
-                        Text(if (fa) "با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید؛ کدهای تأیید را هم همان‌جا وارد کنید. ورود Google و Apple در این صفحه پشتیبانی نمی‌شود." else "Use your Firefox email and password on Mozilla’s official page. Complete verification there. Google and Apple sign-in are not supported here.")
+                        Text(if (fa) "ورود یا ساخت حساب و واردکردن کد تأیید را در صفحهٔ رسمی موزیلا کامل کنید." else "Complete sign-in, account creation and verification on Mozilla’s official page.")
                         Button(onClick = { browserLogin = true }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp)) {
                             Text(if (fa) "ورود امن با مرورگر موزیلا" else "Sign in on Mozilla’s page")
                         }

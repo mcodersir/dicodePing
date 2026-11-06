@@ -102,8 +102,9 @@ internal object FoxAccounts {
         if (!account.pending) refresh(context, account.id, true)
         return get(context, account.id)
     }
-    fun browserLogin(context: Context, email: String, session: String): FoxAccount {
-        val result = request(context, JSONObject().put("operation", "browser_login").put("email", email).put("session_token", session))
+    fun browserLogin(context: Context, email: String, session: String, helper: FoxProcess? = null): FoxAccount {
+        val payload = JSONObject().put("operation", "browser_login").put("email", email).put("session_token", session)
+        val result = helper?.execute(payload) ?: request(context, payload)
         val account = list(context).firstOrNull { it.email.equals(email, true) } ?: FoxAccount(UUID.randomUUID().toString().replace("-", ""), "REC", JSONObject(), JSONObject())
         account.state = result.getJSONObject("state"); save(context, account, create = true)
         sync(context, account) // Quota metadata is fetched by connection/refresh, not a second login gate.
@@ -216,7 +217,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     }
     private fun response(reader: java.io.BufferedReader): JSONObject {
         val child = process!!
-        val timer = thread(isDaemon = true) { try { Thread.sleep(if (operation == "serve") 165000 else 100000); child.destroyForcibly() } catch (_: InterruptedException) { } }
+        val timer = thread(isDaemon = true) { try { Thread.sleep(when(operation) { "serve" -> 165000L; "browser_login" -> 910000L; else -> 100000L }); child.destroyForcibly() } catch (_: InterruptedException) { } }
         try {
             val line = reader.readLine() ?: throw FoxError("helper_exit", "Fox helper ended before readiness: " + synchronized(errorTail) { errorTail.joinToString("; ") })
             val result = JSONObject(line)

@@ -35,11 +35,11 @@ func TestManagerKeepsDeviceRecord(t *testing.T) {
 	if _, err := mgr.ObserveUsage(acc.ID, Usage{LimitBytes: 100, RemainingBytes: 90}); err != nil {
 		t.Fatal(err)
 	}
-	if err := mgr.MarkUnavailable(acc.ID, Why{Code: ReasonSignInRetry, Text: "test", Detail: "timeout"}, time.Now().Add(time.Minute)); err != nil {
+	if err := mgr.MarkUnavailable(acc.ID, Why{Code: ReasonNotEntitled, Text: "test", Detail: "timeout"}, time.Now().Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	// The reason's code and detail are kept for the apps, next to the text.
-	if marked, _ := store.Get(acc.ID); marked.Reason != "test" || marked.ReasonCode != ReasonSignInRetry || marked.ReasonDetail != "timeout" {
+	if marked, _ := store.Get(acc.ID); marked.Reason != "test" || marked.ReasonCode != ReasonNotEntitled || marked.ReasonDetail != "timeout" {
 		t.Fatalf("reason kept: %+v", marked)
 	}
 	if err := mgr.Activate(acc.ID); err != nil {
@@ -57,5 +57,24 @@ func TestManagerKeepsDeviceRecord(t *testing.T) {
 	}
 	if got.Usage == nil || got.Usage.RemainingBytes != 90 || got.Status != StatusReady {
 		t.Fatalf("manager fields not saved: %+v", got)
+	}
+}
+
+func TestStoredAutomaticRetryRequiresManualSignIn(t *testing.T) {
+	store, err := OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	acc, _, err := store.Add("a@example.com", &fxa.SavedTokens{AccessToken: "access", RefreshToken: "refresh"}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	acc.Status, acc.ReasonCode, acc.RetryAt = StatusUnavailable, ReasonSignInRetry, time.Now().Add(time.Hour)
+	if err := store.Save(acc); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Get(acc.ID)
+	if err != nil || got.Status != StatusReauthRequired || got.ReasonCode != ReasonSignInRequired || !got.RetryAt.IsZero() {
+		t.Fatalf("expected a manual sign-in, got %s (%s), retry at %v, error %v", got.Status, got.ReasonCode, got.RetryAt, err)
 	}
 }

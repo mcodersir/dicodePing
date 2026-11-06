@@ -4,7 +4,7 @@ import hashlib,json,os,pathlib,re,subprocess
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 LEGACY_INPUT_DIGEST='33dbd80308880e979af0cc54179045c7b28c7d90a2fd4e702a5853ff6624dbc7'
 LEGACY_CACHE_KEY='Linux-dicode-native-v1-226ca5cde783783fb04014042f4dafa8d713ac07fb10ff59f3f073c9fee58d74'
-PIN_FILE='scripts/runtime-pins-4.9.985.json'
+PIN_FILE='scripts/runtime-pins-4.9.99.json'
 WORKFLOWS=['.github/workflows/release.yml','.github/workflows/android-preflight.yml']
 
 def source_files():

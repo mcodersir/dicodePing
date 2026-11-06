@@ -28,13 +28,12 @@ type AccountPool struct {
 	store *accounts.Store
 	mgr   *accounts.Manager
 
-	mu          sync.Mutex
-	auths       map[string]*runtimeAuth
-	lastRelogin map[string]time.Time
+	mu    sync.Mutex
+	auths map[string]*runtimeAuth
 }
 
 func NewAccountPool(store *accounts.Store, mgr *accounts.Manager) *AccountPool {
-	return &AccountPool{store: store, mgr: mgr, auths: make(map[string]*runtimeAuth), lastRelogin: make(map[string]time.Time)}
+	return &AccountPool{store: store, mgr: mgr, auths: make(map[string]*runtimeAuth)}
 }
 
 // AuthFor returns the cached or stored credentials of an account.
@@ -164,46 +163,25 @@ func (p *AccountPool) logSelected(acc, previous accounts.Account, hadActive bool
 }
 
 // passFor refreshes the account's credentials when needed and fetches a
-// pass, recovering from Guardian rejections like the single-account path.
-// Whenever the tokens no longer work and cannot be renewed (the refresh
-// token is revoked, or Guardian keeps refusing a refreshed access token),
-// it signs in again with the stored password.
+// pass, recovering from Guardian rejections with the existing OAuth tokens.
 func (p *AccountPool) passFor(ctx context.Context, endpoint string, acc accounts.Account) (*runtimeAuth, *guardian.ProxyPassInfo, error) {
 	auth, err := p.AuthFor(acc)
 	if err != nil {
-		err = fmt.Errorf("%w: loading credentials: %w", fxa.ErrReauthRequired, err)
-	} else {
-		auth, err = FreshRuntimeAuth(ctx, auth)
+		return nil, nil, fmt.Errorf("%w: loading credentials: %w", fxa.ErrReauthRequired, err)
 	}
-	signedIn := false
-	if errors.Is(err, fxa.ErrReauthRequired) {
-		auth, err = p.Relogin(ctx, acc, err)
-		signedIn = true
-	}
+	auth, err = FreshRuntimeAuth(ctx, auth)
 	if err != nil {
 		return nil, nil, err
 	}
 	pass, err := fetchProxyPassCtx(ctx, endpoint, auth.Token.AccessToken)
 	if errors.Is(err, guardian.ErrTokenInvalid) {
+		previous := auth
 		auth, pass, err = recoverGuardianRejection(ctx, endpoint, auth, err, nil)
-		if !signedIn && tokensRefused(err) {
-			if auth, err = p.Relogin(ctx, acc, err); err != nil {
-				return nil, nil, err
-			}
-			pass, err = fetchProxyPassCtx(ctx, endpoint, auth.Token.AccessToken)
+		if auth != previous && errors.Is(err, guardian.ErrTokenInvalid) && !errors.Is(err, guardian.ErrNotEntitled) {
+			return nil, nil, fmt.Errorf("%w: %w", fxa.ErrReauthRequired, err)
 		}
 	}
 	return auth, pass, err
-}
-
-// tokensRefused reports whether err means the account's tokens are no
-// longer accepted, which a new sign-in fixes. An account Guardian does not
-// entitle stays refused with new tokens too.
-func tokensRefused(err error) bool {
-	if errors.Is(err, fxa.ErrReauthRequired) {
-		return true
-	}
-	return errors.Is(err, guardian.ErrTokenInvalid) && !errors.Is(err, guardian.ErrNotEntitled)
 }
 
 type accountOutcome int
@@ -234,13 +212,7 @@ func (p *AccountPool) Record(acc accounts.Account, pass *guardian.ProxyPassInfo,
 	}
 
 	now := time.Now()
-	var relogErr *ReloginError
 	switch {
-	case errors.As(err, &relogErr) && !relogErr.RetryAt.IsZero():
-		logx.Warn("automatic sign-in postponed account=%s err=%s", logx.Email(acc.Name()), logx.Err(err))
-		p.warnIfFailed(acc, p.mgr.MarkUnavailable(acc.ID, relogErr.why(), relogErr.RetryAt))
-		p.Forget(acc.ID)
-		return AccountSkipped
 	case err == nil && isQuotaExhausted(pass):
 		p.warnIfFailed(acc, p.mgr.Reserve(acc.ID, accounts.Why{Code: accounts.ReasonQuotaExhausted, Text: "monthly quota exhausted"}, resetTime(usage)))
 		return AccountSkipped
@@ -258,9 +230,6 @@ func (p *AccountPool) Record(acc accounts.Account, pass *guardian.ProxyPassInfo,
 	case errors.Is(err, fxa.ErrReauthRequired):
 		logx.Warn("account needs a new sign-in account=%s err=%s", logx.Email(acc.Name()), logx.Err(err))
 		why := accounts.Why{Code: accounts.ReasonSignInRequired, Text: "Firefox Account sign-in required"}
-		if errors.As(err, &relogErr) {
-			why = relogErr.why()
-		}
 		p.warnIfFailed(acc, p.mgr.MarkReauthRequired(acc.ID, why))
 		p.Forget(acc.ID)
 		return AccountSkipped
@@ -349,99 +318,9 @@ func accountStatusReason(mgr *accounts.Manager, id string) string {
 // turn it off so no background request outlives their mock transport.
 var DeviceRegistration = func() *atomic.Bool { var b atomic.Bool; b.Store(true); return &b }()
 
-// reloginRetry spaces automatic sign-ins of one account, so a password that
-// Mozilla keeps asking to confirm does not trigger an email every minute.
-// reloginNetworkRetry is the wait after a sign-in that did not reach
-// Mozilla or met a temporary error.
-const (
-	reloginRetry        = 30 * time.Minute
-	reloginNetworkRetry = 5 * time.Minute
-)
-
-// ReloginError explains why an automatic sign-in could not replace the
-// account's tokens. Without RetryAt the user has to act (it reads as
-// fxa.ErrReauthRequired); with RetryAt the account sits out until then and
-// the sign-in is tried again.
-type ReloginError struct {
-	Reason  string
-	RetryAt time.Time
-	// Code and Detail say the same for the apps (accounts.Why).
-	Code   string
-	Detail string
-	err    error
-}
-
-func (e *ReloginError) why() accounts.Why {
-	return accounts.Why{Code: e.Code, Text: e.Reason, Detail: e.Detail}
-}
-
-func (e *ReloginError) Error() string { return e.Reason + ": " + e.err.Error() }
-func (e *ReloginError) Unwrap() error { return e.err }
-
-// Relogin signs in again with the account's stored password when its
-// tokens stopped working and cannot be renewed. It works when Mozilla does
-// not ask to confirm the sign-in; otherwise the account waits for "Sign in
-// again" in the dashboard, which then only asks for the code. Without a
-// stored password it returns cause.
-func (p *AccountPool) Relogin(ctx context.Context, acc accounts.Account, cause error) (*runtimeAuth, error) {
-	password, err := p.store.Password(acc.ID)
-	if err != nil || acc.Email == "" {
-		return nil, cause
-	}
-	p.mu.Lock()
-	last := p.lastRelogin[acc.ID]
-	recent := time.Since(last) < reloginRetry
-	if !recent {
-		p.lastRelogin[acc.ID] = time.Now()
-	}
-	p.mu.Unlock()
-	if recent {
-		next := last.Add(reloginRetry)
-		return nil, &ReloginError{Reason: "The tokens stopped working soon after the last automatic sign-in; the next one is at " + next.Local().Format("15:04"), RetryAt: next, Code: accounts.ReasonSignInWait, err: cause}
-	}
-
-	logx.Info("the tokens stopped working; signing in again with the stored password account=%s", logx.Email(acc.Name()))
-	ctx, cancel := context.WithTimeout(ctx, 2*APIRequestTimeout)
-	defer cancel()
-	resp, err := fxa.Login(ctx, acc.Email, password)
-	if err != nil {
-		return nil, p.reloginFailed(acc, err)
-	}
-	// The session is not needed after the tokens (or when it waits for a
-	// confirmation the user gives with "Sign in again", which signs in
-	// anew); left alive it shows as "unknown" in connected services.
-	defer func() {
-		if err := fxa.DestroySession(ctx, resp.SessionToken); err != nil {
-			logx.Warn("ending the sign-in session failed account=%s err=%s", logx.Email(acc.Name()), logx.Err(err))
-		}
-	}()
-	if !resp.Verified {
-		return nil, &ReloginError{Reason: "Mozilla asks to confirm the sign-in; use Sign in again (only the code is needed)", Code: accounts.ReasonSignInConfirm, err: fxa.ErrReauthRequired}
-	}
-	token, err := fxa.OAuthToken(ctx, resp.SessionToken)
-	if err != nil {
-		return nil, p.reloginFailed(acc, err)
-	}
-	auth := &runtimeAuth{Token: token, ObtainedAt: time.Now(), accountID: acc.ID, persist: p.persist}
-	if err := auth.save(); err != nil {
-		logx.Warn("saving the new tokens failed account=%s err=%s", logx.Email(acc.Name()), logx.Err(err))
-	}
-	logx.Info("signed in again automatically account=%s", logx.Email(acc.Name()))
-	go p.EnsureDevice(context.Background(), acc.ID)
-	return auth, nil
-}
-
-// RecoverRevoked signs an account whose tokens Mozilla refused in again at
-// once, before its access token expires. When that needs the user (no
-// stored password, a confirmation code, a refused password), the account
-// is marked for "Sign in again", except while it is the only account the
-// proxy can use: its access token keeps working until it expires, and the
-// renewal then marks it.
-func (p *AccountPool) RecoverRevoked(ctx context.Context, acc accounts.Account, cause error) {
-	_, err := p.Relogin(ctx, acc, cause)
-	if err == nil {
-		return
-	}
+// noteRevoked records a refused refresh token without interrupting the only
+// active account while its current access token can still be used.
+func (p *AccountPool) noteRevoked(acc accounts.Account, err error) {
 	active, ok := p.mgr.Active()
 	if ok && active.ID == acc.ID {
 		if _, alt := p.mgr.Candidate(map[string]bool{acc.ID: true}); alt != nil {
@@ -450,20 +329,6 @@ func (p *AccountPool) RecoverRevoked(ctx context.Context, acc accounts.Account, 
 		}
 	}
 	p.Record(acc, nil, err)
-}
-
-// reloginFailed classifies a failed automatic sign-in: Mozilla refusing
-// the password or the sign-in needs the user; a network or temporary
-// error is tried again after reloginNetworkRetry.
-func (p *AccountPool) reloginFailed(acc accounts.Account, err error) error {
-	if errors.Is(err, fxa.ErrReauthRequired) {
-		return &ReloginError{Reason: "Automatic sign-in failed (" + fxa.Message(err) + "); sign in again", Code: accounts.ReasonSignInFailed, Detail: fxa.Message(err), err: err}
-	}
-	retryAt := time.Now().Add(reloginNetworkRetry)
-	p.mu.Lock()
-	delete(p.lastRelogin, acc.ID)
-	p.mu.Unlock()
-	return &ReloginError{Reason: "Automatic sign-in could not finish (" + fxa.Message(err) + "); trying again at " + retryAt.Local().Format("15:04"), RetryAt: retryAt, Code: accounts.ReasonSignInRetry, Detail: fxa.Message(err), err: err}
 }
 
 // EnsureDevice registers this program as "Firefox's built-in VPN" in the
@@ -492,8 +357,8 @@ func (p *AccountPool) EnsureDevice(ctx context.Context, id string) {
 		// removed from the account's connected services). Guardian may
 		// accept the access token for hours more, so nothing else would
 		// notice before it expires.
-		logx.Warn("Mozilla refused the account's refresh token; signing in again now account=%s err=%s", logx.Email(acc.Name()), fxa.Message(err))
-		p.RecoverRevoked(ctx, acc, err)
+		logx.Warn("Mozilla refused the account's refresh token account=%s err=%s", logx.Email(acc.Name()), fxa.Message(err))
+		p.noteRevoked(acc, err)
 		return
 	}
 	if err != nil {

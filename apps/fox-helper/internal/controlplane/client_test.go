@@ -1,11 +1,24 @@
 package controlplane
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func TestDirectHTTP2DoesNotBypassCustomTransport(t *testing.T) {
+	previous := Transport()
+	SetTransport(&http.Transport{})
+	t.Cleanup(func() { SetTransport(previous) })
+
+	req := httptest.NewRequest(http.MethodPost, "https://api.accounts.firefox.com/v1/oauth/token", nil)
+	resp, err := DoDirectHTTP2(req)
+	if resp != nil || !errors.Is(err, ErrDirectHTTP2Unavailable) {
+		t.Fatalf("DoDirectHTTP2 with a custom transport returned %v, %v", resp, err)
+	}
+}
 
 // A proxy in the environment (another program's, not running) is not
 // used: the requests go straight to their server.

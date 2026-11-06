@@ -40,4 +40,7 @@ func TestFirefoxUserAgentFollowsTheRelease(t *testing.T) {
 	if req.Header.Get("User-Agent") != ua || req.Header.Get("Accept") != "*/*" {
 		t.Fatalf("headers %v", req.Header)
 	}
+	if got := req.Header.Get("Accept-Encoding"); got != "identity" {
+		t.Fatalf("Accept-Encoding = %q, want identity", got)
+	}
 }

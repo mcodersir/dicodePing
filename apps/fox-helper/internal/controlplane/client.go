@@ -5,7 +5,9 @@ package controlplane
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +18,7 @@ import (
 	"time"
 
 	utls "github.com/refraction-networking/utls"
+	"golang.org/x/net/http2"
 
 	"dicodeping/fox/internal/firefoxtls"
 	"dicodeping/fox/internal/hellosplit"
@@ -23,10 +26,11 @@ import (
 )
 
 const (
-	clientTimeout     = 30 * time.Second
-	dialTimeout       = 30 * time.Second
-	handshakeTimeout  = 10 * time.Second
-	errorBodyLogLimit = 16 * 1024
+	clientTimeout      = 30 * time.Second
+	dialTimeout        = 30 * time.Second
+	handshakeTimeout   = 10 * time.Second
+	directHTTP2Timeout = 8 * time.Second
+	errorBodyLogLimit  = 16 * 1024
 )
 
 // defaultTransport is Go's default transport with its connections resolved
@@ -66,11 +70,11 @@ func QuickTransport(wait time.Duration) *http.Transport {
 }
 
 // firefoxSessions lets a new connection to a server resume its TLS session.
-var firefoxSessions = utls.NewLRUClientSessionCache(64)
-
 var trustRoots atomic.Pointer[x509.CertPool]
 
 func SetRoots(roots *x509.CertPool) { trustRoots.Store(roots) }
+
+var firefoxSessions = utls.NewLRUClientSessionCache(64)
 
 // firefoxTLS connects with connect and completes TLS with desktop Firefox's
 // hello within wait, the way to Mozilla's servers looking like the Firefox
@@ -78,24 +82,31 @@ func SetRoots(roots *x509.CertPool) { trustRoots.Store(roots) }
 // net/http speaks HTTP/2 only over its own TLS.
 func firefoxTLS(connect func(ctx context.Context, network, address string) (net.Conn, error), wait time.Duration) func(ctx context.Context, network, address string) (net.Conn, error) {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		raw, err := connect(ctx, network, address)
+		conn, err := dialFirefoxTLS(ctx, network, address, connect, wait, firefoxSessions, "http/1.1")
 		if err != nil {
-			return nil, err
-		}
-		host, _, err := net.SplitHostPort(address)
-		if err != nil {
-			raw.Close()
-			return nil, err
-		}
-		shakeCtx, cancel := context.WithTimeout(ctx, wait)
-		defer cancel()
-		conn, err := firefoxtls.Handshake(shakeCtx, raw, host, trustRoots.Load(), firefoxSessions, "http/1.1")
-		if err != nil {
-			raw.Close()
 			return nil, err
 		}
 		return conn, nil
 	}
+}
+
+func dialFirefoxTLS(ctx context.Context, network, address string, connect func(context.Context, string, string) (net.Conn, error), wait time.Duration, sessions utls.ClientSessionCache, alpn ...string) (*utls.UConn, error) {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := connect(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+	shakeCtx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	conn, err := firefoxtls.Handshake(shakeCtx, raw, host, trustRoots.Load(), sessions, alpn...)
+	if err != nil {
+		raw.Close()
+		return nil, err
+	}
+	return conn, nil
 }
 
 // DialContext connects through the configured resolver with a timeout; a
@@ -131,6 +142,40 @@ var client = func() *http.Client {
 		Transport: defaultTransport,
 	}
 }()
+
+var directHTTP2Client = &http.Client{
+	Jar:     client.Jar,
+	Timeout: directHTTP2Timeout,
+	Transport: &http2.Transport{
+		IdleConnTimeout: clientTimeout,
+		DialTLSContext: func(ctx context.Context, network, address string, _ *tls.Config) (net.Conn, error) {
+			// Keep HTTP/1.1's TLS session cache separate from this probe.
+			conn, err := dialFirefoxTLS(ctx, network, address, DialContext, handshakeTimeout, nil, "h2", "http/1.1")
+			if err != nil {
+				return nil, err
+			}
+			if conn.ConnectionState().NegotiatedProtocol != "h2" {
+				conn.Close()
+				return nil, errors.New("server did not negotiate HTTP/2")
+			}
+			return conn, nil
+		},
+	},
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+}
+
+// ErrDirectHTTP2Unavailable indicates that the configured transport must be used.
+var ErrDirectHTTP2Unavailable = errors.New("direct HTTP/2 unavailable with a custom control plane transport")
+
+// DoDirectHTTP2 sends a short HTTP/2 probe with the shared cookie jar. It
+// is available only on the default route so it cannot skip a configured
+// API relay. The response body remains readable until the request deadline.
+func DoDirectHTTP2(req *http.Request) (*http.Response, error) {
+	if client.Transport != defaultTransport {
+		return nil, ErrDirectHTTP2Unavailable
+	}
+	return directHTTP2Client.Do(req)
+}
 
 // SetTransport routes Firefox Accounts, Guardian, and Remote Settings
 // requests through transport (nil restores the default transport). It must

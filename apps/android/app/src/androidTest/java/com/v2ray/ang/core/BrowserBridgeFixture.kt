@@ -39,8 +39,8 @@ internal object BrowserBridgeFixture {
       val data=JSONObject(message.data ?: "{}")
       when(data.optString("kind")){
        "otp-pending"->pending.set(true)
-       "grant"->{
-        if(!pending.get()||data.optString("nonce")!=nonce||data.optString("access_token")!="a1".repeat(32) || FoxBrowserGrant.state(data)==null)failure="Premature/untrusted session handoff"
+       "session"->{
+        if(data.optString("nonce")!=nonce||data.optString("session_token")!=token)failure="Premature/untrusted session handoff"
         sessions.incrementAndGet();latch.countDown()
        }
       }

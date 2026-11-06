@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -36,17 +35,7 @@ func FreshRuntimeAuth(ctx context.Context, auth *runtimeAuth) (*runtimeAuth, err
 	if auth == nil || auth.Token == nil || auth.Token.RefreshToken == "" {
 		return nil, fmt.Errorf("%w: no refresh token stored", fxa.ErrReauthRequired)
 	}
-	refreshed, err := refreshRuntimeAuth(ctx, auth)
-	if err != nil && ctx.Err() == nil && !errors.Is(err, fxa.ErrReauthRequired) && auth.Token.AccessToken != "" {
-		// A proactive refresh failure must not discard a grant that Mozilla
-		// has not expired. Never change its expiry or mask revoked tokens.
-		expiry := auth.ObtainedAt.Add(time.Duration(auth.Token.ExpiresIn) * time.Second)
-		if time.Now().Before(expiry) {
-			logx.Warn("proactive OAuth refresh unavailable; retaining unexpired access grant")
-			return auth, nil
-		}
-	}
-	return refreshed, err
+	return refreshRuntimeAuth(ctx, auth)
 }
 
 type runtimeAuth struct {

@@ -73,7 +73,7 @@ public sealed class FoxWindow : Window
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
         var browserLogin = new Button { Content = FoxUi.T("ورود امن با مرورگر موزیلا", "Sign in on Mozilla’s page"), MinHeight = 60, HorizontalAlignment = HorizontalAlignment.Stretch };
         var credentialsPanel = new StackPanel { Spacing = 12, Children = {
-            new TextBlock { Text = FoxUi.T("با ایمیل و رمز حساب Firefox در صفحهٔ رسمی موزیلا وارد شوید. کدهای تأیید را همان‌جا وارد کنید؛ Google و Apple پشتیبانی نمی‌شوند.", "Use your Firefox email and password on Mozilla’s official page. Complete verification there; Google and Apple are not supported."), TextWrapping = TextWrapping.Wrap }, browserLogin } };
+            new TextBlock { Text = FoxUi.T("ورود یا ساخت حساب و کد تأیید را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in, account creation and verification on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap }, browserLogin } };
         var verificationPanel = new StackPanel { Spacing = 12, Children = { new TextBlock { Text = FoxUi.T("ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید.", "Complete sign-in on Mozilla’s official page."), TextWrapping = TextWrapping.Wrap } } };
         var reauthenticate = new Button { Content = FoxUi.T("ورود مجدد به حساب", "Sign in again"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var connectionPanel = new StackPanel { Spacing = 12, Children = {
