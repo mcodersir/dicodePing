@@ -108,6 +108,7 @@ jobs:
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 35
+        avd-name: dicode-4k
         arch: x86_64
         ram-size: 4096M
         disable-animations: true
@@ -118,13 +119,15 @@ jobs:
       timeout-minutes: 15
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 35
+        api-level: 36
+        avd-name: dicode-16k
         target: google_apis_ps16k
         arch: x86_64
         ram-size: 4096M
         disable-animations: true
         working-directory: apps/android
         script: |
+          trap 'adb logcat -d > app/build/native-16k-logcat.txt' EXIT
           test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
           ./gradlew connectedFdroidDebugAndroidTest --no-daemon -PABI_FILTERS=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=com.v2ray.ang.core.FoxNativeTest
     - name: Preserve Android test diagnostics
@@ -137,6 +140,7 @@ jobs:
           apps/android/app/build/reports/androidTests/
           apps/android/app/build/outputs/androidTest-results/
           apps/android/app/build/remote-test-logcat.txt
+          apps/android/app/build/native-16k-logcat.txt
 'on':
   push:
     branches:
