@@ -4,7 +4,7 @@
 
 **[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۹۸](docs/RELEASE-4.9.981.md)** · **[راهنمای CLI](docs/CLI.md)**
 
-مبنای این نسخه، سورس ۴.۹.۹۲ است. هستهٔ روباه بدون تغییر از همان نسخه حفظ شده است؛ نسخهٔ مستقل Android TV، هسته‌های مستقل تازه، سرورلس OOB، نوار سهمیه و دسترسی آسان به گزارش‌ها اضافه شده‌اند. وضعیت گزارش‌های بالادستی در [جدول بررسی](docs/UPSTREAM-AUDIT-4.9.981.md) مشخص است.
+هستهٔ روباه در این نسخه بر پایهٔ armanlife/arman-vpn-client v1.0.11 بازسازی شده است: بازیابی ورود با OAuth code و PKCE، تمدید جایگزین توکن، مرورگر ورود مستقل از VPN و انتقال HTTP/2. [یادداشت نسخه](docs/RELEASE-4.9.981.md) و [مبنای دقیق سورس](apps/fox-helper/UPSTREAM.json) تغییرات را ثبت می‌کنند.
 
 ## روباه 🦊
 
@@ -26,6 +26,6 @@
 
 ## توسعه و مجوز
 
-برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه از سورس دست‌نخوردهٔ ۴.۹.۹۲ در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها، دست‌نخوردن روباه و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.981.json` ثبت شده‌اند.
+برنامه‌های مستقل در `apps/android` و `apps/desktop` قرار دارند؛ هستهٔ مشترک روباه بر پایهٔ Arman VPN v1.0.11 در `apps/fox-helper` ساخته می‌شود. فرایند انتشار در `.github/workflows/release.yml` هسته‌ها، مبنای سورس روباه و امضای APKها را بررسی می‌کند. جزئیات نسخه‌ها در `scripts/runtime-pins-4.9.981.json` ثبت شده‌اند.
 
-DicodePing تحت [GPL-3.0](LICENSE) منتشر می‌شود. مجوز اجزای مستقل و وابستگی‌ها همراه آن‌ها حفظ شده است. اقتباس پروتکل FoxyVPN تحت MIT انجام شده؛ [مجوز](apps/fox-helper/LICENSE-FoxyVPN.txt) و [توضیح](apps/fox-helper/NOTICE.md) همراه بستهٔ روباه قرار دارند. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.
+DicodePing تحت [GPL-3.0](LICENSE) منتشر می‌شود. مجوز اجزای مستقل و وابستگی‌ها همراه آن‌ها حفظ شده است. هستهٔ جدید Arman VPN تحت GPL-3.0 است و سورس متناظر در همین مخزن قرار دارد؛ مجوز پیشین FoxyVPN تحت MIT نیز حفظ شده است؛ [مجوز](apps/fox-helper/LICENSE-FoxyVPN.txt) و [توضیح](apps/fox-helper/NOTICE.md) همراه بستهٔ روباه قرار دارند. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.
