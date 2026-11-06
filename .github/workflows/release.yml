@@ -177,11 +177,12 @@ jobs:
       shell: pwsh
       run: |
         $versions = @{}
+        $runtimePins = Get-Content scripts/runtime-pins-4.9.98.json -Raw | ConvertFrom-Json
         $checks = @(
           @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '4.9.92' },
           @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.11.1' },
           @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.4.0' },
-          @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = 'alpha-9002a4f' }
+          @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = $runtimePins.mihomo_version }
         )
         foreach ($check in $checks) {
           $output = (& (Resolve-Path $check.path) $check.arg 2>&1 | Out-String)
@@ -258,6 +259,11 @@ jobs:
     - uses: android-actions/setup-android@v4
     - name: Install SDK and NDK
       run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
+    - name: Compute Android native payload cache key
+      id: android-native-key
+      run: |
+        python scripts/test-android-native-cache-key.py
+        python scripts/android-native-cache-key.py >> "$GITHUB_OUTPUT"
     - name: Restore pinned Android native payloads
       id: android-native
       uses: actions/cache/restore@v5
@@ -268,7 +274,7 @@ jobs:
           apps/android/app/src/main/assets/singbox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.98.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ steps.android-native-key.outputs.key }}
     - name: Build pinned hev TUN
       if: steps.android-native.outputs.cache-hit != 'true'
       env:
@@ -324,7 +330,7 @@ jobs:
           apps/android/app/src/main/assets/singbox
           apps/android/app/src/main/assets/geo*.dat
           apps/android/app/src/main/assets/psiphon_servers.*
-        key: ${{ runner.os }}-dicode-native-v1-${{ hashFiles('scripts/runtime-pins-4.9.98.json', 'scripts/stage-*.py', 'scripts/build-android-core.sh', 'scripts/patches/**', 'apps/fox-helper/**', '.github/workflows/android-preflight.yml', '.github/workflows/release.yml') }}
+        key: ${{ steps.android-native-key.outputs.key }}
     - name: Build signed installable APKs
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
