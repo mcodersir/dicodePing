@@ -22,6 +22,9 @@ public sealed class BrowserSmokeApp : Application
   else if (OperatingSystem.IsMacOS()) NativeWebView.Platform.macOS.NativeWebViewPlatformMacOSModule.RegisterDefault();
   else NativeWebView.Platform.Linux.NativeWebViewPlatformLinuxModule.RegisterDefault();
   var web = new NativeWebView.Controls.NativeWebView();
+  // Exercise the same production configuration, including a previously null
+  // NativeWebView proxy-options object. All network resources below are fixtures.
+  v2rayN.Desktop.Views.FoxBrowserWindow.ConfigureSignInProxy(web, "127.0.0.1:1");
   web.InstanceConfiguration.ControllerOptions.IsInPrivateModeEnabled=true;
   web.InstanceConfiguration.ControllerOptions.IsPasswordAutosaveEnabled=false;
   web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce),NativeWebViewScriptFrameScope.MainFrame));

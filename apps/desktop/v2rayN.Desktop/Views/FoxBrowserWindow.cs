@@ -7,6 +7,10 @@ namespace v2rayN.Desktop.Views;
 
 public sealed class FoxBrowserWindow : Window
 {
+    public static void ConfigureSignInProxy(NativeWebView.Controls.NativeWebView web, string address)
+    {
+        web.InstanceConfiguration.EnvironmentOptions.Proxy = new NativeWebViewProxyOptions { Server = "http://" + address };
+    }
     public FoxBrowserWindow()
     {
         Title = FoxUi.T("ورود امن موزیلا", "Mozilla sign-in"); Width = 620; Height = 760; MinWidth = 320; MinHeight = 400;
@@ -40,7 +44,7 @@ public sealed class FoxBrowserWindow : Window
                 web.InstanceConfiguration.ControllerOptions.IsGeneralAutofillEnabled = false;
                 web.InstanceConfiguration.ControllerOptions.RedactNavigationDetails = true;
                 web.InstanceConfiguration.EnvironmentOptions.UserDataFolder = Path.Combine(FoxAccounts.Folder, "Browser");
-                web.InstanceConfiguration.EnvironmentOptions.Proxy.Server = "http://" + proxy.Address;
+                ConfigureSignInProxy(web, proxy.Address);
                 web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce), NativeWebViewScriptFrameScope.MainFrame));
                 web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsTrusted(e.Uri?.ToString())) e.Cancel = true; };
                 web.NewWindowRequested += (_, e) => { e.Handled = true; };

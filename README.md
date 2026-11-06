@@ -1,10 +1,10 @@
-# DicodePing 4.9.981
+# DicodePing 4.9.982
 
 کلاینت اتصال برای **Windows، Linux، macOS و Android**، همراه نسخهٔ مستقل **CLI**. پروفایل‌ها را مدیریت کنید، کیفیت مسیر را با درخواست واقعی بسنجید و از فهرست سرورها متصل شوید.
 
-**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۹۸](docs/RELEASE-4.9.981.md)** · **[راهنمای CLI](docs/CLI.md)**
+**[دانلود نسخهٔ پایدار](https://mcodersir.github.io/dicodePing/#download)** · **[تغییرات ۴.۹.۹۸](docs/RELEASE-4.9.982.md)** · **[راهنمای CLI](docs/CLI.md)**
 
-هستهٔ روباه در این نسخه بر پایهٔ armanlife/arman-vpn-client v1.0.11 بازسازی شده است: بازیابی ورود با OAuth code و PKCE، تمدید جایگزین توکن، مرورگر ورود مستقل از VPN و انتقال HTTP/2. [یادداشت نسخه](docs/RELEASE-4.9.981.md) و [مبنای دقیق سورس](apps/fox-helper/UPSTREAM.json) تغییرات را ثبت می‌کنند.
+هستهٔ روباه در این نسخه بر پایهٔ armanlife/arman-vpn-client v1.0.11 بازسازی شده است: بازیابی ورود با OAuth code و PKCE، تمدید جایگزین توکن، مرورگر ورود مستقل از VPN و انتقال HTTP/2. [یادداشت نسخه](docs/RELEASE-4.9.982.md) و [مبنای دقیق سورس](apps/fox-helper/UPSTREAM.json) تغییرات را ثبت می‌کنند.
 
 ## روباه 🦊
 
