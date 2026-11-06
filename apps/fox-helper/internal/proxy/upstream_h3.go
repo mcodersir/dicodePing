@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,7 +21,6 @@ import (
 	"dicodeping/fox/internal/controlplane"
 	"dicodeping/fox/internal/egress"
 	"dicodeping/fox/internal/logx"
-	"dicodeping/fox/internal/resolver"
 )
 
 var errProxyHTTP3Unavailable = errors.New("proxy did not negotiate HTTP/3")
@@ -60,14 +60,6 @@ func newH3ProxySession(proxyURL *url.URL, token string, timeout time.Duration) (
 	}
 	defer cancel()
 
-	ips, err := resolver.LookupNetIP(ctx, host)
-	if err != nil {
-		return nil, fmt.Errorf("resolve %s: %w", host, err)
-	}
-	if len(ips) == 0 {
-		return nil, fmt.Errorf("no addresses for %s", host)
-	}
-
 	tlsCfg := &tls.Config{
 		RootCAs:    upstreamRoots.Load(),
 		ServerName: host,
@@ -84,44 +76,75 @@ func newH3ProxySession(proxyURL *url.URL, token string, timeout time.Duration) (
 		InitialPacketSize: 1200,
 	}
 
-	var perAttempt time.Duration
-	if timeout > 0 {
-		perAttempt = timeout / time.Duration(len(ips))
-		if perAttempt < 3*time.Second {
-			perAttempt = 3 * time.Second
+	// dialAll tries ips in turn, sharing budget (0: ctx alone limits it).
+	dialAll := func(ips []netip.Addr, budget time.Duration) (*quic.Conn, *net.UDPConn, error) {
+		var perAttempt time.Duration
+		if budget > 0 {
+			perAttempt = budget / time.Duration(len(ips))
+			if perAttempt < 3*time.Second {
+				perAttempt = 3 * time.Second
+			}
 		}
+		var lastErr error
+		for _, ip := range ips {
+			// Of ip's family, and outside the TUN adapter while the TUN mode
+			// runs.
+			uc, err := egress.ListenUDP(ip)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			udpAddr := &net.UDPAddr{IP: ip.AsSlice(), Port: port, Zone: ip.Zone()}
+			attemptCtx := ctx
+			attemptCancel := func() {}
+			if perAttempt > 0 {
+				attemptCtx, attemptCancel = context.WithTimeout(ctx, perAttempt)
+			}
+			c, err := quic.Dial(attemptCtx, uc, udpAddr, tlsCfg, quicCfg)
+			attemptCancel()
+			if err != nil {
+				_ = uc.Close()
+				lastErr = fmt.Errorf("dial %s: %w", udpAddr, err)
+				continue
+			}
+			return c, uc, nil
+		}
+		return nil, nil, lastErr
 	}
 
+	// proxy.ip_version's steps (ipversion.go): each one's addresses in
+	// turn, a step that another follows taking half the time left.
+	steps := upstreamSteps()
 	var (
 		conn    *quic.Conn
 		udpConn *net.UDPConn
-		lastErr error
+		failed  stepError
 	)
-	for _, ip := range ips {
-		// Of ip's family, and outside the TUN adapter while the TUN mode
-		// runs.
-		uc, err := egress.ListenUDP(ip)
+	for i, step := range steps {
+		ips, err := upstreamAddrs(ctx, host, step)
+		if err == nil && len(ips) == 0 {
+			err = noAddrsError(host, step)
+		}
 		if err != nil {
-			lastErr = err
+			failed.note(step, fmt.Errorf("resolve %s: %w", host, err))
 			continue
 		}
-		udpAddr := &net.UDPAddr{IP: ip.AsSlice(), Port: port, Zone: ip.Zone()}
-		attemptCtx := ctx
-		attemptCancel := func() {}
-		if perAttempt > 0 {
-			attemptCtx, attemptCancel = context.WithTimeout(ctx, perAttempt)
+		budget := timeout
+		if i < len(steps)-1 && budget > 0 {
+			budget /= 2
 		}
-		c, err := quic.Dial(attemptCtx, uc, udpAddr, tlsCfg, quicCfg)
-		attemptCancel()
-		if err != nil {
-			_ = uc.Close()
-			lastErr = fmt.Errorf("dial %s: %w", udpAddr, err)
-			continue
+		if conn, udpConn, err = dialAll(ips, budget); err == nil {
+			if i > 0 {
+				logx.Info("Mozilla's server answered over %s after %s failed proxy=%s err=%s", stepName(step), stepName(steps[0]), proxyHost, logx.Err(failed.first))
+			}
+			break
 		}
-		conn = c
-		udpConn = uc
-		break
+		failed.note(step, err)
+		if ctx.Err() != nil {
+			break
+		}
 	}
+	lastErr := failed.err()
 	if conn == nil {
 		return nil, lastErr
 	}

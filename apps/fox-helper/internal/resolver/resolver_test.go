@@ -285,6 +285,12 @@ func (f *fakeServer) lookup(ctx context.Context, _ string) ([]netip.Addr, time.D
 	return []netip.Addr{netip.MustParseAddr(f.addr)}, time.Minute, nil
 }
 
+// lookup6 answers the fake's address when it is an IPv6 one.
+func (f *fakeServer) lookup6(ctx context.Context, host string) ([]netip.Addr, time.Duration, error) {
+	addrs, ttl, err := f.lookup(ctx, host)
+	return KeepFamily("ip6", addrs), ttl, err
+}
+
 func (f *fakeServer) exchange(context.Context, []byte) ([]byte, error) {
 	return nil, errors.New("not used")
 }

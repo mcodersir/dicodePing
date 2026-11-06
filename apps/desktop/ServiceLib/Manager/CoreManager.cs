@@ -140,7 +140,7 @@ public class CoreManager
         await Task.Delay(250);
 
         if (fox is not null) {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(165));
             var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token, mainContext.AppConfig.CoreBasicItem.BindInterface);
             _foxProcess = helper;
             helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code, helper); };

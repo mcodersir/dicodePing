@@ -55,6 +55,11 @@ func newDoHServer(u string) *dohServer {
 
 func (s *dohServer) String() string { return s.url }
 
+// lookup6 asks for AAAA records alone.
+func (s *dohServer) lookup6(ctx context.Context, host string) ([]netip.Addr, time.Duration, error) {
+	return s.query(ctx, host, dnsmessage.TypeAAAA)
+}
+
 // lookup asks for A records, and for AAAA records when there are none.
 func (s *dohServer) lookup(ctx context.Context, host string) ([]netip.Addr, time.Duration, error) {
 	addrs, ttl, err := s.query(ctx, host, dnsmessage.TypeA)

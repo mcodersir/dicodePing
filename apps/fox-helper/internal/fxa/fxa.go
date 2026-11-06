@@ -213,10 +213,12 @@ func fxaDoWith406Fallback(ctx context.Context, newRequest func() (*http.Request,
 			}
 			recoveryCtx, finishRecovery := context.WithTimeout(ctx, fxaChallengeBudget)
 			requestCtx, cancel = recoveryCtx, finishRecovery
-			if on406 != nil {
-				if alternate, err := on406(requestCtx); alternate != nil || err != nil {
-					return alternate, err
-				}
+		}
+		// A solved cookie may unlock the OAuth host even when the API host
+		// remains blocked. Retry the alternate after each solved challenge.
+		if on406 != nil {
+			if alternate, err := on406(requestCtx); alternate != nil || err != nil {
+				return alternate, err
 			}
 		}
 

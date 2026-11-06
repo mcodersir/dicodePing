@@ -495,6 +495,10 @@ func installChallengeCookies(solverJar http.CookieJar, pageURL string) error {
 	controlplane.SetCookies(apiURL, cookies)
 	parsed2, _ := url.Parse(fxaSiteURL)
 	controlplane.SetCookies(parsed2, cookies)
+	// CookieJar.Cookies strips Domain. Install the earned cookie explicitly
+	// on the third official host used by refresh and PKCE token exchange.
+	oauthURL, _ := url.Parse(fxaOAuthTokenURL)
+	controlplane.SetCookies(oauthURL, cookies)
 	return nil
 }
 

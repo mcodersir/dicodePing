@@ -32,12 +32,14 @@ type managedSession struct {
 }
 
 type ControllerConfig struct {
-	Guardian   string
-	ProxyURL   *url.URL
-	Timeout    time.Duration
-	Auth       *runtimeAuth
-	Pass       *guardian.ProxyPassInfo
-	UseH3      bool
+	Guardian string
+	ProxyURL *url.URL
+	Timeout  time.Duration
+	Auth     *runtimeAuth
+	Pass     *guardian.ProxyPassInfo
+	UseH3    bool
+	// UseH1 is proxy.transport "h1": a TLS connection per tunnel.
+	UseH1      bool
 	Sessions   int
 	StatusFile string
 	Accounts   *AccountPool // optional; multi-account mode with threshold failover
@@ -125,6 +127,10 @@ func NewController(cfg ControllerConfig) (*Controller, error) {
 	if cfg.UseH3 {
 		baseFactory = func(target *url.URL, token string) (proxySession, error) {
 			return newH3ProxySession(target, token, cfg.Timeout)
+		}
+	} else if cfg.UseH1 {
+		baseFactory = func(target *url.URL, token string) (proxySession, error) {
+			return newH1ProxySession(target, token, cfg.Timeout)
 		}
 	} else {
 		baseFactory = func(target *url.URL, token string) (proxySession, error) {

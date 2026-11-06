@@ -59,6 +59,8 @@ func IsBlockPage(addr netip.Addr) bool {
 // server answers queries for one configured DNS server.
 type server interface {
 	lookup(ctx context.Context, host string) ([]netip.Addr, time.Duration, error)
+	// lookup6 asks for the IPv6 addresses alone (AAAA).
+	lookup6(ctx context.Context, host string) ([]netip.Addr, time.Duration, error)
 	// exchange sends a DNS message and returns the reply as it is.
 	exchange(ctx context.Context, msg []byte) ([]byte, error)
 	String() string
@@ -235,6 +237,44 @@ func (r *Resolver) remember(host string, result Result, ttl time.Duration) {
 	r.mu.Unlock()
 }
 
+// ipv6Key is a name's cache key for its IPv6 addresses (LookupIPv6).
+const ipv6Key = "[ipv6] "
+
+// LookupIPv6 resolves host's IPv6 addresses alone. Lookup asks the servers
+// for them only when a name has no IPv4 address; a connection kept to IPv6
+// (tcp6, udp6) asks here.
+func (r *Resolver) LookupIPv6(ctx context.Context, host string) (Result, error) {
+	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	if addr, err := netip.ParseAddr(strings.Trim(host, "[]")); err == nil {
+		return Result{Addrs: KeepFamily("ip6", []netip.Addr{addr}), Source: "literal"}, nil
+	}
+	if r.System() || host == "localhost" {
+		result, err := systemLookup(ctx, host)
+		result.Addrs = KeepFamily("ip6", result.Addrs)
+		return result, err
+	}
+	r.mu.Lock()
+	if entry, ok := r.cache[ipv6Key+host]; ok && time.Now().Before(entry.expires) {
+		r.mu.Unlock()
+		return Result{Addrs: entry.addrs, Source: entry.source, Cached: true}, nil
+	}
+	r.mu.Unlock()
+	result, ttl, err := r.raceWith(ctx, host, server.lookup6)
+	if err != nil {
+		if !r.fallback {
+			return Result{}, err
+		}
+		system, sysErr := r.system(ctx, host)
+		if sysErr != nil {
+			return Result{}, err
+		}
+		system.Addrs, system.Source = KeepFamily("ip6", system.Addrs), "system (fallback)"
+		return system, nil
+	}
+	r.remember(ipv6Key+host, result, clampTTL(ttl))
+	return result, nil
+}
+
 // lookupWithSystem takes the servers' answer, or the system's once they have
 // had systemAfter (no wait while they are known to be failing). A block page
 // from the system is used only when the servers fail: on a filtering network
@@ -329,6 +369,11 @@ func (r *Resolver) lookupWithSystem(ctx context.Context, host string) (Result, e
 
 // race queries every server at once and returns the first answer.
 func (r *Resolver) race(ctx context.Context, host string) (Result, time.Duration, error) {
+	return r.raceWith(ctx, host, server.lookup)
+}
+
+// raceWith is race with the servers' lookup of one kind.
+func (r *Resolver) raceWith(ctx context.Context, host string, lookup func(server, context.Context, string) ([]netip.Addr, time.Duration, error)) (Result, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 	type answer struct {
@@ -340,7 +385,7 @@ func (r *Resolver) race(ctx context.Context, host string) (Result, time.Duration
 	answers := make(chan answer, len(r.servers))
 	for _, s := range r.servers {
 		go func(s server) {
-			addrs, ttl, err := s.lookup(ctx, host)
+			addrs, ttl, err := lookup(s, ctx, host)
 			if err == nil && len(addrs) == 0 {
 				err = fmt.Errorf("no addresses for %s", host)
 			}
@@ -423,13 +468,50 @@ func (r *Resolver) dial(ctx context.Context, wait time.Duration, network, addres
 	if err != nil {
 		return nil, err
 	}
-	result, err := r.Lookup(ctx, host)
-	if err != nil {
-		return nil, err
+	var addrs []netip.Addr
+	if strings.HasSuffix(network, "6") {
+		result, err := r.LookupIPv6(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		addrs = orderAddrs(result.Addrs)
+	} else {
+		result, err := r.Lookup(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		addrs = KeepFamily(network, orderAddrs(result.Addrs))
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("%s has no %s address", host, familyName(network))
 	}
 	ctx, cancel := limit()
 	defer cancel()
-	return dialRace(ctx, d.DialContext, network, port, orderAddrs(result.Addrs), dialStagger)
+	return dialRace(ctx, d.DialContext, network, port, addrs, dialStagger)
+}
+
+// KeepFamily keeps the addresses of network's IP version: IPv4 alone for
+// "tcp4", "udp4", and "ip4", IPv6 alone for "tcp6", "udp6", and "ip6", all
+// of them else.
+func KeepFamily(network string, addrs []netip.Addr) []netip.Addr {
+	if !strings.HasSuffix(network, "4") && !strings.HasSuffix(network, "6") {
+		return addrs
+	}
+	v4 := strings.HasSuffix(network, "4")
+	out := make([]netip.Addr, 0, len(addrs))
+	for _, a := range addrs {
+		if a.Unmap().Is4() == v4 {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func familyName(network string) string {
+	if strings.HasSuffix(network, "6") {
+		return "IPv6"
+	}
+	return "IPv4"
 }
 
 const (
@@ -652,6 +734,91 @@ func LookupNetIP(ctx context.Context, host string) ([]netip.Addr, error) {
 	return orderAddrs(result.Addrs), nil
 }
 
+// LookupNetIPBoth resolves host's IPv4 and IPv6 addresses at once (the
+// IPv6 ones with LookupIPv6) and interleaves them, IPv4 first: the order
+// to try them in when both versions are welcome (dual-stack, RFC 8305).
+// It fails only when neither version has an address.
+func LookupNetIPBoth(ctx context.Context, host string) ([]netip.Addr, error) {
+	return Current().lookupBoth(ctx, host)
+}
+
+func (r *Resolver) lookupBoth(ctx context.Context, host string) ([]netip.Addr, error) {
+	type answer struct {
+		addrs []netip.Addr
+		err   error
+	}
+	v6 := make(chan answer, 1)
+	go func() {
+		result, err := r.LookupIPv6(ctx, host)
+		v6 <- answer{result.Addrs, err}
+	}()
+	result, err4 := r.Lookup(ctx, host)
+	a6 := <-v6
+	addrs := interleave(KeepFamily("ip4", orderAddrs(result.Addrs)), orderAddrs(a6.addrs))
+	if len(addrs) == 0 {
+		if err4 != nil {
+			return nil, err4
+		}
+		if a6.err != nil {
+			return nil, a6.err
+		}
+		return nil, fmt.Errorf("no addresses for %s", host)
+	}
+	return addrs, nil
+}
+
+// interleave takes from a and b in turn, a first.
+func interleave(a, b []netip.Addr) []netip.Addr {
+	out := make([]netip.Addr, 0, len(a)+len(b))
+	for i := 0; i < len(a) || i < len(b); i++ {
+		if i < len(a) {
+			out = append(out, a[i])
+		}
+		if i < len(b) {
+			out = append(out, b[i])
+		}
+	}
+	return out
+}
+
+// DialBoth connects over TCP to the first of host's IPv4 and IPv6
+// addresses to answer, tried interleaved (LookupNetIPBoth). Through the
+// upstream proxy, the proxy picks; with the system resolver, Go's dialer
+// tries both versions itself.
+func DialBoth(ctx context.Context, address string) (net.Conn, error) {
+	if p := upstream.Load(); p != nil {
+		return p.dial.DialContext(ctx, "tcp", address)
+	}
+	r := Current()
+	d := egress.Dialer(0)
+	if r.System() {
+		return d.DialContext(ctx, "tcp", address)
+	}
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := r.lookupBoth(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	return dialRace(ctx, d.DialContext, "tcp", port, addrs, dialStagger)
+}
+
+// LookupNetIPFamily is LookupNetIP kept to network's IP version (see
+// KeepFamily); the IPv6 addresses come from LookupIPv6.
+func LookupNetIPFamily(ctx context.Context, host, network string) ([]netip.Addr, error) {
+	if strings.HasSuffix(network, "6") {
+		result, err := Current().LookupIPv6(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		return orderAddrs(result.Addrs), nil
+	}
+	addrs, err := LookupNetIP(ctx, host)
+	return KeepFamily(network, addrs), err
+}
+
 // streamServer queries a DoT, TCP, or UDP server through Go's resolver,
 // which handles truncation, retries, and the wire format.
 type streamServer struct {
@@ -698,6 +865,11 @@ func (s *streamServer) lookup(ctx context.Context, host string) ([]netip.Addr, t
 	for i := range addrs {
 		addrs[i] = addrs[i].Unmap()
 	}
+	return addrs, 0, err
+}
+
+func (s *streamServer) lookup6(ctx context.Context, host string) ([]netip.Addr, time.Duration, error) {
+	addrs, err := s.r.LookupNetIP(ctx, "ip6", host)
 	return addrs, 0, err
 }
 

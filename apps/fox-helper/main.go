@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "4.9.981"
+const version = "4.9.983"
 
 type State struct {
 	Email              string `json:"email"`
@@ -221,6 +221,7 @@ func configure(req Request) error {
 		return err
 	}
 	resolver.Set(r)
+	proxy.SetUpstreamIPVersion("auto")
 	return nil
 }
 func probe(ctx context.Context, c *proxy.Controller) bool {
@@ -255,7 +256,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 	e := &engine{state: req.State}
 	operationTimeout := 95 * time.Second
 	if req.Operation == "serve" {
-		operationTimeout = 65 * time.Second
+		operationTimeout = 150 * time.Second
 	}
 	opctx, finish := context.WithTimeout(ctx, operationTimeout)
 	defer finish()
@@ -374,13 +375,23 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 			if err != nil {
 				continue
 			}
-			controller, err = proxy.NewController(proxy.ControllerConfig{Guardian: guardian.DefaultEndpoint, ProxyURL: target, Timeout: 10 * time.Second, Auth: fresh, Pass: pass, Sessions: 2, ChosenLocation: country != "REC", Server: candidate, Location: candidates, Failover: proxy.NewServerFailover("")})
-			if err == nil && probe(opctx, controller) {
-				break
+			// Prefer HTTP/2; networks that interrupt multiplexed sessions get
+			// Arman's HTTP/1.1 transport before moving to another server.
+			for _, useH1 := range []bool{false, true} {
+				controller, err = proxy.NewController(proxy.ControllerConfig{Guardian: guardian.DefaultEndpoint, ProxyURL: target, Timeout: 10 * time.Second, Auth: fresh, Pass: pass, UseH1: useH1, Sessions: 2, ChosenLocation: country != "REC", Server: candidate, Location: candidates, Failover: proxy.NewServerFailover("")})
+				if err == nil && probe(opctx, controller) {
+					break
+				}
+				if controller != nil {
+					controller.Close()
+					controller = nil
+				}
+				if opctx.Err() != nil {
+					return opctx.Err()
+				}
 			}
 			if controller != nil {
-				controller.Close()
-				controller = nil
+				break
 			}
 		}
 		if controller == nil {
@@ -441,7 +452,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 }
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.11)")
+		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.12)")
 		return
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
