@@ -73,27 +73,27 @@
       "go": "go1.26.10"
     }
   },
-  "mihomo_version": "alpha-9002a4f",
+  "mihomo_version": "alpha-478af2a",
   "mihomo_assets": {
     "win-x64": {
-      "name": "mihomo-windows-amd64-v1-alpha-9002a4f.zip",
-      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-amd64-v1-alpha-9002a4f.zip",
-      "sha256": "33be72027992509907d828caf641de083cbc600a349fd928ee878a8c2b921482"
+      "name": "mihomo-windows-amd64-v1-alpha-478af2a.zip",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-amd64-v1-alpha-478af2a.zip",
+      "sha256": "762f2213141ffec38d71798e65a0c24737470b3a43611912d0ad85af30b749d5"
     },
     "linux-x64": {
-      "name": "mihomo-linux-amd64-v1-alpha-9002a4f.gz",
-      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-linux-amd64-v1-alpha-9002a4f.gz",
-      "sha256": "5d93c5bd42c4622c5814e0b5beccf63dfc9afdea9a4c82c9bc77306bb2c85d57"
+      "name": "mihomo-linux-amd64-v1-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-linux-amd64-v1-alpha-478af2a.gz",
+      "sha256": "2da3a01a4bc8c0cce25a200e6335f190d6861cf4d472e5325a907f2b92a60219"
     },
     "osx-x64": {
-      "name": "mihomo-darwin-amd64-v1-alpha-9002a4f.gz",
-      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-amd64-v1-alpha-9002a4f.gz",
-      "sha256": "8a25f913eac60134338d2cb32ce68ac1b64e0714f2f833bdd63bc1fd777e2b19"
+      "name": "mihomo-darwin-amd64-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-amd64-alpha-478af2a.gz",
+      "sha256": "e5ccf2555f05e48bf1d58e80b4879975741d1773abcc6211af98870e024b4cc8"
     },
     "osx-arm64": {
-      "name": "mihomo-darwin-arm64-alpha-9002a4f.gz",
-      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-arm64-alpha-9002a4f.gz",
-      "sha256": "ac043e5f3a8781cb8f6b9780a65045dcaf38e5555a9e0512fc59427eb43704a0"
+      "name": "mihomo-darwin-arm64-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-arm64-alpha-478af2a.gz",
+      "sha256": "efc4aa19453da5070960916faf592f19db4a084bc513bf91450d919bfb699635"
     }
   },
   "singbox": {
@@ -157,5 +157,6 @@
   "base": {
     "tag": "v4.9.92",
     "commit": "0f9aedae0e44e828b1e5aab2ea30b7337bff812d"
-  }
+  },
+  "mihomo_source_commit": "478af2a57c48bdb8e85f6ed93b2c3735e90ceabd"
 }

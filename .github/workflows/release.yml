@@ -35,36 +35,36 @@ jobs:
           xray_asset: Xray-windows-64.zip
           xray_sha256: 9f7cfd2f14a4974339de3e0a8fd23447e7bb8a0e04c2df10cd324d188947032c
           xray_binary: xray.exe
-          mihomo_asset: mihomo-windows-amd64-v1-alpha-9002a4f.zip
+          mihomo_asset: mihomo-windows-amd64-v1-alpha-478af2a.zip
           mihomo_binary: mihomo.exe
-          mihomo_sha256: 33be72027992509907d828caf641de083cbc600a349fd928ee878a8c2b921482
+          mihomo_sha256: 762f2213141ffec38d71798e65a0c24737470b3a43611912d0ad85af30b749d5
           artifact: windows-x64
         - runner: ubuntu-latest
           rid: linux-x64
           xray_asset: Xray-linux-64.zip
           xray_sha256: 7f4410d6e17ce87acaf968c8a2b4d1ee6bfd2b387225834fc35d3105af9fa9f9
           xray_binary: xray
-          mihomo_asset: mihomo-linux-amd64-v1-alpha-9002a4f.gz
+          mihomo_asset: mihomo-linux-amd64-v1-alpha-478af2a.gz
           mihomo_binary: mihomo
-          mihomo_sha256: 5d93c5bd42c4622c5814e0b5beccf63dfc9afdea9a4c82c9bc77306bb2c85d57
+          mihomo_sha256: 2da3a01a4bc8c0cce25a200e6335f190d6861cf4d472e5325a907f2b92a60219
           artifact: linux-x64
         - runner: macos-15
           rid: osx-x64
           xray_asset: Xray-macos-64.zip
           xray_sha256: 450bdf781bcbb7b8ffa89e5145c98500c0481bcc93c2753393cdf3b03fb9a4d3
           xray_binary: xray
-          mihomo_asset: mihomo-darwin-amd64-v1-alpha-9002a4f.gz
+          mihomo_asset: mihomo-darwin-amd64-alpha-478af2a.gz
           mihomo_binary: mihomo
-          mihomo_sha256: 8a25f913eac60134338d2cb32ce68ac1b64e0714f2f833bdd63bc1fd777e2b19
+          mihomo_sha256: e5ccf2555f05e48bf1d58e80b4879975741d1773abcc6211af98870e024b4cc8
           artifact: macos-x64
         - runner: macos-15
           rid: osx-arm64
           xray_asset: Xray-macos-arm64-v8a.zip
           xray_sha256: ca5dc783f749597a88b2ab609f3a3c1e73b3c2318ef0e688ab2434a5d528dd88
           xray_binary: xray
-          mihomo_asset: mihomo-darwin-arm64-alpha-9002a4f.gz
+          mihomo_asset: mihomo-darwin-arm64-alpha-478af2a.gz
           mihomo_binary: mihomo
-          mihomo_sha256: ac043e5f3a8781cb8f6b9780a65045dcaf38e5555a9e0512fc59427eb43704a0
+          mihomo_sha256: efc4aa19453da5070960916faf592f19db4a084bc513bf91450d919bfb699635
           artifact: macos-arm64
     runs-on: ${{ matrix.runner }}
     steps:
