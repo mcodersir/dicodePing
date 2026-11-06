@@ -174,13 +174,15 @@
     "Platform certificate roots are injected for native Android and desktop trust.",
     "External socket binding integrates the desktop physical interface.",
     "Dicode controller adapter persists token refreshes through the existing encrypted vault.",
-    "Retry alternate OAuth endpoint after each solved challenge; explicitly install earned cookies on OAuth host. Regression reproduced from Android 406 log."
+    "Retry alternate OAuth endpoint after each solved challenge; explicitly install earned cookies on OAuth host. Regression reproduced from Android 406 log.",
+    "Retain still-unexpired access grants when proactive refresh fails transiently; do not retain expired or explicitly revoked grants."
   ],
   "adapted_files": {
     "controlplane/client.go": "5fd7dde301fbfd4e9fea5997e1151a32ba42b48e7b623f466d468d15c51678ac",
     "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5",
     "fxa/fxa.go": "e53c015fa031be7650ad0fef9d8fdc7f576ca452aa9cac37187d919370621753",
-    "fxa/challenge.go": "a0235d780b7a5c8f04216eedd943d8572982cf595b319e8031ce6f0541d23a4f"
+    "fxa/challenge.go": "a0235d780b7a5c8f04216eedd943d8572982cf595b319e8031ce6f0541d23a4f",
+    "proxy/auth.go": "43041a2484bccc1e1a1351b2f430e033b1b54506235354b7c94084e393717ecb"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."

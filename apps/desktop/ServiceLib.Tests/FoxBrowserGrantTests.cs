@@ -44,4 +44,12 @@ public class FoxBrowserGrantTests
         Assert.False(FoxBrowserProtocol.IsReady("https://foreign.invalid",ready,"fixture"));
         Assert.False(FoxBrowserProtocol.IsReady("https://accounts.firefox.com",ready,"other"));
     }
+    [Fact] public void BrowserErrorsStayBoundToOriginNonceAndKnownCodes()
+    {
+        const string payload="{\"kind\":\"auth_error\",\"nonce\":\"fixture\",\"code\":\"verification_required\"}";
+        Assert.Equal("verification_required",FoxBrowserProtocol.ParseError("https://accounts.firefox.com",payload,"fixture"));
+        Assert.Null(FoxBrowserProtocol.ParseError("https://foreign.invalid",payload,"fixture"));
+        Assert.Null(FoxBrowserProtocol.ParseError("https://accounts.firefox.com",payload,"other"));
+        Assert.Null(FoxBrowserProtocol.ParseError("https://accounts.firefox.com",payload.Replace("verification_required","untrusted error body"),"fixture"));
+    }
 }

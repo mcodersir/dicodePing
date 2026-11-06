@@ -30,6 +30,21 @@ public static class FoxBrowserProtocol
             return Regex.IsMatch(session, "\\A[a-fA-F0-9]{64}\\z") && email.Length <= 254 && email.Contains('@') ? (email, session) : null;
         } catch (JsonException) { return null; }
     }
+    public static bool IsProgress(string? currentUrl, string? payload, string nonce)
+    {
+        if (!IsTrusted(currentUrl) || string.IsNullOrEmpty(payload) || payload.Length > 8192) return false;
+        try { var data=JsonNode.Parse(payload); return data?["nonce"]?.ToString()==nonce && data["kind"]?.ToString()=="auth_progress"; }
+        catch (Exception error) when (error is JsonException or InvalidOperationException) { return false; }
+    }
+    public static string? ParseError(string? currentUrl, string? payload, string nonce)
+    {
+        if (!IsTrusted(currentUrl) || string.IsNullOrEmpty(payload) || payload.Length > 8192) return null;
+        try {
+            var data = JsonNode.Parse(payload);
+            if (data?["nonce"]?.ToString() != nonce || data["kind"]?.ToString() != "auth_error") return null;
+            return data["code"]?.ToString() is "session_unconfirmed" or "verification_required" or "login_required" or "invalid_grant" or "network" ? data["code"]!.ToString() : null;
+        } catch (Exception error) when (error is JsonException or InvalidOperationException) { return null; }
+    }
     public static JsonObject? ParseGrant(string? currentUrl, string? payload, string nonce)
     {
         if (!IsTrusted(currentUrl) || string.IsNullOrEmpty(payload) || payload.Length > 8192) return null;

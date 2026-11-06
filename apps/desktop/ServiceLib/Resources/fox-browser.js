@@ -1,4 +1,4 @@
-// Firefox Accounts WebChannel integration; native OAuth recovery uses Arman VPN v1.0.11 (GPL-3.0).
+// Firefox Accounts WebChannel integration; native OAuth recovery uses Arman VPN v1.0.12 (GPL-3.0).
 (function(){
 'use strict';
 if (window!==window.top || location.origin!=='https://accounts.firefox.com' || window.__dicodeFoxHooked) return;
@@ -25,34 +25,58 @@ async function browserGrant(session,accountEmail){
  const prk=await hmac(new Uint8Array(32),raw),info=bytes('identity.mozilla.com/picl/v1/sessionToken');
  const id=await hmac(prk,concat(info,new Uint8Array([1])));
  const key=await hmac(prk,concat(id,info,new Uint8Array([2])));
- const body=JSON.stringify({client_id:'5882386c6d801776',grant_type:'fxa-credentials',scope:'profile https://identity.mozilla.com/apps/vpn',access_type:'offline'});
- const hash=base64(await crypto.subtle.digest('SHA-256',bytes('hawk.1.payload\napplication/json\n'+body+'\n')));
- const ts=String(Math.floor(Date.now()/1000));
- const random=crypto.getRandomValues(new Uint8Array(6));
- const requestNonce=base64(random).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
- const normalized='hawk.1.header\n'+ts+'\n'+requestNonce+'\nPOST\n/v1/oauth/token\napi.accounts.firefox.com\n443\n'+hash+'\n\n';
- const mac=base64(await hmac(key,bytes(normalized)));
  const hex=Array.from(id,b=>b.toString(16).padStart(2,'0')).join('');
- const authorization='Hawk id="'+hex+'", ts="'+ts+'", nonce="'+requestNonce+'", mac="'+mac+'", hash="'+hash+'"';
- const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),60000);
+ const request=async (target,data,signed)=>{
+  const body=JSON.stringify(data),headers={'Content-Type':'application/json'};
+  if(signed){
+   const u=new URL(target),hash=base64(await crypto.subtle.digest('SHA-256',bytes('hawk.1.payload\napplication/json\n'+body+'\n')));
+   const ts=String(Math.floor(Date.now()/1000));
+   const requestNonce=base64(crypto.getRandomValues(new Uint8Array(6))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+   const normalized='hawk.1.header\n'+ts+'\n'+requestNonce+'\nPOST\n'+u.pathname+'\n'+u.hostname+'\n443\n'+hash+'\n\n';
+   const mac=base64(await hmac(key,bytes(normalized)));
+   headers.Authorization='Hawk id="'+hex+'", ts="'+ts+'", nonce="'+requestNonce+'", mac="'+mac+'", hash="'+hash+'"';
+  }
+  // Keep OAuth in the browser that signed in, including its earned cookies.
+  const response=await fetch(target,{method:'POST',headers,body,credentials:'include',signal:controller.signal});
+  let dataOut;try{dataOut=await response.json();}catch(_){dataOut={};}
+  return {response,data:dataOut};
+ };
+ const error=code=>Object.assign(Error(code),{code});
+ const client_id='5882386c6d801776',scope='profile https://identity.mozilla.com/apps/vpn';
  try {
-  const response=await fetch('https://api.accounts.firefox.com/v1/oauth/token',{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json'},body:body,signal:controller.signal});
-  const grant=await response.json();
-  if(!response.ok){if(grant.errno===104){inFlight=false;return;}throw Error('exchange_rejected');}
+  let result=await request('https://api.accounts.firefox.com/v1/oauth/token',{client_id,grant_type:'fxa-credentials',scope,access_type:'offline'},true);
+  if(!result.response.ok&&result.data.errno===104){inFlight=false;post({kind:'auth_error',code:'session_unconfirmed'});return;}
+  if([401,406].includes(result.response.status)){
+   // Standard authorization-code recovery also stays in this browser.
+   const url64=value=>base64(value).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+   const verifier=url64(crypto.getRandomValues(new Uint8Array(32))),state=url64(crypto.getRandomValues(new Uint8Array(24)));
+   const challenge=url64(await crypto.subtle.digest('SHA-256',bytes(verifier)));
+   const auth=await request('https://api.accounts.firefox.com/v1/oauth/authorization',{client_id,response_type:'code',scope,state,access_type:'offline',code_challenge:challenge,code_challenge_method:'S256'},true);
+   if(!auth.response.ok)throw error(auth.data.errno===104?'session_unconfirmed':auth.response.status===406?'verification_required':'login_required');
+   if(typeof auth.data.code!=='string'||!auth.data.code||auth.data.state!==state)throw error('invalid_grant');
+   result=await request('https://oauth.accounts.firefox.com/v1/token',{client_id,grant_type:'authorization_code',code:auth.data.code,code_verifier:verifier},false);
+  }
+  if(!result.response.ok)throw error(result.data.errno===104?'session_unconfirmed':result.response.status===406?'verification_required':'login_required');
+  const grant=result.data;
   const valid=x=>typeof x==='string'&&/^[A-Za-z0-9._~+\/-]{16,2048}$/.test(x);
-  if(!valid(grant.access_token)||(grant.refresh_token!=null&&!valid(grant.refresh_token))||!Number.isSafeInteger(grant.expires_in)||grant.expires_in<=0||grant.expires_in>31536000)throw Error('invalid_grant');
+  if(!valid(grant.access_token)||(grant.refresh_token!=null&&!valid(grant.refresh_token))||!Number.isSafeInteger(grant.expires_in)||grant.expires_in<=0||grant.expires_in>31536000)throw error('invalid_grant');
   if(session!==token || accountEmail!==email)return;
   post({kind:'grant',access_token:grant.access_token,refresh_token:grant.refresh_token||null,expires_in:grant.expires_in});
  }finally{clearTimeout(timeout);}
 }
+
 function sendSession(){
  if(inFlight || !/^[a-f0-9]{64}$/i.test(token) || !email || location.origin!=='https://accounts.firefox.com')return;
  inFlight=true;
+ post({kind:'auth_progress'});
  const session=token,accountEmail=email;
- browserGrant(session,accountEmail).catch(()=>{
-  // Use the native Arman OAuth code/PKCE recovery when WebCrypto, CORS or direct token exchange fails.
-  // Do not print response bodies, tokens, cookies, or request headers.
-  if(session===token && accountEmail===email)post({kind:'session',session_token:session});
+ browserGrant(session,accountEmail).catch(error=>{
+  if(session!==token || accountEmail!==email)return;
+  inFlight=false;
+  // A browser rejection is a real error, not an invitation to repeat the
+  // same rejected session in another client for another 100 seconds.
+  post({kind:'auth_error',code:['session_unconfirmed','verification_required','login_required','invalid_grant'].includes(error.code)?error.code:'network'});
  });
 }
 window.__dicodeFoxRetry=function(){inFlight=false;sendSession();};
@@ -97,5 +121,5 @@ window.__dicodeFoxRestore=function(session,accountEmail){
  if(token || !/^[a-f0-9]{64}$/i.test(session) || typeof accountEmail!=='string' || !accountEmail.includes('@'))return;
  token=session;email=accountEmail;navigated();
 };
-document.addEventListener('DOMContentLoaded',()=>post({kind:'bridge_ready'}),{once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>post({kind:'bridge_ready'}),{once:true});else post({kind:'bridge_ready'});
 })();

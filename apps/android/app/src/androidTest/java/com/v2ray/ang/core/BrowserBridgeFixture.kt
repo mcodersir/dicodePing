@@ -52,7 +52,7 @@ internal object BrowserBridgeFixture {
       var statusReplied=false;
       const realFetch=window.fetch;
       window.fetch=function(url,options){
-        if(url==='https://api.accounts.firefox.com/v1/oauth/token')return Promise.resolve(new Response(JSON.stringify({access_token:'a1'.repeat(32),refresh_token:'b2'.repeat(32),expires_in:3600}),{status:200}));
+        if(url==='https://api.accounts.firefox.com/v1/oauth/token' && options.credentials==='include')return Promise.resolve(new Response(JSON.stringify({access_token:'a1'.repeat(32),refresh_token:'b2'.repeat(32),expires_in:3600}),{status:200}));
         return realFetch.apply(this,arguments);
       };
       window.addEventListener('WebChannelMessageToContent',function(e){try{var d=typeof e.detail==='string'?JSON.parse(e.detail):e.detail;if(d.message.command==='fxaccounts:fxa_status')statusReplied=true;}catch(_){}});

@@ -49,7 +49,7 @@ public sealed class FoxBrowserWindow : Window
                 web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsTrusted(e.Uri?.ToString())) e.Cancel = true; };
                 web.NewWindowRequested += (_, e) => { e.Handled = true; };
                 web.WebMessageReceived += (_, e) => Dispatcher.UIThread.Post(async () => {
-                    if (busy || disposed) return;
+                    if (disposed) return;
                     string? payload = e.Message ?? e.Json;
                     // WebView2 reports a JS string as JSON; decode once, never log it.
                     if (payload?.StartsWith('"') == true) { try { payload = System.Text.Json.JsonSerializer.Deserialize<string>(payload); } catch { return; } }
@@ -63,10 +63,23 @@ public sealed class FoxBrowserWindow : Window
                         }
                         return;
                     }
+                    if (FoxBrowserProtocol.IsProgress(web.CurrentUrl?.ToString(), payload, nonce)) {
+                        status.Text = FoxUi.T("در حال دریافت مجوز حساب از موزیلا…", "Requesting the account grant from Mozilla…");
+                        return;
+                    }
+                    if (FoxBrowserProtocol.ParseError(web.CurrentUrl?.ToString(), payload, nonce) is string code) {
+                        status.Text = code == "session_unconfirmed"
+                            ? FoxUi.T("کد ایمیل یا تأیید دومرحله‌ای را در همین صفحه کامل کنید.", "Complete email or two-factor verification on this page.")
+                            : code == "verification_required"
+                            ? FoxUi.T("موزیلا درخواست توکن این مرورگر را رد کرد. نشست ذخیره نشد؛ پس از رفع بررسی امنیتی، تلاش دوباره را بزنید.", "Mozilla refused this browser's token request. No session was saved. Complete its security check, then retry.")
+                            : FoxUi.T("تبادل توکن مرورگر کامل نشد؛ اتصال را بررسی کنید و دوباره تلاش کنید.", "Browser token exchange did not complete. Check the connection and retry.");
+                        retry.IsVisible = true; return;
+                    }
+                    if (busy) return;
                     var session = FoxBrowserProtocol.Parse(web.CurrentUrl?.ToString(), payload, nonce);
                     var grant = FoxBrowserProtocol.ParseGrant(web.CurrentUrl?.ToString(), payload, nonce);
                     if (session is null && grant is null) return;
-                    busy = true; retry.IsVisible = false; close.IsEnabled = false;
+                    busy = true; retry.IsVisible = false; close.IsEnabled = true;
                     status.Text = FoxUi.T("در حال تأیید نشست امن…", "Verifying account session…");
                     try {
                         var account = grant is not null

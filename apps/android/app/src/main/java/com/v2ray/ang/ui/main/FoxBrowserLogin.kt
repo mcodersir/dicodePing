@@ -50,7 +50,7 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) ProxyController.getInstance().clearProxyOverride({ it.run() }, {})
     } }
     fun receive(view: WebView, payload: String) {
-        if (disposed || busy || payload.length > 8192 || !foxTrustedOrigin(Uri.parse(view.url ?: ""))) return
+        if (disposed || payload.length > 8192 || !foxTrustedOrigin(Uri.parse(view.url ?: ""))) return
         val data = runCatching { JSONObject(payload) }.getOrNull() ?: return
         if (data.optString("nonce") != nonce) return
         if (data.optString("kind") == "pending_session") {
@@ -62,6 +62,20 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
             if (pendingSession.isNotEmpty()) view.evaluateJavascript("window.__dicodeFoxRestore && window.__dicodeFoxRestore(" + JSONObject.quote(pendingSession) + "," + JSONObject.quote(pendingEmail) + ")", null)
             return
         }
+        if (data.optString("kind") == "auth_progress") {
+            status = if (fa) "در حال دریافت مجوز حساب از موزیلا…" else "Requesting the account grant from Mozilla…"
+            return
+        }
+        if (data.optString("kind") == "auth_error") {
+            status = when (data.optString("code")) {
+                "session_unconfirmed" -> if (fa) "کد ایمیل یا تأیید دومرحله‌ای را در همین صفحه کامل کنید." else "Complete email or two-factor verification on this page."
+                "verification_required" -> if (fa) "موزیلا درخواست توکن این مرورگر را رد کرد. نشست ذخیره نشد؛ پس از رفع بررسی امنیتی، تلاش دوباره را بزنید." else "Mozilla refused this browser's token request. No session was saved. Complete its security check, then retry."
+                "login_required" -> if (fa) "موزیلا این نشست را نپذیرفت؛ دوباره وارد حساب شوید." else "Mozilla rejected this session. Sign in again."
+                else -> if (fa) "تبادل توکن مرورگر کامل نشد؛ اتصال را بررسی کنید و تلاش دوباره را بزنید." else "Browser token exchange did not complete. Check the connection and retry."
+            }
+            return
+        }
+        if (busy) return
         val grant = data.optString("kind") == "grant"
         if (!grant && data.optString("kind") != "session") return
         if (grant && com.v2ray.ang.core.FoxBrowserGrant.state(data) == null) return
@@ -82,12 +96,12 @@ internal fun FoxBrowserLogin(onDismiss: () -> Unit, onComplete: (String) -> Unit
             } finally { busy = false }
         }
     }
-    Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("accounts.firefox.com", modifier = Modifier.padding(vertical = 16.dp))
-                    TextButton(onClick = onDismiss, enabled = !busy) { Text(if (fa) "بازگشت" else "Back") }
+                    TextButton(onClick = onDismiss) { Text(if (fa) "بازگشت" else "Back") }
                 }
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (status.isNotBlank()) {

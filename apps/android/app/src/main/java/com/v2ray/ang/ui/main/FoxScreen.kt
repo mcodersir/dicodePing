@@ -166,6 +166,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                             Text(if (fa) "ورود امن با مرورگر موزیلا" else "Sign in on Mozilla’s page")
                         }
                     }
+                    if (ready) TextButton(onClick = { browserLogin = true }, enabled = !busy) { Text(if (fa) "ورود مجدد به همین حساب" else "Sign in to this account again") }
                     if (pending) {
                         Text(if (fa) "ورود قبلی را در صفحهٔ رسمی موزیلا کامل کنید." else "Complete the previous sign-in on Mozilla’s official page.")
                         Button(onClick = { browserLogin = true }, enabled = !busy) { Text(if (fa) "ادامهٔ ورود با مرورگر" else "Continue in browser") }
