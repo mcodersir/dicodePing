@@ -86,9 +86,9 @@
       "sha256": "2da3a01a4bc8c0cce25a200e6335f190d6861cf4d472e5325a907f2b92a60219"
     },
     "osx-x64": {
-      "name": "mihomo-darwin-amd64-alpha-478af2a.gz",
-      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-amd64-alpha-478af2a.gz",
-      "sha256": "e5ccf2555f05e48bf1d58e80b4879975741d1773abcc6211af98870e024b4cc8"
+      "name": "mihomo-darwin-amd64-v1-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-amd64-v1-alpha-478af2a.gz",
+      "sha256": "c716e5e6e6ce2dbcf2c735d2cc5d4e1d000a75e3c002df199c8bcb4f4614c091"
     },
     "osx-arm64": {
       "name": "mihomo-darwin-arm64-alpha-478af2a.gz",

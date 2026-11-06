@@ -48,14 +48,14 @@ jobs:
           mihomo_binary: mihomo
           mihomo_sha256: 2da3a01a4bc8c0cce25a200e6335f190d6861cf4d472e5325a907f2b92a60219
           artifact: linux-x64
-        - runner: macos-15
+        - runner: macos-15-intel
           rid: osx-x64
           xray_asset: Xray-macos-64.zip
           xray_sha256: 450bdf781bcbb7b8ffa89e5145c98500c0481bcc93c2753393cdf3b03fb9a4d3
           xray_binary: xray
-          mihomo_asset: mihomo-darwin-amd64-alpha-478af2a.gz
+          mihomo_asset: mihomo-darwin-amd64-v1-alpha-478af2a.gz
           mihomo_binary: mihomo
-          mihomo_sha256: e5ccf2555f05e48bf1d58e80b4879975741d1773abcc6211af98870e024b4cc8
+          mihomo_sha256: c716e5e6e6ce2dbcf2c735d2cc5d4e1d000a75e3c002df199c8bcb4f4614c091
           artifact: macos-x64
         - runner: macos-15
           rid: osx-arm64
@@ -451,6 +451,8 @@ jobs:
           api-level: 34
           arch: x86
           target: android-tv
+          # Keep the headless TV guest on GLES; Vulkan caused a guest reboot.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
           ram-size: 4096M
           disable-animations: true
           script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --version 4.9.98 --code 45998000 --baselines --candidate dist-android/DicodePing-4.9.98-tv-universal.apk

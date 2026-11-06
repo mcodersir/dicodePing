@@ -82,3 +82,7 @@ The Android 14 TV attempt lost its emulator connection after a successful cold l
 Android grant validation was separated from Android's stubbed JVM JSONObject implementation. The three actual Kotlin/JVM tests passed under Kotlin 2.4.21, including missing refresh tokens and malformed grant rejection. The previous test failure was the Android JSON stub, not a failed device sign-in.
 
 Mihomo's rolling prerelease removed the alpha-9002a4f assets during the build. The current alpha-478af2a artifacts were downloaded for all four desktop targets and independently SHA-256 verified against official GitHub release digests; the Linux executable reports the expected version. The immutable source commit is recorded in the runtime manifest.
+
+The default macOS AMD64 Mihomo prerelease binary requires the v3 CPU baseline. The package now selects its official current AMD64-v1 variant, verifies its SHA-256, and uses an Intel runner for the Intel package. The signed TV gate retains Android 14, with the headless emulator configured for GLES rather than Vulkan after the observed guest restart. These are compatibility/runner corrections; the original Fox engine remains unchanged.
+
+Android's native browser-grant fixture, transport executables, strict HTTP probes and reconnect tests passed on API 35 and its 16 KB image in [preflight 42222751443](https://github.com/mcodersir/dicodePing/actions/runs/42222751443). The browser test uses an in-memory OAuth fixture; it does not bypass Mozilla's required email confirmation.
