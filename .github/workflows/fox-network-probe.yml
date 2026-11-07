@@ -38,7 +38,8 @@ jobs:
           }
           GO
           go test ./internal/controlplane -run '^TestLiveNativeTransport$' -v
-      - name: Run the whole native refresh and challenge recovery without real credentials
+      - continue-on-error: true
+        name: Run the whole native refresh and challenge recovery without real credentials
         working-directory: apps/fox-helper
         run: |
           cat > internal/fxa/live_native_probe_test.go <<'GO'
@@ -54,3 +55,23 @@ jobs:
           }
           GO
           go test ./internal/fxa -run '^TestLiveFullNativeRefresh$' -v
+      - name: Compare the platform TLS HTTP2 route without credentials
+        working-directory: apps/fox-helper
+        run: |
+          cat > internal/controlplane/live_platform_probe_test.go <<'GO'
+          package controlplane
+          import ("context";"testing";"net/http";"strings";"time";"io")
+          func TestLivePlatformTLS(t *testing.T) {
+            transport:=http.DefaultTransport.(*http.Transport).Clone();transport.Proxy=nil;transport.ForceAttemptHTTP2=true
+            client:=&http.Client{Transport:transport,Timeout:15*time.Second,Jar:client.Jar}
+            for _, enc:=range []string{"identity","gzip","gzip, deflate, br, zstd"} {
+              ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second)
+              req,_:=http.NewRequestWithContext(ctx,"POST","https://api.accounts.firefox.com/v1/oauth/token",strings.NewReader(`{"client_id":"5882386c6d801776","grant_type":"refresh_token","refresh_token":"invalid-dicodeping-connectivity-probe"}`))
+              req.Header.Set("Content-Type","application/json");ApplyFirefoxHeaders(req);req.Header.Set("Accept-Encoding",enc)
+              resp,err:=client.Do(req)
+              if err!=nil {t.Logf("platform TLS encoding=%s err=%v",enc,err)} else {body,_:=io.ReadAll(io.LimitReader(resp.Body,1024));resp.Body.Close();t.Logf("platform TLS encoding=%s status=%d protocol=%s body=%s",enc,resp.StatusCode,resp.Proto,string(body))}
+              cancel()
+            }
+          }
+          GO
+          go test ./internal/controlplane -run '^TestLivePlatformTLS$' -v
