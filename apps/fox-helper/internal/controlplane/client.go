@@ -148,17 +148,29 @@ var directHTTP2Client = &http.Client{
 	Timeout: directHTTP2Timeout,
 	Transport: &http2.Transport{
 		IdleConnTimeout: clientTimeout,
-		DialTLSContext: func(ctx context.Context, network, address string, _ *tls.Config) (net.Conn, error) {
-			// Keep HTTP/1.1's TLS session cache separate from this probe.
-			conn, err := dialFirefoxTLS(ctx, network, address, DialContext, handshakeTimeout, nil, "h2", "http/1.1")
+		DialTLSContext: func(ctx context.Context, network, address string, config *tls.Config) (net.Conn, error) {
+			// The recovery must change the TLS fingerprint as well as ALPN.
+			// Retrying HTTP/2 with the same emulated Firefox hello can still
+			// receive an empty 406 before FxA sees the request.
+			conn, err := DialContext(ctx, network, address)
 			if err != nil {
 				return nil, err
 			}
-			if conn.ConnectionState().NegotiatedProtocol != "h2" {
+			config = config.Clone()
+			config.RootCAs = trustRoots.Load()
+			config.MinVersion = tls.VersionTLS12
+			secured := tls.Client(conn, config)
+			handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
+			defer cancel()
+			if err := secured.HandshakeContext(handshake); err != nil {
 				conn.Close()
+				return nil, err
+			}
+			if secured.ConnectionState().NegotiatedProtocol != "h2" {
+				secured.Close()
 				return nil, errors.New("server did not negotiate HTTP/2")
 			}
-			return conn, nil
+			return secured, nil
 		},
 	},
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -195,7 +207,29 @@ func Transport() http.RoundTripper {
 
 // Do sends req with the shared control plane client.
 func Do(req *http.Request) (*http.Response, error) {
-	return client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusNotAcceptable || client.Transport != defaultTransport {
+		return resp, err
+	}
+	// Keep every control-plane caller on the same recovery path, including
+	// Guardian quota and server metadata. Only replay requests whose body
+	// can be rebuilt; never skip a configured relay or retry an accepted call.
+	if req.Body != nil && req.Body != http.NoBody && req.GetBody == nil {
+		return resp, nil
+	}
+	retry := req.Clone(req.Context())
+	if req.GetBody != nil {
+		retry.Body, err = req.GetBody()
+		if err != nil {
+			return resp, nil
+		}
+	}
+	alternate, err := DoDirectHTTP2(retry)
+	if err != nil {
+		return resp, nil
+	}
+	resp.Body.Close()
+	return alternate, nil
 }
 
 // SetCookies stores cookies for u in the shared client's cookie jar.
