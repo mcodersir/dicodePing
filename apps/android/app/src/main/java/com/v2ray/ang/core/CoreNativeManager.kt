@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object CoreNativeManager {
     private val initialized = AtomicBoolean(false)
+    private val exitProbeLeases = java.util.concurrent.ConcurrentLinkedQueue<AutoCloseable>()
 
     /**
      * Initialize V2Ray core environment.
@@ -80,7 +81,7 @@ object CoreNativeManager {
 
     fun measureOutboundDelay(config: String, testUrl: String, batch: String): Long {
         return try {
-            Libv2ray.measureOutboundDelayInBatch(batch, config, testUrl)
+            NativeProbeLifetime.shared { Libv2ray.measureOutboundDelayInBatch(batch, config, testUrl) }
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to measure outbound delay", e)
             -1L
@@ -114,7 +115,12 @@ object CoreNativeManager {
      */
     fun openExit(context: Context, configuration: String): Int {
         initCoreEnv(context)
-        return Libv2ray.openExit(configuration).toInt()
+        val lease = NativeProbeLifetime.sharedLease()
+        try {
+            val port = Libv2ray.openExit(configuration).toInt()
+            exitProbeLeases.add(lease)
+            return port
+        } catch (e: Exception) { lease.close(); throw e }
     }
 
     /**
@@ -125,7 +131,7 @@ object CoreNativeManager {
             Libv2ray.closeExit()
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to close the exit", e)
-        }
+        } finally { exitProbeLeases.poll()?.close() }
     }
 
     /**

@@ -14,12 +14,12 @@ internal class CustomXrayProbe : AutoCloseable {
         override fun shutdown(): Long = 0
         override fun onEmitStatus(code: Long, message: String?): Long = 0
     })
-    fun measure(config: String, url: String): Long {
+    fun measure(config: String, url: String): Long = NativeProbeLifetime.exclusive {
         check(!closed.get()) { "Probe cancelled" }
         try {
             controller.startLoop(config, 0)
-            if (closed.get()) { controller.stopLoop(); return -1 }
-            return controller.measureDelay(url)
+            if (closed.get()) { controller.stopLoop(); return@exclusive -1 }
+            controller.measureDelay(url)
         } finally { close() }
     }
     override fun close() {

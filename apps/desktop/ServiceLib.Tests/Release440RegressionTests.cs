@@ -62,7 +62,7 @@ public class Release440RegressionTests
         Assert.Single(parsed["inbounds"]!.AsArray());
         Assert.Equal("socks", parsed["inbounds"]![0]![core == ECoreType.Xray ? "protocol" : "type"]!.ToString());
         Assert.Equal(JsonNode.Parse(content)!["outbounds"]!.ToJsonString(), parsed["outbounds"]!.ToJsonString());
-        Assert.Equal(1, parsed[core == ECoreType.Xray ? "routing" : "route"]!["rules"]!.AsArray().Count);
+        Assert.Empty(parsed[core == ECoreType.Xray ? "routing" : "route"]!["rules"]!.AsArray());
         Assert.Throws<NotSupportedException>(() => CustomProbeConfiguration.Build(content, ECoreType.mihomo, 16080));
     }
 

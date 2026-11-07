@@ -29,16 +29,18 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 internal object RealPingExecutionLimiter {
-    private val nativeLifetime = java.util.concurrent.locks.ReentrantReadWriteLock(true)
+    private val customConfigMutex = Mutex()
     val locationMutex = Mutex()
 
     suspend fun <T> run(configType: EConfigType, block: () -> T): T {
-        // A custom core owns a complete DNS/router lifetime. Ordinary generated
-        // probes can share their instance concurrently, but must finish before
-        // a custom core starts, and wait until it closes.
-        val lock = if (configType == EConfigType.CUSTOM) nativeLifetime.writeLock() else nativeLifetime.readLock()
-        lock.lock()
-        return try { block() } finally { lock.unlock() }
+        // Custom profiles bypass speed-test trimming and start complete Xray configs.
+        // Parallel teardown can abort the native probe process, so serialize their
+        // JNI measurements globally across batches.
+        return if (configType == EConfigType.CUSTOM) {
+            customConfigMutex.withLock { block() }
+        } else {
+            block()
+        }
     }
 }
 
@@ -225,6 +227,8 @@ class RealPingWorkerService(
         // A direct TCP preflight is not the route under test. It rejects valid
         // chains, remote DNS and slow handshakes before the actual core can try.
 
+        if (config.configType == EConfigType.CUSTOM)
+            return measureConfiguration(config.configType, configResult.content, SettingsManager.getDelayTestUrl())
         return RealPingExecutionLimiter.run(config.configType) {
             measureConfiguration(config.configType, configResult.content, SettingsManager.getDelayTestUrl())
         }
@@ -245,7 +249,7 @@ class RealPingWorkerService(
         if (!configResult.status) return Triple(false, 0, 0)
         var passed = 0
         var strictFailed = false
-        RealPingExecutionLimiter.run(config.configType) {
+        RealPingExecutionLimiter.run(if (config.configType == EConfigType.CUSTOM) EConfigType.VLESS else config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
                 job.ensureActive()
                 val delay = measureConfiguration(config.configType, configResult.content, service.url)
