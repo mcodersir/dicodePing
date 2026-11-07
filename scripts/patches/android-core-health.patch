@@ -87,7 +87,7 @@ index fcc9e85..c4d2ad1 100644
 +func probeTargets(address string) []string {
 +	switch address {
 +	case "", "https://www.google.com/generate_204", "https://www.gstatic.com/generate_204", "https://www.youtube.com/generate_204", "https://www.googlevideo.com/generate_204", "http://www.google.com/generate_204", "http://www.gstatic.com/generate_204", "http://www.youtube.com/generate_204", "http://www.googlevideo.com/generate_204":
-+		return []string{address, "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"}
++		return []string{address, "https://www.youtube.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"}
 +	default:
 +		return []string{address}
 +	}

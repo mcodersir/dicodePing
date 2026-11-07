@@ -45,7 +45,7 @@ func TestFxARetriesAfterFinalChallengeWithRecoveryBudget(t *testing.T) {
 		previous := controlplane.Transport()
 		t.Cleanup(func() {
 			controlplane.SetTransport(previous)
-			for _, target := range []string{fxaAuthServer + "/", fxaSiteURL} {
+			for _, target := range []string{fxaAuthServer + "/", "https://api.accounts.firefox.com/", "https://oauth.accounts.firefox.com/", fxaSiteURL} {
 				u, _ := url.Parse(target)
 				controlplane.SetCookies(u, []*http.Cookie{{Name: cookieName, MaxAge: -1}})
 			}

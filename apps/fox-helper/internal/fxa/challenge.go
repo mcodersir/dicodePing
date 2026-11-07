@@ -475,9 +475,8 @@ func clientMetricsAnswer() map[string]interface{} {
 }
 
 // installChallengeCookies copies the cookies earned by the solver into the
-// control plane client's jar so subsequent FxA API calls carry them. The
-// cookie is issued with Domain=firefox.com, which covers
-// api.accounts.firefox.com.
+// control plane client's jar for the sign-in site and both FxA API origins,
+// including token requests sent to the alternate OAuth endpoint.
 func installChallengeCookies(solverJar http.CookieJar, pageURL string) error {
 	parsed, err := url.Parse(pageURL)
 	if err != nil {
@@ -488,13 +487,18 @@ func installChallengeCookies(solverJar http.CookieJar, pageURL string) error {
 		return fmt.Errorf("challenge completed but no cookies were issued")
 	}
 
-	apiURL, err := url.Parse(fxaAuthServer + "/")
-	if err != nil {
-		return err
+	for _, target := range []string{
+		fxaAuthServer + "/",
+		"https://api.accounts.firefox.com/",
+		"https://oauth.accounts.firefox.com/",
+		fxaSiteURL,
+	} {
+		u, err := url.Parse(target)
+		if err != nil {
+			return err
+		}
+		controlplane.SetCookies(u, cookies)
 	}
-	controlplane.SetCookies(apiURL, cookies)
-	parsed2, _ := url.Parse(fxaSiteURL)
-	controlplane.SetCookies(parsed2, cookies)
 	return nil
 }
 

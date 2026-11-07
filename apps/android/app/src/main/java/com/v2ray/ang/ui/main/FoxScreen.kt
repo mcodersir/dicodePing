@@ -1,6 +1,8 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -35,6 +37,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     var countries by remember { mutableStateOf(listOf("REC")) }
     var expandedAccounts by remember { mutableStateOf(false) }
     var expandedCountries by remember { mutableStateOf(false) }
+    var countrySearch by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
     var browserLogin by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
@@ -158,7 +161,32 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     }
                     if (ready) Box {
                         OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(countryLabel(country)) }
-                        DropdownMenu(expandedCountries, { expandedCountries = false }) { countries.forEach { value -> DropdownMenuItem(text = { Text(countryLabel(value)) }, onClick = { country = value; expandedCountries = false; current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } } }) } }
+                        if (expandedCountries) AlertDialog(
+                            onDismissRequest = { expandedCountries = false },
+                            title = { Text(if (fa) "انتخاب کشور" else "Choose location") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    OutlinedTextField(value = countrySearch, onValueChange = { countrySearch = it },
+                                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                                        label = { Text(if (fa) "جستجوی کشور یا کد" else "Search country or code") })
+                                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 340.dp)) {
+                                        items(countries.filter { countryLabel(it).contains(countrySearch.trim(), ignoreCase = true) }) { value ->
+                                            TextButton(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
+                                                country = value; expandedCountries = false; countrySearch = ""
+                                                current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } }
+                                            }) {
+                                                Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                                    Text(if (value == "REC") "◎" else value, modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium)
+                                                }
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(countryLabel(value), modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = { TextButton(onClick = { expandedCountries = false }) { Text(if (fa) "بستن" else "Close") } }
+                        )
                     }
                     if (signIn) {
                         Text(if (fa) "ورود یا ساخت حساب و واردکردن کد تأیید را در صفحهٔ رسمی موزیلا کامل کنید." else "Complete sign-in, account creation and verification on Mozilla’s official page.")
@@ -176,9 +204,9 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     if (ready) {
                     TextButton(onClick = { browserLogin = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "ورود مجدد به حساب" else "Sign in again") }
                     if (ready) OutlinedButton(onClick = {
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(FoxAccounts.SHARE_URI))
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString("socks5://127.0.0.1:${com.v2ray.ang.handler.SettingsManager.getSocksPort()}#Firefox-VPN"))
                         status = if (fa) "لینک SOCKS کپی شد؛ هنگام اتصال روباه پروکسی محلی فعال است." else "SOCKS link copied; the local proxy is active while Fox is connected."
-                    }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "کپی لینک SOCKS روباه · 127.0.0.1:7854" else "Copy Fox SOCKS link · 127.0.0.1:7854") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text(if (fa) "کپی لینک SOCKS روباه" else "Copy Fox SOCKS link") }
                     OutlinedButton(onClick = { current?.let { account -> run { account.country = country; FoxAccounts.save(context, account); FoxAccounts.refresh(context, account.id, true).id } } }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_refresh)) }
                     TextButton(onClick = { current?.let { account -> run { FoxAccounts.remove(context, account.id); null } } }, enabled = !busy && current != null, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.fox_remove)) }
                     }

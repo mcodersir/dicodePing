@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/armanlife/arman-vpn-client",
-  "tag": "v1.0.13",
-  "commit": "bb9c3e306841dd9df03c85bba4cb716e4c7173c6",
+  "tag": "v1.0.14",
+  "commit": "fe76e2c68e412e938032536121c1f975dedcbf32",
   "files": {
     "resolver/race_test.go": "6dde3e2717b0ece9cf55c666174259ffc332419cd0305e8b8ed68b82d7d1da0f",
     "resolver/through_test.go": "310e0ed364fa476c02f7360d9fac2c0ccfba1808efcbeae5d0f46c3b8e8fe9eb",
@@ -116,14 +116,14 @@
     "proxy/http_proxy_test.go": "91b39263748fdec67c06fc7c5c60729acaaeb3f0aa8d0d70f7f1b045fa0774c9",
     "fxa/normalize.go": "f2d81f960fbe0acbd15717b8d51b3ffcd2afc936b88656c327026daf47a15fac",
     "fxa/challenge_e2e_test.go": "d0b5eaa1c57dcd4c291841151799d81931927d31392533e6cbfdf1418a342602",
-    "fxa/challenge_test.go": "8996e6c845dcf7c31141a7f656a5440b1968e34ee76e48503a5d65ad26b3545c",
-    "fxa/challenge.go": "72a48397499172aac1fa5f3ed80de9945f83e2ca45302912cacc0bba5f69cdf0",
-    "fxa/fxa.go": "0bb2eaa42ec1e6197dcd3112ebd0504e8f224ef4924edd4966a77a35387aa8a3",
+    "fxa/challenge_test.go": "35d594c5070a693098239603be4ceae6db3d5a452664378906a03489583d70c4",
+    "fxa/challenge.go": "299cfedc7b5a29ad320769ef27dfb46845e3160885728910a7ffc52e510591f0",
+    "fxa/fxa.go": "d627aa84193d2a727d55a6f84e4a47362847010d8b9ffa95b603857cc8a5d7b0",
     "fxa/device.go": "6df0a3a54ff921b7065b80492d947f89e52d58737a7f9493cd342fe17b73ccef",
-    "fxa/oauth_code.go": "3651912233246f96bbcbeb88c605a8e129fa319f361ca03b19c527639ec2305b",
+    "fxa/oauth_code.go": "b4dddbfd623134357b7df4ff0b5e798fb57fd04a8aada742717080cca3a07f50",
     "fxa/normalize_test.go": "8b651dcc836dd41b190037cc209fde7511832aafa452f7f89432dbfd3b014694",
     "fxa/live_oauth_test.go": "ec1b8348dc0446796b38cfe8e174e02a343b0bccd769022e6e4c0e739d43e462",
-    "fxa/signin_test.go": "a379749b3b67d1994b53d554700c88a406908c566936f97a0ff156decb76b996",
+    "fxa/signin_test.go": "7e5e91fa8cf5ac3bd070c6003ffc8539d45a53cfe1b4a5f617b05325460c837e",
     "fxa/tokens.go": "3c7b5cdd80fe1559ca7734ed5927c7ed3b4aa83cdf2fa8bd1a1b1dcf0e76e806",
     "fxa/signin.go": "4cd349037564524fdd5202537136dd5d9cf0ff6b9bb8e68798fcabb80284a9a9",
     "fxa/fxa_test.go": "fe140865937229ff4f9c150d069d1f1d59212522f4516565aeeb3910fdf2a4b8",
@@ -166,7 +166,8 @@
     "logx/open_windows.go": "2ebb3bd4b5c9fc25afef37e09e1e1ec22b797b056e8c3353faf61de7064f793d",
     "logx/email_test.go": "948e58359343f404503538cfcc60cf822af1f90fefd85f24db5d88eaf774511a",
     "logx/file_test.go": "69a539b0ece19c1aed24c930bf56000a2ae0cd8d45f06e497b24422f532e72ac",
-    "logx/open_other.go": "9139efc8e37af2d529fd8a2413ef91d0d658e60ad9f063d53d97e23accc9369b"
+    "logx/open_other.go": "9139efc8e37af2d529fd8a2413ef91d0d658e60ad9f063d53d97e23accc9369b",
+    "fxa/challenge_cookies_test.go": "fa6899fa7ba01d3173a79795a6059d76294fa97e4f579c9ed884a6caded2913c"
   },
   "adaptations": [
     "Platform certificate roots for both upstream HTTP/1.1 and direct HTTP/2 TLS paths on Android.",
@@ -176,8 +177,13 @@
   "adapted_files": {
     "controlplane/client.go": "6b7445bff4c5145f7621628485b6e524ad00954d5b26c1ea30dbdf2fd636dee5",
     "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5",
-    "fxa/fxa.go": "f198704f24fbec87b16c6b2f7fadff546568eef5993f393c5b53a06224d032e3",
-    "fxa/signin_test.go": "003ec4ba887d72b3af6603b9995db36d9cfbd70e311e63718592cab49bfa8fe0"
+    "fxa/fxa.go": "e52155f27b72a26b74f2963bd868b3f11d3f9c20116d70ea7e93f0dfaef73572",
+    "fxa/signin_test.go": "80c900f51efce1a79e6ee6539c4b3684db81aee1cf1c56cee53d47aa5ad85579",
+    "fxa/oauth_code.go": "fbbdf032283bcd233e66b98034307811676932a77af36b5d8860b18123236341",
+    "fxa/challenge_test.go": "a4338777e31940a64731b2268443ca1c3631a6c3239bf5e487e181842cc7b9a6",
+    "fxa/challenge_cookies_test.go": "0508d14e8c05f9725c6666cfe98364f5141ec48f4562d005efceec0fa165aecc",
+    "fxa/challenge.go": "e493a720517bb772f0fdb4de473a4a931201b629f25f397ef5e743736fb7b2df",
+    "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."

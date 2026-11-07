@@ -43,10 +43,19 @@ class AngApplication : Application() {
         if (!MmkvManager.decodeSettingsBool("dicode-serverless-provisioned-4998", false)) {
             if (MmkvManager.decodeSubscriptions().none { it.subscription.url.substringBefore('#') == AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL.substringBefore('#') }) {
                 MmkvManager.encodeSubscription("__dicode_serverless__", SubscriptionItem(
-                    remarks = "Patterniha · Serverless", url = AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL,
+                    remarks = "DicodeNV", url = AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL,
                     enabled = true, autoUpdate = true, updateInterval = 60))
             }
             MmkvManager.encodeSettings("dicode-serverless-provisioned-4998", true)
+        }
+
+        MmkvManager.decodeSubscriptions().filter {
+            it.subscription.url.substringBefore('#') == AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL.substringBefore('#')
+        }.forEach {
+            if (it.subscription.remarks != "DicodeNV") {
+                it.subscription.remarks = "DicodeNV"
+                MmkvManager.encodeSubscription(it.guid, it.subscription)
+            }
         }
 
         // Retire the built-in aggregation subscription on both fresh installs and upgrades.

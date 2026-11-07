@@ -267,7 +267,7 @@ object CoreServiceManager {
                 val helper = FoxProcess(service); foxProcess = helper
                 MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_CONNECTING, service.getString(R.string.fox_connecting))
                 NotificationManager.setStatusLine(service.getString(R.string.fox_connecting))
-                helper.start(id, result.foxCountry, result.foxPort) {
+                val boundPort = helper.start(id, result.foxCountry, result.foxPort) {
                     service.mainExecutor.execute {
                         if (foxProcess === helper && isServiceRunning()) {
                             LogUtil.e(AppConfig.TAG, "Fox stopped; stopping VPN without a direct fallback")
@@ -275,6 +275,11 @@ object CoreServiceManager {
                         }
                     }
                 }
+                val bridge = com.google.gson.JsonParser.parseString(result.content).asJsonObject
+                bridge.getAsJsonArray("outbounds").first { it.asJsonObject.get("tag")?.asString == "proxy" }
+                    .asJsonObject.getAsJsonObject("settings").getAsJsonArray("servers")[0].asJsonObject.addProperty("port", boundPort)
+                result.foxPort = boundPort
+                result.content = bridge.toString()
             }
 
             launchNativeCore(service, guid, config, aether, result.content, vpnInterface, isReload)

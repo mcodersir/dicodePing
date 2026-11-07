@@ -291,8 +291,6 @@ func fxaLoginAttempt(ctx context.Context, email, originalEmail, password, verifi
 		if err != nil {
 			return nil, fmt.Errorf("creating login request: %w", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
-		controlplane.ApplyFirefoxHeaders(req)
 		return req, nil
 	})
 	if err != nil {
@@ -526,12 +524,10 @@ func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, 
 	bodyJSON, _ := json.Marshal(body)
 
 	newRequest := func(tokenURL string) (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(string(bodyJSON)))
+		req, err := newOAuthJSONRequest(ctx, tokenURL, bodyJSON)
 		if err != nil {
 			return nil, fmt.Errorf("creating refresh request: %w", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
-		controlplane.ApplyFirefoxHeaders(req)
 		return req, nil
 	}
 	resp, err := fxaDoWith406Fallback(ctx, func() (*http.Request, error) {

@@ -227,13 +227,18 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
     }
     fun execute(request: JSONObject): JSONObject = launch(request).use { response(it) }
     fun startSignInProxy(): String = response(launch(JSONObject().put("operation", "signin_proxy"))).getString("listen")
-    fun start(id: String, country: String, port: Int, onExit: (() -> Unit)? = null) {
+    fun start(id: String, country: String, port: Int, onExit: (() -> Unit)? = null): Int {
         val account = FoxAccounts.get(context, id)
-        val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:$port"))
+        // The child keeps the OS-assigned socket open. Probing a free port and
+        // closing it before launch has a race with other apps and test workers.
+        val reader = launch(JSONObject().put("operation", "serve").put("state", account.state).put("country", country).put("listen", "127.0.0.1:0"))
         val result = response(reader)
+        val address = java.net.URI("socks://" + result.getString("listen"))
+        if (address.host != "127.0.0.1" || address.port !in 1..65535) throw FoxError("helper", "Invalid Fox listener")
+        val boundPort = address.port
         FoxAccounts.updateSession(context, id, result.getJSONObject("state"), result.optJSONObject("account"))
         java.net.Socket().use { socket ->
-            socket.connect(InetSocketAddress("127.0.0.1", port), 3000); socket.soTimeout = 3000
+            socket.connect(InetSocketAddress("127.0.0.1", boundPort), 3000); socket.soTimeout = 3000
             socket.getOutputStream().write(byteArrayOf(5, 1, 0)); socket.getOutputStream().flush()
             val input = java.io.DataInputStream(socket.getInputStream())
             if (input.readUnsignedByte() != 5 || input.readUnsignedByte() != 0) throw FoxError("helper", "Fox SOCKS handshake failed")
@@ -247,6 +252,7 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
             } } }
             runCatching { process?.waitFor() }; if (!stopped) onExit?.invoke()
         }
+        return boundPort
     }
     fun measure(port: Int, url: String): Long = AetherDelayTester.requestDelay(port, url)
 

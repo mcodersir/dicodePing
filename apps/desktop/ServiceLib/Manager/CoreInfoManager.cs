@@ -155,10 +155,10 @@ public sealed class CoreInfoManager
                     CoreType = ECoreType.v2rayN,
                     Url = GetCoreUrl(ECoreType.v2rayN),
                     ReleaseApiUrl = urlN.Replace(Global.GithubUrl, Global.GithubApiUrl),
-                    DownloadUrlWin64 = urlN + "/download/{0}/DicodePing-{0}-windows-x64-portable.zip",
-                    DownloadUrlLinux64 = urlN + "/download/{0}/DicodePing-{0}-linux-x64-portable.zip",
-                    DownloadUrlOSX64 = urlN + "/download/{0}/DicodePing-{0}-macos-x64-portable.zip",
-                    DownloadUrlOSXArm64 = urlN + "/download/{0}/DicodePing-{0}-macos-arm64-portable.zip",
+                    DownloadUrlWin64 = urlN + "/download/v{0}/DicodePing-{0}-windows-x64-portable.zip",
+                    DownloadUrlLinux64 = urlN + "/download/v{0}/DicodePing-{0}-linux-x64-portable.zip",
+                    DownloadUrlOSX64 = urlN + "/download/v{0}/DicodePing-{0}-macos-x64-portable.zip",
+                    DownloadUrlOSXArm64 = urlN + "/download/v{0}/DicodePing-{0}-macos-arm64-portable.zip",
                 },
 
                 new CoreInfo

@@ -97,8 +97,17 @@ func newOAuthJSONRequest(ctx context.Context, target string, body []byte) (*http
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
 	controlplane.ApplyFirefoxHeaders(req)
+	// Match the native Firefox OAuth request profile on every grant.
+	req.Header.Set("Accept", "application/json;q=0.9,*/*;q=0.2")
+	req.Header.Set("Accept-Language", "en-US, en")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "no-cors")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Priority", "u=4")
 	return req, nil
 }
 

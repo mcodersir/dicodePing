@@ -168,6 +168,8 @@
 
     <!--  Navigation rail: borderless pill items with a soft accent when active.  -->
     <Style Selector="RadioButton.DicodeNav">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="MinHeight" Value="48" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Padding" Value="12,10" />
         <Setter Property="CornerRadius" Value="10" />

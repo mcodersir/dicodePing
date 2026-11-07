@@ -141,7 +141,10 @@ public class CoreManager
 
         if (fox is not null) {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(165));
-            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token, mainContext.AppConfig.CoreBasicItem.BindInterface);
+            var helper = await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, fox.HelperPort, timeout.Token, mainContext.AppConfig.CoreBasicItem.BindInterface, port => {
+                FoxRuntimeBridge.RebindFile(fileName, fox.HelperPort, port);
+                fox = fox with { HelperPort = port };
+            });
             _foxProcess = helper;
             helper.Exited += code => { if (ReferenceEquals(_foxProcess, helper) && !helper.StopRequested && Volatile.Read(ref _intentionalStopDepth) == 0) _ = StopAfterBridgeFailureAsync(code, helper); };
         }
@@ -150,7 +153,7 @@ public class CoreManager
         if (node.ConfigType == EConfigType.SOCKS && IPAddress.TryParse(node.Address, out var address) && IPAddress.IsLoopback(address)) {
             using var upstream = new TcpClient();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            try { await upstream.ConnectAsync(address, node.Port, deadline.Token); }
+            try { await upstream.ConnectAsync(address, fox?.HelperPort ?? node.Port, deadline.Token); }
             catch (Exception error) { throw new IOException(string.Format(ResUI.DicodeLocalSocksMissing, node.Address, node.Port), error); }
         }
         await CoreStart(mainContext);
@@ -258,7 +261,7 @@ public class CoreManager
         }
 
         if (FoxProfiles.Read(node) is { } fox)
-            return await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, testItem.Port, token);
+            return await FoxAccounts.StartProxyAsync(fox.AccountId, fox.Country, testItem.Port, token, listenerReady: port => testItem.Port = port);
         var fileName = string.Format(Global.CoreSpeedtestConfigFileName, Utils.GetGuid(false));
         var configPath = Utils.GetBinConfigPath(fileName);
         var (context, _) = await CoreConfigContextBuilder.Build(_config, node);

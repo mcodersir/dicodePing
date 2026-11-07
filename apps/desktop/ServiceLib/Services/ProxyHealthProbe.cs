@@ -43,7 +43,7 @@ public static class ProxyHealthProbe
         if (!string.IsNullOrWhiteSpace(preferred) && !Global.SpeedPingTestUrls.Contains(preferred, StringComparer.OrdinalIgnoreCase) && !IsLegacyBuiltIn(preferred))
             return [preferred];
         return [string.IsNullOrWhiteSpace(preferred) ? "https://www.gstatic.com/generate_204" : preferred,
-            "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"];
+            "https://www.youtube.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://detectportal.firefox.com/success.txt"];
     }
 
     private static bool IsLegacyBuiltIn(string url) => Uri.TryCreate(url, UriKind.Absolute, out var uri)

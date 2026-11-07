@@ -33,7 +33,7 @@ internal class Utils
             StartInfo = new()
             {
                 UseShellExecute = true,
-                FileName = V2rayN,
+                FileName = GetPath(OperatingSystem.IsWindows() ? "DicodePing.exe" : "DicodePing"),
                 WorkingDirectory = StartupPath()
             }
         };

@@ -49,7 +49,7 @@ internal static class Program
             // Global exception handling
             Console.WriteLine($"An error occurred: {ex.Message}");
             Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
+            Environment.ExitCode = 1;
         }
     }
 

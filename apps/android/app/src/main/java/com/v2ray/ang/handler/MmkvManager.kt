@@ -816,7 +816,13 @@ object MmkvManager {
                 subscriptions.add(SubscriptionCache(key, item))
             }
         }
-        return subscriptions
+        return subscriptions.sortedBy {
+            when {
+                it.guid == AppConfig.DICODE_PRIMARY_SUBSCRIPTION_ID -> 0
+                it.subscription.url.substringBefore('#') == AppConfig.DICODE_SERVERLESS_SUBSCRIPTION_URL.substringBefore('#') -> 1
+                else -> 2
+            }
+        }
     }
 
     /**

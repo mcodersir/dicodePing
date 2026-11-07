@@ -144,8 +144,8 @@ class RealPingWorkerService(
             result.foxAccountId?.let { id ->
                 return@withLock com.v2ray.ang.core.FoxProcess(context).use { helper ->
                     helpers.add(helper); scope.ensureActive()
-                    helper.start(id, result.foxCountry, result.foxPort); scope.ensureActive()
-                    SpeedtestManager.getProxyLocationInfo(result.foxPort)
+                    val port = helper.start(id, result.foxCountry, result.foxPort); scope.ensureActive()
+                    SpeedtestManager.getProxyLocationInfo(port)
                 }
             }
 
@@ -206,8 +206,8 @@ class RealPingWorkerService(
             return RealPingExecutionLimiter.run(config.configType) {
                 com.v2ray.ang.core.FoxProcess(context).use { helper ->
                     helpers.add(helper); scope.ensureActive()
-                    helper.start(id, configResult.foxCountry, configResult.foxPort)
-                    helper.measure(configResult.foxPort, SettingsManager.getDelayTestUrl())
+                    val port = helper.start(id, configResult.foxCountry, configResult.foxPort)
+                    helper.measure(port, SettingsManager.getDelayTestUrl())
                 }
             }
         }

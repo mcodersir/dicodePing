@@ -163,14 +163,17 @@ public static class FoxAccounts
         if (addProfile) await FoxProfiles.SyncAsync(await GetAsync(id));
         return account;
     }
-    public static async Task<ProcessService> StartProxyAsync(string id, string country, int port, CancellationToken token = default, string? bindInterface = null)
+    public static async Task<ProcessService> StartProxyAsync(string id, string country, int port, CancellationToken token = default, string? bindInterface = null, Action<int>? listenerReady = null)
     {
         var account = await GetAsync(id); var process = Helper();
         try {
-            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["bind_interface"] = bindInterface.NullIfEmpty() ?? PhysicalUplink.Find(), ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = $"127.0.0.1:{port}" }, async message => {
+            var result = await process.StartPrivateProtocolAsync(new JsonObject { ["operation"] = "serve", ["bind_interface"] = bindInterface.NullIfEmpty() ?? PhysicalUplink.Find(), ["state"] = account.State.DeepClone(), ["country"] = country, ["listen"] = "127.0.0.1:0" }, async message => {
                 if (message["event"]?.ToString() == "state" && message["state"] is JsonObject state) { await UpdateSessionAsync(id, state); }
                 if (message["event"]?.ToString() == "quota" && message["account"] is JsonObject info) await UpdateQuotaAsync(id, info);
             }, token);
+            var listener = new Uri("socks://" + result["listen"]?.ToString());
+            if (listener.Host != "127.0.0.1" || listener.Port is < 1 or > 65535) throw new FoxException("helper", "Invalid helper listener");
+            listenerReady?.Invoke(listener.Port);
             await UpdateSessionAsync(id, result["state"]!.AsObject(), result["account"] as JsonObject);
             await FoxProfiles.UpdateQuotaAsync(await GetAsync(id));
             return process;
@@ -182,7 +185,7 @@ public record FoxProfile(string AccountId, string Country, int HelperPort);
 public static class FoxProfiles
 {
     public const int LocalPort = 7854;
-    public const string ShareUri = "socks5://127.0.0.1:7854#Firefox-VPN";
+    public static string ShareUri => $"socks5://127.0.0.1:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}#Firefox-VPN";
     public static FoxProfile? Read(ProfileItem? node)
     {
         if (node is null) return null;

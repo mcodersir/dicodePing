@@ -10,7 +10,7 @@ public partial class StatusBarView : ReactiveUserControl<StatusBarViewModel>
     private void ConnectionLayoutSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         if (sender is not Grid grid) return;
-        var narrow = e.NewSize.Width < 640;
+        var narrow = e.NewSize.Width < Math.Max(640, FontSize * 44);
         btnToggleConnection.Width = narrow ? 96 : 132;
         btnToggleConnection.Height = narrow ? 96 : 132;
         grid.ColumnDefinitions = new ColumnDefinitions(narrow ? "*" : "180,*");

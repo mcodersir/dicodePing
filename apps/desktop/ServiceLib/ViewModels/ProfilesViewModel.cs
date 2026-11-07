@@ -46,6 +46,8 @@ public partial class ProfilesViewModel : MyReactiveObject
     public BulkObservableCollection<ProfileItemModel> ProfileItems { get; } = [];
 
     public BulkObservableCollection<SubItem> SubItems { get; } = [];
+    [Reactive] public partial string SubscriptionQuota { get; set; }
+
     public ObservableCollection<ProbeRunModel> ProbeRuns { get; } = [];
     [Reactive] public partial bool IsRefreshing { get; set; }
     private readonly Dictionary<ESpeedActionType, ProbeRunModel> _probeRuns = new();
@@ -139,6 +141,11 @@ public partial class ProfilesViewModel : MyReactiveObject
            x => x.SelectedProfile,
            selectedSource => selectedSource != null && !selectedSource.IndexId.IsNullOrEmpty());
 
+        this.WhenAnyValue(x => x.SelectedSub).Subscribe(sub => {
+            SubscriptionQuota = sub is null || sub.Id.IsNullOrEmpty() ? "" : sub.Remarks + "\n" +
+                (sub.TotalBytes > 0 ? FormatSubscriptionUsage(sub) :
+                ((ResUI.Culture ?? System.Globalization.CultureInfo.CurrentUICulture).TwoLetterISOLanguageName == "fa" ? "سرویس سهمیه‌ای گزارش نکرده است." : "The provider has not reported an allowance."));
+        });
         this.WhenAnyValue(x => x.SelectedSub)
             .Where(y => y != null && !y.Remarks.IsNullOrEmpty() && _config.SubIndexId != y.Id)
             .SubscribeAsync(async _ => await SubSelectedChangedAsync());

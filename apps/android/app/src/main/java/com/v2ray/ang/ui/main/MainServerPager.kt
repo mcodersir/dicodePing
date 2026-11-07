@@ -102,6 +102,21 @@ fun GroupPagerPage(
             remove = onRemoveServer,
         )
     }
+    val subscription = mainViewModel.getSubscriptions().firstOrNull { it.guid == groupId }?.subscription
+    Column(Modifier.fillMaxSize()) {
+        subscription?.let { sub ->
+            androidx.compose.material3.OutlinedCard(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(sub.remarks, style = MaterialTheme.typography.titleSmall)
+                    if (sub.totalBytes > 0) {
+                        val used = sub.uploadBytes.coerceAtLeast(0).toDouble() + sub.downloadBytes.coerceAtLeast(0).toDouble()
+                        Text(stringResource(com.v2ray.ang.R.string.fox_subscription_usage, used / 1e9, (sub.totalBytes - used).coerceAtLeast(0.0) / 1e9), style = MaterialTheme.typography.bodyMedium)
+                        androidx.compose.material3.LinearProgressIndicator(progress = { (used / sub.totalBytes).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                    } else Text(stringResource(com.v2ray.ang.R.string.fox_quota_unknown), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        Box(Modifier.weight(1f)) {
     ServerListPage(
         rows = groupState.rows,
         selectedGuid = selectedGuid,
@@ -119,6 +134,8 @@ fun GroupPagerPage(
         contentPadding = contentPadding,
         followPingResults = mainState.isTesting && locateTarget == null
     )
+        }
+    }
 }
 
 private class ServerRowActions(

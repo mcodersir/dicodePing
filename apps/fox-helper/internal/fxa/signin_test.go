@@ -50,6 +50,8 @@ func TestOAuthTokenTriesHTTP2BeforeAuthorizationCode(t *testing.T) {
 			checkGrant := func(r *http.Request, body map[string]any) {
 				t.Helper()
 				if r.URL.String() != tokenURL || r.Method != http.MethodPost ||
+					r.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
+					r.Header.Get("Sec-Fetch-Mode") != "no-cors" ||
 					!strings.HasPrefix(r.Header.Get("Authorization"), "Hawk ") || body["grant_type"] != "fxa-credentials" ||
 					body["client_id"] != firefoxClientID || body["scope"] != oauthScope || body["access_type"] != "offline" {
 					t.Fatal("expected the session-authenticated offline VPN grant")
@@ -112,7 +114,9 @@ func TestOAuthTokenUsesAuthorizationCodeAfter406(t *testing.T) {
 			var calls int
 			useFxaFixture(t, func(r *http.Request, body map[string]any) (int, string) {
 				calls++
-				if r.Method != http.MethodPost || body["client_id"] != firefoxClientID {
+				if r.Method != http.MethodPost || body["client_id"] != firefoxClientID ||
+					r.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
+					r.Header.Get("Sec-Fetch-Site") != "none" {
 					t.Fatalf("unexpected OAuth request to %s", r.URL)
 				}
 				switch r.URL.String() {
@@ -176,7 +180,7 @@ func TestOAuthTokenSharesChallengeRecoveryBetweenGrants(t *testing.T) {
 			previous := controlplane.Transport()
 			t.Cleanup(func() {
 				controlplane.SetTransport(previous)
-				for _, target := range []string{fxaAuthServer + "/", fxaSiteURL} {
+				for _, target := range []string{fxaAuthServer + "/", "https://api.accounts.firefox.com/", "https://oauth.accounts.firefox.com/", fxaSiteURL} {
 					u, _ := url.Parse(target)
 					controlplane.SetCookies(u, []*http.Cookie{{Name: cookieName, MaxAge: -1}})
 				}
@@ -260,6 +264,8 @@ func TestRefreshTokenFallsBackToOAuthEndpointOn406(t *testing.T) {
 			useFxaFixture(t, func(r *http.Request, body map[string]any) (int, string) {
 				calls++
 				if r.Method != http.MethodPost || r.Header.Get("Authorization") != "" ||
+					r.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
+					r.Header.Get("Accept") != "application/json;q=0.9,*/*;q=0.2" ||
 					body["grant_type"] != "refresh_token" || body["refresh_token"] != storedRefresh ||
 					body["client_id"] != firefoxClientID || body["scope"] != nil {
 					t.Fatalf("unexpected refresh request to %s", r.URL)

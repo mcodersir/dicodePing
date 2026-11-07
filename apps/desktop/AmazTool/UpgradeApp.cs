@@ -44,42 +44,19 @@ internal class UpgradeApp
         {
             var thisAppOldFile = $"{Utils.GetExePath()}.tmp";
             File.Delete(thisAppOldFile);
-            var splitKey = "/";
-
             using var archive = ZipFile.OpenRead(fileName);
-            foreach (var entry in archive.Entries)
+            var plan = UpdateArchive.Plan(archive, Utils.StartupPath());
+            foreach (var (entry, entryOutputPath) in plan)
             {
                 try
                 {
-                    if (entry.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    Console.WriteLine(entry.FullName);
-
-                    var lst = entry.FullName.Split(splitKey);
-                    if (lst.Length == 1)
-                    {
-                        continue;
-                    }
-
-                    var fullName = string.Join(splitKey, lst[1..lst.Length]);
-
-                    if (string.Equals(Utils.GetExePath(), Utils.GetPath(fullName), StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(Utils.GetExePath(), entryOutputPath, StringComparison.OrdinalIgnoreCase))
                     {
                         File.Move(Utils.GetExePath(), thisAppOldFile);
                     }
 
-                    var entryOutputPath = Utils.GetPath(fullName);
                     Directory.CreateDirectory(Path.GetDirectoryName(entryOutputPath)!);
-                    //In the bin folder, if the file already exists, it will be skipped
-                    if (fullName.StartsWith("bin") && File.Exists(entryOutputPath))
-                    {
-                        continue;
-                    }
-
-                    TryExtractToFile(entry, entryOutputPath);
+                    if (!TryExtractToFile(entry, entryOutputPath)) throw new IOException("Could not replace " + entryOutputPath);
 
                     Console.WriteLine(entryOutputPath);
                 }
@@ -92,12 +69,12 @@ internal class UpgradeApp
         catch (Exception ex)
         {
             Console.WriteLine(Resx.Resource.FailedUpgrade + ex.StackTrace);
-            //return;
+            return;
         }
         if (sb.Length > 0)
         {
             Console.WriteLine(Resx.Resource.FailedUpgrade + sb.ToString());
-            //return;
+            return;
         }
 
         Console.WriteLine(Resx.Resource.Restartv2rayN);

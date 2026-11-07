@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"dicodeping/fox/internal/logx"
@@ -191,6 +192,12 @@ func clientAffinityKey(addr net.Addr) string {
 		return ""
 	}
 	if tcpAddr, ok := addr.(*net.TCPAddr); ok && tcpAddr.IP != nil {
+		// A local VPN bridge represents the whole device, not one LAN
+		// client. Rotate its flows across the pool instead of pinning all
+		// applications to one HTTP/2 connection.
+		if tcpAddr.IP.IsLoopback() {
+			return ""
+		}
 		return tcpAddr.IP.String()
 	}
 	if host, _, err := net.SplitHostPort(addr.String()); err == nil {
@@ -427,6 +434,25 @@ func (s *SOCKSServer) ServeConn(conn net.Conn) { s.handleConn(conn) }
 // ServeSOCKS accepts clients until the listener is closed, backing off on
 // transient accept errors.
 func ServeSOCKS(ln net.Listener, server *SOCKSServer) {
+	if server.connSlots != nil {
+		// Bound admission before accepting more clients. Immediate closes at
+		// saturation cause VPN clients to redial in a tight loop. The kernel's
+		// backlog provides backpressure while existing transfers retain slots.
+		done := make(chan struct{})
+		var once sync.Once
+		for i := 0; i < cap(server.connSlots); i++ {
+			go func() {
+				acceptSOCKS(ln, server, false)
+				once.Do(func() { close(done) })
+			}()
+		}
+		<-done
+		return
+	}
+	acceptSOCKS(ln, server, true)
+}
+
+func acceptSOCKS(ln net.Listener, server *SOCKSServer, concurrent bool) {
 	var acceptRetryDelay time.Duration
 	for {
 		conn, err := ln.Accept()
@@ -447,6 +473,10 @@ func ServeSOCKS(ln net.Listener, server *SOCKSServer) {
 			continue
 		}
 		acceptRetryDelay = 0
-		go server.handleConn(conn)
+		if concurrent {
+			go server.handleConn(conn)
+		} else {
+			server.handleConn(conn)
+		}
 	}
 }

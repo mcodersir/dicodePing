@@ -14,9 +14,16 @@ public static class DicodePingBootstrap
         if (!config.GuiItem.ServerlessProvisioned4998)
         {
             if (!subscriptions.Any(item => string.Equals(item.Url?.Split('#')[0], ServerlessSubscriptionUrl.Split('#')[0], StringComparison.OrdinalIgnoreCase)))
-                await ConfigHandler.AddSubItem(config, new SubItem { Id = string.Empty, Remarks = "Patterniha · Serverless", Url = ServerlessSubscriptionUrl, Enabled = true, AutoUpdateInterval = 1 });
+                await ConfigHandler.AddSubItem(config, new SubItem { Id = string.Empty, Remarks = "DicodeNV", Url = ServerlessSubscriptionUrl, Enabled = true, AutoUpdateInterval = 1 });
             config.GuiItem.ServerlessProvisioned4998 = true;
             await ConfigHandler.SaveConfig(config);
+        }
+        foreach (var feed in (await AppManager.Instance.SubItems() ?? []).Where(item =>
+                     string.Equals(item.Url?.Split('#')[0], ServerlessSubscriptionUrl.Split('#')[0], StringComparison.OrdinalIgnoreCase)))
+        {
+            feed.Remarks = "DicodeNV";
+            feed.Sort = 1;
+            await ConfigHandler.AddSubItem(config, feed);
         }
         foreach (var item in subscriptions.Where(item =>
                      string.Equals(item.Url, LegacySourcesUrl, StringComparison.OrdinalIgnoreCase)

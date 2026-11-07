@@ -39,7 +39,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
 
             url = result.Url.ToString();
             fileName = Utils.GetTempPath(Utils.GetGuid());
-            await downloadHandle.DownloadFileAsync(url, fileName, true, _timeout);
+            await downloadHandle.DownloadFileAsync(url, fileName, true, 600);
         }
         else
         {
@@ -327,7 +327,7 @@ public class UpdateService(Config config, Func<bool, string, Task> updateFunc)
             //Check for avalonia desktop windows version
             if (File.Exists(Path.Combine(Utils.GetBaseDirectory(), "libHarfBuzzSharp.dll")))
             {
-                return url?.Replace(".zip", "-desktop.zip");
+                return coreInfo.CoreType == ECoreType.v2rayN ? url : url?.Replace(".zip", "-desktop.zip");
             }
 
             return url;

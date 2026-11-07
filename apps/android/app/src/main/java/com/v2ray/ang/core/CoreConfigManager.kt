@@ -157,6 +157,7 @@ object CoreConfigManager {
         } else JsonUtil.parseString(raw)?.takeIf { it.isJsonObject }?.asJsonObject ?: return result
 
         if (fox != null) {
+            FoxBridgePolicy.apply(json)
             json.getAsJsonObject("routing").getAsJsonArray("rules").add(JsonObject().apply {
                 addProperty("type", "field"); addProperty("network", "udp"); addProperty("port", "443"); addProperty("outboundTag", "block")
             })

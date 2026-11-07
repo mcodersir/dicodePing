@@ -21,7 +21,7 @@ public class Release472Tests
             var config = CoreConfigTestFactory.CreateConfig(); config.TunModeItem.EnableTun = true;
             CoreConfigTestFactory.BindAppManagerConfig(config);
             Assert.Null(ConfigHandler.GetPreSocksItem(config, converted, ECoreType.sing_box));
-            Assert.Equal("socks5://127.0.0.1:7854#Firefox-VPN", FoxProfiles.ShareUri);
+            Assert.Equal($"socks5://127.0.0.1:{AppManager.Instance.GetLocalPort(EInboundProtocol.socks)}#Firefox-VPN", FoxProfiles.ShareUri);
         } finally { File.Delete(file); }
     }
     [Theory]

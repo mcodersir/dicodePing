@@ -32,7 +32,10 @@ public static class FoxUi
         catch (ArgumentException) { return code; }
     }
     public static Avalonia.Controls.Templates.FuncDataTemplate<string> CountryTemplate() =>
-        new((value, _) => new TextBlock { Text = CountryLabel(value) });
+        new((value, _) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = {
+            new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(7), Child = new TextBlock { Text = value == "REC" ? "◎" : value, FontSize = 12, FontWeight = FontWeight.SemiBold } },
+            new TextBlock { Text = CountryLabel(value), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center }
+        } });
     public static string Quota(FoxAccount account)
     {
         var maximum = account.Info["quota_max"]?.GetValue<long>(); var remaining = account.Info["quota_remaining"]?.GetValue<long>();
@@ -56,11 +59,11 @@ public sealed class FoxWindow : Window
         var allowancePanel = new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Background = new SolidColorBrush(Color.Parse("#187F8798")), Child = new StackPanel { Spacing = 10, Children = {
             new TextBlock { Text = FoxUi.T("سهمیهٔ روباه", "Fox allowance"), FontWeight = FontWeight.SemiBold }, quotaBar, quota
         } } };
-        var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
+        var country = new FoxCountryPicker { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
         country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        var copyProxy = new Button { Content = FoxUi.T("کپی لینک SOCKS روباه · 127.0.0.1:7854", "Copy Fox SOCKS link · 127.0.0.1:7854"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var copyProxy = new Button { Content = FoxUi.T("کپی لینک SOCKS روباه", "Copy Fox SOCKS link"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var remove = new Button { Content = FoxUi.T("حذف حساب و ساب از برنامه", "Remove local account and subscription") };
         foreach (var button in new[] { refresh, connect, copyProxy, remove }) { button.Content = new TextBlock { Text = button.Content?.ToString(), TextWrapping = TextWrapping.Wrap }; button.HorizontalAlignment = HorizontalAlignment.Stretch; }
         connect.MinHeight = 68; connect.CornerRadius = new CornerRadius(20);
