@@ -85,7 +85,7 @@ class FoxNativeTest {
         val process = ProcessBuilder(executable.absolutePath, "--version").redirectErrorStream(true).start()
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS)); assertEquals(0, process.exitValue())
-            assertTrue(process.inputStream.bufferedReader().readText().contains("4.9.9"))
+            assertTrue(process.inputStream.bufferedReader().readText().startsWith("DicodePing Fox ${com.v2ray.ang.BuildConfig.VERSION_NAME.substringBefore('-')} "))
         } finally { if (process.isAlive) process.destroyForcibly() }
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
