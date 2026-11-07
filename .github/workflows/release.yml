@@ -422,6 +422,13 @@ jobs:
           for version in ${{ matrix.baseline }}; do
             curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-${{ matrix.apkAbi }}.apk" --output "install-check/$version.apk"
           done
+      - name: Prepare actual Android installer UI test
+        if: matrix.baseline != ''
+        run: |
+          sdkmanager "build-tools;37.0.0" "platforms;android-36"
+          mkdir -p install-input991
+          cp install-check/4.9.991.apk "install-input991/DicodePing-4.9.991-${{ matrix.apkAbi }}.apk"
+          bash scripts/build-apk-install-probe.sh
       - name: Enable emulator acceleration
         run: sudo chmod a+rw /dev/kvm
       - name: Test actual release installation, retained data and startup
@@ -434,7 +441,9 @@ jobs:
           target: ${{ matrix.target }}
           ram-size: 4096M
           disable-animations: true
-          script: python3 scripts/verify-android-installation.py --version 5.0.0 --code 55000000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.0-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.0-${{ matrix.alternate }}.apk
+          script: |
+            python3 scripts/verify-android-installation.py --version 5.0.0 --code 55000000 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.0-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.0-${{ matrix.alternate }}.apk
+            if [ -n "${{ matrix.baseline }}" ]; then python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.0; fi
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7

@@ -25,6 +25,15 @@ public static class DicodePingBootstrap
             feed.Sort = 1;
             await ConfigHandler.AddSubItem(config, feed);
         }
+        var nextSort = 2;
+        foreach (var other in (await AppManager.Instance.SubItems() ?? []).Where(item =>
+                     !string.Equals(item.Url, DefaultSubscriptionUrl, StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(item.Url?.Split('#')[0], ServerlessSubscriptionUrl.Split('#')[0], StringComparison.OrdinalIgnoreCase)))
+        {
+            if (other.Sort > 1) continue;
+            other.Sort = nextSort++;
+            await ConfigHandler.AddSubItem(config, other);
+        }
         foreach (var item in subscriptions.Where(item =>
                      string.Equals(item.Url, LegacySourcesUrl, StringComparison.OrdinalIgnoreCase)
                      || (item.Remarks?.StartsWith("DicodeSpo", StringComparison.OrdinalIgnoreCase) ?? false)))
