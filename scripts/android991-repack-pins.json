@@ -1,0 +1,13 @@
+{
+  "source_commit": "2d223dc47a9c3e8b71072d722830a870ffff302e",
+  "certificate_sha256": "0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0",
+  "release_id": 437286472,
+  "apk_sha256": {
+    "DicodePing-4.9.991-arm64-v8a.apk": "aae447fbcc20c3ada0844c06d710398b51df653f32c7ce311f07e6551a11f95f",
+    "DicodePing-4.9.991-armeabi-v7a.apk": "abade7eedfd0c6e8a76ff2f8249f97649cd8276af70a2ac4ea80484d151be86c",
+    "DicodePing-4.9.991-tv-universal.apk": "a485ab5649b77a59c2eda3f9c24b4b96684c5f4b3b5d2751841ce8c3e3fd1358",
+    "DicodePing-4.9.991-universal.apk": "8272662df05827338bc532a701cfd4ba7809101db3fc2d235ef08bd7b619dc87",
+    "DicodePing-4.9.991-x86.apk": "7216c9d40be62d766e2aa5b7528d1e6c048f9a10c74b45d046c2e16d8bb3dce2",
+    "DicodePing-4.9.991-x86_64.apk": "c28a6ce1007e020cbc8de333f56154b248728299019191a42a63a60ac61af4f5"
+  }
+}

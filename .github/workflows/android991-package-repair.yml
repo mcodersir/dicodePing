@@ -1,0 +1,139 @@
+name: Android 4.9.991 canonical package repair
+'on':
+  push:
+    branches: [codex/android-package-4.9.991]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.15'}
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '21'}
+      - uses: android-actions/setup-android@v4
+      - name: Install stable API and signing tools
+        run: yes | sdkmanager 'platforms;android-36' 'build-tools;37.0.0'
+      - name: Repackage without changing application payload
+        env:
+          DICODE_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$DICODE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          export DICODE_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          python scripts/repack-android991.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-r2
+          path: |
+            dist-android/*
+            android991-repack-provenance.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-r1
+          path: install-input991/*.apk
+  install:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 29, abi: x86_64, target: default}
+          - {api: 35, abi: arm64-v8a, target: google_apis}
+          - {api: 36, abi: arm64-v8a, target: google_apis}
+          - {api: 36, abi: universal, target: google_apis}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.15'}
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '21'}
+      - uses: android-actions/setup-android@v4
+      - run: yes | sdkmanager 'platforms;android-36' 'build-tools;37.0.0'
+      - uses: actions/download-artifact@v8
+        with: {name: android-r2, path: .}
+      - uses: actions/download-artifact@v8
+        with: {name: android-r1, path: install-input991}
+      - name: Build isolated content provider for native PackageInstaller
+        run: bash scripts/build-apk-install-probe.sh
+      - name: Fetch previous signed upgrade baseline
+        run: |
+          mkdir -p install-check
+          cp 'install-input991/DicodePing-4.9.991-${{ matrix.abi }}.apk' install-check/4.9.991.apk
+          curl --fail --location --retry 3 'https://github.com/mcodersir/dicodePing/releases/download/v4.9.99/DicodePing-4.9.99-${{ matrix.abi }}.apk' --output install-check/4.9.99.apk
+      - run: sudo chmod a+rw /dev/kvm
+      - name: Test native install UI, actual installed bytes, launch and retained data
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          ram-size: 4096M
+          disable-animations: true
+          script: |
+            python scripts/verify-apk-installer-ui.py --abi '${{ matrix.abi }}'
+            python scripts/verify-android-installation.py --version 4.9.991 --code 45999100 --baselines 4.9.99 4.9.991 --candidate 'dist-android/DicodePing-4.9.991-${{ matrix.abi }}.apk'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: installer-ui-${{ matrix.api }}-${{ matrix.abi }}
+          path: |
+            installer-ui-evidence/*
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
+  tv:
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.15'}
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '21'}
+      - uses: android-actions/setup-android@v4
+      - uses: actions/download-artifact@v8
+        with: {name: android-r2, path: .}
+      - uses: actions/download-artifact@v8
+        with: {name: android-r1, path: install-input991}
+      - run: |
+          mkdir -p install-check
+          cp install-input991/DicodePing-4.9.991-tv-universal.apk install-check/4.9.991.apk
+          sudo chmod a+rw /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -feature -Vulkan
+          script: python scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 4.9.991 --code 45999100 --baselines 4.9.991 --candidate dist-android/DicodePing-4.9.991-tv-universal.apk
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tv-r2-installation
+          path: install-check/*json
+  publish:
+    needs: [package, install, tv]
+    runs-on: ubuntu-latest
+    permissions: {contents: write, actions: read}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.15'}
+      - uses: actions/download-artifact@v8
+        with: {name: android-r2, path: .}
+      - name: Replace only verified Android packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/publish-android991-repack.py

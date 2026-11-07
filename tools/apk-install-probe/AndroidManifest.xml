@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="ir.dicode.installprobe" android:versionCode="1" android:versionName="1">
+<uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36"/>
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+<application android:label="APK installation probe" android:debuggable="true">
+<activity android:name=".Launcher" android:exported="true"/>
+<provider android:name=".Launcher$Files" android:authorities="ir.dicode.installprobe.apk" android:exported="false" android:grantUriPermissions="true"/>
+</application></manifest>
