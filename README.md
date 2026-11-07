@@ -1,227 +1,100 @@
 # DicodePing V5
 
 <div align="center">
+
 <img width="1672" height="941" alt="4f7a7e96-4fe0-4b24-b551-c669dea6614a" src="https://github.com/user-attachments/assets/dea8a102-b34e-44af-9b8b-02fc8e3d3779" />
 
+### مدیریت پروفایل‌ها، آزمون واقعی مسیر و اتصال در دسکتاپ و اندروید
 
+**Windows · Linux · macOS · Android · Android TV · CLI**
 
-> وضعیت: `4.9.991` — نسخهٔ پایدار کلاینت مستقل TUN-only برای Windows، Linux، macOS و Android.
-
-### یک کلاینت هوشمند Xray برای تست، رتبه‌بندی و استفاده واقعی از کانفیگ‌ها
-
-**Windows • Linux • macOS • Android**
-
-[![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases)
+[![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-</div>
+**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v4.9.991/docs/CLI.md)**
 
----
+نسخهٔ پایدار فعلی: **۴.۹.۹۹۱** · بسته‌های اندروید: **بازنگری ۲**
+
+</div>
 
 ## معرفی
 
-**DicodePing** یک کلاینت چندسکویی مبتنی بر Xray است که برای بررسی کیفیت واقعی کانفیگ‌ها، اسکن هم‌زمان، مدیریت اتصال و اجرای تونل امن طراحی شده است.
+**DicodePing** یک کلاینت چندسکویی برای مدیریت پروفایل‌ها و اشتراک‌ها، ارزیابی کیفیت مسیر و برقراری اتصال است. برنامه‌های دسکتاپ و اندروید، همراه نسخهٔ مستقل خط فرمان، ابزارهای اتصال موردنیاز را در بستهٔ خود دارند.
 
-برخلاف ابزارهایی که فقط IP سرور را Ping می‌کنند، DicodePing مسیر واقعی ترافیک را بررسی می‌کند؛ یعنی هر کانفیگ از داخل تونل خودش تست می‌شود تا مشخص شود آیا واقعاً توانایی عبور ترافیک دارد یا خیر.
+رابط فارسی و انگلیسی، تم روشن و تیره، فهرست پروفایل‌ها و نمایش وضعیت اتصال، دسترسی به تنظیمات و گزارش‌ها را در یک محیط فراهم می‌کنند. **روباه** یکی از روش‌های اتصال داخل برنامه است و از بخش جداگانهٔ خودش مدیریت می‌شود.
 
-> نسخه فعلی: **3.0.5**
-> کلاینت مستقل با معماری **TUN-only** برای Desktop و Android
+## قابلیت‌ها
 
----
+- **مدیریت پروفایل و ساب:** واردکردن لینک و فایل، افزودن اشتراک، تازه‌سازی منابع، جست‌وجو و مرتب‌سازی پروفایل‌ها.
+- **آزمون واقعی اتصال:** اندازه‌گیری پاسخ از مسیر پروفایل، بررسی عبور ترافیک و نمایش IP خروجی؛ نتیجه به مسیر، سرور و وضعیت شبکه وابسته است.
+- **نمایش وضعیت و مصرف:** مشاهدهٔ اتصال فعال، سرعت و ترافیک و دسترسی به گزارش‌های برنامه برای بررسی خطاها.
+- **چند هستهٔ همراه:** بسته‌های منتشرشده شامل Xray، sing-box، Mihomo و ابزارهای لازم برای روش‌های پشتیبانی‌شده‌اند. قابلیت هر پروفایل به هسته و تنظیمات همان روش بستگی دارد.
+- **روباه:** مدیریت حساب‌ها، انتخاب کشور یا مسیر پیشنهادی، نمایش سهمیهٔ گزارش‌شدهٔ سرویس و تازه‌سازی اطلاعات حساب.
+- **خط فرمان مستقل:** واردکردن پروفایل، تست مسیر، اتصال و اجرای تنظیمات بومی هسته بدون بازکردن رابط گرافیکی.
 
-# چرا پینگ DicodePing واقعی است؟
+## روباه 🦊
 
-بسیاری از ابزارها برای نمایش سرعت کانفیگ فقط یک ICMP Ping یا زمان اتصال TCP به IP سرور را اندازه‌گیری می‌کنند. این مقدار معمولاً کیفیت واقعی یک تونل را نشان نمی‌دهد.
+از آیکون روباه وارد بخش حساب‌ها شوید، حساب Mozilla خود را اضافه کنید و کشور یا مسیر پیشنهادی را انتخاب کنید. در صورت درخواست سرویس، تأیید ایمیل، کد ورود یا بررسی امنیتی را در مسیر ورود رسمی تکمیل کنید.
 
-DicodePing برای هر کانفیگ یک مسیر مستقل Xray ایجاد می‌کند و سپس از داخل همان تونل، درخواست واقعی ارسال می‌کند.
+برای هر حساب، یک ساب و پروفایل مدیریت‌شده ساخته می‌شود. تازه‌سازی حساب، اطلاعات همان پروفایل و سهمیه را به‌روز می‌کند. انتخاب بین حساب‌ها دستی است؛ رمز عبور ذخیره نمی‌شود و نشست‌ها در مخزن محلی رمزگذاری‌شده نگهداری می‌شوند.
 
-نتیجه بر اساس چند معیار محاسبه می‌شود:
+روباه اتصال غیررسمی Firefox VPN است. دسترسی، سهمیه و موقعیت‌های مجاز را Mozilla تعیین می‌کند؛ اتصال در همهٔ شبکه‌ها تضمین نمی‌شود. این روش از TCP و DNS رمزگذاری‌شده پشتیبانی می‌کند و برای UDP عمومی در نظر گرفته نشده است.
 
-* **Median**
-  زمان میانه درخواست کامل از داخل تونل
+## دریافت و نصب
 
-* **Jitter**
-  میزان نوسان بین تست‌ها
+**[صفحهٔ دانلود](https://mcodersir.github.io/dicodePing/#download)** فایل مناسب هر دستگاه را معرفی می‌کند. فایل‌ها و checksumها در [انتشارهای GitHub](https://github.com/mcodersir/dicodePing/releases) هم در دسترس‌اند.
 
-* **Loss**
-  درصد درخواست‌های ناموفق
+| پلتفرم | بسته‌های ارائه‌شده |
+| --- | --- |
+| Windows 10/11، ۶۴بیتی | نصب‌کننده و نسخهٔ Portable |
+| Linux، x64 | بستهٔ DEB و نسخهٔ Portable |
+| macOS | نسخه‌های جداگانهٔ Apple Silicon و Intel |
+| Android 10 و جدیدتر | ARM64، ARM 32-bit، x86، x86_64 و Universal |
+| Android TV 10 و جدیدتر | بستهٔ مستقل Universal با پشتیبانی از ریموت |
+| CLI | بسته‌های مستقل Windows، Linux و macOS |
 
-* **Score**
-  امتیاز ترکیبی پایداری و سرعت
+### انتخاب APK اندروید
 
-این روش نسبت به Fake Ping زمان بیشتری نیاز دارد، اما نتیجه آن نشان می‌دهد یک کانفیگ در شرایط واقعی شبکه چگونه عمل می‌کند.
+- **ARM64** به سیستم اندروید ۶۴بیتی نیاز دارد؛ ۶۴بیتی‌بودن پردازنده به‌تنهایی کافی نیست.
+- اگر معماری سیستم مشخص نیست، **Universal** را انتخاب کنید.
+- نسخهٔ تلویزیون جدا از نسخهٔ گوشی نصب می‌شود.
+- بسته‌های فعلی ۴.۹.۹۹۱ بازنگری ۲ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
 
----
+**[ARM64 بازنگری ۲](https://github.com/mcodersir/dicodePing/releases/download/v4.9.991/DicodePing-4.9.991-arm64-v8a.apk?android-build=2)** · **[Universal بازنگری ۲](https://github.com/mcodersir/dicodePing/releases/download/v4.9.991/DicodePing-4.9.991-universal.apk?android-build=2)**
 
-# قابلیت‌ها
+در دسکتاپ، فعال‌کردن TUN یا تغییر مسیریابی سیستم ممکن است به دسترسی مدیر نیاز داشته باشد. در اندروید، اجازهٔ ایجاد اتصال VPN از طریق پنجرهٔ خود سیستم‌عامل گرفته می‌شود.
 
-## اسکن و مدیریت کانفیگ
+## استفاده از CLI
 
-* پشتیبانی از:
+پس از استخراج بستهٔ مخصوص سیستم خود، راهنمای فرمان‌ها را ببینید:
 
-  * VMess
-  * VLESS
-  * Trojan
-  * Shadowsocks
-  * SOCKS
-  * HTTP
-  * Hysteria2
-
-* Import مستقیم لینک و Subscription
-
-* اسکن هم‌زمان تعداد زیادی کانفیگ
-
-* حذف خودکار موارد تکراری
-
-* مرتب‌سازی بر اساس کیفیت واقعی اتصال
-
-* محاسبه سرعت، پایداری و وضعیت هر کانفیگ
-
----
-
-## پشتیبانی کامل Xray
-
-پشتیبانی از:
-
-* REALITY
-* TLS
-* WebSocket
-* gRPC
-* HTTPUpgrade
-* XHTTP
-
-همراه با اعتبارسنجی TLS و جلوگیری از فعال بودن تنظیمات ناامن به‌صورت پیش‌فرض.
-
----
-
-# Desktop Client
-
-پشتیبانی از:
-
-* Windows
-* Linux
-* macOS
-
-ویژگی‌ها:
-
-* معماری مستقل Avalonia/.NET
-* اجرای TUN بدون نیاز به کلاینت‌های جانبی
-* اجرای Administrator برای مدیریت شبکه
-* کنترل کامل Proxy و اتصال
-* نمایش Log و وضعیت لحظه‌ای
-
----
-
-# Android Client
-
-نسخه Android بر پایه:
-
-* Android VpnService
-* libv2ray
-* hev-socks5-tunnel
-
-ساخته شده است.
-
-ویژگی‌ها:
-
-* اجرای مستقیم تونل VPN
-* مصرف بهینه منابع
-* مدیریت اتصال در پس‌زمینه
-* سازگار با ساختار AndroidLibXrayLite
-
-راهنمای ساخت:
-
-[Android Build Guide](https://github.com/mcodersir/dicodePing/blob/main/docs/ANDROID.md)
-
----
-
-# Subscription پیش‌فرض
-
-DicodePing به‌صورت پیش‌فرض منبع رسمی DicodeConfigChecker را دارد:
-
-```text
-https://raw.githubusercontent.com/mcodersir/DicodeConfigChecker/refs/heads/main/sub.txt
+```sh
+dicodeping --help
+dicodeping import servers.txt
+dicodeping profiles
+dicodeping ping
+dicodeping connect --best
 ```
 
-منابع اضافه‌شده توسط کاربر مستقل هستند و این منبع را حذف یا جایگزین نمی‌کنند.
+برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v4.9.991/docs/CLI.md) آمده است.
 
----
+## منابع اتصال
 
-# نصب و دریافت
+منبع پیش‌فرض برنامه [DicodeConfigChecker](https://github.com/mcodersir/DicodeConfigChecker) است. اشتراک‌ها و منابع شخصی خودتان را نیز می‌توانید اضافه و مدیریت کنید. در دسترس‌بودن یک منبع یا موفقیت آزمون قبلی، تضمین اتصال همیشگی آن مسیر نیست.
 
-آخرین نسخه‌ها:
+## مستندات و توسعه
 
-[Download Releases](https://github.com/mcodersir/dicodePing/releases)
+سورس هر انتشار در Tag همان نسخه قرار دارد. برای بررسی یا ساخت نسخهٔ پایدار، از [سورس ۴.۹.۹۹۱](https://github.com/mcodersir/dicodePing/tree/v4.9.991) و راهنماهای همان Tag استفاده کنید.
 
-نسخه‌های منتشرشده شامل:
+- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v4.9.991/docs/ANDROID.md)
+- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v4.9.991/docs)
+- [امنیت و گزارش آسیب‌پذیری](SECURITY.md)
+- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v4.9.991/PRIVACY.md)
+- [گزارش اشکال و پیشنهاد](https://github.com/mcodersir/dicodePing/issues)
+- [مجوزها و قدردانی از اجزای متن‌باز](THIRD_PARTY_NOTICES.md)
 
-* Desktop Builds
-* Android APK
-* فایل‌های وابسته Xray
-* بررسی SHA-256 فایل‌های runtime
+پروفایل‌ها، لینک اشتراک و گزارش‌ها ممکن است اطلاعات حساس داشته باشند؛ قبل از انتشار عمومی آن‌ها را بررسی کنید. ارتباط با منابع اشتراک، مقصد آزمون، سرویس IP و سرویس حساب تابع تنظیمات و روش انتخاب‌شده است.
 
----
+## مجوز
 
-
-# معماری
-
-مستندات فنی:
-
-* [Architecture](https://github.com/mcodersir/dicodePing/blob/main/docs/ARCHITECTURE.md)
-
-* [Real Ping Model](https://github.com/mcodersir/dicodePing/blob/main/docs/REAL_PING.md)
-
-* [Security](https://github.com/mcodersir/dicodePing/blob/main/SECURITY.md)
-
-* [Privacy](https://github.com/mcodersir/dicodePing/blob/main/PRIVACY.md)
-
-* [Third Party Notices](https://github.com/mcodersir/dicodePing/blob/main/THIRD_PARTY_NOTICES.md)
-
----
-
-# امنیت و حریم خصوصی
-
-DicodePing:
-
-* اطلاعات کانفیگ‌ها را به سرور خارجی ارسال نمی‌کند.
-* تست‌ها را از مسیر واقعی هر کانفیگ انجام می‌دهد.
-* اجرای TLS ناامن را به‌صورت پیش‌فرض فعال نمی‌کند.
-* اجزای runtime را با checksum بررسی می‌کند.
-
----
-
-# License
-
-این پروژه تحت مجوز:
-
-```
-GPL-3.0-or-later
-```
-
-منتشر شده است.
-
-بخش Android از پروژه‌های متن‌باز مرتبط با v2rayNG/PattNG مشتق شده و attribution کامل در فایل:
-
-```
-THIRD_PARTY_NOTICES.md
-```
-
-قرار دارد.
-
-Xray-core به‌صورت runtime جداگانه و تحت مجوز:
-
-```
-MPL-2.0
-```
-
-استفاده می‌شود.
-
----
-
-<div align="center">
-
-ساخته شده با تمرکز روی تست واقعی شبکه و تجربه ساده کاربر
-
-**DicodePing**
-
-</div>
+DicodePing با مجوز [GPL-3.0](LICENSE) منتشر می‌شود. مجوز و اطلاعیهٔ اجزای مستقل و وابستگی‌ها در سورس و بسته‌های مربوط به آن‌ها حفظ شده است. نام‌های Firefox و Mozilla متعلق به صاحبان آن‌ها هستند.
