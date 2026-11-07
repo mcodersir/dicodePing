@@ -4,6 +4,14 @@ on:
     branches: [codex/pages-download-refresh]
     paths: [web/**, .github/workflows/website.yml]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
 permissions:
   contents: read
   pages: write
@@ -19,6 +27,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+      - name: Require published packages before changing download links
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > published-release.json
+          tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+          test "$tag_sha" = "$SOURCE_SHA"
+          python scripts/verify-website-release.py published-release.json "$RELEASE_TAG"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

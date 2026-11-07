@@ -541,44 +541,24 @@ object AngConfigManager {
                     return SubscriptionUpdateResult(failureCount = 1)
                 }
             }
-            LogUtil.i(AppConfig.TAG, url)
             val userAgent = it.subscription.userAgent
             val requestHeaders = it.subscription.requestHeaders
             val proxyUsername = SettingsManager.getSocksUsername()
             val proxyPassword = SettingsManager.getSocksPassword()
 
-            var downloadResponse = try {
-                val httpPort = SettingsManager.getHttpPort()
-                HttpUtil.getUrlContentResponseWithUserAgent(
-                    UrlContentRequest(
-                        url = url,
-                        userAgent = userAgent,
-                        requestHeaders = requestHeaders,
-                        timeout = 15000,
-                        httpPort = httpPort,
-                        proxyUsername = proxyUsername,
-                        proxyPassword = proxyPassword
-                    )
-                )
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.ANG_PACKAGE, "Update subscription: proxy not ready or other error", e)
-                null
-            }
-            if (downloadResponse?.content.isNullOrEmpty()) {
-                downloadResponse = try {
-                    HttpUtil.getUrlContentResponseWithUserAgent(
-                        UrlContentRequest(
-                            url = url,
-                            userAgent = userAgent,
-                            requestHeaders = requestHeaders
-                        )
-                    )
-                } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "Update subscription: Failed to get URL content with user agent", e)
-                    null
-                }
-            }
-            val configText = downloadResponse?.content.orEmpty()
+            val downloadResponse = SubscriptionDownload.fetch(
+                UrlContentRequest(
+                    url = url,
+                    userAgent = userAgent,
+                    requestHeaders = requestHeaders,
+                    timeout = 30000,
+                    httpPort = SettingsManager.getHttpPort(),
+                    proxyUsername = proxyUsername,
+                    proxyPassword = proxyPassword
+                ),
+                proxyRunning = SubscriptionDownload.isProxyListening(SettingsManager.getHttpPort())
+            )
+            val configText = downloadResponse.content
             if (configText.isEmpty()) {
                 return SubscriptionUpdateResult(failureCount = 1)
             }
@@ -589,7 +569,7 @@ object AngConfigManager {
                 if (!MmkvManager.finishSubscriptionUpdate(it.guid, it.subscription.lastUpdated)) {
                     return SubscriptionUpdateResult(skipCount = 1)
                 }
-                downloadResponse?.headers?.entries?.firstOrNull { h -> h.key.equals("subscription-userinfo", true) }
+                downloadResponse.headers.entries.firstOrNull { h -> h.key.equals("subscription-userinfo", true) }
                     ?.value?.let { header ->
                         MmkvManager.decodeSubscription(it.guid)?.let { current ->
                             applySubscriptionUserInfo(current, header)

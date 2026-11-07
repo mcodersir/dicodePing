@@ -593,6 +593,13 @@ jobs:
         print('All 16 packages and 9 checksum files verified; safe to publish.')
         PYVERIFY
         gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
+  website:
+    needs: publish
+    uses: ./.github/workflows/website.yml
+    with:
+      release_tag: v5.0.1
+      source_sha: ${{ github.sha }}
+
 on:
   push:
     tags:

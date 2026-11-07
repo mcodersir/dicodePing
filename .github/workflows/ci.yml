@@ -25,6 +25,8 @@ jobs:
       - name: Verify pinned Arman VPN core source
         run: |
           python scripts/verify-fox-upstream.py
+      - name: Verify download website publication guard
+        run: python scripts/test-website-release.py
 
   desktop:
     runs-on: ubuntu-latest

@@ -2,7 +2,6 @@ package com.v2ray.ang.handler
 
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.UrlContentRequest
-import com.v2ray.ang.util.HttpUtil
 
 /**
  * Fetches only Dicode Config Checker. Other feeds are independent subscriptions.
@@ -34,17 +33,25 @@ object PrimarySubscriptionSources {
     }
 
     private fun fetch(source: Source): List<String> {
-        for (port in listOf(0, SettingsManager.getHttpPort())) {
-            try {
-                val response = HttpUtil.getUrlContentResponseWithUserAgent(UrlContentRequest(
-                    url = source.url, userAgent = "", requestHeaders = null, timeout = 12000,
-                    httpPort = port, proxyUsername = "", proxyPassword = ""))
-                val links = extractLinks(response.content.orEmpty())
-                if (links.isNotEmpty()) return links
-            } catch (interrupted: InterruptedException) { Thread.currentThread().interrupt(); return emptyList() }
-            catch (_: Exception) { /* Retry through the local proxy. */ }
+        return try {
+            val response = SubscriptionDownload.fetch(
+                UrlContentRequest(
+                    url = source.url, timeout = 30000,
+                    httpPort = SettingsManager.getHttpPort(),
+                    proxyUsername = SettingsManager.getSocksUsername(),
+                    proxyPassword = SettingsManager.getSocksPassword()
+                ),
+                proxyRunning = SubscriptionDownload.isProxyListening(SettingsManager.getHttpPort()),
+                directFirst = true,
+                accept = { extractLinks(it).isNotEmpty() }
+            )
+            extractLinks(response.content)
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw interrupted
+        } catch (_: java.io.IOException) {
+            emptyList()
         }
-        return emptyList()
     }
 
     internal fun extractLinks(body: String): List<String> {
