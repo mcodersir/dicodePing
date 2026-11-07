@@ -148,17 +148,29 @@ var directHTTP2Client = &http.Client{
 	Timeout: directHTTP2Timeout,
 	Transport: &http2.Transport{
 		IdleConnTimeout: clientTimeout,
-		DialTLSContext: func(ctx context.Context, network, address string, _ *tls.Config) (net.Conn, error) {
-			// Keep HTTP/1.1's TLS session cache separate from this probe.
-			conn, err := dialFirefoxTLS(ctx, network, address, DialContext, handshakeTimeout, nil, "h2", "http/1.1")
+		DialTLSContext: func(ctx context.Context, network, address string, config *tls.Config) (net.Conn, error) {
+			// The recovery must change the TLS fingerprint as well as ALPN.
+			// Retrying HTTP/2 with the same emulated Firefox hello can still
+			// receive an empty 406 before FxA sees the request.
+			conn, err := DialContext(ctx, network, address)
 			if err != nil {
 				return nil, err
 			}
-			if conn.ConnectionState().NegotiatedProtocol != "h2" {
+			config = config.Clone()
+			config.RootCAs = trustRoots.Load()
+			config.MinVersion = tls.VersionTLS12
+			secured := tls.Client(conn, config)
+			handshake, cancel := context.WithTimeout(ctx, handshakeTimeout)
+			defer cancel()
+			if err := secured.HandshakeContext(handshake); err != nil {
 				conn.Close()
+				return nil, err
+			}
+			if secured.ConnectionState().NegotiatedProtocol != "h2" {
+				secured.Close()
 				return nil, errors.New("server did not negotiate HTTP/2")
 			}
-			return conn, nil
+			return secured, nil
 		},
 	},
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
