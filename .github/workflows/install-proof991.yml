@@ -1,0 +1,113 @@
+name: Verify signed 4.9.991 upgrades including archived 4.9.985
+'on':
+  push:
+    branches: [codex/install-proof-4.9.991]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "4.9.92 4.9.98 4.9.982 4.9.983 4.9.985 4.9.99"}
+          - {api: 35, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.92 4.9.98 4.9.982 4.9.983 4.9.985 4.9.99"}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "4.9.92 4.9.98 4.9.982 4.9.983 4.9.985 4.9.99"}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "4.9.92 4.9.98 4.9.982 4.9.983 4.9.985 4.9.99"}
+          - {api: 35, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Require unchanged tested application and installation verifier
+        run: git diff --exit-code 2d223dc47a9c3e8b71072d722830a870ffff302e -- apps scripts/verify-android-installation.py scripts/verify-release-apks.py
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+          run-id: 42329122070
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 27
+      - uses: android-actions/setup-android@v4
+      - name: Download and verify every official upgrade baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/download-upgrade-baselines.py --abi '${{ matrix.apkAbi }}' --versions '${{ matrix.baseline }}' --destination install-check
+      - name: Enable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test actual release installation, retained data and startup
+        env:
+          DICODE_INSTALL_TARGET: ${{ matrix.target }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          ram-size: 4096M
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --version 4.9.991 --code 45999100 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-4.9.991-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-4.9.991-${{ matrix.alternate }}.apk
+      - name: Preserve installation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-installation-${{ matrix.api }}-${{ matrix.apkAbi }}-${{ matrix.target }}
+          path: |
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
+  tv-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Require unchanged tested application and installation verifier
+        run: git diff --exit-code 2d223dc47a9c3e8b71072d722830a870ffff302e -- apps scripts/verify-android-installation.py scripts/verify-release-apks.py
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+          run-id: 42329122070
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 27
+      - uses: android-actions/setup-android@v4
+      - run: sudo chmod a+rw /dev/kvm
+      - name: Download and verify every official TV baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/download-upgrade-baselines.py --abi tv-universal --versions '4.9.98 4.9.985 4.9.99' --destination install-check
+      - name: Launch signed TV build on an Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # API 36 TV revision 1 crashes SystemUI before our APK is installed
+          # (VectorDrawable resource inflation), leaving every app without focus.
+          # Use the stable Android 14 TV image for the signed remote-control gate.
+          api-level: 34
+          arch: x86
+          target: android-tv
+          profile: tv_1080p
+          # Use GLES in the headless TV guest after its observed restart.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
+          ram-size: 4096M
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 4.9.991 --code 45999100 --baselines 4.9.98 4.9.985 4.9.99 --candidate dist-android/DicodePing-4.9.991-tv-universal.apk
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tv-installation-evidence
+          path: install-check/
