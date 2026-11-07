@@ -1,9 +1,11 @@
-# DicodePing 4
+# DicodePing V5
 
 <div align="center">
-<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/cf8274f6-8361-4c79-b6f3-8e29e435c85d" />
+<img width="1672" height="941" alt="4f7a7e96-4fe0-4b24-b551-c669dea6614a" src="https://github.com/user-attachments/assets/dea8a102-b34e-44af-9b8b-02fc8e3d3779" />
 
-> وضعیت: `3.0.5` — نسخهٔ پایدار کلاینت مستقل TUN-only برای Windows، Linux، macOS و Android.
+
+
+> وضعیت: `4.9.991` — نسخهٔ پایدار کلاینت مستقل TUN-only برای Windows، Linux، macOS و Android.
 
 ### یک کلاینت هوشمند Xray برای تست، رتبه‌بندی و استفاده واقعی از کانفیگ‌ها
 
