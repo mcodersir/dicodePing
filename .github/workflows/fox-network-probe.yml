@@ -91,3 +91,28 @@ jobs:
           }
           GO
           go test ./internal/fxa -run '^TestLiveFullNativeSession$' -v
+      - name: Compare documented refresh grant encodings without credentials
+        working-directory: apps/fox-helper
+        run: |
+          cat > internal/controlplane/live_refresh_shapes_test.go <<'GO'
+          package controlplane
+          import ("context";"testing";"net/http";"strings";"time";"io";"encoding/json";"net/url")
+          func TestLiveRefreshShapes(t *testing.T) {
+            transport:=http.DefaultTransport.(*http.Transport).Clone();transport.Proxy=nil;transport.ForceAttemptHTTP2=true
+            client:=&http.Client{Transport:transport,Timeout:12*time.Second}
+            for _,host:=range []string{"https://api.accounts.firefox.com/v1/oauth/token","https://oauth.accounts.firefox.com/v1/token"} {
+              for _,form:=range []bool{false,true} {for _,scope:=range []bool{false,true} {
+                ctx,cancel:=context.WithTimeout(context.Background(),12*time.Second)
+                values:=map[string]string{"client_id":"5882386c6d801776","grant_type":"refresh_token","refresh_token":strings.Repeat("ab",32)}
+                if scope {values["scope"]="profile https://identity.mozilla.com/apps/vpn"}
+                data,_:=json.Marshal(values);ct:="application/json"
+                if form {v:=url.Values{};for k,x:=range values {v.Set(k,x)};data=[]byte(v.Encode());ct="application/x-www-form-urlencoded"}
+                req,_:=http.NewRequestWithContext(ctx,"POST",host,strings.NewReader(string(data)));req.Header.Set("Content-Type",ct);ApplyFirefoxHeaders(req)
+                resp,err:=client.Do(req)
+                if err!=nil {t.Logf("shape host=%s form=%v scope=%v err=%v",host,form,scope,err)} else {body,_:=io.ReadAll(io.LimitReader(resp.Body,1000));resp.Body.Close();t.Logf("shape host=%s form=%v scope=%v status=%d body=%s",host,form,scope,resp.StatusCode,string(body))}
+                cancel()
+              }}
+            }
+          }
+          GO
+          go test ./internal/controlplane -run '^TestLiveRefreshShapes$' -v
