@@ -12,7 +12,28 @@ def installed_hash():
  if not path.startswith('package:'):return None
  return adb('shell','sha256sum',path.splitlines()[0][8:]).split()[0]
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+def allow_installer_source():
+ adb('shell','am','start','-W','-a','android.settings.MANAGE_UNKNOWN_APP_SOURCES','-d','package:'+PROBE)
+ last=''
+ for attempt in range(15):
+  adb('shell','uiautomator','dump','/sdcard/install-source.xml',check=False)
+  last=adb('shell','cat','/sdcard/install-source.xml',check=False)
+  try:
+   for node in ET.fromstring(last).iter('node'):
+    attrs=node.attrib
+    if 'Switch' not in attrs.get('class','') and 'switch_widget' not in attrs.get('resource-id',''):continue
+    if attrs.get('checked')=='true':
+     adb('shell','input','keyevent','KEYCODE_BACK');time.sleep(1);return
+    if attrs.get('enabled')=='true':
+     bounds=re.findall(r'\d+',attrs.get('bounds',''))
+     if len(bounds)==4:
+      x1,y1,x2,y2=map(int,bounds);adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));break
+  except ET.ParseError:pass
+  time.sleep(1)
+ (ROOT/'install-source-permission.xml').write_text(last)
+ raise RuntimeError('Native Settings did not allow the isolated installer source')
 def install_ui(path,label):
+ allow_installer_source()
  expected=sha(path)
  adb('shell','run-as',PROBE,'rm','-f','files/result.txt')
  with path.open('rb') as input:adb('shell','run-as',PROBE,'sh','-c',"'mkdir -p files && cat > files/package.apk'",stdin=input)
