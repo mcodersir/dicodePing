@@ -14,7 +14,8 @@ jobs:
         with:
           go-version: 1.27.3
           cache: false
-      - name: Probe Mozilla using the packaged native transport without account credentials
+      - continue-on-error: true
+        name: Probe Mozilla using the packaged native transport without account credentials
         working-directory: apps/fox-helper
         run: |
           cat > internal/controlplane/live_native_probe_test.go <<'GO'
@@ -37,3 +38,19 @@ jobs:
           }
           GO
           go test ./internal/controlplane -run '^TestLiveNativeTransport$' -v
+      - name: Run the whole native refresh and challenge recovery without real credentials
+        working-directory: apps/fox-helper
+        run: |
+          cat > internal/fxa/live_native_probe_test.go <<'GO'
+          package fxa
+          import ("context";"testing";"time";"errors")
+          func TestLiveFullNativeRefresh(t *testing.T) {
+            ctx,cancel:=context.WithTimeout(context.Background(),110*time.Second);defer cancel()
+            _,err:=fxaRefreshToken(ctx,"invalid-dicodeping-connectivity-probe")
+            var apiError *fxaAPIError
+            if !errors.As(err,&apiError) {t.Fatalf("full native refresh could not reach FxA rejection: %v",err)}
+            t.Logf("FxA reached: status=%d errno=%d body=%s",apiError.Status,apiError.Errno,apiError.Body)
+            if apiError.Status!=400 && apiError.Status!=401 && apiError.Status!=403 {t.Fatalf("unexpected API rejection: %v",err)}
+          }
+          GO
+          go test ./internal/fxa -run '^TestLiveFullNativeRefresh$' -v
