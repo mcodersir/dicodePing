@@ -207,7 +207,29 @@ func Transport() http.RoundTripper {
 
 // Do sends req with the shared control plane client.
 func Do(req *http.Request) (*http.Response, error) {
-	return client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusNotAcceptable || client.Transport != defaultTransport {
+		return resp, err
+	}
+	// Keep every control-plane caller on the same recovery path, including
+	// Guardian quota and server metadata. Only replay requests whose body
+	// can be rebuilt; never skip a configured relay or retry an accepted call.
+	if req.Body != nil && req.Body != http.NoBody && req.GetBody == nil {
+		return resp, nil
+	}
+	retry := req.Clone(req.Context())
+	if req.GetBody != nil {
+		retry.Body, err = req.GetBody()
+		if err != nil {
+			return resp, nil
+		}
+	}
+	alternate, err := DoDirectHTTP2(retry)
+	if err != nil {
+		return resp, nil
+	}
+	resp.Body.Close()
+	return alternate, nil
 }
 
 // SetCookies stores cookies for u in the shared client's cookie jar.
