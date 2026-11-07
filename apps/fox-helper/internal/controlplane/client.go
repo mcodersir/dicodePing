@@ -233,6 +233,14 @@ func Do(req *http.Request) (*http.Response, error) {
 }
 
 // SetCookies stores cookies for u in the shared client's cookie jar.
+// Cookies exposes only cookies applicable to this URL.
+func Cookies(u *url.URL) []*http.Cookie {
+	if u == nil {
+		return nil
+	}
+	return client.Jar.Cookies(u)
+}
+
 func SetCookies(u *url.URL, cookies []*http.Cookie) {
 	client.Jar.SetCookies(u, cookies)
 }

@@ -61,4 +61,17 @@ func ApplyFirefoxHeaders(req *http.Request) {
 	// Keep net/http from adding gzip as the sole encoding. That header was
 	// associated with HTTP 406 on the HTTP/1.1 OAuth path in live A/B tests.
 	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	if req.URL != nil {
+		host := strings.ToLower(req.URL.Hostname())
+		for _, domain := range []string{"firefox.com", "mozilla.com", "mozilla.org", "mozilla.net"} {
+			if host == domain || strings.HasSuffix(host, "."+domain) {
+				req.Header.Set("Origin", "https://accounts.firefox.com")
+				req.Header.Set("Referer", "https://accounts.firefox.com/")
+				break
+			}
+		}
+	}
 }
