@@ -17,6 +17,10 @@ public class Launcher extends Activity {
  }
  @Override protected void onActivityResult(int request,int result,Intent data) {
   super.onActivityResult(request,result,data);
+  try {
+   FileOutputStream output=new FileOutputStream(new File(getFilesDir(),"result.txt"));
+   output.write(Integer.toString(result).getBytes("UTF-8"));output.close();
+  } catch(IOException error) {android.util.Log.e("InstallProbe","Cannot record installer result",error);}
   android.util.Log.i("InstallProbe","installer activity result="+result);
   finish();
  }

@@ -14,13 +14,16 @@ def installed_hash():
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def install_ui(path,label):
  expected=sha(path)
+ adb('shell','run-as',PROBE,'rm','-f','files/result.txt')
  with path.open('rb') as input:adb('shell','run-as',PROBE,'sh','-c',"'mkdir -p files && cat > files/package.apk'",stdin=input)
  adb('shell','am','force-stop',PROBE)
- adb('shell','am','start','-W','-n',PROBE+'/.Launcher')
+ adb('shell','am','start','-W','-f','0x10008000','-n',PROBE+'/.Launcher')
  last=''
  for attempt in range(35):
-  if installed_hash()==expected:
-   records.append({'scenario':label,'success':True,'sha256':expected});return True
+  result=adb('shell','run-as',PROBE,'cat','files/result.txt',check=False).strip()
+  if installed_hash()==expected and result=='-1':
+   time.sleep(1)
+   records.append({'scenario':label,'success':True,'sha256':expected,'installer_result':result});return True
   adb('shell','uiautomator','dump','/sdcard/install-probe.xml',check=False)
   last=adb('shell','cat','/sdcard/install-probe.xml',check=False)
   try:
