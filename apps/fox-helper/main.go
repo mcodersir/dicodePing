@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "5.0.1"
+const version = "5.0.2"
 
 type State struct {
 	Email              string `json:"email"`
