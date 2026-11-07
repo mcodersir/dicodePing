@@ -18,6 +18,8 @@ jobs:
       - uses: android-actions/setup-android@v4
       - name: Install stable API and signing tools
         run: yes | sdkmanager 'platforms;android-36' 'build-tools;37.0.0'
+      - name: Check classic and Compose Settings accessibility controls
+        run: python scripts/test-installer-ui-controls.py
       - name: Repackage without changing application payload
         env:
           DICODE_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

@@ -1,5 +1,6 @@
 """Install via a granting content provider and the native PackageInstaller UI."""
 import argparse,hashlib,json,pathlib,re,subprocess,time,xml.etree.ElementTree as ET
+from installer_ui_controls import is_install_source_toggle
 p=argparse.ArgumentParser();p.add_argument('--abi',required=True);args=p.parse_args()
 ROOT=pathlib.Path('installer-ui-evidence');ROOT.mkdir(exist_ok=True)
 PACKAGE='ir.dicode.ping.fdroid';PROBE='ir.dicode.installprobe';records=[]
@@ -21,7 +22,7 @@ def allow_installer_source():
   try:
    for node in ET.fromstring(last).iter('node'):
     attrs=node.attrib
-    if 'Switch' not in attrs.get('class','') and 'switch_widget' not in attrs.get('resource-id',''):continue
+    if not is_install_source_toggle(attrs):continue
     if attrs.get('checked')=='true':
      adb('shell','input','keyevent','KEYCODE_BACK');time.sleep(1);return
     if attrs.get('enabled')=='true':
