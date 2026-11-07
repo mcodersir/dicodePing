@@ -142,7 +142,18 @@ func (e *emailCaseError) Unwrap() error { return e.err }
 var ErrChallengeBlocked = errors.New("Mozilla's security check refused this sign-in from this program")
 
 func fxaDo(ctx context.Context, newRequest func() (*http.Request, error)) (*http.Response, error) {
-	return fxaDoWith406Fallback(ctx, newRequest, nil)
+	return fxaDoWith406Fallback(ctx, newRequest, func(recovery context.Context, solved int) (*http.Response, error) {
+		if solved > 1 {
+			return nil, nil
+		}
+		return tryOAuthTokenHTTP2(recovery, func(c context.Context) (*http.Request, error) {
+			r, err := newRequest()
+			if err != nil {
+				return nil, err
+			}
+			return r.WithContext(c), nil
+		}, controlplane.DoDirectHTTP2)
+	})
 }
 
 type requestTimeoutKey struct{}
@@ -515,6 +526,9 @@ func tryOAuthTokenHTTP2(ctx context.Context, newRequest func(context.Context) (*
 }
 
 func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
+	return refreshTokenWithHTTP2(ctx, refreshToken, controlplane.DoDirectHTTP2)
+}
+func refreshTokenWithHTTP2(ctx context.Context, refreshToken string, sendHTTP2 func(*http.Request) (*http.Response, error)) (*TokenResponse, error) {
 	body := map[string]interface{}{
 		"client_id":     firefoxClientID,
 		"grant_type":    "refresh_token",
@@ -535,6 +549,17 @@ func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, 
 	resp, err := fxaDoWith406Fallback(ctx, func() (*http.Request, error) {
 		return newRequest(fxaAuthServer + "/oauth/token")
 	}, func(ctx context.Context, solved int) (*http.Response, error) {
+		if sendHTTP2 != nil && solved <= 1 {
+			if response, err := tryOAuthTokenHTTP2(ctx, func(c context.Context) (*http.Request, error) {
+				r, err := newRequest(fxaAuthServer + "/oauth/token")
+				if err != nil {
+					return nil, err
+				}
+				return r.WithContext(c), nil
+			}, sendHTTP2); response != nil || err != nil {
+				return response, err
+			}
+		}
 		if solved != 0 {
 			return nil, nil
 		}

@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "4.9.99"
+const version = "4.9.991"
 
 type State struct {
 	Email              string `json:"email"`
@@ -188,7 +188,7 @@ func (e *engine) session(ctx context.Context, email, token string) error {
 	}
 	var grant *fxa.TokenResponse
 	for attempt := 0; ; attempt++ {
-		grant, err = fxa.OAuthToken(ctx, token)
+		grant, err = fxa.OAuthTokenDirect(ctx, token)
 		errno := fxa.Errno(err)
 		if err == nil || attempt >= 9 || (errno != 104 && errno != 138) {
 			break

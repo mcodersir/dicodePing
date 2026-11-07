@@ -1,6 +1,6 @@
 package com.v2ray.ang.handler
 
-/** App release ordering; 4.9.99 follows the historical 4.9.98x hotfixes. */
+/** App release ordering; 4.9.991 follows the historical 4.9.98x hotfixes. */
 internal object ReleaseCompatibility {
     fun compareVersions(first: String, second: String): Int {
         fun parts(value: String): List<Int> {

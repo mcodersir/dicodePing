@@ -4,7 +4,7 @@ import argparse, hashlib, json, os, pathlib, platform, shutil, subprocess, tarfi
 from verify_elf_alignment import verify_elf
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-pins = json.loads((ROOT / 'scripts/runtime-pins-4.9.99.json').read_text())['singbox']
+pins = json.loads((ROOT / 'scripts/runtime-pins-4.9.991.json').read_text())['singbox']
 parser = argparse.ArgumentParser()
 parser.add_argument('--rid', choices=['win-x64', 'linux-x64', 'osx-x64', 'osx-arm64'])
 parser.add_argument('--android', action='store_true')

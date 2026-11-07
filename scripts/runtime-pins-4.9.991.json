@@ -1,0 +1,162 @@
+{
+  "xray": "v26.11.1",
+  "android": "v26.11.1",
+  "aether": "v2.4.0",
+  "assets": {
+    "Xray-linux-64.zip": "7f4410d6e17ce87acaf968c8a2b4d1ee6bfd2b387225834fc35d3105af9fa9f9",
+    "Xray-macos-64.zip": "450bdf781bcbb7b8ffa89e5145c98500c0481bcc93c2753393cdf3b03fb9a4d3",
+    "Xray-macos-arm64-v8a.zip": "ca5dc783f749597a88b2ab609f3a3c1e73b3c2318ef0e688ab2434a5d528dd88",
+    "Xray-windows-64.zip": "9f7cfd2f14a4974339de3e0a8fd23447e7bb8a0e04c2df10cd324d188947032c",
+    "aether-android-arm64.tar.gz": "02f1a1d673cf2f3e5592c90ce7ef4d6f03e218d41a333bdd175e0da92ce2073c",
+    "aether-android-armv7.tar.gz": "13a170d175eab5a64d69c6fa3c174430754f01171d616a00eba0b3598315da1d",
+    "aether-android-x86_64.tar.gz": "b8d18baf6b1efe120d04109f819d08ca822c1fafeb3d61297b0e035cf095ae07",
+    "aether-linux-x86_64.tar.gz": "975e4efd46613ad51b7c62b2f5a73fc34fd9661cc15ed273ab816341bfcc2fd1",
+    "aether-macos-arm64.tar.gz": "27e30c492d98a94a1c556dcd673412d0bc8fbbb7ae2b93d209ab8d8c8ba33ef6",
+    "aether-macos-x86_64.tar.gz": "a865832ed4d6a50e3e53f6157dd6219e33ac3e34e747a90a14f11f81be9a9da2",
+    "aether-windows-x86_64.zip": "21b1444628d37121e873878e2eddd7932215418af1a2a12470caee5809026f1a"
+  },
+  "fox": {
+    "version": "4.9.991",
+    "source": "apps/fox-helper",
+    "go": "1.27.3",
+    "protocol_reference": "armanlife/arman-vpn-client v1.0.13 (GPL-3.0)",
+    "reference_commit": "bb9c3e306841dd9df03c85bba4cb716e4c7173c6"
+  },
+  "android_build": {
+    "source_commit": "faad7a00ee2934ac101a677681523f6375b27f86",
+    "health_patch_sha256": "f43e8c1b7e0937bc415f71173c3a0e3188ade34e0a78d33d545e19f00cbb838a",
+    "xray_commit": "9bcf269d4af6179bc83d10e1e7ef8739d5325559"
+  },
+  "hev": {
+    "version": "2.19.3",
+    "source_commit": "c5584feca8f6df70ee53eb2879e034b849a3d15a"
+  },
+  "android_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611031217/geoip.dat",
+      "sha256": "c29b34a9c1de35968286a47e540d534b3063e50b064a19073ac7d13cc21857e1"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611031217/geosite.dat",
+      "sha256": "a996f406d945d57bd079a6deceb12daa965e7ed2635437fe98d34f7055c41c87"
+    },
+    {
+      "name": "geoip-only-cn-private.dat",
+      "url": "https://github.com/Loyalsoldier/geoip/releases/download/202611050019/geoip-only-cn-private.dat",
+      "sha256": "597cddf20e767b9c581a299197d8bb59bee5298fae7fe35b9f65a8f1de105106"
+    }
+  ],
+  "mihomo": "Prerelease-Alpha",
+  "reference_sources": {
+    "android": {
+      "tag": "2.3.15-P71",
+      "commit": "e7a52cfc94389ca4ef1cb10e9595a9dba5cb0564"
+    },
+    "desktop": {
+      "tag": "7.25.6-P40",
+      "commit": "004a0b63cca463883f9b0a52dfbb469652c3b569"
+    }
+  },
+  "android_transport_sources": {
+    "lyrebird": {
+      "module": "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird",
+      "version": "v0.0.0-20260312101154-fc105a03c0e0",
+      "commit": "fc105a03c0e0acc2479301c361c012ffed359c43",
+      "zip_sha256": "e460a90a67c8831d5e8f70b652b39cba0bc05190412c7034bbb8c90fb1b9baff",
+      "go": "go1.27.3"
+    },
+    "psiphon": {
+      "repository": "https://github.com/CluvexStudio/psiphon-tunnel-core.git",
+      "commit": "83aa73b9b982e7421e00117f5b0c5aceb5dda452",
+      "go": "go1.26.10"
+    }
+  },
+  "mihomo_version": "alpha-478af2a",
+  "mihomo_assets": {
+    "win-x64": {
+      "name": "mihomo-windows-amd64-v1-alpha-478af2a.zip",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-amd64-v1-alpha-478af2a.zip",
+      "sha256": "762f2213141ffec38d71798e65a0c24737470b3a43611912d0ad85af30b749d5"
+    },
+    "linux-x64": {
+      "name": "mihomo-linux-amd64-v1-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-linux-amd64-v1-alpha-478af2a.gz",
+      "sha256": "2da3a01a4bc8c0cce25a200e6335f190d6861cf4d472e5325a907f2b92a60219"
+    },
+    "osx-x64": {
+      "name": "mihomo-darwin-amd64-v1-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-amd64-v1-alpha-478af2a.gz",
+      "sha256": "c716e5e6e6ce2dbcf2c735d2cc5d4e1d000a75e3c002df199c8bcb4f4614c091"
+    },
+    "osx-arm64": {
+      "name": "mihomo-darwin-arm64-alpha-478af2a.gz",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-darwin-arm64-alpha-478af2a.gz",
+      "sha256": "efc4aa19453da5070960916faf592f19db4a084bc513bf91450d919bfb699635"
+    }
+  },
+  "singbox": {
+    "version": "1.15.0-alpha.13",
+    "assets": {
+      "win-x64": {
+        "name": "sing-box-1.15.0-alpha.13-windows-amd64.zip",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-windows-amd64.zip",
+        "sha256": "7cff6a39687a12d51b289bd57a203723629eb8fd42f6668601b4484456436bc9"
+      },
+      "linux-x64": {
+        "name": "sing-box-1.15.0-alpha.13-linux-amd64.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-linux-amd64.tar.gz",
+        "sha256": "bfc39f643a5ecc1b702c5723ff662e61dde813f12b3af0d0cfce4f629ff74047"
+      },
+      "osx-x64": {
+        "name": "sing-box-1.15.0-alpha.13-darwin-amd64.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-darwin-amd64.tar.gz",
+        "sha256": "dbe7a72e29654aedd34bf7ea38c8882baa9179b1031df97f9decccc255a360e2"
+      },
+      "osx-arm64": {
+        "name": "sing-box-1.15.0-alpha.13-darwin-arm64.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-darwin-arm64.tar.gz",
+        "sha256": "fb8d4353e45c985d793b04ccaf2960860128de2c82aa5a00012ce012ab01fc4e"
+      },
+      "x86": {
+        "name": "sing-box-1.15.0-alpha.13-android-386.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-386.tar.gz",
+        "sha256": "d698ca6b8c287a4de7c8853da6897caca9eeacc8d8dec143bb4ddc97b3169d6d"
+      },
+      "x86_64": {
+        "name": "sing-box-1.15.0-alpha.13-android-amd64.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-amd64.tar.gz",
+        "sha256": "f3ff384c372a906b68eab36405b1e3765539bf4f574d99a0ef7b22e6a40599b7"
+      },
+      "armeabi-v7a": {
+        "name": "sing-box-1.15.0-alpha.13-android-arm.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-arm.tar.gz",
+        "sha256": "b4cdc347f27f9be4609ea3c29e98bf7045f3bdf033277c5ecad125e42c652435"
+      },
+      "arm64-v8a": {
+        "name": "sing-box-1.15.0-alpha.13-android-arm64.tar.gz",
+        "url": "https://github.com/SagerNet/sing-box/releases/download/v1.15.0-alpha.13/sing-box-1.15.0-alpha.13-android-arm64.tar.gz",
+        "sha256": "0ee45a6bf91edc27ca3497ca5c65048c65ce0c73305997f3b66e742ccdba30cd"
+      }
+    },
+    "source_commit": "824dbcfb4dd0a95921840b1737b950cde590241e"
+  },
+  "desktop_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611042203/geoip.dat",
+      "sha256": "06c1d50d0013af57ffe78c5af93f0dc6aa998890f3ee231393816f9117810c4a"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611042203/geosite.dat",
+      "sha256": "916fea0cea925cc47f09001dfac652d5e8edb6db69ff13ad68e2b4ac9e8ecc1b"
+    }
+  ],
+  "base": {
+    "tag": "v4.9.98",
+    "commit": "18101ec38bb8b92dfc973de197fcfe9acdc3cfd2"
+  },
+  "mihomo_source_commit": "478af2a57c48bdb8e85f6ed93b2c3735e90ceabd"
+}
