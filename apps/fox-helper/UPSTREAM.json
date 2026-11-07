@@ -175,7 +175,9 @@
   ],
   "adapted_files": {
     "controlplane/client.go": "6b7445bff4c5145f7621628485b6e524ad00954d5b26c1ea30dbdf2fd636dee5",
-    "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5"
+    "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5",
+    "fxa/fxa.go": "f198704f24fbec87b16c6b2f7fadff546568eef5993f393c5b53a06224d032e3",
+    "fxa/signin_test.go": "003ec4ba887d72b3af6603b9995db36d9cfbd70e311e63718592cab49bfa8fe0"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."

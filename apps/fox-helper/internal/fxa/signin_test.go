@@ -261,7 +261,7 @@ func TestRefreshTokenFallsBackToOAuthEndpointOn406(t *testing.T) {
 				calls++
 				if r.Method != http.MethodPost || r.Header.Get("Authorization") != "" ||
 					body["grant_type"] != "refresh_token" || body["refresh_token"] != storedRefresh ||
-					body["client_id"] != firefoxClientID || body["scope"] != oauthScope {
+					body["client_id"] != firefoxClientID || body["scope"] != nil {
 					t.Fatalf("unexpected refresh request to %s", r.URL)
 				}
 				switch {

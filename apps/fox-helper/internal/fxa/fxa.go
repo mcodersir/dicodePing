@@ -515,11 +515,13 @@ func tryOAuthTokenHTTP2(ctx context.Context, newRequest func(context.Context) (*
 }
 
 func fxaRefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
+	// Scope is optional for refresh grants. Mozilla defaults it to the
+	// stored grant; repeating the VPN scope can trigger an edge 406.
+	// Do not renegotiate permissions during access renewal.
 	body := map[string]interface{}{
 		"client_id":     firefoxClientID,
 		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
-		"scope":         oauthScope,
 	}
 	bodyJSON, _ := json.Marshal(body)
 
