@@ -44,7 +44,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     val signIn = adding || current == null
     val pending = !adding && current?.pending == true
     val ready = !adding && current != null && !current.pending
-    val selectedFox = current?.id == FoxAccounts.resolveProfile(context, com.v2ray.ang.handler.MmkvManager.decodeServerConfig(com.v2ray.ang.handler.MmkvManager.getSelectServer().orEmpty()))?.accountId
+    val selectedFox = current != null && current.id == runCatching { FoxAccounts.resolveProfile(context, com.v2ray.ang.handler.MmkvManager.decodeServerConfig(com.v2ray.ang.handler.MmkvManager.getSelectServer().orEmpty()))?.accountId }.getOrNull()
     val activeFox = isRunning && selectedFox
     val pendingFox = isConnecting && selectedFox
     val waiting = stringResource(R.string.fox_waiting)
