@@ -23,6 +23,23 @@ import org.junit.Assert.assertEquals
 /** Exercises the actual main screen's merged focus semantics and drawer using remote keys. */
 class MainActivityRemoteTest {
     @get:Rule val compose = createEmptyComposeRule()
+    @Test fun secondTapDuringConnectionCancelsInsteadOfStartingAgain() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val model = androidx.lifecycle.ViewModelProvider(activity)[MainViewModel::class.java]
+                val field = MainViewModel::class.java.getDeclaredField("_uiState").apply { isAccessible = true }
+                @Suppress("UNCHECKED_CAST")
+                val state = field.get(model) as kotlinx.coroutines.flow.MutableStateFlow<MainUiState>
+                state.value = state.value.copy(isRunning = false, isSmartConnecting = false, status = MainStatus.Connecting("Test pending connection"))
+                MainActivity::class.java.getDeclaredMethod("handleFabAction").apply { isAccessible = true }.invoke(activity)
+                assertEquals(MainStatus.Disconnected, state.value.status)
+            }
+        }
+    }
     @Test fun mainScreenRowsConnectionControlAndDrawerAreReachable() {
         // Exercise the app's remote navigation after first-run Android notification consent.
         // The OS dialog owns a separate window and is outside this screen's focus traversal.

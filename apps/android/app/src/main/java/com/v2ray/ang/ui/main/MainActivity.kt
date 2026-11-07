@@ -222,7 +222,7 @@ class MainActivity : HelperBaseComponentActivity() {
     }
 
     private fun handleFabAction() {
-        if (mainViewModel.uiState.value.isRunning) {
+        if (mainViewModel.uiState.value.let { it.isRunning || it.status is MainStatus.Connecting || it.isSmartConnecting }) {
             mainViewModel.cancelAllPing()
             LauncherManager.stopService(this)
             // A service whose process died takes no stop and answers nothing; asking for its state right
