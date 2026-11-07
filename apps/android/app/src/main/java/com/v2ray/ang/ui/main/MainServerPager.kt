@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -122,7 +123,7 @@ fun GroupPagerPage(
         selectedGuid = selectedGuid,
         locateTarget = locateTarget?.takeIf { it.groupId == groupId },
         canReorder = canReorder,
-        doubleColumnDisplay = doubleColumnDisplay,
+        doubleColumnDisplay = doubleColumnDisplay && androidx.compose.ui.platform.LocalDensity.current.fontScale < 1.3f,
         groupId = groupId,
         lazyListStates = lazyListStates,
         lazyGridStates = lazyGridStates,
@@ -378,7 +379,7 @@ private fun ServerListItem(
                 .padding(start = 8.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(row.remarks, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(row.remarks, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph), maxLines = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f) 3 else 2, overflow = TextOverflow.Ellipsis)
                 if (doubleColumnDisplay) {
                     IconButton(onClick = { actions.more(row.guid, row.profile) }, Modifier.remoteFocus().size(48.dp)) {
                         Icon(
@@ -417,7 +418,8 @@ private fun ServerListItem(
                 if (row.subscriptionBadge.isNotBlank()) {
                     Box(
                         Modifier
-                            .size(24.dp)
+                            .sizeIn(minWidth = 24.dp, minHeight = 24.dp)
+                            .padding(3.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)), Alignment.Center
                     ) {
@@ -429,7 +431,7 @@ private fun ServerListItem(
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -443,7 +445,7 @@ private fun ServerListItem(
                     modifier = Modifier.weight(1f, fill = false),
                     style = MaterialTheme.typography.bodySmall,
                     color = colorConfigType,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -451,7 +453,7 @@ private fun ServerListItem(
                     testResult,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (row.testDelayMillis < 0L) colorPingRed else colorPing,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }

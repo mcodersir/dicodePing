@@ -109,7 +109,7 @@
                             GroupName="DicodeNav"
                             IsChecked="True"
                             Tag="home">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -118,15 +118,15 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeHome}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeHome}" />
+                            </Grid>
                         </RadioButton>
                         <RadioButton
                             x:Name="navProfiles"
                             Classes="DicodeNav"
                             GroupName="DicodeNav"
                             Tag="profiles">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -135,15 +135,15 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProfiles}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProfiles}" />
+                            </Grid>
                         </RadioButton>
                         <RadioButton
                             x:Name="navProxies"
                             Classes="DicodeNav"
                             GroupName="DicodeNav"
                             Tag="proxies">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -152,15 +152,15 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProxies}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeProxies}" />
+                            </Grid>
                         </RadioButton>
                         <RadioButton
                             x:Name="navSettings"
                             Classes="DicodeNav"
                             GroupName="DicodeNav"
                             Tag="settings">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -169,15 +169,15 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeSettings}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeSettings}" />
+                            </Grid>
                         </RadioButton>
                         <RadioButton
                             x:Name="navReports"
                             Classes="DicodeNav"
                             GroupName="DicodeNav"
                             Tag="reports">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -186,15 +186,15 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeReports}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeReports}" />
+                            </Grid>
                         </RadioButton>
                         <RadioButton
                             x:Name="navAbout"
                             Classes="DicodeNav"
                             GroupName="DicodeNav"
                             Tag="about">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Grid ColumnDefinitions="24,*" ColumnSpacing="12">
                                 <Path
                                     Width="20"
                                     Height="20"
@@ -203,8 +203,8 @@
                                     Stroke="{DynamicResource DicodeTextSecondary}"
                                     StrokeLineCap="Round"
                                     StrokeThickness="1.5" />
-                                <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeAbout}" />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeAbout}" />
+                            </Grid>
                         </RadioButton>
                     </StackPanel></ScrollViewer>
                 </Border>
