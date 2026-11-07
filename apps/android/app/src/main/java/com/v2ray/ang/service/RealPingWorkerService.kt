@@ -29,18 +29,16 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 internal object RealPingExecutionLimiter {
-    private val customConfigMutex = Mutex()
+    private val nativeLifetime = java.util.concurrent.locks.ReentrantReadWriteLock(true)
     val locationMutex = Mutex()
 
     suspend fun <T> run(configType: EConfigType, block: () -> T): T {
-        // Custom profiles bypass speed-test trimming and start complete Xray configs.
-        // Parallel teardown can abort the native probe process, so serialize their
-        // JNI measurements globally across batches.
-        return if (configType == EConfigType.CUSTOM) {
-            customConfigMutex.withLock { block() }
-        } else {
-            block()
-        }
+        // A custom core owns a complete DNS/router lifetime. Ordinary generated
+        // probes can share their instance concurrently, but must finish before
+        // a custom core starts, and wait until it closes.
+        val lock = if (configType == EConfigType.CUSTOM) nativeLifetime.writeLock() else nativeLifetime.readLock()
+        lock.lock()
+        return try { block() } finally { lock.unlock() }
     }
 }
 
@@ -228,7 +226,16 @@ class RealPingWorkerService(
         // chains, remote DNS and slow handshakes before the actual core can try.
 
         return RealPingExecutionLimiter.run(config.configType) {
-            CoreNativeManager.measureOutboundDelay(configResult.content, SettingsManager.getDelayTestUrl(), batch)
+            measureConfiguration(config.configType, configResult.content, SettingsManager.getDelayTestUrl())
+        }
+    }
+
+    private fun measureConfiguration(type: EConfigType, content: String, url: String): Long {
+        if (type != EConfigType.CUSTOM) return CoreNativeManager.measureOutboundDelay(content, url, batch)
+        return com.v2ray.ang.core.CustomXrayProbe().use { probe ->
+            helpers.add(probe)
+            try { scope.ensureActive(); probe.measure(content, url) }
+            finally { helpers.remove(probe) }
         }
     }
 
@@ -241,7 +248,7 @@ class RealPingWorkerService(
         RealPingExecutionLimiter.run(config.configType) {
             SANCTIONS_SERVICES.forEach { service ->
                 job.ensureActive()
-                val delay = CoreNativeManager.measureOutboundDelay(configResult.content, service.url, batch)
+                val delay = measureConfiguration(config.configType, configResult.content, service.url)
                 if (delay >= 0L) {
                     passed++
                 } else if (service.strict) {
