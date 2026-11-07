@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Require unchanged tested application and installation verifier
         run: git diff --exit-code 2d223dc47a9c3e8b71072d722830a870ffff302e -- apps scripts/verify-android-installation.py scripts/verify-release-apks.py
       - uses: actions/setup-python@v6
@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Require unchanged tested application and installation verifier
         run: git diff --exit-code 2d223dc47a9c3e8b71072d722830a870ffff302e -- apps scripts/verify-android-installation.py scripts/verify-release-apks.py
       - uses: actions/setup-python@v6
@@ -111,3 +111,99 @@ jobs:
         with:
           name: tv-installation-evidence
           path: install-check/
+  publish:
+    needs: [install, tv-install]
+    permissions:
+      contents: write
+      actions: read
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: 2d223dc47a9c3e8b71072d722830a870ffff302e
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.15"
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.3
+        cache: false
+    - uses: actions/download-artifact@v8
+      with:
+        path: artifacts
+        pattern: '{android,windows-x64,linux-x64,macos-x64,macos-arm64}'
+        merge-multiple: true
+        run-id: 42329122070
+        github-token: ${{ github.token }}
+    - name: Require source and Android device checks for this exact commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_SHA: 2d223dc47a9c3e8b71072d722830a870ffff302e
+      run: |
+        for attempt in $(seq 1 60); do
+          runs=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$RELEASE_SHA&per_page=30" --jq '.workflow_runs')
+          result=$(echo "$runs" | jq -r '
+            [".github/workflows/ci.yml", ".github/workflows/android-preflight.yml"] as $required |
+            [$required[] as $path | [.[] | select(.path == $path)][0] // {status:"pending"}] |
+            if any(.[]; .status == "completed" and .conclusion != "success") then "failed"
+            elif all(.[]; .status == "completed" and .conclusion == "success") then "passed"
+            else "pending" end')
+          if [ "$result" = passed ]; then exit 0; fi
+          if [ "$result" = failed ]; then echo "Source/device checks failed; release will not be published."; exit 1; fi
+          sleep 30
+        done
+        echo "Source/device checks did not complete; no release tag was created."
+        exit 1
+    - name: Create the immutable tag only after successful builds
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_SHA: 2d223dc47a9c3e8b71072d722830a870ffff302e
+      run: |
+        if gh api repos/${{ github.repository }}/git/ref/tags/v4.9.991 > tag-ref.json 2> tag-ref-error.txt; then
+          existing=$(jq -r '.object.sha' tag-ref.json)
+          if [ "$existing" != "$RELEASE_SHA" ]; then
+            echo "Release tag points to another commit; refusing to replace it."
+            exit 1
+          fi
+        elif jq -e '.status == "404" or .status == 404' tag-ref.json > /dev/null; then
+          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v4.9.991 -f sha="$RELEASE_SHA"
+        else
+          cat tag-ref-error.txt
+          exit 1
+        fi
+    - uses: softprops/action-gh-release@v2
+      id: draft_release
+      with:
+        tag_name: v4.9.991
+        target_commitish: 2d223dc47a9c3e8b71072d722830a870ffff302e
+        name: DicodePing 4.9.991 — Stable
+        draft: true
+        prerelease: false
+        make_latest: false
+        generate_release_notes: false
+        body_path: docs/RELEASE-4.9.991.md
+        files: artifacts/*
+    - name: Verify every uploaded package before publishing the stable release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
+        gh release download v4.9.991 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        python - <<'PYVERIFY'
+        import json, pathlib, re
+        release = json.loads(pathlib.Path('release-metadata.json').read_text())
+        assets = {a['name']: a for a in release['assets']}
+        expected = {'DicodePing-4.9.991-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        assert len(expected) == 16 and len(assets) == 25 and expected <= assets.keys()
+        checks = {}
+        for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
+            for line in file.read_text(encoding='utf-8-sig').splitlines():
+                match = re.fullmatch(r'([0-9a-fA-F]{64})\s+\*?(.+)', line.strip())
+                assert match, (file, line)
+                checks[match[2]] = match[1].lower()
+        assert set(checks) == expected
+        for name in expected:
+            assert assets[name]['size'] > 0 and assets[name]['digest'] == 'sha256:' + checks[name], name
+        print('All 16 packages and 9 checksum files verified; safe to publish.')
+        PYVERIFY
+        gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
