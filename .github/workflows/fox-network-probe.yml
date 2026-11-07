@@ -1,0 +1,39 @@
+name: Fox 4.9.991 native control-plane network probe
+on:
+  push:
+    branches: [codex/fox-991-network-probe]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.3
+          cache: false
+      - name: Probe Mozilla using the packaged native transport without account credentials
+        working-directory: apps/fox-helper
+        run: |
+          cat > internal/controlplane/live_native_probe_test.go <<'GO'
+          package controlplane
+          import ("context";"testing";"net/http";"strings";"time";"io")
+          func TestLiveNativeTransport(t *testing.T) {
+            for _, mode := range []string{"http1", "http2"} {
+              ctx,cancel:=context.WithTimeout(context.Background(),15*time.Second)
+              req,_:=http.NewRequestWithContext(ctx,"POST","https://api.accounts.firefox.com/v1/oauth/token",strings.NewReader(`{"client_id":"5882386c6d801776","grant_type":"refresh_token","refresh_token":"invalid-dicodeping-connectivity-probe"}`))
+              req.Header.Set("Content-Type","application/json"); ApplyFirefoxHeaders(req)
+              var resp *http.Response; var err error
+              if mode=="http1" {resp,err=Do(req)} else {resp,err=DoDirectHTTP2(req)}
+              if err!=nil {t.Errorf("%s could not reach Mozilla: %v",mode,err)} else {
+                body,_:=io.ReadAll(io.LimitReader(resp.Body,1024));resp.Body.Close()
+                t.Logf("%s status=%d protocol=%s response=%s",mode,resp.StatusCode,resp.Proto,string(body))
+                if mode=="http2" && (resp.ProtoMajor!=2 || resp.StatusCode!=401) {t.Errorf("HTTP/2 did not reach expected FxA invalid-token response")}
+              }
+              cancel()
+            }
+          }
+          GO
+          go test ./internal/controlplane -run '^TestLiveNativeTransport$' -v
