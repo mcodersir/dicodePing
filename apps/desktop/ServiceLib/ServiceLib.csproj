@@ -47,7 +47,8 @@
 		<EmbeddedResource Include="Sample\SampleClientConfig" />
 		<EmbeddedResource Include="Sample\SampleHttpRequest" />
 		<EmbeddedResource Include="Sample\SampleHttpResponse" />
-		<EmbeddedResource Include="Sample\SampleInbound" />
+		<EmbeddedResource Include="Sample\fox-countries.json" />
+    <EmbeddedResource Include="Sample\SampleInbound" />
 		<EmbeddedResource Include="Sample\SampleOutbound" />
 		<EmbeddedResource Include="Sample\SampleTunInbound" />
 		<EmbeddedResource Include="Sample\SampleTunRules" />

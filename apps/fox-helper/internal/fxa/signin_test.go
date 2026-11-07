@@ -51,7 +51,7 @@ func TestOAuthTokenTriesHTTP2BeforeAuthorizationCode(t *testing.T) {
 				t.Helper()
 				if r.URL.String() != tokenURL || r.Method != http.MethodPost ||
 					r.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
-					r.Header.Get("Sec-Fetch-Mode") != "no-cors" ||
+					r.Header.Get("Sec-Fetch-Mode") != "cors" ||
 					!strings.HasPrefix(r.Header.Get("Authorization"), "Hawk ") || body["grant_type"] != "fxa-credentials" ||
 					body["client_id"] != firefoxClientID || body["scope"] != oauthScope || body["access_type"] != "offline" {
 					t.Fatal("expected the session-authenticated offline VPN grant")
@@ -116,7 +116,7 @@ func TestOAuthTokenUsesAuthorizationCodeAfter406(t *testing.T) {
 				calls++
 				if r.Method != http.MethodPost || body["client_id"] != firefoxClientID ||
 					r.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
-					r.Header.Get("Sec-Fetch-Site") != "none" {
+					r.Header.Get("Sec-Fetch-Site") != "same-site" {
 					t.Fatalf("unexpected OAuth request to %s", r.URL)
 				}
 				switch r.URL.String() {

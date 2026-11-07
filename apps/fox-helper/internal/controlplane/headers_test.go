@@ -44,3 +44,18 @@ func TestFirefoxUserAgentFollowsTheRelease(t *testing.T) {
 		t.Fatalf("Accept-Encoding = %q, want identity", got)
 	}
 }
+
+func TestFirefoxHeadersIncludeFetchMetadata(t *testing.T) {
+	for _, target := range []string{"https://api.accounts.firefox.com/v1/oauth/token", "https://oauth.accounts.firefox.com/v1/token", "https://firefox.settings.services.mozilla.com/v1/"} {
+		req, _ := http.NewRequest("POST", target, nil)
+		ApplyFirefoxHeaders(req)
+		if req.Header.Get("Sec-Fetch-Dest") != "empty" || req.Header.Get("Sec-Fetch-Mode") != "cors" || req.Header.Get("Sec-Fetch-Site") != "same-site" || req.Header.Get("Origin") != "https://accounts.firefox.com" || req.Header.Get("Referer") != "https://accounts.firefox.com/" {
+			t.Fatalf("incomplete browser metadata for %s", target)
+		}
+	}
+	req, _ := http.NewRequest("GET", "https://evilfirefox.com/", nil)
+	ApplyFirefoxHeaders(req)
+	if req.Header.Get("Origin") != "" || req.Header.Get("Referer") != "" {
+		t.Fatal("Mozilla origin metadata leaked to an unrelated domain")
+	}
+}

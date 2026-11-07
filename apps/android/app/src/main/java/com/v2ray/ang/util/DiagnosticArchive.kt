@@ -40,9 +40,10 @@ object DiagnosticArchive {
     fun create(context: Context, logs: String): File {
         val dir = File(context.cacheDir, "shared_logs").apply { mkdirs() }
         dir.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86400000 }?.forEach { it.delete() }
-        val file = File(dir, "DicodePing-diagnostics-${System.currentTimeMillis()}.zip")
+        val file = File(dir, "DicodePing-diagnostics-${java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))}.zip")
         ZipOutputStream(file.outputStream()).use { zip ->
             fun entry(name: String, content: String) { zip.putNextEntry(ZipEntry(name)); zip.write(redact(content).toByteArray()); zip.closeEntry() }
+            entry("manifest.json", org.json.JSONObject().put("schema", 2).put("created_utc", java.time.Instant.now().toString()).put("timezone", java.util.TimeZone.getDefault().id).put("version", BuildConfig.VERSION_NAME).put("code", BuildConfig.VERSION_CODE).put("sdk", Build.VERSION.SDK_INT).put("available_memory_bytes", Runtime.getRuntime().freeMemory()).toString())
             entry("device.txt", "version=${BuildConfig.VERSION_NAME}\ncode=${BuildConfig.VERSION_CODE}\nmanufacturer=${Build.MANUFACTURER}\nmodel=${Build.MODEL}\nandroid=${Build.VERSION.RELEASE}\nsdk=${Build.VERSION.SDK_INT}\nabis=${Build.SUPPORTED_ABIS.joinToString()}\ncores=${runCatching { com.v2ray.ang.core.CoreNativeManager.getLibVersion() }.getOrDefault("unavailable")}\n")
             entry("logcat.txt", logs.takeLast(2 * 1024 * 1024))
             synchronized(lock) { directory?.listFiles()?.filter { it.extension == "log" }?.forEach { entry(it.name, it.readText().takeLast(1024 * 1024)) } }

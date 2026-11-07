@@ -11,23 +11,22 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun FoxCountryDialog(countries: List<String>, label: (String) -> String, fa: Boolean,
-                              onDismiss: () -> Unit, onSelect: (String) -> Unit) {
+                              onDismiss: () -> Unit, onSelect: (String) -> Unit, selected: String = "REC") {
     var search by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text(if (fa) "انتخاب کشور" else "Choose location") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = search, onValueChange = { search = it },
-                    modifier = Modifier.fillMaxWidth().testTag("country-search"), singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("country-search"), singleLine = true, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                     label = { Text(if (fa) "جستجوی کشور یا کد" else "Search country or code") })
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 340.dp)) {
                     items(countries.filter { label(it).contains(search.trim(), ignoreCase = true) || it.contains(search.trim(), ignoreCase = true) }) { value ->
                         TextButton(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("country-$value"), onClick = { onSelect(value) }) {
-                            Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                Text(if (value == "REC") "◎" else value, modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelMedium)
-                            }
+                            FoxFlag(value)
                             Spacer(Modifier.width(12.dp))
                             Text(label(value), modifier = Modifier.weight(1f))
+                            RadioButton(selected = value == selected, onClick = null)
                         }
                     }
                 }

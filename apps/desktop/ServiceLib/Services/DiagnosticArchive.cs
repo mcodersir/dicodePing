@@ -25,6 +25,15 @@ public static class DiagnosticArchive
             using var writer = new StreamWriter(zip.CreateEntry(name, CompressionLevel.Fastest).Open(), Encoding.UTF8);
             writer.Write(Redact(text));
         }
+        Add("manifest.json", System.Text.Json.JsonSerializer.Serialize(new {
+            schema = 2, created_utc = DateTimeOffset.UtcNow, timezone = TimeZoneInfo.Local.Id,
+            app = Utils.GetVersion(), os = RuntimeInformation.OSDescription,
+            architecture = RuntimeInformation.ProcessArchitecture.ToString(),
+            core_running = CoreManager.Instance.IsRunning, core = AppManager.Instance.RunningCoreType.ToString(),
+            tun = AppManager.Instance.Config.TunModeItem.EnableTun,
+            direct_connect_timeout_seconds = Global.DirectDownloadConnect.TotalSeconds,
+            proxy_connect_timeout_seconds = Global.ProxyDownloadConnect.TotalSeconds
+        }));
         string interfaces;
         try { interfaces = string.Join("\n", NetworkInterface.GetAllNetworkInterfaces().Select(n => $"interface={n.Name}; type={n.NetworkInterfaceType}; status={n.OperationalStatus}")); }
         catch (Exception error) { interfaces = "interfaces unavailable: " + error.GetType().Name; }

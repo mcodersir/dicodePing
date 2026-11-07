@@ -192,6 +192,7 @@ object CoreConfigManager {
 
         // Last, so that the entries for the Aether core go after everything else the app adds.
         fun serialized(): ConfigResult {
+            applyFakeDnsRecovery(json)
             val core = result.aetherCore
             if (routeAether && core != null) {
                 val secondaryPort = AetherCoreManager.secondarySocksPort
@@ -257,6 +258,23 @@ object CoreConfigManager {
         }
 
         return serialized()
+    }
+
+    internal fun applyFakeDnsRecovery(json: JsonObject) {
+        if (!hasFakeDnsServer(json)) return
+        json.getAsJsonArray("inbounds")?.forEach { element ->
+            val inbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            if (inbound.get("protocol")?.asString !in listOf("tun", "socks", "mixed", "http")) return@forEach
+            val sniffing = inbound.get("sniffing")?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
+            sniffing.addProperty("enabled", true)
+            sniffing.addProperty("routeOnly", false)
+            val overrides = sniffing.get("destOverride")?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray()
+            listOf("fakedns", "http", "tls").forEach { protocol ->
+                if (overrides.none { it.isJsonPrimitive && it.asString == protocol }) overrides.add(protocol)
+            }
+            sniffing.add("destOverride", overrides)
+            inbound.add("sniffing", sniffing)
+        }
     }
 
     /**

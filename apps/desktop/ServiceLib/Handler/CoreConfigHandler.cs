@@ -99,6 +99,7 @@ public static class CoreConfigHandler
                     foreach (var tun in generated.Where(i => i.protocol == "tun")) inbounds.Add(JsonNode.Parse(JsonUtils.Serialize(tun)));
                 }
                 root["inbounds"] = inbounds;
+                CustomFakeDnsPolicy.Apply(root);
 
                 if (config.GuiItem.EnableStatistics || config.GuiItem.DisplayRealTimeSpeed || FoxProfiles.Read(node) is not null)
                 {

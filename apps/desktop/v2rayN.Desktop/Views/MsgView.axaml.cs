@@ -57,7 +57,7 @@ public partial class MsgView : ReactiveUserControl<MsgViewModel>
             var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage is null) return;
             var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions {
-                SuggestedFileName = $"DicodePing-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+                SuggestedFileName = $"DicodePing-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss-fff}.zip",
                 DefaultExtension = "zip"
             });
             if (file is null) return;

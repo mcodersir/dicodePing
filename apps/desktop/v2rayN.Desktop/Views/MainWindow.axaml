@@ -38,8 +38,8 @@
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
             <Border x:Name="mainHeader" Grid.Row="0" Margin="16,14,16,8" Padding="10,8" Classes="DicodeCard" MaxHeight="130">
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled"><WrapPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled"><Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" FlowDirection="LeftToRight">
+                    <StackPanel x:Name="brandHeader" Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
                         <StackPanel Spacing="0">
                             <TextBlock FontSize="18" FontWeight="SemiBold" Text="DicodePing" />
@@ -47,7 +47,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                    <WrapPanel Grid.Column="0" HorizontalAlignment="Left" Orientation="Horizontal" Margin="44,0,0,0">
                         <Button Margin="4" Content="···" ToolTip.Tip="{x:Static resx:ResUI.menuServers}">
                             <Button.Flyout><Flyout><StackPanel Spacing="8" MaxWidth="300">
                                 <Button x:Name="btnProxyChain" HorizontalAlignment="Stretch" Content="{x:Static resx:ResUI.menuAddProxyChainServer}" />
@@ -87,14 +87,14 @@
                     </WrapPanel>
 
                     <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsRefreshing}"><StackPanel Spacing="6"><TextBlock Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" /><ProgressBar IsIndeterminate="True" Height="3" /></StackPanel><Button Grid.Column="1" Command="{Binding CancelRefreshCmd}" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" /></Grid>
-                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Orientation="Horizontal" Spacing="8">
                         <Button
                             x:Name="btnNewUpdate"
                             Content="{x:Static resx:ResUI.menuNewUpdate}"
                             IsVisible="False" />
                         <ContentControl x:Name="conTheme" />
                     </StackPanel>
-                </WrapPanel></ScrollViewer>
+                </Grid></ScrollViewer>
             </Border>
 
             <!--  A plain two-column grid keeps the nav rail on the visual right in  -->

@@ -102,7 +102,7 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
     var showFox by remember { mutableStateOf(false) }
-    if (showFox) FoxScreen(isRunning = isRunning, onDismiss = { showFox = false }, onChanged = { mainViewModel.setupGroupTab(forceRefresh = true) }, onConnect = { guid -> dispatchAction(MainAction.ConnectServer(guid)) })
+    if (showFox) FoxScreen(isRunning = isRunning, onDismiss = { showFox = false }, onChanged = { mainViewModel.setupGroupTab(forceRefresh = true) }, onConnect = { guid -> dispatchAction(MainAction.ConnectServer(guid)) }, isConnecting = uiState.status is MainStatus.Connecting || uiState.isSmartConnecting, onDisconnect = { dispatchAction(MainAction.ToggleService) })
     var showNativeMethods by remember { mutableStateOf(false) }
     if (showNativeMethods) NativeMethodsDialog(onDismiss = { showNativeMethods = false }, onImport = { dispatchAction(MainAction.ImportBatchConfig(it)) })
     var showSearch by remember { mutableStateOf(false) }

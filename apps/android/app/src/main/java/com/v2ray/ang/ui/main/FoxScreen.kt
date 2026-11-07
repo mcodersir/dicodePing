@@ -25,14 +25,15 @@ import java.util.Date
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: (String) -> Unit) {
+internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () -> Unit, onConnect: (String) -> Unit, isConnecting: Boolean = false, onDisconnect: () -> Unit = {}) {
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var accounts by remember { mutableStateOf<List<FoxAccount>>(emptyList()) }
     var selected by remember { mutableStateOf<String?>(null) }
     var country by remember { mutableStateOf("REC") }
-    var countries by remember { mutableStateOf(listOf("REC")) }
+    val locationCache = remember { context.getSharedPreferences("fox-locations", android.content.Context.MODE_PRIVATE) }
+    var countries by remember { mutableStateOf((listOf("REC") + locationCache.getString("codes", "").orEmpty().split(',').filter { it.length == 2 } + runCatching { context.assets.open("fox-countries.json").bufferedReader().use { org.json.JSONArray(it.readText()) }.let { a -> (0 until a.length()).map { a.getString(it) } } }.getOrDefault(emptyList())).distinct()) }
     var expandedAccounts by remember { mutableStateOf(false) }
     var expandedCountries by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
@@ -43,6 +44,9 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
     val signIn = adding || current == null
     val pending = !adding && current?.pending == true
     val ready = !adding && current != null && !current.pending
+    val selectedFox = current?.id == FoxAccounts.resolveProfile(context, com.v2ray.ang.handler.MmkvManager.decodeServerConfig(com.v2ray.ang.handler.MmkvManager.getSelectServer()))?.accountId
+    val activeFox = isRunning && selectedFox
+    val pendingFox = isConnecting && selectedFox
     val waiting = stringResource(R.string.fox_waiting)
     val verified = stringResource(R.string.fox_synced)
     val needsCode = stringResource(R.string.fox_needs_code)
@@ -85,7 +89,8 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
         try {
             accounts = withContext(Dispatchers.IO) { FoxAccounts.list(context) }; selected = accounts.firstOrNull()?.id; country = accounts.firstOrNull()?.country ?: "REC"
             val locations = withContext(Dispatchers.IO) { FoxAccounts.request(context, org.json.JSONObject().put("operation", "locations")).getJSONArray("locations") }
-            countries = listOf("REC") + (0 until locations.length()).map { locations.getJSONObject(it).getString("country_code") }.distinct()
+            countries = (listOf("REC") + (0 until locations.length()).map { locations.getJSONObject(it).getString("country_code") }).distinct().sortedBy { if (it == "REC") "" else countryLabel(it) }
+            locationCache.edit().putString("codes", countries.joinToString(",")).apply()
         } catch (e: Exception) { status = error(e) }
     }
     // Read quota events already written by the original helper. This does not
@@ -110,20 +115,22 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     if (ready) {
                     Button(onClick = {
                         current?.let { account ->
+                            if (activeFox || pendingFox) { onDisconnect(); return@Button }
                             if (busy) return@Button
                             busy = true; status = waiting
                             scope.launch {
                                 try {
                                     val guid = withContext(Dispatchers.IO) { account.country = country; FoxAccounts.save(context, account); FoxAccounts.sync(context, FoxAccounts.get(context, account.id)) }
-                                    onChanged(); onConnect(guid); onDismiss()
+                                    onChanged(); onConnect(guid)
                                 } catch (e: Exception) { status = error(e) }
                                 finally { busy = false }
                             }
                         }
-                    }, enabled = !busy && current != null && !current.pending, modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
+                    }, enabled = (activeFox || pendingFox || !busy) && current != null && !current.pending, modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
                         Icon(painterResource(R.drawable.ic_fox_24dp), contentDescription = null, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text(stringResource(R.string.fox_connect), style = MaterialTheme.typography.titleLarge)
+                        if (pendingFox || busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                        Text(if (pendingFox) (if (fa) "در حال اتصال…" else "Connecting…") else if (activeFox) (if (fa) "متصل · قطع اتصال" else "Connected · Disconnect") else stringResource(R.string.fox_connect), style = MaterialTheme.typography.titleLarge)
                     }
                     }
                     if (ready) current?.let { account ->
@@ -154,12 +161,12 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                     if (ready) current?.let { account ->
                         val max = account.info.optLong("quota_max", -1); val remaining = account.info.optLong("quota_remaining", -1)
                         val reset = account.info.optLong("quota_reset", 0)
-                        if (reset in 1..253402300799L) Text((if (fa) "بازنشانی: " else "Reset: ") + DateFormat.getDateInstance().format(Date(reset * 1000)))
+                        if (reset in 1..253402300799L) Text((if (fa) "بازنشانی: " else "Reset: ") + foxResetDate(reset))
                     }
                     if (ready) Box {
                         OutlinedButton(onClick = { expandedCountries = true }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(countryLabel(country)) }
                         if (expandedCountries) FoxCountryDialog(countries, ::countryLabel, fa,
-                            onDismiss = { expandedCountries = false }, onSelect = { value ->
+                            onDismiss = { expandedCountries = false }, selected = country, onSelect = { value ->
                                 country = value; expandedCountries = false
                                 current?.let { account -> run { account.country = value; FoxAccounts.save(context, account); FoxAccounts.sync(context, account); account.id } }
                             })
@@ -202,4 +209,9 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
         }
     )
 
+}
+
+private fun foxResetDate(seconds: Long): String {
+    val date = java.time.Instant.ofEpochSecond(seconds).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+    return com.v2ray.ang.util.FoxPersianDate.format(date.year, date.monthValue, date.dayOfMonth) + " · " + date.toString()
 }

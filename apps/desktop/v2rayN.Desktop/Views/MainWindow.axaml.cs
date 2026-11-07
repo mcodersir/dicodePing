@@ -39,6 +39,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         InitializeComponent();
         SizeChanged += (_, e) => {
             var compact = e.NewSize.Width < 900;
+            brandHeader.IsVisible = e.NewSize.Width >= 600;
             Classes.Set("compact", compact);
             navRail.Width = compact ? 48 : 196;
             mainHeader.MaxHeight = e.NewSize.Height < 500 ? 96 : 130;

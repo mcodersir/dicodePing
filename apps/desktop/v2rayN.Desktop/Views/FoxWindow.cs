@@ -33,7 +33,7 @@ public static class FoxUi
     }
     public static Avalonia.Controls.Templates.FuncDataTemplate<string> CountryTemplate() =>
         new((value, _) => new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = {
-            new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(7), Child = new TextBlock { Text = value == "REC" ? "◎" : value, FontSize = 12, FontWeight = FontWeight.SemiBold } },
+            new CountryFlagIcon { SourceText = value, Width = 28, Height = 19 },
             new TextBlock { Text = CountryLabel(value), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center }
         } });
     public static string Quota(FoxAccount account)
@@ -42,7 +42,7 @@ public static class FoxUi
         var allowance = FoxQuota.From(maximum, remaining);
         var text = allowance is not { } quota ? T("سهمیه هنوز توسط سرویس گزارش نشده است.", "The provider has not reported an allowance yet.")
             : T($"مصرف‌شده: {quota.Used / 1e9:0.##} GB · باقی‌مانده: {quota.Remaining / 1e9:0.##} از {quota.Maximum / 1e9:0.##} GB", $"Used: {quota.Used / 1e9:0.##} GB · Remaining: {quota.Remaining / 1e9:0.##} of {quota.Maximum / 1e9:0.##} GB");
-        if (account.Info["quota_reset"]?.GetValue<long>() is > 0 and <= 253402300799L and var reset) text += " · " + T("بازنشانی: ", "Reset: ") + DateTimeOffset.FromUnixTimeSeconds(reset).ToLocalTime().ToString("yyyy-MM-dd");
+        if (account.Info["quota_reset"]?.GetValue<long>() is > 0 and <= 253402300799L and var reset) text += " · " + T("بازنشانی: ", "Reset: ") + FoxDates.Format(DateTimeOffset.FromUnixTimeSeconds(reset).ToLocalTime());
         return text;
     }
 }
@@ -59,7 +59,7 @@ public sealed class FoxWindow : Window
         var allowancePanel = new Border { CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Background = new SolidColorBrush(Color.Parse("#187F8798")), Child = new StackPanel { Spacing = 10, Children = {
             new TextBlock { Text = FoxUi.T("سهمیهٔ روباه", "Fox allowance"), FontWeight = FontWeight.SemiBold }, quotaBar, quota
         } } };
-        var country = new FoxCountryPicker { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = new[] { "REC" }, SelectedIndex = 0 };
+        var country = new FoxCountryPicker { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = FoxLocationCache.Read().Prepend("REC").Distinct().ToArray(), SelectedIndex = 0 };
         country.Name = "FoxCountrySelector"; country.ItemTemplate = FoxUi.CountryTemplate();
         var refresh = new Button { Content = FoxUi.T("بررسی حساب و افزودن/تازه‌سازی ساب", "Check account and sync subscription") };
         var connect = new Button { Content = FoxUi.T("اتصال به روباه", "Connect to Fox"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -70,7 +70,7 @@ public sealed class FoxWindow : Window
         connect.HorizontalContentAlignment = HorizontalAlignment.Center;
         connect.Classes.Add("accent");
         connect.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center, Children = {
-            new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 28, Height = 28, Stretch = Stretch.Uniform, Stroke = Avalonia.Media.Brushes.White, StrokeThickness = 1.8 },
+            new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 28, Height = 28, Stretch = Stretch.Uniform, Stroke = new SolidColorBrush(Color.Parse("#C77739")), StrokeThickness = 1.8 },
             new TextBlock { Text = FoxUi.T("اتصال به روباه", "Connect to Fox"), FontSize = 21, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center }
         } };
         var steps = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, FontWeight = FontWeight.SemiBold };
@@ -83,7 +83,14 @@ public sealed class FoxWindow : Window
             new TextBlock { Text = FoxUi.T("پس از ورود، سرور روباه در فهرست پروفایل‌ها هم قابل اتصال است.", "After sign-in, connect from the profile list or this page."), TextWrapping = TextWrapping.Wrap }, new TextBlock { Text = FoxUi.T("کشور سرور", "Server country") }, country, copyProxy, refresh, reauthenticate, remove } };
         var add = new Button { Content = FoxUi.T("افزودن حساب دیگر", "Add another account") };
         var back = new Button { Content = FoxUi.T("بازگشت به حساب‌ها", "Back to accounts") };
-        var adding = false; bool busy = false;
+        var adding = false; bool busy = false; bool connectPending = false; string? activeFoxAccount = null; string? observedProfile = null;
+        bool CurrentFoxConnected() => CoreManager.Instance.IsRunning && activeFoxAccount == (accounts.SelectedItem as FoxAccount)?.Id;
+        var connectLabel = new TextBlock { FontSize = 21, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var connectSpinner = new ProgressBar { IsIndeterminate = true, Width = 32, Height = 4, VerticalAlignment = VerticalAlignment.Center };
+        connect.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center, Children = {
+            new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 28, Height = 28, Stretch = Stretch.Uniform, Stroke = new SolidColorBrush(Color.Parse("#C77739")), StrokeThickness = 1.8 }, connectLabel, connectSpinner
+        } };
+
         void Render() {
             var account = accounts.SelectedItem as FoxAccount;
             var pending = !adding && account?.Pending == true;
@@ -98,7 +105,10 @@ public sealed class FoxWindow : Window
                 : pending ? FoxUi.T("۲ · تأیید حساب", "2 · Verify account") : FoxUi.T("۳ · انتخاب کشور و اتصال", "3 · Choose country and connect");
             connect.IsVisible = ready;
             allowancePanel.IsVisible = ready;
-            connect.IsEnabled = refresh.IsEnabled = !busy && ready;
+            connectLabel.Text = connectPending ? FoxUi.T("در حال اتصال… · لغو", "Connecting… · Cancel") : CurrentFoxConnected() ? FoxUi.T("متصل · قطع اتصال", "Connected · Disconnect") : FoxUi.T("اتصال به روباه", "Connect to Fox");
+            connectSpinner.IsVisible = connectPending;
+            connect.IsEnabled = ready && (!busy || connectPending || CurrentFoxConnected());
+            refresh.IsEnabled = !busy && ready;
             remove.IsEnabled = !busy && account is not null;
             accounts.IsEnabled = country.IsEnabled = add.IsEnabled = back.IsEnabled = !busy;
         }
@@ -146,14 +156,21 @@ public sealed class FoxWindow : Window
             account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account);
             await FoxAccounts.RefreshAsync(account.Id, true, cts.Token); await Load(account.Id); await RefreshViews(); status.Text = FoxUi.T("سهمیه و ساب تازه شدند؛ یک سرور برای این حساب باقی می‌ماند.", "Allowance and subscription refreshed; this account retains one profile.");
         });
-        connect.Click += async (_, _) => await Run(async () => {
+        connect.Click += async (_, _) => {
+            if (connectPending || CurrentFoxConnected()) {
+                if (main.ProfilesViewModel.StopConnection is { } stop) await stop();
+                connectPending = false; Render(); return;
+            }
+            connectPending = true; Render();
+            try { await Run(async () => {
             var requestVersion = main.ProfilesViewModel.ConnectionRequestVersion;
             if (accounts.SelectedItem is not FoxAccount account || account.Pending) throw new FoxException("login_required", "Complete account sign-in first");
             account.Country = country.SelectedItem?.ToString() ?? "REC"; await FoxAccounts.SaveAsync(account); await FoxProfiles.SyncAsync(account); await RefreshViews();
             var sub = (await AppManager.Instance.SubItems()).First(s => s.Url == "dicode-fox://" + account.Id); var node = (await AppManager.Instance.ProfileItems(sub.Id)).Single();
             await main.ConnectPoolProfileAsync(node.IndexId, cts.Token, requestVersion);
             status.Text = CoreManager.Instance.IsRunning ? FoxUi.T("روباه فعال شد؛ جزئیات و ترافیک در خانه دیده می‌شوند.", "Fox is active; connection details and traffic are shown on Home.") : FoxUi.T("اتصال برقرار نشد؛ گزارش را بررسی کنید.", "Connection did not start; check the log.");
-        });
+            }); } finally { connectPending = false; Render(); }
+        };
         copyProxy.Click += async (_, _) => await Run(async () => {
             if (Clipboard is { } clipboard) await clipboard.SetTextAsync(FoxProfiles.ShareUri);
             status.Text = FoxUi.T("لینک کپی شد؛ هنگام اتصال روباه، پروکسی محلی فعال است.", "Link copied; the local proxy is active while Fox is connected.");
@@ -166,11 +183,25 @@ public sealed class FoxWindow : Window
         });
         Opened += async (_, _) => {
             try {
-                await Load(); var locations = await FoxAccounts.RequestAsync(new JsonObject { ["operation"] = "locations" }, cts.Token);
+                await Load();
+                var cached = FoxLocationCache.Read();
+                if (cached.Length > 0) country.ItemsSource = cached;
+                var locations = await FoxAccounts.RequestAsync(new JsonObject { ["operation"] = "locations" }, cts.Token);
                 var values = new[] { "REC" }.Concat((locations["locations"] as JsonArray ?? []).Select(l => l?["country_code"]?.ToString() ?? "").Where(x => x.Length == 2).Distinct()).ToArray();
-                country.ItemsSource = values; country.SelectedItem = (accounts.SelectedItem as FoxAccount)?.Country ?? "REC";
+                FoxLocationCache.Write(values); country.ItemsSource = values.OrderBy(v => v == "REC" ? "" : FoxUi.CountryLabel(v)).ToArray(); country.SelectedItem = (accounts.SelectedItem as FoxAccount)?.Country ?? "REC";
             } catch (Exception e) { status.Text = FoxUi.Error(e); }
         };
+        var connectionTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        connectionTimer.Tick += async (_, _) => {
+            var id = CoreManager.Instance.ActiveProfileId;
+            if (id != observedProfile) {
+                observedProfile = id;
+                var node = id.IsNullOrEmpty() ? null : await AppManager.Instance.GetProfileItem(id);
+                activeFoxAccount = FoxProfiles.Read(node)?.AccountId;
+            }
+            Render();
+        };
+        Opened += (_, _) => connectionTimer.Start(); Closed += (_, _) => connectionTimer.Stop();
         Render();
         Content = new ScrollViewer { Content = new StackPanel { Margin = new Thickness(22), Spacing = 13, Children = {
             new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse(FoxUi.Icon), Width = 32, Height = 32, Stretch = Stretch.Uniform, StrokeThickness = 1.8, Stroke = new SolidColorBrush(Color.Parse("#C77739")), HorizontalAlignment = HorizontalAlignment.Left },

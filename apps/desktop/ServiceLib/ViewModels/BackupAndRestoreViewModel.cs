@@ -3,7 +3,7 @@ namespace ServiceLib.ViewModels;
 public partial class BackupAndRestoreViewModel : MyReactiveObject
 {
     private readonly string _guiConfigs = "guiConfigs";
-    private static string BackupFileName => $"backup_{DateTime.Now:yyyyMMddHHmmss}.zip";
+    private static string BackupFileName => $"backup_{DateTime.Now:yyyyMMdd-HHmmss-fff}.zip";
 
     public ReactiveCommand<RxVoid, RxVoid> RemoteBackupCmd { get; }
     public ReactiveCommand<RxVoid, RxVoid> RemoteRestoreCmd { get; }
@@ -163,7 +163,7 @@ public partial class BackupAndRestoreViewModel : MyReactiveObject
         }
 
         var configDir = Utils.GetConfigPath();
-        var configDirZipTemp = Utils.GetTempPath($"v2rayN_{DateTime.Now:yyyyMMddHHmmss}");
+        var configDirZipTemp = Utils.GetTempPath($"v2rayN_{DateTime.Now:yyyyMMdd-HHmmss-fff}");
         var configDirTemp = Path.Combine(configDirZipTemp, _guiConfigs);
 
         FileUtils.CopyDirectory(configDir, configDirTemp, false, true, "");

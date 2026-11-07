@@ -119,14 +119,9 @@ public static class SubscriptionHandler
     private static async Task<string> DownloadSubscriptionContent(DownloadService downloadHandle, string url, bool blProxy, string userAgent, CancellationToken cancellationToken)
     {
         var result = await downloadHandle.TryDownloadString(url, blProxy, userAgent, cancellationToken);
-
-        // If download with proxy fails, try direct connection
-        if (blProxy && result.IsNullOrEmpty())
-        {
-            result = await downloadHandle.TryDownloadString(url, false, userAgent, cancellationToken);
-        }
-
-        return result ?? string.Empty;
+        if (result.IsNullOrEmpty())
+            throw new IOException("دریافت اشتراک انجام نشد؛ خطای شبکه یا پایان مهلت اتصال. کانفیگ‌های قبلی حفظ شدند.");
+        return result!;
     }
 
     private static async Task<string> DownloadAllSubscriptions(Config config, SubItem item, bool blProxy, DownloadService downloadHandle, CancellationToken cancellationToken)

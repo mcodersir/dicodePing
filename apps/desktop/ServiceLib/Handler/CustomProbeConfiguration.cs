@@ -13,6 +13,7 @@ public static class CustomProbeConfiguration
         root["inbounds"] = new JsonArray(core == ECoreType.Xray
             ? new JsonObject { ["tag"] = inbound, ["listen"] = Global.Loopback, ["port"] = port, ["protocol"] = "socks", ["settings"] = new JsonObject { ["auth"] = "noauth", ["udp"] = false } }
             : new JsonObject { ["tag"] = inbound, ["listen"] = Global.Loopback, ["listen_port"] = port, ["type"] = "socks" });
+        if (core == ECoreType.Xray) CustomFakeDnsPolicy.Apply(root);
         return root.ToJsonString();
     }
 }

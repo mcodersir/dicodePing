@@ -16,7 +16,11 @@ public class Logging
         config.AddTarget("file", fileTarget);
         fileTarget.Layout = "${longdate}-${level:uppercase=true} ${message}";
         fileTarget.FileName = Utils.GetLogPath("${shortdate}.txt");
-        config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, fileTarget));
+        fileTarget.ArchiveAboveSize = 5 * 1024 * 1024;
+        fileTarget.MaxArchiveFiles = 6;
+        var asyncTarget = new NLog.Targets.Wrappers.AsyncTargetWrapper(fileTarget, 2048, NLog.Targets.Wrappers.AsyncTargetWrapperOverflowAction.Discard);
+        config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, LogLevel.Info, asyncTarget));
+        config.LoggingRules.Add(new LoggingRule("*", LogLevel.Warn, LogLevel.Fatal, fileTarget));
         LogManager.Configuration = config;
     }
 
@@ -33,6 +37,7 @@ public class Logging
             return;
         }
 
+        strContent = ServiceLib.Services.DiagnosticArchive.Redact(strContent);
         _logger1.Info(strContent);
         AppEvents.SendMsgViewRequested.Publish($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}-INFO {strContent}");
     }
@@ -44,12 +49,14 @@ public class Logging
             return;
         }
 
-        _logger2.Debug($"{strTitle},{ex.Message}");
-        AppEvents.SendMsgViewRequested.Publish($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}-ERROR {strTitle}: {ex.Message}");
-        _logger2.Debug(ex.StackTrace);
+        strTitle = ServiceLib.Services.DiagnosticArchive.Redact(strTitle);
+        var safeError = ServiceLib.Services.DiagnosticArchive.Redact(ex.ToString());
+        _logger2.Error($"{strTitle}: {safeError}");
+        AppEvents.SendMsgViewRequested.Publish($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}-ERROR {strTitle}: {ServiceLib.Services.DiagnosticArchive.Redact(ex.Message)}");
+
         if (ex?.InnerException != null)
         {
-            _logger2.Error(ex.InnerException);
+            _logger2.Error(ServiceLib.Services.DiagnosticArchive.Redact(ex.InnerException.ToString()));
         }
     }
 }

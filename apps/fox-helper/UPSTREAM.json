@@ -172,18 +172,21 @@
   "adaptations": [
     "Platform certificate roots for both upstream HTTP/1.1 and direct HTTP/2 TLS paths on Android.",
     "Desktop physical uplink socket control before upstream egress routing.",
-    "Enable guarded HTTP/2 recovery for actual browser-session confirmation and renewal paths; preserve custom-route guard and original credentials."
+    "Enable guarded HTTP/2 recovery for actual browser-session confirmation and renewal paths; preserve custom-route guard and original credentials.",
+    "PR #79 browser fetch metadata on every control-plane and challenge call, guarded Mozilla origin headers and shared cookies API."
   ],
   "adapted_files": {
-    "controlplane/client.go": "6b7445bff4c5145f7621628485b6e524ad00954d5b26c1ea30dbdf2fd636dee5",
+    "controlplane/client.go": "654d55da61667710b6d115a023a28585840dcdc4be61f10a776475560b56242e",
     "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5",
     "fxa/fxa.go": "e52155f27b72a26b74f2963bd868b3f11d3f9c20116d70ea7e93f0dfaef73572",
-    "fxa/signin_test.go": "80c900f51efce1a79e6ee6539c4b3684db81aee1cf1c56cee53d47aa5ad85579",
-    "fxa/oauth_code.go": "fbbdf032283bcd233e66b98034307811676932a77af36b5d8860b18123236341",
+    "fxa/signin_test.go": "783fd843088821d2339fe55c0035bc58435fcf91bd543ee326c270c754b8f06d",
+    "fxa/oauth_code.go": "f55924184f3ca34f1124789d4e11ce46570254835fb29460f5b3dd9427301673",
     "fxa/challenge_test.go": "a4338777e31940a64731b2268443ca1c3631a6c3239bf5e487e181842cc7b9a6",
     "fxa/challenge_cookies_test.go": "0508d14e8c05f9725c6666cfe98364f5141ec48f4562d005efceec0fa165aecc",
     "fxa/challenge.go": "e493a720517bb772f0fdb4de473a4a931201b629f25f397ef5e743736fb7b2df",
-    "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960"
+    "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960",
+    "controlplane/headers.go": "d58283e893266992aed864145c38d0ab35892c3739de0b221a18d599dbb2886f",
+    "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."

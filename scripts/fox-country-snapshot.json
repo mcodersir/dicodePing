@@ -1,0 +1,6 @@
+{
+  "source": "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records",
+  "captured_utc": "2026-11-07T13:56:54.668481+00:00",
+  "sha256": "bd0d8d8dafc6bcf4030f0f50232972fed08dce1b22aafaee5121bdaa6c9bf85c",
+  "policy": "Only country codes with a non-quarantined CONNECT server; live list replaces cached snapshot."
+}

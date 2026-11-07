@@ -234,28 +234,6 @@ public class DownloadService
             }
         }
 
-        try
-        {
-            var result2 = await DownloadStringViaDownloader(url, webProxy, userAgent, cancellationToken);
-            if (result2.IsNotEmpty())
-            {
-                return result2;
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Logging.SaveLog(_tag, ex);
-            Error?.Invoke(this, new ErrorEventArgs(ex));
-            if (ex.InnerException != null)
-            {
-                Error?.Invoke(this, new ErrorEventArgs(ex.InnerException));
-            }
-        }
-
         return null;
     }
 
@@ -264,6 +242,12 @@ public class DownloadService
     /// </summary>
     private async Task<string?> DownloadStringAsync(string url, IWebProxy? webProxy, string userAgent, CancellationToken cancellationToken = default)
     {
+        var timer = Stopwatch.StartNew();
+        var requestId = Guid.NewGuid().ToString("N")[..8];
+        var endpoint = Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl) ? parsedUrl.Host : "invalid-url";
+        var routeName = webProxy is null ? "direct" : "proxy";
+        LastResponseHeaders.Clear();
+        Logging.SaveLog($"download start id={requestId} host={endpoint} route={routeName}");
         try
         {
             var handler = new SocketsHttpHandler
@@ -308,7 +292,9 @@ public class DownloadService
             response.EnsureSuccessStatusCode();
             LastResponseHeaders = response.Headers.Concat(response.Content.Headers)
                 .ToDictionary(x => x.Key, x => string.Join(";", x.Value), StringComparer.OrdinalIgnoreCase);
-            return await response.Content.ReadAsStringAsync(linkedCts.Token);
+            var text = await response.Content.ReadAsStringAsync(linkedCts.Token);
+            Logging.SaveLog($"download finish id={requestId} host={endpoint} route={routeName} status={(int)response.StatusCode} elapsed_ms={timer.ElapsedMilliseconds} chars={text.Length}");
+            return text;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -316,6 +302,7 @@ public class DownloadService
         }
         catch (Exception ex)
         {
+            Logging.SaveLog($"download failed id={requestId} host={endpoint} route={routeName} elapsed_ms={timer.ElapsedMilliseconds} kind={ex.GetType().Name}");
             Logging.SaveLog(_tag, ex);
             Error?.Invoke(this, new ErrorEventArgs(ex));
             if (ex.InnerException != null)

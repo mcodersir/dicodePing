@@ -129,6 +129,9 @@ foreach (var dark in new[] { false, true }) {
     countries.IsDropDownOpen = false; countries.SelectedIndex = 0;
     countries.SearchText = "JP"; Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     if (countries.VisibleCountryCount != 1) throw new Exception("Country search did not filter by code");
+    if (!Equals(countries.SelectedItem, "REC")) throw new Exception("Filtering changed the selected country");
+    foreach (var code in new[] { "us", "de", "jp" })
+        if (!Avalonia.Platform.AssetLoader.Exists(new Uri($"avares://DicodePing/Assets/Flags/{code}.png"))) throw new Exception("Missing bundled country flag " + code);
     countries.SearchText = "";
     fox.FontSize = 24;
 
