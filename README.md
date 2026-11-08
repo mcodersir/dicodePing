@@ -1,4 +1,6 @@
 # DicodePing V5
+# کانال دیکد پینگ برای آموزشات و اطلاعیه ها راجع بروزرسانی ها حتما دنبال کنید:
+https://t.me/dicodeping
 
 <div align="center">
 
