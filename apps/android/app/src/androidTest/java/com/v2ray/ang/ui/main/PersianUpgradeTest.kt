@@ -1,7 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import android.app.LocaleManager
-import androidx.test.core.app.ActivityScenario
+import android.os.LocaleList
 import androidx.test.platform.app.InstrumentationRegistry
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.handler.AppLocaleManager
@@ -10,24 +10,38 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PersianUpgradeTest {
-    @Test fun upgradeUsesPersianOnceThenHonoursTheLanguagePicker() {
+    @Test fun upgradePreservesLanguageChoicesWithoutForcingPersian() {
+        if (android.os.Build.VERSION.SDK_INT < 33) return
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        if (android.os.Build.VERSION.SDK_INT < 33) return
         val locales = context.getSystemService(LocaleManager::class.java)
-        MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
-        MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 3)
-        ActivityScenario.launch(MainActivity::class.java).use {
+        val previousLocales = locales.applicationLocales
+        val previousLanguage = MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE) ?: "auto"
+        val previousMigration = MmkvManager.decodeSettingsBool(AppConfig.PREF_APP_LOCALE_MIGRATED, false)
+        val previousPersianRevision = MmkvManager.decodeSettingsBool("dicode_persian_default_493", false)
         instrumentation.runOnMainSync {
-            MmkvManager.encodeSettings("dicode_persian_default_493", false)
-            MmkvManager.encodeSettings(AppConfig.PREF_LANGUAGE, "en")
-            AppLocaleManager.initialize(context)
-            assertEquals("fa", locales.applicationLocales[0].language)
-            AppLocaleManager.setApplicationLanguage("en")
-            AppLocaleManager.initialize(context)
-            assertEquals("en", locales.applicationLocales[0].language)
-            AppLocaleManager.setApplicationLanguage("fa")
-        }
+            try {
+                // Simulate the first handoff from legacy preferences, before an
+                // activity exists. 5.0.3 must preserve explicit English/Chinese,
+                // and an empty system-language locale list, even if 4.9.3's old
+                // Persian-default revision was never recorded.
+                for ((code, tag) in listOf("en" to "en", "zh-rCN" to "zh-CN", "fa" to "fa", "auto" to "")) {
+                    locales.applicationLocales = LocaleList.getEmptyLocaleList()
+                    MmkvManager.encodeSettings(AppConfig.PREF_APP_LOCALE_MIGRATED, false)
+                    MmkvManager.encodeSettings("dicode_persian_default_493", false)
+                    MmkvManager.encodeSettings(AppConfig.PREF_LANGUAGE, code)
+                    AppLocaleManager.initialize(context)
+                    assertEquals(code, tag, locales.applicationLocales.toLanguageTags())
+                    assertEquals(code, MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE))
+                    AppLocaleManager.initialize(context)
+                    assertEquals("Repeated initialization changed $code", tag, locales.applicationLocales.toLanguageTags())
+                }
+            } finally {
+                locales.applicationLocales = previousLocales
+                MmkvManager.encodeSettings(AppConfig.PREF_LANGUAGE, previousLanguage)
+                MmkvManager.encodeSettings(AppConfig.PREF_APP_LOCALE_MIGRATED, previousMigration)
+                MmkvManager.encodeSettings("dicode_persian_default_493", previousPersianRevision)
+            }
         }
     }
 }
