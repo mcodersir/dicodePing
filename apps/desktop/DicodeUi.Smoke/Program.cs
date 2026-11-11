@@ -169,7 +169,7 @@ foreach (var size in new[] { new Size(320,360), new Size(640,600) }) {
     setup.Show(); setup.Measure(size); setup.Arrange(new Rect(size));
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     if (!setup.GetVisualDescendants().OfType<ComboBox>().Any()) throw new Exception("Language/theme setup controls missing");
-    var complete = setup.FindControl<Button>("CompleteAppearanceSetup")!;
+    var complete = setup.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "CompleteAppearanceSetup");
     var origin = complete.TranslatePoint(new Point(0,0), setup)!.Value;
     if (origin.Y < 0 || origin.Y + complete.Bounds.Height > size.Height)
         throw new Exception("First-run Continue button was clipped below the viewport");
