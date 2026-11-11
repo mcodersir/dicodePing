@@ -1,5 +1,5 @@
 const fs=require('fs');const{chromium}=require('playwright');
-(async()=>{const browser=await chromium.launch({headless:true,args:['--no-sandbox']});try{
+(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE,headless:true,args:['--no-sandbox']});try{
  const source=fs.readFileSync('apps/android/app/src/main/assets/fox-browser.js','utf8');if(source!==fs.readFileSync('apps/desktop/ServiceLib/Resources/fox-browser.js','utf8'))throw Error('Bridge copies differ');
  const context=await browser.newContext(),page=await context.newPage();let messages=[],pending=null,requests=0;
  await page.exposeFunction('capture',async raw=>{const d=JSON.parse(raw);if(d.kind==='pending_session'){pending=d;return;}if(d.kind==='bridge_ready'){if(pending)await page.evaluate(d=>window.__dicodeFoxRestore(d.session_token,d.email),pending);return;}if(d.kind!=='auth_progress')messages.push(d);});

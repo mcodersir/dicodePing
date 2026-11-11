@@ -108,7 +108,15 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-save playwright@1.56.1
-      - run: npx playwright install --with-deps chromium
+      - name: Use the browser already installed on the runner
+        shell: bash
+        run: |
+          chrome=$(command -v google-chrome || command -v chromium || true)
+          if [ -n "$chrome" ]; then
+            echo "CHROMIUM_EXECUTABLE=$chrome" >> "$GITHUB_ENV"
+          else
+            npx playwright install chromium
+          fi
       - run: node scripts/verify-download-page.cjs
       - run: node scripts/verify-fox-browser.cjs
       - uses: actions/upload-artifact@v7

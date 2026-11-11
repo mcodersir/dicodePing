@@ -80,6 +80,8 @@ Environment.SetEnvironmentVariable("DICODE_DATA_DIR", Path.Combine(Path.GetTempP
 if (!AppManager.Instance.InitApp()) throw new Exception("Could not initialize layout fixture");
 foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(1180, 720) }) {
     var shell = new MainWindow { Width = size.Width, Height = size.Height, FlowDirection = Avalonia.Media.FlowDirection.RightToLeft };
+    var updateButton = shell.FindControl<Button>("btnNewUpdate")!;
+    updateButton.IsVisible = true; // Reproduce the reported overlap trigger.
     shell.FindControl<ContentControl>("contentStatusBarView")!.Content = new StatusBarView();
     shell.FindControl<Border>("preparationOverlay")!.IsVisible = false;
     shell.Show();
@@ -90,6 +92,18 @@ foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(11
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     Thread.Sleep(300); // Let the real page transition finish before capturing.
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    var toolbar = updateButton.GetVisualAncestors().OfType<WrapPanel>().First();
+    foreach (var button in toolbar.Children.OfType<Button>()) button.FontSize = 26;
+    shell.Measure(size); shell.Arrange(new Rect(size));
+    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    var rects = toolbar.Children.Where(c => c.IsVisible && c.Bounds.Width > 0).Select(c => {
+        var origin = c.TranslatePoint(new Point(0,0), shell) ?? throw new Exception("Detached header control");
+        return new Rect(origin, c.Bounds.Size);
+    }).ToArray();
+    for (var i = 0; i < rects.Length; i++)
+    for (var j = i + 1; j < rects.Length; j++)
+        if (rects[i].Intersects(rects[j])) throw new Exception($"Update toolbar overlaps at {size}");
+    Console.WriteLine($"PASS visible update button and large-font header at {size}");
     using var bitmap = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height));
     bitmap.Render(shell);
     bitmap.Save($"desktop-qa/home-{size.Width}-{size.Height}.png");
@@ -144,4 +158,14 @@ foreach (var dark in new[] { false, true }) {
     using var bitmap = new RenderTargetBitmap(new PixelSize(width,500)); bitmap.Render(fox);
     bitmap.Save($"desktop-qa/fox-{width}-{(rtl ? "rtl" : "ltr")}-{(dark ? "dark" : "light")}.png");
     fox.Close(); owner.Hide(); Console.WriteLine($"Rendered Fox page {width}px / {(rtl ? "rtl" : "ltr")} / {(dark ? "dark" : "light")}");
+}
+
+foreach (var size in new[] { new Size(320,360), new Size(640,600) }) {
+    var setup = new AppearanceSetupWindow(() => {}) { Width = size.Width, Height = size.Height };
+    setup.Show(); setup.Measure(size); setup.Arrange(new Rect(size));
+    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    if (!setup.GetVisualDescendants().OfType<ComboBox>().Any()) throw new Exception("Language/theme setup controls missing");
+    using var image = new RenderTargetBitmap(new PixelSize((int)size.Width,(int)size.Height));
+    image.Render(setup); image.Save($"desktop-qa/appearance-503-{size.Width}.png");
+    setup.Close();
 }
