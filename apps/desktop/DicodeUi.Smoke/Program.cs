@@ -92,7 +92,7 @@ foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(11
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     Thread.Sleep(300); // Let the real page transition finish before capturing.
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-    var toolbar = updateButton.GetVisualAncestors().OfType<WrapPanel>().First();
+    var toolbar = shell.FindControl<StackPanel>("headerTools")!;
     foreach (var button in toolbar.Children.OfType<Button>()) button.FontSize = 26;
     shell.Measure(size); shell.Arrange(new Rect(size));
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -103,6 +103,10 @@ foreach (var size in new[] { new Size(320, 360), new Size(640, 360), new Size(11
     for (var i = 0; i < rects.Length; i++)
     for (var j = i + 1; j < rects.Length; j++)
         if (rects[i].Intersects(rects[j])) throw new Exception($"Update toolbar overlaps at {size}");
+    var header = shell.FindControl<Border>("mainHeader")!;
+    var updateOrigin = updateButton.TranslatePoint(new Point(0,0), header)!.Value;
+    if (updateOrigin.Y < 0 || updateOrigin.Y + updateButton.Bounds.Height > header.Bounds.Height)
+        throw new Exception($"Visible update button was vertically clipped at {size}");
     Console.WriteLine($"PASS visible update button and large-font header at {size}");
     using var bitmap = new RenderTargetBitmap(new PixelSize((int)size.Width, (int)size.Height));
     bitmap.Render(shell);
@@ -165,6 +169,10 @@ foreach (var size in new[] { new Size(320,360), new Size(640,600) }) {
     setup.Show(); setup.Measure(size); setup.Arrange(new Rect(size));
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     if (!setup.GetVisualDescendants().OfType<ComboBox>().Any()) throw new Exception("Language/theme setup controls missing");
+    var complete = setup.FindControl<Button>("CompleteAppearanceSetup")!;
+    var origin = complete.TranslatePoint(new Point(0,0), setup)!.Value;
+    if (origin.Y < 0 || origin.Y + complete.Bounds.Height > size.Height)
+        throw new Exception("First-run Continue button was clipped below the viewport");
     using var image = new RenderTargetBitmap(new PixelSize((int)size.Width,(int)size.Height));
     image.Render(setup); image.Save($"desktop-qa/appearance-503-{size.Width}.png");
     setup.Close();

@@ -47,7 +47,9 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <WrapPanel Grid.Column="0" HorizontalAlignment="Left" Orientation="Horizontal">
+                    <ScrollViewer x:Name="headerToolsViewport" Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="headerTools" Orientation="Horizontal">
+                        <Button x:Name="btnNewUpdate" Margin="4" Content="{x:Static resx:ResUI.menuNewUpdate}" IsVisible="False" />
                         <Button Margin="4" Content="···" ToolTip.Tip="{x:Static resx:ResUI.menuServers}">
                             <Button.Flyout><Flyout><StackPanel Spacing="8" MaxWidth="300">
                                 <Button x:Name="btnProxyChain" HorizontalAlignment="Stretch" Content="{x:Static resx:ResUI.menuAddProxyChainServer}" />
@@ -84,9 +86,8 @@
                                 <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{x:Static resx:ResUI.DicodeRefresh}" />
                             </StackPanel>
                         </Button>
-                        <Button x:Name="btnNewUpdate" Margin="4" Content="{x:Static resx:ResUI.menuNewUpdate}" IsVisible="False" />
                         <ContentControl x:Name="conTheme" Margin="4" />
-                    </WrapPanel>
+                    </StackPanel></ScrollViewer>
 
                     <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsRefreshing}"><StackPanel Spacing="6"><TextBlock Text="{Binding RefreshStatus}" TextWrapping="Wrap" FontSize="12" Opacity="0.75" /><ProgressBar IsIndeterminate="True" Height="3" /></StackPanel><Button Grid.Column="1" Command="{Binding CancelRefreshCmd}" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" /></Grid>
 

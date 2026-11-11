@@ -40,7 +40,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         btnNativeMethods.Content = FoxUi.T("روش‌های اتصال", "Connection methods");
         SizeChanged += (_, e) => {
             var compact = e.NewSize.Width < 900;
-            brandHeader.IsVisible = e.NewSize.Width >= 600;
+            brandHeader.IsVisible = e.NewSize.Width >= 900;
             Classes.Set("compact", compact);
             navRail.Width = compact ? 48 : 196;
             mainHeader.MaxHeight = e.NewSize.Height < 500 ? 96 : 130;
