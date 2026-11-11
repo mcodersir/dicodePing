@@ -37,6 +37,7 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
     public MainWindow()
     {
         InitializeComponent();
+        btnNativeMethods.Content = FoxUi.T("روش‌های اتصال", "Connection methods");
         SizeChanged += (_, e) => {
             var compact = e.NewSize.Width < 900;
             brandHeader.IsVisible = e.NewSize.Width >= 600;

@@ -12,7 +12,24 @@ import (
 	"dicodeping/fox/internal/logx"
 )
 
-const upstreamSessionRetryDelay = 10 * time.Second
+const (
+	upstreamSessionHealthInterval = 500 * time.Millisecond
+	upstreamSessionRetryDelay = 10 * time.Second // upper bound, not the first delay
+)
+
+// Quick initial retries cover a short route transition; sustained failures
+// still back off to avoid hammering the endpoint. Slots are staggered.
+func poolRetryDelay(attempt, slot int) time.Duration {
+	delay := 500 * time.Millisecond
+	for i := 1; i < attempt && delay < upstreamSessionRetryDelay; i++ {
+		delay *= 2
+	}
+	delay += time.Duration(slot % 5) * 37 * time.Millisecond
+	if delay > upstreamSessionRetryDelay {
+		return upstreamSessionRetryDelay
+	}
+	return delay
+}
 
 type pooledProxySession struct {
 	mu      sync.Mutex
@@ -79,7 +96,38 @@ func newProxySessionPool(size int, create func() (proxySession, error), setCreat
 	} else {
 		logx.Info("upstream proxy session pool established size=%d affinity=client-ip failover=enabled", successes)
 	}
+	go pool.watchHealth()
 	return pool, nil
+}
+
+// Keep the warm standby pool warm after keepalive has detected a dead socket,
+// even while clients wait before retrying. This only reads liveness state: it
+// sends no probes, opens no extra slots and leaves live streams untouched.
+func (p *proxySessionPool) watchHealth() {
+	ticker := time.NewTicker(upstreamSessionHealthInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-p.done:
+			return
+		case <-ticker.C:
+			for i := range p.sessions {
+				pooled := p.slot(i)
+				if pooled == nil {
+					continue
+				}
+				pooled.mu.Lock()
+				dead := !pooled.retired && pooled.session != nil && !isSessionAlive(pooled.session)
+				if dead {
+					pooled.healthy = false
+				}
+				pooled.mu.Unlock()
+				if dead {
+					p.retireSlot(i, pooled)
+				}
+			}
+		}
+	}
 }
 
 func newPooledProxySession(session proxySession) *pooledProxySession {
@@ -293,6 +341,8 @@ func (p *proxySessionPool) retireSlot(i int, expected *pooledProxySession) {
 }
 
 func (p *proxySessionPool) replenishSlot(i int) {
+	started := time.Now()
+	attempts := 0
 	for {
 		p.mu.Lock()
 		if p.closed || i < 0 || i >= len(p.sessions) || p.sessions[i] != nil {
@@ -301,10 +351,11 @@ func (p *proxySessionPool) replenishSlot(i int) {
 		}
 		p.mu.Unlock()
 
+		attempts++
 		session, err := p.create()
 		if err != nil {
 			logx.Warn("replenishing upstream session failed slot=%d err=%s", i+1, logx.Err(err))
-			if !p.waitOrClosed(upstreamSessionRetryDelay) {
+			if !p.waitOrClosed(poolRetryDelay(attempts, i)) {
 				return
 			}
 			continue
@@ -312,7 +363,7 @@ func (p *proxySessionPool) replenishSlot(i int) {
 		if err := p.applyCurrentToken(session); err != nil {
 			_ = session.Close()
 			logx.Warn("applying renewed token to replenished upstream session failed slot=%d err=%s", i+1, logx.Err(err))
-			if !p.waitOrClosed(upstreamSessionRetryDelay) {
+			if !p.waitOrClosed(poolRetryDelay(attempts, i)) {
 				return
 			}
 			continue
@@ -327,7 +378,7 @@ func (p *proxySessionPool) replenishSlot(i int) {
 		}
 		p.sessions[i] = pooled
 		p.mu.Unlock()
-		logx.Info("upstream proxy session replenished slot=%d", i+1)
+		logx.Info("upstream proxy session replenished slot=%d attempts=%d recovery_ms=%d", i+1, attempts, time.Since(started).Milliseconds())
 		return
 	}
 }

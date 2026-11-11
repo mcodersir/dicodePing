@@ -51,7 +51,7 @@
                         <Button Margin="4" Content="···" ToolTip.Tip="{x:Static resx:ResUI.menuServers}">
                             <Button.Flyout><Flyout><StackPanel Spacing="8" MaxWidth="300">
                                 <Button x:Name="btnProxyChain" HorizontalAlignment="Stretch" Content="{x:Static resx:ResUI.menuAddProxyChainServer}" />
-                                <Button HorizontalAlignment="Stretch" Content="روش‌های اتصال" Click="OpenNativeMethods" />
+                                <Button x:Name="btnNativeMethods" HorizontalAlignment="Stretch" Click="OpenNativeMethods" />
                                 <Button HorizontalAlignment="Stretch" Content="{x:Static resx:ResUI.DicodeEntryTitle}" Click="OpenEntryHop" />
                             </StackPanel></Flyout></Button.Flyout>
                         </Button>

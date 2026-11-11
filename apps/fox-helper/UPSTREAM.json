@@ -186,7 +186,8 @@
     "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960",
     "controlplane/headers.go": "d58283e893266992aed864145c38d0ab35892c3739de0b221a18d599dbb2886f",
     "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13",
-    "proxy/proxypass.go": "30862601fd72fc3fd9740c51f43b942825c3f7b16d23d0cc471cb03ff914d53f"
+    "proxy/proxypass.go": "30862601fd72fc3fd9740c51f43b942825c3f7b16d23d0cc471cb03ff914d53f",
+    "proxy/pool.go": "09bf6b11e118888b67b57d1df136ee2bb3b6f56c3d03857c0bf63e010d2f05f1"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."
