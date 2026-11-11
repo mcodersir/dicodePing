@@ -831,7 +831,7 @@
     <string name="fox_title">Fox</string>
     <string name="fox_hint">Unofficial Firefox VPN connection using your account. Mozilla controls eligibility, locations and allowance, usually up to 50 GB/month for eligible accounts. Passwords are never stored.</string>
     <string name="fox_accounts">Select account</string>
-    <string name="fox_quota_unknown">The provider has not reported an allowance yet.</string>
+    <string name="fox_quota_unknown">Unlimited · allowance not reported by the provider.</string>
     <string name="fox_location">Location · REC selects the first reachable route</string>
     <string name="fox_email">Mozilla account email</string>
     <string name="fox_password">Password · never saved</string>

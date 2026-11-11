@@ -819,7 +819,7 @@
     <string name="fox_title">روباه</string>
     <string name="fox_hint">اتصال غیررسمی Firefox VPN با حساب شما. دسترسی، موقعیت‌ها و سهمیه را Mozilla تعیین می‌کند؛ معمولاً تا ۵۰ گیگابایت در ماه برای حساب واجد شرایط. رمز عبور ذخیره نمی‌شود.</string>
     <string name="fox_accounts">انتخاب حساب</string>
-    <string name="fox_quota_unknown">سهمیه هنوز توسط سرویس گزارش نشده است.</string>
+    <string name="fox_quota_unknown">نامحدود · سهمیه از سرویس دریافت نشده است.</string>
     <string name="fox_location">موقعیت · REC یعنی اولین مسیر قابل دسترس</string>
     <string name="fox_email">ایمیل حساب Mozilla</string>
     <string name="fox_password">رمز عبور · ذخیره نمی‌شود</string>

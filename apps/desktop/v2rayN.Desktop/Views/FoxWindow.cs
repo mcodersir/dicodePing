@@ -40,7 +40,7 @@ public static class FoxUi
     {
         var maximum = account.Info["quota_max"]?.GetValue<long>(); var remaining = account.Info["quota_remaining"]?.GetValue<long>();
         var allowance = FoxQuota.From(maximum, remaining);
-        var text = account.Info["quota_unlimited"]?.GetValue<bool>() == true ? T("نامحدود", "Unlimited") : allowance is not { } quota ? T("سهمیه هنوز توسط سرویس گزارش نشده است.", "The provider has not reported an allowance yet.")
+        var text = account.Info["quota_unlimited"]?.GetValue<bool>() == true ? T("نامحدود", "Unlimited") : allowance is not { } quota ? T("نامحدود · سهمیه از سرویس دریافت نشده است.", "Unlimited · allowance not reported by the provider.")
             : T($"مصرف‌شده: {quota.Used / 1e9:0.##} GB · باقی‌مانده: {quota.Remaining / 1e9:0.##} از {quota.Maximum / 1e9:0.##} GB", $"Used: {quota.Used / 1e9:0.##} GB · Remaining: {quota.Remaining / 1e9:0.##} of {quota.Maximum / 1e9:0.##} GB");
         if (account.Info["quota_reset"]?.GetValue<long>() is > 0 and <= 253402300799L and var reset) text += " · " + T("بازنشانی: ", "Reset: ") + FoxDates.Format(DateTimeOffset.FromUnixTimeSeconds(reset).ToLocalTime());
         return text;
