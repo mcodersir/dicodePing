@@ -24,8 +24,18 @@ with tempfile.TemporaryDirectory(prefix='dicode-update-') as tmp:
   subprocess.run([str(updater),str(archive)],cwd=install,check=True,timeout=45)
   marker=install/'update-restarted.txt'
   deadline=time.monotonic()+10
-  while not marker.exists() and time.monotonic()<deadline:time.sleep(.2)
-  assert marker.read_text()=='updated'
+  # The restarted process creates the marker before File.WriteAllText has
+  # finished writing it. Existence alone races with the child's first write,
+  # especially on Windows; wait for the actual completion signal.
+  observed = None
+  while time.monotonic() < deadline:
+   try:
+    observed = marker.read_text()
+   except (FileNotFoundError, PermissionError):
+    observed = None
+   if observed == 'updated':break
+   time.sleep(.2)
+  assert observed == 'updated', f'Restarted app did not complete its marker write: {observed!r}'
   if prefix.endswith('MacOS/'):assert (install.parent/'Info.plist').read_text()=='new-metadata'
   assert (install/'bin/core-version.txt').read_text()=='new'
   assert (install/'guiConfigs/account.json').read_text()=='retained-account'
