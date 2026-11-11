@@ -31,9 +31,10 @@ public sealed class AppearanceSetupWindow : Window
                 var selected = languages[Math.Max(0, language.SelectedIndex)].Value;
                 config.UiItem.CurrentLanguage = selected;
                 config.UiItem.CurrentTheme = theme.SelectedIndex switch { 1 => "Light", 2 => "Dark", _ => "FollowSystem" };
-                await ConfigHandler.SaveConfig(config);
+                if (await ConfigHandler.SaveConfig(config) != 0) throw new IOException("Could not persist appearance preferences.");
                 CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(selected);
                 CultureInfo.CurrentUICulture = new CultureInfo(selected);
+                ServiceLib.Resx.ResUI.Culture = CultureInfo.CurrentUICulture;
                 await File.WriteAllTextAsync(MarkerPath, "5.0.3");
                 completed();
                 Close();

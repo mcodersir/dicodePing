@@ -13,13 +13,12 @@ public class WindowBase<TViewModel> : ReactiveWindow<TViewModel> where TViewMode
             }
         };
 
-        // Persian reads right-to-left; every other bundled language is LTR.
-        // Layout containers (grids, stacks) mirror with the flow direction, so
-        // navigation rails land on the visual right only for Persian users.
+        // Respect the selected script, including Arabic, Pashto and Bakhtiari Luri.
         try
         {
             var language = AppManager.Instance.Config?.UiItem?.CurrentLanguage;
-            FlowDirection = string.Equals(language, "fa", StringComparison.OrdinalIgnoreCase)
+            FlowDirection = language is not null && (new System.Globalization.CultureInfo(language).TextInfo.IsRightToLeft
+                || language.Split('-')[0] is "fa" or "ar" or "ps" or "bqi" or "ckb")
                 ? FlowDirection.RightToLeft
                 : FlowDirection.LeftToRight;
         }

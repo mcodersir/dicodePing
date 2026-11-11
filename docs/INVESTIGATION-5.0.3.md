@@ -10,7 +10,7 @@ Android AppLocaleManager replaced explicit Chinese and system-language choices w
 
 The supplied DicodePing-diagnostics-20261109-223250(1).zip identifies Windows 4.9.991, not Android 5.0.2. Its three log files contain 87 net_http_connect_timedout messages and no FwpmTransactionCommit0 message. The separately quoted WFP failure prevents Xray TUN startup; a numeric WFP error, core version, and isolated Windows reproduction are needed to identify the faulty object lifetime. Disabling strict-route leak protection is not a verified correction.
 
-## Pending acceptance work
+## Original acceptance checklist (see RELEASE-5.0.3.md and CI for current status)
 
 - Reproduce and correct Windows WFP object lifecycle with leak protection retained.
 - Verify Android Fox socket protection, upstream recovery and measured throughput on a device.
