@@ -138,7 +138,7 @@ internal fun FoxScreen(isRunning: Boolean, onDismiss: () -> Unit, onChanged: () 
                         Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text(if (fa) "سهمیهٔ روباه" else "Fox allowance", style = MaterialTheme.typography.titleSmall)
-                                if (allowance == null) Text(stringResource(R.string.fox_quota_unknown), style = MaterialTheme.typography.bodySmall)
+                                if (allowance == null) Text(if (account.info.optBoolean("quota_unlimited", false)) (if (fa) "نامحدود" else "Unlimited") else stringResource(R.string.fox_quota_unknown), style = MaterialTheme.typography.bodySmall)
                                 else {
                                     LinearProgressIndicator(progress = { allowance.fraction }, modifier = Modifier.fillMaxWidth().height(10.dp), color = if (allowance.fraction >= 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest, strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
                                     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

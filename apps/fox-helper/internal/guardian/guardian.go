@@ -55,7 +55,7 @@ func fetchProxyPass(ctx context.Context, endpoint, accessToken string) (*ProxyPa
 	}
 	applyGuardianHeaders(req, accessToken)
 
-	resp, err := controlplane.Do(req)
+	resp, err := do(req)
 	if err != nil {
 		return nil, fmt.Errorf("guardian request failed: %w", err)
 	}
@@ -111,7 +111,7 @@ func fetchProxyUsage(ctx context.Context, method, endpoint, accessToken string) 
 	}
 	applyGuardianHeaders(req, accessToken)
 
-	resp, err := controlplane.Do(req)
+	resp, err := do(req)
 	if err != nil {
 		return nil, fmt.Errorf("guardian usage request failed: %w", err)
 	}
@@ -135,7 +135,7 @@ func fetchUserInfo(ctx context.Context, endpoint, accessToken string) (*Entitlem
 	}
 	applyGuardianHeaders(req, accessToken)
 
-	resp, err := controlplane.Do(req)
+	resp, err := do(req)
 	if err != nil {
 		return nil, fmt.Errorf("guardian user info request failed: %w", err)
 	}
@@ -164,7 +164,7 @@ func activateGuardian(ctx context.Context, endpoint, accessToken string) (*Entit
 	}
 	applyGuardianHeaders(req, accessToken)
 
-	resp, err := controlplane.Do(req)
+	resp, err := do(req)
 	if err != nil {
 		return nil, fmt.Errorf("guardian activate request failed: %w", err)
 	}

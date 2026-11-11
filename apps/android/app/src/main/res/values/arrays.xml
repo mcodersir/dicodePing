@@ -139,6 +139,8 @@
         <item>عربي</item>
         <item>বাংলা</item>
         <item>لۊری بختیاری</item>
+        <item>Türkçe</item><item>Kurdî</item><item>پښتو</item><item>日本語</item>
+        <item>简体中文</item><item>繁體中文</item>
     </string-array>
 
 
@@ -151,6 +153,8 @@
         <item>ar</item>
         <item>bn</item>
         <item>bqi-rIR</item>
+        <item>tr</item><item>ku</item><item>ps</item><item>ja</item>
+        <item>zh-rCN</item><item>zh-rTW</item>
     </string-array>
 
     <string-array name="mux_xudp_quic_value" translatable="false">

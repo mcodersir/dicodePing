@@ -10,6 +10,11 @@ public static class WindowsTunRuntime
             || (message.Contains("already exists", StringComparison.OrdinalIgnoreCase)
                 && message.Contains("Element not found", StringComparison.OrdinalIgnoreCase)));
 
+    public static bool IsWfpObjectInUseFailure(string message) =>
+        message.Contains("FwpmTransactionCommit0 failed", StringComparison.OrdinalIgnoreCase)
+        && (message.Contains("referenced by other objects", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("0x8032000a", StringComparison.OrdinalIgnoreCase));
+
     public static bool PrepareRetry(string configPath)
     {
         var root = JsonNode.Parse(File.ReadAllText(configPath))?.AsObject();

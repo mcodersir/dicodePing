@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/armanlife/arman-vpn-client",
-  "tag": "v1.0.14",
-  "commit": "fe76e2c68e412e938032536121c1f975dedcbf32",
+  "tag": "v1.0.18",
+  "commit": "405f412fa28c0f56bd2a0d85617558e7216d6b05",
   "files": {
     "resolver/race_test.go": "6dde3e2717b0ece9cf55c666174259ffc332419cd0305e8b8ed68b82d7d1da0f",
     "resolver/through_test.go": "310e0ed364fa476c02f7360d9fac2c0ccfba1808efcbeae5d0f46c3b8e8fe9eb",
@@ -36,8 +36,8 @@
     "guardian/usage.go": "468f2e23e006257e1d63633fb01f8ca5b8d5d14396548e633ff63073788c9829",
     "guardian/pass.go": "6e788edcc230856e520f7ec90541c671a5f0df9b4f0ae8d6d717a7d3b7a5532c",
     "guardian/errors_test.go": "378c7ca9132de427f470762f25d63ab33ed93d16e6e13c2d84e60dd8266a5d58",
-    "guardian/guardian_test.go": "cc19b08596d6b772fc625809e3a4b284ede8b7e4ea4c92ac08fea59b91acc114",
-    "guardian/guardian.go": "952faad98c572d70e7847d728bf27fca6d79ea6d7b97fb7cea8901406968fc0f",
+    "guardian/guardian_test.go": "d9c943a478e0e8b5b9c718a388078470b2d36e69c29fcda317b1576e92a20a54",
+    "guardian/guardian.go": "222fa25b57fb0f69c62bb99fb624ae823fac721b37eb5ae2dfaad469bce7a12d",
     "guardian/errors.go": "83d8778c9b6c69bbfca1f047fe372e2e8bb1d27701f7bf8dab63c21cc5c9c6b6",
     "guardian/pass_test.go": "cb6e8532ad0f92b2c86cea5dc2ac770c7aada80a87148dd1e7f8c25d3c6ef1f0",
     "proxy/exitprobe_test.go": "5a7af1359cbbb9cb89f6b6dc054b68cb374e83c299210f34d0736826766ff72c",
@@ -109,9 +109,9 @@
     "proxy/status.go": "4cf03125ff38d599dbcd81c2ce13cf9973f4541473b26d0a1838c99888864d93",
     "proxy/options.go": "b842e62eb3e2b629ff1eac390f9064fd63530f757ebfb18849049ecf38fc2803",
     "proxy/upstream_h1_test.go": "ae463a40327091cdb3e27dada4d195e12a75288a742fd5223849d2d1779025e7",
-    "proxy/proxypass_test.go": "c72efcce0ae774385c97362edb1a1ca882bb82714b50c320629f9653dfac0893",
+    "proxy/proxypass_test.go": "2d977e2020241e85ccb7f385f7cfd326c2ef72ab7a4a62e5c3abe8faabd20da0",
     "proxy/accounts_test.go": "a3ee45dd7f81b23c22c4101bea3fabc03fbbc2de1ce3f112b94e7e02af6caf7c",
-    "proxy/proxypass.go": "deabbcd317b881b6125ca7fce9aee1fedfff60dd0b39458031046a13f427fd74",
+    "proxy/proxypass.go": "6363c347f86fabaaa34f84c778e8146fcaf203e1ff6cbda277043ffda3aaacb8",
     "proxy/ping_test.go": "7235e7f2362aa3cbc874ff35f5cbd25ace3011b4f9f57b142f60304c5637e452",
     "proxy/http_proxy_test.go": "91b39263748fdec67c06fc7c5c60729acaaeb3f0aa8d0d70f7f1b045fa0774c9",
     "fxa/normalize.go": "f2d81f960fbe0acbd15717b8d51b3ffcd2afc936b88656c327026daf47a15fac",
@@ -131,7 +131,7 @@
     "fxa/hawk.go": "5c4e4e76245248f8721ee2e310aab89be74c4404930f91616335e51e90287cdc",
     "controlplane/headers_test.go": "960eb59760335cfb1778ad8e679b72b6da8ff8be55eb98adfe8e3ca1c567353d",
     "controlplane/client_test.go": "59f0c5b68cd74a16bf6ad460929282535bdae5187417966e1cfde110a0da783d",
-    "controlplane/client.go": "47da3d439130112ee71ec05ebc674d5831360bb1a249eddfe90cfb1debab1be7",
+    "controlplane/client.go": "5ef8c0334d7f0ebb2589cbe80926ca15e4b80b0d253466a9fd343d155f5e72a3",
     "controlplane/headers.go": "276cd5fd54b60f3917356d40716bb196a5ca921881eb1521756fc8cdb1ad41dc",
     "egress/egress_linux_test.go": "682c1ebb2bc0a314101d65be43bddcf97ed27422ceea536a5f5105d62c49181c",
     "egress/egress_darwin_test.go": "9a52c51bf16cf04bb8734a8eab752fcd087538c1e1f670e2df1c53e0fec90236",
@@ -167,7 +167,9 @@
     "logx/email_test.go": "948e58359343f404503538cfcc60cf822af1f90fefd85f24db5d88eaf774511a",
     "logx/file_test.go": "69a539b0ece19c1aed24c930bf56000a2ae0cd8d45f06e497b24422f532e72ac",
     "logx/open_other.go": "9139efc8e37af2d529fd8a2413ef91d0d658e60ad9f063d53d97e23accc9369b",
-    "fxa/challenge_cookies_test.go": "fa6899fa7ba01d3173a79795a6059d76294fa97e4f579c9ed884a6caded2913c"
+    "fxa/challenge_cookies_test.go": "fa6899fa7ba01d3173a79795a6059d76294fa97e4f579c9ed884a6caded2913c",
+    "guardian/region_recovery.go": "bff6848760cfbc79c52e9fe2db678e261459ac1fbbc7d2999c79ef22eec73a08",
+    "guardian/region_recovery_test.go": "54bc433f907c27b44d1e7b1241f26265bbe9019a2c3bb4bf9bafe808a4aa0083"
   },
   "adaptations": [
     "Platform certificate roots for both upstream HTTP/1.1 and direct HTTP/2 TLS paths on Android.",
@@ -176,17 +178,17 @@
     "PR #79 browser fetch metadata on every control-plane and challenge call, guarded Mozilla origin headers and shared cookies API."
   ],
   "adapted_files": {
-    "controlplane/client.go": "654d55da61667710b6d115a023a28585840dcdc4be61f10a776475560b56242e",
+    "controlplane/client.go": "08467eddc4a6c1fbe85252bbee4a54cf9cc7073b686d34808ca15bad6da9bb8d",
     "egress/egress.go": "1fdd265ab936ca1fd88fbcff1a19b8638840e39d326b9688a024c2c47e4662a5",
     "fxa/fxa.go": "e52155f27b72a26b74f2963bd868b3f11d3f9c20116d70ea7e93f0dfaef73572",
     "fxa/signin_test.go": "783fd843088821d2339fe55c0035bc58435fcf91bd543ee326c270c754b8f06d",
     "fxa/oauth_code.go": "f55924184f3ca34f1124789d4e11ce46570254835fb29460f5b3dd9427301673",
-    "fxa/challenge_test.go": "a4338777e31940a64731b2268443ca1c3631a6c3239bf5e487e181842cc7b9a6",
-    "fxa/challenge_cookies_test.go": "0508d14e8c05f9725c6666cfe98364f5141ec48f4562d005efceec0fa165aecc",
-    "fxa/challenge.go": "e493a720517bb772f0fdb4de473a4a931201b629f25f397ef5e743736fb7b2df",
     "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960",
     "controlplane/headers.go": "d58283e893266992aed864145c38d0ab35892c3739de0b221a18d599dbb2886f",
-    "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13"
+    "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13",
+    "guardian/guardian_test.go": "7908b00a41c87713ec6cbb5789d09327427d8c3c5c820ee22b8e447320fe0ef6",
+    "proxy/proxypass_test.go": "376fddc7b8f78d2de05d794bbf5cfb7e8ab49500ed4367451eaacb45fa4572e5",
+    "proxy/proxypass.go": "30862601fd72fc3fd9740c51f43b942825c3f7b16d23d0cc471cb03ff914d53f"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."

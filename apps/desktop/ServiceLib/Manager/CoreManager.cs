@@ -534,10 +534,15 @@ public class CoreManager
             }
 
             try { return await RunProcessNormal(fileName, coreInfo, configPath, displayLog, isTunLaunch); }
-            catch (Exception startup) when (Utils.IsWindows() && isTunLaunch && coreInfo.CoreType == ECoreType.sing_box
-                && WindowsTunRuntime.IsMissingInterfaceFailure(startup.Message)) {
+            catch (Exception startup) when (Utils.IsWindows() && isTunLaunch
+                && ((coreInfo.CoreType == ECoreType.sing_box && WindowsTunRuntime.IsMissingInterfaceFailure(startup.Message))
+                    || (coreInfo.CoreType == ECoreType.Xray && WindowsTunRuntime.IsWfpObjectInUseFailure(startup.Message)))) {
+                // RunProcessNormal has already stopped and disposed the failed process.
+                // Allow BFE to release its dynamic objects before ONE clean restart.
+                // Keep strict-route/WFP protection intact; a persistent failure remains an error.
                 if (!WindowsTunRuntime.PrepareRetry(Utils.GetBinConfigPath(configPath))) throw;
-                Logging.SaveLog("TUN adapter was not registered; retrying once with a fresh DicodePing-owned interface.");
+                Logging.SaveLog("TUN startup recovery: failed process stopped; retry=1/1; leak protection retained; fresh owned interface.");
+                await Task.Delay(1000);
                 return await RunProcessNormal(fileName, coreInfo, configPath, displayLog, isTunLaunch);
             }
         }

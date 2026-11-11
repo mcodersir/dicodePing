@@ -26,10 +26,16 @@ public partial class App : Application
                 DataContext = StatusBarViewModel.Instance;
             }
 
-            var mainWindowViewModel = new MainWindowViewModel();
-            var mainWindow = (MainWindow)viewLocator.Build(mainWindowViewModel);
-            mainWindow.ViewModel = mainWindowViewModel;
-            desktop.MainWindow = mainWindow;
+            void CreateMainWindow(bool show) {
+                var mainWindowViewModel = new MainWindowViewModel();
+                var mainWindow = (MainWindow)viewLocator.Build(mainWindowViewModel);
+                mainWindow.ViewModel = mainWindowViewModel;
+                desktop.MainWindow = mainWindow;
+                if (show) mainWindow.Show();
+            }
+            if (!Design.IsDesignMode && !System.IO.File.Exists(AppearanceSetupWindow.MarkerPath))
+                desktop.MainWindow = new AppearanceSetupWindow(() => CreateMainWindow(true));
+            else CreateMainWindow(false);
 
             if (OperatingSystem.IsMacOS())
             {

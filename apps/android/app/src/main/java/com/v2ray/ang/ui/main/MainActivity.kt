@@ -113,6 +113,10 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (MmkvManager.decodeSettingsBool(APPEARANCE_SETUP_503, false)) startAfterAppearanceSetup()
+    }
+
+    private fun startAfterAppearanceSetup() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestStartupNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -129,6 +133,17 @@ class MainActivity : HelperBaseComponentActivity() {
 
     @Composable
     override fun ScreenContent() {
+        val setupComplete = remember { mutableStateOf(MmkvManager.decodeSettingsBool(APPEARANCE_SETUP_503, false)) }
+        if (!setupComplete.value) {
+            AppearanceSetup { language, theme ->
+                com.v2ray.ang.ui.compose.ThemeManager.setThemeMode(theme)
+                MmkvManager.encodeSettings(APPEARANCE_SETUP_503, true)
+                setupComplete.value = true
+                com.v2ray.ang.handler.AppLocaleManager.setApplicationLanguage(language)
+                startAfterAppearanceSetup()
+            }
+            return
+        }
         val promptCount = remember {
             MmkvManager.decodeSettingsInt(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 0)
         }
