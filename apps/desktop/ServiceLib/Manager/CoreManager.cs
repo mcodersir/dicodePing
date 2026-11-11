@@ -108,6 +108,7 @@ public class CoreManager
         }
 
         var node = mainContext.Node;
+        Logging.SaveLog($"Core session={Guid.NewGuid():N} version={typeof(CoreManager).Assembly.GetName().Version} core={mainContext.RunCoreType} tun={mainContext.IsTunEnabled} requested_port={mainContext.RequestedLocalPort} actual_port={mainContext.AppConfig.Inbound.FirstOrDefault()?.LocalPort}");
         var fileName = Utils.GetBinConfigPath(Global.CoreConfigFileName);
         var result = await CoreConfigHandler.GenerateClientConfig(mainContext, fileName);
         if (result.Success != true)

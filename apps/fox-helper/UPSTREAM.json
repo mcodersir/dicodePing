@@ -186,8 +186,6 @@
     "proxy/socks.go": "a3d51728d6447d873a811f02ea3ea8aa6703335ac43d63f6645efe6c32aff960",
     "controlplane/headers.go": "d58283e893266992aed864145c38d0ab35892c3739de0b221a18d599dbb2886f",
     "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13",
-    "guardian/guardian_test.go": "7908b00a41c87713ec6cbb5789d09327427d8c3c5c820ee22b8e447320fe0ef6",
-    "proxy/proxypass_test.go": "376fddc7b8f78d2de05d794bbf5cfb7e8ab49500ed4367451eaacb45fa4572e5",
     "proxy/proxypass.go": "30862601fd72fc3fd9740c51f43b942825c3f7b16d23d0cc471cb03ff914d53f"
   },
   "excluded_files": {

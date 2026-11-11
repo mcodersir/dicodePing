@@ -34,7 +34,7 @@ def rebuild(item):
   assert after.infolist()[0].filename=='AndroidManifest.xml'
   assert after.getinfo('AndroidManifest.xml').compress_type==0 and after.getinfo('resources.arsc').compress_type==0
  badging=subprocess.run([str(TOOLS/'aapt2'),'dump','badging',str(target)],check=True,capture_output=True,text=True).stdout
- assert "versionName='5.0.2'" in badging and "versionCode='55000200'" in badging
+ assert "versionName='5.0.3'" in badging and "versionCode='55000300'" in badging
  print('PASS canonical ZIP, identical application payload, same signing key and V1/V2/V3:',name,flush=True)
  unsigned.unlink();aligned.unlink()
  return {'name':name,'original_sha256':expected,'sha256':sha(target),'size':target.stat().st_size}

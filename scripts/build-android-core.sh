@@ -13,7 +13,7 @@ cp "$project_root/scripts/patches/libv2ray_dicode_health_test.go.txt" "$native_r
 # directly, including before the UI has copied them into the user asset folder.
 python "$project_root/scripts/stage-android-geodata.py"
 cd "$native_root"
-go mod edit -replace=github.com/xtls/xray-core=github.com/patterniha/xray-core@9bcf269d4af6179bc83d10e1e7ef8739d5325559
+go mod edit -replace=github.com/xtls/xray-core=github.com/patterniha/xray-core@d62d360e12773a543554c980f3c79553b24456a1
 go mod tidy
 go test -timeout 120s ./...
 # Match the module's pinned mobile bindings instead of installing an unbounded latest tool.

@@ -13,6 +13,7 @@ object DiagnosticArchive {
     private val lock = Any()
     fun initialize(context: Context) {
         directory = File(context.filesDir, "diagnostics").apply { mkdirs() }
+        append("SESSION_START id=${java.util.UUID.randomUUID().toString().take(8)} version=${BuildConfig.VERSION_NAME} code=${BuildConfig.VERSION_CODE} sdk=${Build.VERSION.SDK_INT} abi=${Build.SUPPORTED_ABIS.firstOrNull()}")
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             append("FATAL ${thread.name}: ${error.stackTraceToString()}")

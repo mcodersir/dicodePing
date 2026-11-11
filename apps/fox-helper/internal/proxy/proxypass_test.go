@@ -54,16 +54,22 @@ func TestFetchProxyPassRetriesTransientGuardianFailure(t *testing.T) {
 	}
 }
 
-func TestFetchProxyPassDoesNotRetryRegionRefusal(t *testing.T) {
+func TestFetchProxyPassDoesNotRetryRegionRefusalBeyondTheDoubledPath(t *testing.T) {
 	var calls atomic.Int32
+	var paths []string
 	setCoreControlPlane(t, func(r *http.Request) (*http.Response, error) {
 		calls.Add(1)
+		paths = append(paths, r.URL.Path)
 		return coreResponse(r, http.StatusUnavailableForLegalReasons, "region", nil), nil
 	})
 
 	_, err := fetchProxyPassCtx(context.Background(), "https://guardian.invalid", "access")
-	if !errors.Is(err, guardian.ErrRegionUnavailable) || calls.Load() != 1 {
-		t.Fatalf("expected one region refusal, got calls=%d err=%v", calls.Load(), err)
+	if !errors.Is(err, guardian.ErrRegionUnavailable) || calls.Load() != 2 {
+		t.Fatalf("expected two region refusals (original and doubled path), got calls=%d err=%v", calls.Load(), err)
+	}
+	want := []string{"/api/v1/fpn/token", "//api/v1/fpn/token"}
+	if len(paths) != 2 || paths[0] != want[0] || paths[1] != want[1] {
+		t.Fatalf("paths = %v, want %v", paths, want)
 	}
 	if GuardianFailureHint(err) == "" {
 		t.Fatal("expected an operator hint for HTTP 451")

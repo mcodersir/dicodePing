@@ -824,24 +824,27 @@ public class Utils
 
     public static int GetFreePort(int defaultPort)
     {
-        try
+        // Bind both transports: scanning TCP listeners misses UDP-only owners.
+        // Fox itself uses a live OS-allocated :0 listener; callers generating a
+        // core config get a checked candidate, never a hard-coded fallback.
+        for (var attempt = 0; attempt < 32; attempt++)
         {
-            if (!PortInUse(defaultPort))
+            var requested = attempt == 0 && defaultPort is > 0 and <= 65535 ? defaultPort : 0;
+            var tcp = new TcpListener(IPAddress.Any, requested);
+            try
             {
-                return defaultPort;
+                tcp.Server.ExclusiveAddressUse = true;
+                tcp.Start();
+                var port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+                using var udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                udp.ExclusiveAddressUse = true;
+                udp.Bind(new IPEndPoint(IPAddress.Any, port));
+                return port;
             }
-
-            TcpListener l = new(IPAddress.Loopback, 0);
-            l.Start();
-            var port = ((IPEndPoint)l.LocalEndpoint).Port;
-            l.Stop();
-            return port;
+            catch (SocketException) { /* Try a new kernel-selected candidate. */ }
+            finally { tcp.Stop(); }
         }
-        catch
-        {
-        }
-
-        return 59090;
+        throw new IOException("Could not allocate a free TCP/UDP proxy port after 32 attempts.");
     }
 
     public static (List<IPEndPoint> endpoints, List<TcpConnectionInformation> connections) GetActiveNetworkInfo()

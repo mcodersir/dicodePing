@@ -3,6 +3,7 @@ package guardian
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -38,6 +39,54 @@ func TestFetchProxyPassSendsNoCacheAndAnchorsExpiry(t *testing.T) {
 	}
 	if remaining := time.Until(pass.ExpiresAt()); remaining < 9*time.Minute || pass.ExpiresAt().After(before.Add(10*time.Minute+2*time.Second)) {
 		t.Fatalf("expected anchored ten-minute lifetime, got expiry %s", pass.ExpiresAt())
+	}
+}
+
+func TestFetchProxyPassRetriesOnADoubledPathWhenTheRegionIsRefused(t *testing.T) {
+	previous := controlplane.Transport()
+	t.Cleanup(func() { controlplane.SetTransport(previous); SetRegionRecovery(nil) })
+
+	now := time.Now()
+	token := testJWT(t, map[string]any{"sub": "s", "aud": "https://vpn.mozilla.org", "iss": "https://vpn.mozilla.org", "iat": now.Unix(), "nbf": now.Unix(), "exp": now.Add(10 * time.Minute).Unix()})
+	var paths []string
+	controlplane.SetTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		paths = append(paths, r.URL.Path)
+		if r.URL.Path != "//api/v1/fpn/token" {
+			return &http.Response{StatusCode: http.StatusUnavailableForLegalReasons, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"error":"unavailable_in_region"}`)), Request: r}, nil
+		}
+		header := make(http.Header)
+		header.Set("X-Quota-Unlimited", "true")
+		return &http.Response{StatusCode: http.StatusOK, Header: header, Body: io.NopCloser(strings.NewReader(`{"token":"` + token + `"}`)), Request: r}, nil
+	}))
+
+	pass, err := FetchProxyPass(t.Context(), "https://guardian.invalid", "access")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pass.RawToken != token {
+		t.Fatalf("unexpected token %q", pass.RawToken)
+	}
+	want := []string{"/api/v1/fpn/token", "//api/v1/fpn/token"}
+	if strings.Join(paths, ",") != strings.Join(want, ",") {
+		t.Fatalf("paths = %v, want %v", paths, want)
+	}
+}
+
+func TestFetchProxyPassDoesNotRetryOtherStatuses(t *testing.T) {
+	previous := controlplane.Transport()
+	t.Cleanup(func() { controlplane.SetTransport(previous); SetRegionRecovery(nil) })
+
+	var paths []string
+	controlplane.SetTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		paths = append(paths, r.URL.Path)
+		return &http.Response{StatusCode: http.StatusUnauthorized, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"error":"Unauthorized"}`)), Request: r}, nil
+	}))
+
+	if _, err := FetchProxyPass(t.Context(), "https://guardian.invalid", "access"); !errors.Is(err, ErrTokenInvalid) {
+		t.Fatalf("err = %v, want ErrTokenInvalid", err)
+	}
+	if len(paths) != 1 {
+		t.Fatalf("paths = %v, want one request", paths)
 	}
 }
 

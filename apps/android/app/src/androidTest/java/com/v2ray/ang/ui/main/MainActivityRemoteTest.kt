@@ -24,9 +24,11 @@ import org.junit.Assert.assertEquals
 class MainActivityRemoteTest {
     @get:Rule val compose = createEmptyComposeRule()
     @Test fun secondTapDuringConnectionCancelsInsteadOfStartingAgain() {
+        MmkvManager.encodeSettings(APPEARANCE_SETUP_503, true)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         if (android.os.Build.VERSION.SDK_INT >= 33) instrumentation.uiAutomation.grantRuntimePermission(
             instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        MmkvManager.encodeSettings(APPEARANCE_SETUP_503, true)
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
@@ -49,6 +51,7 @@ class MainActivityRemoteTest {
                 instrumentation.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS
             )
         }
+        MmkvManager.encodeSettings(APPEARANCE_SETUP_503, true)
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
         MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 3)
         val previousGroup = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()

@@ -14,10 +14,10 @@ SPEC.loader.exec_module(CHECK)
 class WebsiteReleaseTest(unittest.TestCase):
     def setUp(self):
         self.html = (ROOT / "web/index.html").read_text()
-        self.tag = "v5.0.2"
+        self.tag = "v5.0.3"
         self.release = dict(tag_name=self.tag, draft=False, prerelease=False, assets=[
-            dict(name=f"DicodePing-5.0.2-{suffix}", size=100,
-                 browser_download_url=f"https://github.com/mcodersir/dicodePing/releases/download/v5.0.2/DicodePing-5.0.2-{suffix}")
+            dict(name=f"DicodePing-5.0.3-{suffix}", size=100,
+                 browser_download_url=f"https://github.com/mcodersir/dicodePing/releases/download/v5.0.3/DicodePing-5.0.3-{suffix}")
             for suffix in re.findall(r'data-asset="([^"]+)"', self.html)
         ])
 
@@ -41,7 +41,7 @@ class WebsiteReleaseTest(unittest.TestCase):
 
     def test_stale_page(self):
         with self.assertRaises(ValueError):
-            CHECK.verify(self.release, self.tag, self.html.replace("/v5.0.2/", "/v5.0.0/"))
+            CHECK.verify(self.release, self.tag, self.html.replace("/v5.0.3/", "/v5.0.0/"))
 
 
 if __name__ == "__main__":

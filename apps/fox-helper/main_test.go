@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"dicodeping/fox/internal/controlplane"
 	"dicodeping/fox/internal/fxa"
+ "dicodeping/fox/internal/guardian"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -109,4 +110,12 @@ func TestUnconfirmedSessionDoesNotBecomeAnAccount(t *testing.T) {
 	if err == nil || e.state.AccessToken != "" || failure(err).Error != "session_unconfirmed" || strings.Contains(failure(err).Message, "do-not-log") {
 		t.Fatal("verification or redaction contract failed")
 	}
+}
+
+func TestUnlimitedAllowanceIsPreservedInThePrivateProtocol(t *testing.T) {
+    info := accountUsage(&guardian.ProxyUsage{Unlimited: true})
+    if info.QuotaUnlimited == nil || !*info.QuotaUnlimited || info.QuotaMax != nil { t.Fatal("provider unlimited status was lost") }
+    limited := accountUsage(&guardian.ProxyUsage{Limit: 100, Remaining: 40})
+    if limited.QuotaUnlimited == nil || *limited.QuotaUnlimited || *limited.QuotaRemaining != 40 { t.Fatal("limited allowance was changed") }
+    if accountUsage(nil).QuotaUnlimited != nil { t.Fatal("an unknown allowance was silently declared unlimited") }
 }
