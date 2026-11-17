@@ -71,8 +71,17 @@ public sealed class BrowserSmokeApp : Application
    Finish(0,"PASS actual native browser: document-start WebChannel, status reply and session handoff to the native confirmation core");
   });
   bool recovered = !OperatingSystem.IsLinux();
+  bool failedNavigationObserved = false;
   web.NavigationCompleted += (_, e) => {
-   if (!recovered && !e.IsSuccess) { recovered = true; Dispatcher.UIThread.Post(() => web.Navigate("https://accounts.firefox.com/dicode-local-fixture")); }
+   if (!recovered && !e.IsSuccess) failedNavigationObserved = true;
+  };
+  web.LoadingStateChanged += (_, e) => {
+   // WebKit emits load-failed before load-changed(FINISHED). Starting the
+   // retry inside load-failed can let the previous finish clobber the new URL.
+   if (!recovered && failedNavigationObserved && !e.IsLoading) {
+    recovered = true;
+    Dispatcher.UIThread.Post(() => web.Navigate("https://accounts.firefox.com/dicode-local-fixture"));
+   }
   };
   window.Opened+=async(_,_)=>{
    try{await web.InitializeAsync();web.Navigate(OperatingSystem.IsLinux() ? "https://accounts.firefox.com/dicode-intentional-failure" : "https://accounts.firefox.com/dicode-local-fixture");}
