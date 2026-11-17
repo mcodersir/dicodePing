@@ -41,6 +41,7 @@ jobs:
       - run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.5
 
       - name: Verify Linux native sign-in browser
+        timeout-minutes: 6
         env:
           GDK_BACKEND: x11
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
@@ -51,7 +52,11 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth gdb
           dotnet build apps/desktop/DicodeBrowser.Smoke -c Release
           bash scripts/prepare-browser-fixture.sh
-          xvfb-run -a gdb -q --batch --return-child-result -ex 'set pagination off' -ex 'handle SIGPIPE nostop noprint pass' -ex 'handle SIG34 nostop noprint pass' -ex run -ex 'thread apply all bt 12' --args dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll
+          if timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll; then
+            exit 0
+          fi
+          timeout --signal=INT --kill-after=15s 60s xvfb-run -a gdb -q --batch --return-child-result -ex 'set debuginfod enabled off' -ex 'set pagination off' -ex 'handle SIGPIPE nostop noprint pass' -ex 'handle SIG34 nostop noprint pass' -ex run -ex 'thread apply all bt 12' --args dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll || true
+          exit 1
       - name: Build independent CLI
         run: |
           dotnet build apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release
