@@ -102,6 +102,8 @@ jobs:
       env:
         GDK_BACKEND: x11
         WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+        WEBKIT_DISABLE_COMPOSITING_MODE: '1'
+        LIBGL_ALWAYS_SOFTWARE: '1'
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth

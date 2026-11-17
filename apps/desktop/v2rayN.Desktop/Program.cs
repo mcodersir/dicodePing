@@ -19,6 +19,10 @@ internal class Program
         if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
         {
             Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+            // The sign-in view does not need compositing. Avoid native WebKit
+            // renderer crashes with XWayland/software-only display drivers.
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_COMPOSITING_MODE")))
+                Environment.SetEnvironmentVariable("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
                 && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
                 Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
