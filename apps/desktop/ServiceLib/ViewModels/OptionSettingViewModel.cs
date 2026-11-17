@@ -221,7 +221,7 @@ public partial class OptionSettingViewModel : MyReactiveObject, ICloseable
 
         TunAutoRoute = _config.TunModeItem.AutoRoute;
         TunStrictRoute = _config.TunModeItem.StrictRoute;
-        TunStack = _config.TunModeItem.Stack;
+        TunStack = _config.TunModeItem.Stack.NullIfEmpty() ?? "mixed";
         TunMtu = _config.TunModeItem.Mtu;
         TunEnableIPv6Address = _config.TunModeItem.EnableIPv6Address;
         TunIcmpRouting = _config.TunModeItem.IcmpRouting;

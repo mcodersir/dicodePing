@@ -97,6 +97,15 @@ jobs:
       run: |
         dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
         if ($LASTEXITCODE -ne 0) { throw 'Native browser sign-in handoff failed' }
+    - name: Verify the native Linux sign-in browser with WebKitGTK
+      if: runner.os == 'Linux'
+      env:
+        GDK_BACKEND: x11
+        WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth
+        xvfb-run -a dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
         true -p:Version=5.0.5 -o publish
