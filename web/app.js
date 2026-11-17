@@ -30,7 +30,7 @@ selectTab(/Android/i.test(navigator.userAgent)?tabs[1]:tabs[0]);
   const match=/^v?(\d+\.\d+\.\d+)(?:-r\d+)?$/.exec(release.tag_name);
   if(release.draft||release.prerelease||!match)return;
   const version=match[1];
-  const parts=version.split('.').map(Number), pinned=[5,0,3];
+  const parts=version.split('.').map(Number), pinned=[5,0,5];
   if(parts[0]===4&&parts[1]===9&&parts[2]>=90&&parts[2]<=99)parts[2]*=10;
   let comparison=0;for(let i=0;i<3;i++){if(parts[i]!==pinned[i]){comparison=parts[i]>pinned[i]?1:-1;break}}
   if(comparison<0)return;
