@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><AssemblyName>NativeWebView.Platform.Linux</AssemblyName><RootNamespace>NativeWebView.Platform.Linux</RootNamespace><DefineConstants>$(DefineConstants);NATIVEWEBVIEW_PLATFORM_LINUX</DefineConstants></PropertyGroup>
+<ItemGroup><PackageReference Include="NativeWebView.Core" /><PackageReference Include="NativeWebView.Interop" /></ItemGroup>
+<ItemGroup><None Update="LICENSE-MIT.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" TargetPath="licenses/LICENSE-NativeWebView-Linux.txt" /><None Update="UPSTREAM.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" TargetPath="licenses/NativeWebView-Linux-UPSTREAM.json" /></ItemGroup>
+</Project>

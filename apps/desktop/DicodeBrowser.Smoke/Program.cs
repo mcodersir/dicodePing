@@ -24,15 +24,20 @@ public sealed class BrowserSmokeApp : Application
   var web = new NativeWebView.Controls.NativeWebView();
   // Exercise the same production configuration, including a previously null
   // NativeWebView proxy-options object. All network resources below are fixtures.
-  v2rayN.Desktop.Views.FoxBrowserWindow.ConfigureSignInProxy(web, "127.0.0.1:1");
+  var fixture = OperatingSystem.IsLinux() ? new LinuxBrowserFixture() : null;
+  v2rayN.Desktop.Views.FoxBrowserWindow.ConfigureSignInProxy(web, fixture?.Address ?? "127.0.0.1:1");
   web.InstanceConfiguration.ControllerOptions.IsInPrivateModeEnabled=true;
   web.InstanceConfiguration.ControllerOptions.IsPasswordAutosaveEnabled=false;
   web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce),NativeWebViewScriptFrameScope.MainFrame));
   // Test-only in-memory responses: no request reaches the real Mozilla service.
+  string fixtureHtml = "";
   web.WebResourceRequested += (_,e)=>{
+   if (OperatingSystem.IsLinux()) return;
    e.Handled=true;e.StatusCode=200;
    if(e.Uri?.AbsolutePath=="/v1/session/verify_code"){e.ContentType="application/json";e.ResponseBody="{}";return;}
-   e.ContentType="text/html";e.ResponseBody="""
+   e.ContentType="text/html";e.ResponseBody=fixtureHtml;
+  };
+  fixtureHtml = """
     <!doctype html><html><body><h1>Local WebChannel integration fixture</h1><script>
     let replied=false;
     const realFetch=window.fetch;
@@ -53,10 +58,10 @@ public sealed class BrowserSmokeApp : Application
     });
     </script></body></html>
     """;
-  };
+  if (fixture is not null) fixture.Html = fixtureHtml;
   var window=new Window{Width=640,Height=720,Content=web};life.MainWindow=window;
   bool finished=false;
-  void Finish(int code,string message){if(finished)return;finished=true;Console.WriteLine(message);web.Dispose();life.Shutdown(code);}
+  void Finish(int code,string message){if(finished)return;finished=true;Console.WriteLine(message);web.Dispose();fixture?.Dispose();life.Shutdown(code);}
   web.WebMessageReceived+=(_,e)=>Dispatcher.UIThread.Post(()=>{
    var payload=e.Message??e.Json;
    if(payload?.StartsWith('"')==true)payload=JsonSerializer.Deserialize<string>(payload);
@@ -65,8 +70,12 @@ public sealed class BrowserSmokeApp : Application
    if(session is null){Finish(2,"FAIL native origin/session contract");return;}
    Finish(0,"PASS actual native browser: document-start WebChannel, status reply and session handoff to the native confirmation core");
   });
+  bool recovered = !OperatingSystem.IsLinux();
+  web.NavigationCompleted += (_, e) => {
+   if (!recovered && !e.IsSuccess) { recovered = true; Dispatcher.UIThread.Post(() => web.Navigate("https://accounts.firefox.com/dicode-local-fixture")); }
+  };
   window.Opened+=async(_,_)=>{
-   try{await web.InitializeAsync();web.Navigate("https://accounts.firefox.com/dicode-local-fixture");}
+   try{await web.InitializeAsync();web.Navigate(OperatingSystem.IsLinux() ? "https://accounts.firefox.com/dicode-intentional-failure" : "https://accounts.firefox.com/dicode-local-fixture");}
    catch(Exception e){Finish(3,"FAIL native browser initialization: "+e.GetType().Name+": "+e.Message);}
   };
   var timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(45)};

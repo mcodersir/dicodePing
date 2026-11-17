@@ -6,6 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="NativeWebView" Version="12.1.5.1" />
+    <PackageVersion Include="NativeWebView.Core" Version="12.1.5.1" />
+    <PackageVersion Include="NativeWebView.Interop" Version="12.1.5.1" />
     <PackageVersion Include="NativeWebView.Platform.Windows" Version="12.1.5.1" />
     <PackageVersion Include="NativeWebView.Platform.macOS" Version="12.1.5.1" />
     <PackageVersion Include="NativeWebView.Platform.Linux" Version="12.1.5.1" />

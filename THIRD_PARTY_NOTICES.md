@@ -37,3 +37,7 @@ Android integrates PattNG `2.3.10-P60`, AndroidLibXrayLite `v26.10.4`, and the h
 ## sing-box and mihomo
 
 sing-box `v1.14.2` (GPL-3.0) and mihomo `v1.19.32` (GPL-3.0) run as separate bundled runtimes. Sources: https://github.com/SagerNet/sing-box and https://github.com/MetaCubeX/mihomo.
+
+## NativeWebView Linux backend
+
+NativeWebView by Wieslaw Soltes, MIT license. The Linux backend source from commit 08da732 is bundled with the borrowed GError lifetime fix in load/download signal callbacks. Owned asynchronous-operation errors retain their original cleanup. Full provenance and license are in apps/desktop/NativeWebView.Linux/UPSTREAM.json and LICENSE-MIT.txt and accompany desktop packages. Core, interop and the other platform packages use version 12.1.5.1.

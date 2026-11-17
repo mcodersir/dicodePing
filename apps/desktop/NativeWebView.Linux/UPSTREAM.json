@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/wieslawsoltes/NativeWebView",
+  "commit": "08da73250ff408b95472415318f59f5b5369ff4d",
+  "version": "12.1.5.1",
+  "license": "MIT",
+  "patch": "Read signal-owned GError without freeing it in load-failed and download-failed callbacks; retain freeing for owned async finish errors."
+}
