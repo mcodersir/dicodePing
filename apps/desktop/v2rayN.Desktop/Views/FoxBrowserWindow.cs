@@ -26,11 +26,11 @@ public sealed class FoxBrowserWindow : Window
             status, retry, close } };
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         layout.Children.Add(bar); Grid.SetRow(host, 1); layout.Children.Add(host); Content = layout;
-        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; bool browserReady = false; (string Email, string Session)? pending = null;
+        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; bool browserReady = false; bool navigationFailed = false; (string Email, string Session)? pending = null;
         ServiceLib.Services.ProcessService? signInProxy = null;
         close.Click += (_, _) => Close();
         Closed += async (_, _) => { disposed = true; pending = null; cancellation.Cancel(); web?.Dispose(); if (signInProxy is not null) { await signInProxy.StopAsync(); signInProxy.Dispose(); } };
-        retry.Click += async (_, _) => { try { if (!browserReady && !busy && !disposed) { await InitializeBrowserAsync(); return; } if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
+        retry.Click += async (_, _) => { try { if (navigationFailed && web is not null && !busy && !disposed) { navigationFailed = false; retry.IsVisible = false; web.Navigate(FoxBrowserProtocol.LoginUrl); return; } if (!browserReady && !busy && !disposed) { await InitializeBrowserAsync(); return; } if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
         async Task InitializeBrowserAsync() {
             try {
                 retry.IsVisible = false;
@@ -51,6 +51,13 @@ public sealed class FoxBrowserWindow : Window
                 ConfigureSignInProxy(web, proxy.Address);
                 web.InstanceConfiguration.DocumentStartScripts.Add(new NativeWebViewDocumentStartScript(FoxBrowserProtocol.Script(nonce), NativeWebViewScriptFrameScope.MainFrame));
                 web.NavigationStarted += (_, e) => { if (!FoxBrowserProtocol.IsAllowedNavigation(e.Uri?.ToString())) e.Cancel = true; };
+                web.NavigationCompleted += (_, e) => {
+                    if (!e.IsSuccess) Dispatcher.UIThread.Post(() => {
+                        if (disposed) return;
+                        navigationFailed = true; retry.IsVisible = true;
+                        status.Text = FoxUi.T("صفحهٔ موزیلا بارگذاری نشد. اتصال را بررسی کنید و تلاش دوباره را بزنید.", "Mozilla's page could not load. Check the connection and retry.");
+                    });
+                };
                 web.NewWindowRequested += (_, e) => { e.Handled = true; if (FoxBrowserProtocol.IsAllowedNavigation(e.Uri?.ToString())) web.Navigate(e.Uri!.ToString()); };
                 web.WebMessageReceived += (_, e) => Dispatcher.UIThread.Post(async () => {
                     if (disposed) return;
