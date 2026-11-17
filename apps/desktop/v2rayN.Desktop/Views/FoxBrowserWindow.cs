@@ -26,13 +26,17 @@ public sealed class FoxBrowserWindow : Window
             status, retry, close } };
         var layout = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         layout.Children.Add(bar); Grid.SetRow(host, 1); layout.Children.Add(host); Content = layout;
-        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; (string Email, string Session)? pending = null;
+        NativeWebView.Controls.NativeWebView? web = null; bool busy = false; bool disposed = false; bool browserReady = false; (string Email, string Session)? pending = null;
         ServiceLib.Services.ProcessService? signInProxy = null;
         close.Click += (_, _) => Close();
         Closed += async (_, _) => { disposed = true; pending = null; cancellation.Cancel(); web?.Dispose(); if (signInProxy is not null) { await signInProxy.StopAsync(); signInProxy.Dispose(); } };
-        retry.Click += async (_, _) => { try { if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
-        Opened += async (_, _) => {
+        retry.Click += async (_, _) => { try { if (!browserReady && !busy && !disposed) { await InitializeBrowserAsync(); return; } if (web is not null && !busy && !disposed) await web.ExecuteScriptAsync("window.__dicodeFoxRetry && window.__dicodeFoxRetry()", cancellation.Token); } catch (Exception) { } };
+        async Task InitializeBrowserAsync() {
             try {
+                retry.IsVisible = false;
+                web?.Dispose(); web = null; host.Children.Clear();
+                if (signInProxy is not null) { await signInProxy.StopAsync(); signInProxy.Dispose(); signInProxy = null; }
+
                 var proxy = await FoxAccounts.OpenSignInProxyAsync(cancellation.Token);
                 signInProxy = proxy.Process;
                 if (OperatingSystem.IsWindows()) NativeWebView.Platform.Windows.NativeWebViewPlatformWindowsModule.RegisterDefault();
@@ -97,12 +101,16 @@ public sealed class FoxBrowserWindow : Window
                 });
                 host.Children.Add(web);
                 await web.InitializeAsync(cancellation.Token);
+                browserReady = true;
                 web.SetUserAgent("Mozilla/5.0 (X11; Linux x86_64; rv:158.0) Gecko/20100101 Firefox/158.0");
                 web.Navigate(FoxBrowserProtocol.LoginUrl);
             } catch (OperationCanceledException) { }
-            catch (Exception) {
-                status.Text = FoxUi.T("مرورگر داخلی آماده نشد. در ویندوز Microsoft Edge WebView2 Runtime و در لینوکس بستهٔ libwebkit2gtk-4.1-0 را نصب/به‌روز کنید و دوباره تلاش کنید.", "The embedded browser could not start. Install/update Microsoft Edge WebView2 Runtime on Windows, or libwebkit2gtk-4.1-0 on Linux, then retry.");
+            catch (Exception error) {
+                browserReady = false; retry.IsVisible = true;
+                Logging.SaveLog("Fox browser initialization", error);
+                status.Text = FoxUi.T("مرورگر داخلی آماده نشد. در ویندوز Microsoft Edge WebView2 Runtime و در لینوکس بسته‌های WebKitGTK 4.1 و XWayland را نصب/به‌روز کنید (Arch: webkit2gtk-4.1 و xorg-xwayland؛ Debian: libwebkit2gtk-4.1-0 و xwayland) و دوباره تلاش کنید.", "The embedded browser could not start. Install/update Microsoft Edge WebView2 Runtime on Windows, or WebKitGTK 4.1 and XWayland on Linux, then retry.");
             }
-        };
+        }
+        Opened += async (_, _) => await InitializeBrowserAsync();
     }
 }

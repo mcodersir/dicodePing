@@ -1,0 +1,69 @@
+{
+  "version": 9,
+  "endpoints": {
+    "guardian": {
+      "token": "https://vpn.mozilla.org/api/v1/fpn/token",
+      "status": "https://vpn.mozilla.org/api/v1/fpn/status",
+      "activate": "https://vpn.mozilla.org/api/v1/fpn/activate"
+    },
+    "controlPlane": {
+      "oauthToken": "https://oauth.accounts.firefox.com/v1/token",
+      "oauthFallback": "https://api.accounts.firefox.com/v1/oauth/token",
+      "authorization": "https://api.accounts.firefox.com/v1/oauth/authorization",
+      "recoveryStatus": "https://api.accounts.firefox.com/v1/recovery_email/status",
+      "sessionDestroy": "https://api.accounts.firefox.com/v1/session/destroy",
+      "login": "https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email"
+    },
+    "serverList": "https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records",
+    "productDetails": "https://product-details.mozilla.org/1.0/firefox_versions.json",
+    "exitCheck": "https://www.cloudflare.com/cdn-cgi/trace",
+    "latencyProbe": "https://www.gstatic.com/generate_204"
+  },
+  "relayerRoutes": [
+    "guardian",
+    "fxa",
+    "config",
+    "server_list"
+  ],
+  "relayers": {
+    "cloudflare": "relayer.foxyvpn.workers.dev",
+    "vercel": "relayer.foxyvpn.vercel.app"
+  },
+  "failoverCodes": [
+    406,
+    451
+  ],
+  "controlPlane": {
+    "headers": {
+      "User-Agent": "MozillaVPN/2.24.0 (sys:android {android_version})",
+      "Accept": "application/json",
+      "Accept-Encoding": "identity"
+    },
+    "settings": {
+      "protocols": [
+        "HTTP_2",
+        "HTTP_1_1"
+      ]
+    }
+  },
+  "guardian": {
+    "headers": {
+      "User-Agent": "MozillaVPN/2.24.0 (sys:android {android_version})",
+      "Accept": "application/json",
+      "Accept-Encoding": "identity",
+      "Cache-Control": "max-age=0"
+    }
+  },
+  "solver": {
+    "headers": {
+      "User-Agent": "MozillaVPN/2.24.0 (sys:android {android_version})",
+      "Accept": "application/json",
+      "Accept-Encoding": "identity"
+    }
+  },
+  "browser": {
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Android {android_version}; Mobile; rv:159.0) Gecko/159.0 Firefox/159.0"
+    }
+  }
+}

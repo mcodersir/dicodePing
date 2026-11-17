@@ -527,7 +527,8 @@ public class CoreManager
             }
             if (mayNeedSudo
                 && ShouldRunAsSudo(isTunLaunch, coreInfo.CoreType, Utils.IsNonWindows())
-                && !Utils.IsAdministrator())
+                && !Utils.IsAdministrator()
+                && !LinuxTunPermission.HasCapabilities(fileName))
             {
                 _linuxSudo = true;
                 await CoreAdminManager.Instance.Init(_config, _updateFunc);

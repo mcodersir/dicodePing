@@ -516,7 +516,7 @@ public partial class StatusBarViewModel : MyReactiveObject
     public async Task<bool> EnsureTunPermissionAsync()
     {
         if (!_config.TunModeItem.EnableTun || Utils.IsWindows() || Utils.IsAdministrator()
-            || AppManager.Instance.LinuxSudoPwd.IsNotEmpty()) return true;
+            || AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || LinuxTunPermission.HasConfiguredCapabilities(_config)) return true;
         var password = await PasswordInputInteraction.HandleSafe(RxVoid.Default);
         if (password.IsNullOrEmpty()) return false;
         AppManager.Instance.LinuxSudoPwd = password;
@@ -531,7 +531,7 @@ public partial class StatusBarViewModel : MyReactiveObject
         }
         else if (Utils.IsLinux())
         {
-            return AppManager.Instance.LinuxSudoPwd.IsNotEmpty();
+            return AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || LinuxTunPermission.HasConfiguredCapabilities(_config);
         }
         else if (Utils.IsMacOS())
         {

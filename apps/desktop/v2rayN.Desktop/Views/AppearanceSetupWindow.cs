@@ -36,7 +36,7 @@ public sealed class AppearanceSetupWindow : Window
                 CultureInfo.DefaultThreadCurrentUICulture = culture;
                 CultureInfo.CurrentUICulture = culture;
                 ServiceLib.Resx.ResUI.Culture = CultureInfo.CurrentUICulture;
-                await File.WriteAllTextAsync(MarkerPath, "5.0.3");
+                await File.WriteAllTextAsync(MarkerPath, "5.0.5");
                 completed();
                 Close();
             } catch (Exception ex) { error.Text = "Could not save preferences. Please retry."; Logging.SaveLog("Appearance setup", ex); next.IsEnabled = true; }

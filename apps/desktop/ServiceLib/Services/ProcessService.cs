@@ -102,6 +102,8 @@ public class ProcessService : IDisposable
     {
         if (!_privateProtocol) throw new InvalidOperationException("Not a private helper process");
         _process.Start();
+        request["config_cache"] = Path.Combine(FoxAccounts.Folder, "foxy_config.json");
+        Directory.CreateDirectory(FoxAccounts.Folder);
         await _process.StandardInput.WriteLineAsync(request.ToJsonString().AsMemory(), token);
         await _process.StandardInput.FlushAsync(token);
         // Never forward protocol output to UI logs: it carries account tokens.

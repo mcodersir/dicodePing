@@ -22,7 +22,7 @@ class PersianUpgradeTest {
         instrumentation.runOnMainSync {
             try {
                 // Simulate the first handoff from legacy preferences, before an
-                // activity exists. 5.0.3 must preserve explicit English/Chinese,
+                // activity exists. 5.0.5 must preserve explicit English/Chinese,
                 // and an empty system-language locale list, even if 4.9.3's old
                 // Persian-default revision was never recorded.
                 for ((code, tag) in listOf("en" to "en", "zh-rCN" to "zh-CN", "fa" to "fa", "auto" to "")) {

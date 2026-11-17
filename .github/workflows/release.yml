@@ -1,4 +1,4 @@
-name: Release 5.0.3 Stable
+name: Release 5.0.5 Stable
 env:
   AVALONIA_TELEMETRY_OPTOUT: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
@@ -32,7 +32,7 @@ jobs:
         - runner: windows-latest
           rid: win-x64
           xray_asset: Xray-windows-64.zip
-          xray_sha256: 4d25cca01b4da24ae9dfe181cb363bdf698551a833fa3a3cc092d8c7a2f72642
+          xray_sha256: 88219c2f5f3b406484adb17de015c5b7e7512968d1ec27ec409a6b17d049ecd6
           xray_binary: xray.exe
           mihomo_asset: mihomo-windows-amd64-v1-v1.19.34.zip
           mihomo_binary: mihomo.exe
@@ -41,7 +41,7 @@ jobs:
         - runner: ubuntu-latest
           rid: linux-x64
           xray_asset: Xray-linux-64.zip
-          xray_sha256: d54cfc29e6fb66cd8f9baf49250f4d8ecdb3310adc22c779d21b791c5f92e936
+          xray_sha256: 46862c925c02f3f480803bf9ea81c3d4ec61c62b5f6830a3493fc698ce8e5f19
           xray_binary: xray
           mihomo_asset: mihomo-linux-amd64-v1-v1.19.34.gz
           mihomo_binary: mihomo
@@ -50,7 +50,7 @@ jobs:
         - runner: macos-15-intel
           rid: osx-x64
           xray_asset: Xray-macos-64.zip
-          xray_sha256: 78d9f5276559aa46342a2801b416fb9eec12987739c4c6126c58b38a56f2eddd
+          xray_sha256: b2a66479e199db20d0ef3dc313e4780b97ab01fed9166708165994f4ff5c4309
           xray_binary: xray
           mihomo_asset: mihomo-darwin-amd64-v1-v1.19.34.gz
           mihomo_binary: mihomo
@@ -59,7 +59,7 @@ jobs:
         - runner: macos-15
           rid: osx-arm64
           xray_asset: Xray-macos-arm64-v8a.zip
-          xray_sha256: fe51e3b464093c3a04ebcb210949db0910b505c407f114ed0f512048887368e6
+          xray_sha256: 032eeea6ee11dab2a2ee7517bfce1441aacb687bca0b9bbda25b03b12244bd61
           xray_binary: xray
           mihomo_asset: mihomo-darwin-arm64-v1.19.34.gz
           mihomo_binary: mihomo
@@ -79,7 +79,7 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore and build the independent desktop client
-      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.3
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.5
     - name: Render desktop layout on Linux
       if: runner.os == 'Linux'
       run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -99,7 +99,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { throw 'Native browser sign-in handoff failed' }
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
-        true -p:Version=5.0.3 -o publish
+        true -p:Version=5.0.5 -o publish
     - name: Publish the standalone desktop updater
       shell: pwsh
       run: |
@@ -117,7 +117,7 @@ jobs:
     - name: Bundle verified Xray and Mihomo runtimes
       shell: pwsh
       run: |
-        $url = "https://github.com/patterniha/Xray-core/releases/download/v26.11.12/${{ matrix.xray_asset }}"
+        $url = "https://github.com/patterniha/Xray-core/releases/download/v26.11.21/${{ matrix.xray_asset }}"
         Invoke-WebRequest -Uri $url -OutFile xray.zip
         $expected = '${{ matrix.xray_sha256 }}'
         $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
@@ -180,6 +180,11 @@ jobs:
         if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
     - name: Build Fox helper from source
       run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
+    - name: Validate Serverless v62 with the packaged Xray
+      run: python scripts/verify-serverless-runtime.py --xray publish/bin/xray/${{ matrix.xray_binary }}
+    - name: Run runtime preservation and startup regression checks
+      if: runner.os == 'Linux'
+      run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter FullyQualifiedName~Release505Tests
     - name: Bundle and execute independent sing-box engine
       run: python scripts/stage-singbox.py --rid ${{ matrix.rid }} --output publish/bin/sing_box
     - name: Exercise real traffic through independent sing-box
@@ -190,10 +195,10 @@ jobs:
       shell: pwsh
       run: |
         $versions = @{}
-        $runtimePins = Get-Content scripts/runtime-pins-5.0.3.json -Raw | ConvertFrom-Json
+        $runtimePins = Get-Content scripts/runtime-pins-5.0.5.json -Raw | ConvertFrom-Json
         $checks = @(
-          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '5.0.3' },
-          @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.11.12' },
+          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '5.0.5' },
+          @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.11.21' },
           @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.4.0' },
           @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = $runtimePins.mihomo_version }
         )
@@ -213,7 +218,7 @@ jobs:
     - name: Publish independent CLI with verified runtimes
       shell: pwsh
       run: |
-        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=5.0.3 -o cli-publish
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=5.0.5 -o cli-publish
         if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
         Copy-Item publish/bin cli-publish/bin -Recurse -Force
         Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -247,8 +252,8 @@ jobs:
       shell: pwsh
       run: |
         choco install innosetup --no-progress --yes
-        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=5.0.3 .github\installer\DicodePing.iss
-        $installer = Get-Item dist\DicodePing-5.0.3-windows-x64-installer.exe
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=5.0.5 .github\installer\DicodePing.iss
+        $installer = Get-Item dist\DicodePing-5.0.5-windows-x64-installer.exe
         Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
     - uses: actions/upload-artifact@v7
       with:
@@ -295,14 +300,14 @@ jobs:
       run: |
         git config --global http.version HTTP/1.1
         for attempt in 1 2 3 4; do
-          if git clone --branch 2.3.15-P71 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+          if git clone --branch 2.4.0-P73 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
             break
           fi
           rm -rf native-upstream
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        test "$(git -C native-upstream rev-parse HEAD)" = "e7a52cfc94389ca4ef1cb10e9595a9dba5cb0564"
+        test "$(git -C native-upstream rev-parse HEAD)" = "b968895101455e2866be3994b3e4cb5265895972"
         for attempt in 1 2 3 4; do
           if git -C native-upstream submodule update --init --recursive --depth 1; then
             break
@@ -356,9 +361,9 @@ jobs:
         echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
         export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=5.0.3
-        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.3
-        ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.3
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=5.0.5
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.5
+        ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.5
     - name: Stage APK and checksums
       run: |
         mkdir -p dist-android
@@ -442,8 +447,8 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           script: |
-            python3 scripts/verify-android-installation.py --version 5.0.3 --code 55000300 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.3-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.3-${{ matrix.alternate }}.apk
-            if [ -n "${{ matrix.baseline }}" ]; then python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.3; fi
+            python3 scripts/verify-android-installation.py --version 5.0.5 --code 55000500 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.5-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.5-${{ matrix.alternate }}.apk
+            if [ -n "${{ matrix.baseline }}" ]; then python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.5; fi
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -491,7 +496,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
           ram-size: 4096M
           disable-animations: true
-          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 5.0.3 --code 55000300 --baselines 4.9.98 4.9.99 4.9.991 5.0.0 5.0.1 5.0.2 --candidate dist-android/DicodePing-5.0.3-tv-universal.apk
+          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 5.0.5 --code 55000500 --baselines 4.9.98 4.9.99 4.9.991 5.0.0 5.0.1 5.0.2 --candidate dist-android/DicodePing-5.0.5-tv-universal.apk
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -545,14 +550,14 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         RELEASE_SHA: ${{ github.sha }}
       run: |
-        if gh api repos/${{ github.repository }}/git/ref/tags/v5.0.3 > tag-ref.json 2> tag-ref-error.txt; then
+        if gh api repos/${{ github.repository }}/git/ref/tags/v5.0.5 > tag-ref.json 2> tag-ref-error.txt; then
           existing=$(jq -r '.object.sha' tag-ref.json)
           if [ "$existing" != "$RELEASE_SHA" ]; then
             echo "Release tag points to another commit; refusing to replace it."
             exit 1
           fi
         elif jq -e '.status == "404" or .status == 404' tag-ref.json > /dev/null; then
-          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v5.0.3 -f sha="$RELEASE_SHA"
+          gh api --method POST repos/${{ github.repository }}/git/refs -f ref=refs/tags/v5.0.5 -f sha="$RELEASE_SHA"
         else
           cat tag-ref-error.txt
           exit 1
@@ -560,26 +565,26 @@ jobs:
     - uses: softprops/action-gh-release@v2
       id: draft_release
       with:
-        tag_name: v5.0.3
+        tag_name: v5.0.5
         target_commitish: ${{ github.sha }}
-        name: DicodePing 5.0.3 — Stable
+        name: DicodePing 5.0.5 — Stable
         draft: true
         prerelease: false
         make_latest: false
         generate_release_notes: false
-        body_path: docs/RELEASE-5.0.3.md
+        body_path: docs/RELEASE-5.0.5.md
         files: artifacts/*
     - name: Verify every uploaded package before publishing the stable release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
-        gh release download v5.0.3 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        gh release download v5.0.5 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
         python - <<'PYVERIFY'
         import json, pathlib, re
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
-        expected = {'DicodePing-5.0.3-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        expected = {'DicodePing-5.0.5-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
         assert len(expected) == 16 and len(assets) == 25 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
@@ -597,16 +602,16 @@ jobs:
     needs: publish
     uses: ./.github/workflows/website.yml
     with:
-      release_tag: v5.0.3
+      release_tag: v5.0.5
       source_sha: ${{ github.sha }}
 
 on:
   push:
     tags:
-    - v5.0.3
+    - v5.0.5
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish 5.0.3 after every build and native check succeeds
+        description: Publish 5.0.5 after every build and native check succeeds
         type: boolean
         default: false

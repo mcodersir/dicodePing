@@ -210,7 +210,7 @@ func UsesDefaultTransport() bool { return client.Transport == defaultTransport }
 
 // Do sends req with the shared control plane client.
 func Do(req *http.Request) (*http.Response, error) {
-	resp, err := client.Do(req)
+	resp, err := remoteDo(req)
 	if err != nil || resp.StatusCode != http.StatusNotAcceptable || client.Transport != defaultTransport {
 		return resp, err
 	}

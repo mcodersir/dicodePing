@@ -150,7 +150,7 @@ public class TunModeItem
     public bool EnableTun { get; set; }
     public bool AutoRoute { get; set; } = true;
     public bool StrictRoute { get; set; } = true;
-    public string Stack { get; set; }
+    public string Stack { get; set; } = "mixed";
     public int Mtu { get; set; }
     public bool EnableIPv6Address { get; set; }
     public string IcmpRouting { get; set; }

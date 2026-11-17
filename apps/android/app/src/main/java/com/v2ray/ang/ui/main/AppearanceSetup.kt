@@ -16,7 +16,7 @@ import com.v2ray.ang.handler.MmkvManager
 
 internal const val APPEARANCE_SETUP_503 = "dicode_appearance_setup_503"
 
-/** Kept version-scoped: upgrading to 5.0.3 asks once; activity recreation does not. */
+/** Kept version-scoped: upgrading to 5.0.5 asks once; activity recreation does not. */
 @Composable
 internal fun AppearanceSetup(onComplete: (String, String) -> Unit) {
     var language by remember { mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_LANGUAGE) ?: "en") }

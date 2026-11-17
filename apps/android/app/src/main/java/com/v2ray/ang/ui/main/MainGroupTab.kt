@@ -42,7 +42,7 @@ fun GroupTabBar(
                         selectedTabIndex = selectedTabIndex.coerceIn(0, groups.lastIndex),
                         matchContentSize = true
                     )
-                    .clip(RoundedCornerShape(3.dp)),
+                    .clip(RoundedCornerShape(18.dp)),
                 width = Dp.Unspecified,
                 color = MaterialTheme.colorScheme.secondary
             )

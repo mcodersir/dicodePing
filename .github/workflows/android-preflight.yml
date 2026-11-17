@@ -1,4 +1,4 @@
-name: Android 5.0.3 preflight
+name: Android 5.0.5 preflight
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -42,14 +42,14 @@ jobs:
       run: |
         git config --global http.version HTTP/1.1
         for attempt in 1 2 3 4; do
-          if git clone --branch 2.3.15-P71 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+          if git clone --branch 2.4.0-P73 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
             break
           fi
           rm -rf native-upstream
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        test "$(git -C native-upstream rev-parse HEAD)" = "e7a52cfc94389ca4ef1cb10e9595a9dba5cb0564"
+        test "$(git -C native-upstream rev-parse HEAD)" = "b968895101455e2866be3994b3e4cb5265895972"
         for attempt in 1 2 3 4; do
           if git -C native-upstream submodule update --init --recursive --depth 1; then
             break
@@ -98,7 +98,7 @@ jobs:
       run: |-
         python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=5.0.3
+        ./gradlew testFdroidDebugUnitTest assembleFdroidDebug compileFdroidDebugAndroidTestKotlin --no-daemon -PdicodeVersion=5.0.5
     - name: Enable hardware acceleration for the test emulator
       run: |
         test -c /dev/kvm
@@ -144,4 +144,4 @@ jobs:
 'on':
   push:
     branches:
-    - codex/release-5.0.3
+    - codex/release-5.0.5

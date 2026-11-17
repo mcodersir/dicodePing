@@ -211,7 +211,8 @@ internal class FoxProcess(private val context: Context) : AutoCloseable {
             synchronized(errorTail) { if (errorTail.size >= 8) errorTail.removeFirst(); errorTail.addLast(safe) }
             com.v2ray.ang.util.LogUtil.w(message = "Fox helper: $safe")
         } } } }
-        request.put("ca_bundle", FoxAccounts.roots())
+        request.put("ca_bundle", FoxAccounts.roots() + "\n" + context.assets.open("mozilla_roots.pem").bufferedReader().use { it.readText() })
+        request.put("config_cache", File(context.filesDir, "foxy_config.json").absolutePath)
         child.outputStream.bufferedWriter().apply { write(request.toString()); newLine(); flush() }
         return child.inputStream.bufferedReader()
     }

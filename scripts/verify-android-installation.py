@@ -55,7 +55,7 @@ try:
                 time.sleep(3)
                 assert adb('get-state').returncode==0, 'Emulator disconnected/rebooted after launch; app crash is not established'
                 assert adb('shell','pidof',package).returncode==0,'Release process exited after launch; inspect app logcat'
-                if args.version == '5.0.3':
+                if args.version == '5.0.5':
                     import re, xml.etree.ElementTree as ET
                     def screen_nodes():
                         adb('shell','uiautomator','dump','/sdcard/dicode-setup.xml')
@@ -72,7 +72,7 @@ try:
                     adb('shell','am','start','-W','-n',package+'/com.v2ray.ang.ui.main.MainActivity')
                     time.sleep(2)
                     assert not any('Welcome to DicodePing' in n.get('text','') for n in screen_nodes()), 'Appearance setup repeated after completion'
-                    results.append({'scenario':'5.0.3 appearance setup appears once after install/upgrade', 'success':True})
+                    results.append({'scenario':'5.0.5 appearance setup appears once after install/upgrade', 'success':True})
 
                 if args.remote:
                     for key in ['KEYCODE_DPAD_DOWN', 'KEYCODE_DPAD_RIGHT', 'KEYCODE_DPAD_UP', 'KEYCODE_BACK']:

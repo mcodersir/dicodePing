@@ -37,13 +37,13 @@
 
     <!-- Shared DicodePing visual language: calm surfaces, generous rows and rounded controls. -->
     <Style Selector="Window">
-        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
+        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Vazirmatn, avares://DicodePing/Assets/Fonts#Open Sans" />
         <Setter Property="Background" Value="{DynamicResource DicodePageBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource DicodeTextPrimary}" />
     </Style>
 
     <Style Selector="TextBlock">
-        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn" />
+        <Setter Property="FontFamily" Value="avares://DicodePing/Assets/Fonts#Vazirmatn, avares://DicodePing/Assets/Fonts#Open Sans" />
     </Style>
 
     <Style Selector="Button">

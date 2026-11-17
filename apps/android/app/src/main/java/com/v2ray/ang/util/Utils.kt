@@ -402,8 +402,13 @@ object Utils {
      * @return The URL string with illegal characters replaced.
      */
     fun fixIllegalUrl(str: String): String {
-        return str.replace(" ", "%20")
-            .replace("|", "%7C")
+        val main = str.substringBefore('#').replace(" ", "%20").replace("|", "%7C")
+        if (!str.contains('#')) return main
+        // Display names may contain emoji, brackets and newlines. Encode only
+        // the fragment, preserving existing percent escapes and URI delimiters.
+        val fragment = str.substringAfter('#')
+        return main + "#" + java.net.URLEncoder.encode(fragment, "UTF-8").replace("+", "%20")
+            .replace(Regex("%25([0-9a-fA-F]{2})"), "%$1")
     }
 
     /**

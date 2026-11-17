@@ -38,7 +38,7 @@ public class CoreAdminManager
         // Passing environment variables to the sudo command, here it only xray or sing-box.
         if (coreInfo.Environment.Count > 0)
         {
-            var envArgs = string.Join(" ", coreInfo.Environment.Where(kv => kv.Value.IsNotEmpty()).Select(kv => $"{kv.Key}={kv.Value.AppendQuotes()}"));
+            var envArgs = string.Join(" ", coreInfo.Environment.Where(kv => kv.Value.IsNotEmpty()).Select(kv => $"{kv.Key}={string.Format(kv.Value, Utils.GetBinConfigPath(configPath)).AppendQuotes()}"));
             sb.AppendLine($"exec sudo -S -- env {envArgs} {cmdLine}");
         }
         else

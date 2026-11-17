@@ -34,7 +34,10 @@
                 AutoGenerateColumns="False"
                 BorderThickness="1"
                 CanUserResizeColumns="True"
-                GridLinesVisibility="All"
+                GridLinesVisibility="None"
+                RowHeight="48"
+                Margin="12"
+                CornerRadius="16"
                 HeadersVisibility="Column"
                 IsReadOnly="True"
                 ItemsSource="{Binding SubItems}">

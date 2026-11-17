@@ -43,6 +43,7 @@ type Request struct {
 	TLSFragmentation string `json:"tls_fragmentation,omitempty"`
 	BindInterface    string `json:"bind_interface,omitempty"`
 	Roots            string `json:"ca_bundle,omitempty"`
+	ConfigCache      string `json:"config_cache,omitempty"`
 	Operation        string `json:"operation"`
 	Email            string `json:"email,omitempty"`
 	Password         string `json:"password,omitempty"`
@@ -82,7 +83,7 @@ func output(v Response) {
 }
 
 type AccountInfo struct {
-	QuotaUnlimited *bool `json:"quota_unlimited,omitempty"`
+	QuotaUnlimited   *bool  `json:"quota_unlimited,omitempty"`
 	UID              string `json:"uid,omitempty"`
 	Subscribed       bool   `json:"subscribed"`
 	LimitedBandwidth bool   `json:"limited_bandwidth"`
@@ -211,7 +212,9 @@ func (e *engine) auth() *fxa.TokenResponse {
 }
 func accountUsage(u *guardian.ProxyUsage) AccountInfo {
 	info := AccountInfo{}
-	if u != nil { info.QuotaUnlimited = &u.Unlimited }
+	if u != nil {
+		info.QuotaUnlimited = &u.Unlimited
+	}
 	if u != nil && !u.Unlimited {
 		max, left, reset := u.Limit, u.Remaining, u.Reset.Unix()
 		info.QuotaMax = &max
@@ -250,6 +253,7 @@ func configure(req Request) error {
 		return err
 	}
 	resolver.Set(r)
+	controlplane.ConfigureRemote(req.ConfigCache)
 	proxy.SetUpstreamIPVersion("auto")
 	return nil
 }
@@ -475,7 +479,9 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 			case <-ticker.C:
 				status := controller.CurrentStatus("quota")
 				info = AccountInfo{QuotaMax: status.QuotaLimitBytes, QuotaRemaining: status.QuotaRemainingBytes}
-				if status.QuotaUnlimited || status.QuotaLimitBytes != nil { info.QuotaUnlimited = &status.QuotaUnlimited }
+				if status.QuotaUnlimited || status.QuotaLimitBytes != nil {
+					info.QuotaUnlimited = &status.QuotaUnlimited
+				}
 				if reset, err := time.Parse(time.RFC3339, status.QuotaResetAt); err == nil {
 					n := reset.Unix()
 					info.QuotaReset = &n

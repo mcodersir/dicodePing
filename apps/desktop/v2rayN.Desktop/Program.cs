@@ -14,6 +14,15 @@ internal class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Avalonia's embedded WebKitGTK host uses X11. Select the same GTK
+        // backend before either toolkit initializes in a KDE Wayland session.
+        if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")))
+        {
+            Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
+                && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER")))
+                Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
         if (!RequireAdministrator())
         {
             Environment.Exit(0);
