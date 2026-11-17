@@ -208,6 +208,12 @@ jobs:
       run: python scripts/verify-independent-singbox.py --root publish
     - name: Bundle verified Aether and Psiphon helpers
       run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
+    - name: Exercise the Linux sing-box compatibility TUN
+      if: runner.os == 'Linux'
+      run: |
+        sudo setcap cap_net_admin,cap_net_raw,cap_net_bind_service=+ep publish/bin/sing_box/sing-box
+        python scripts/verify-linux-tun.py --singbox publish/bin/sing_box/sing-box
+        sudo setcap -r publish/bin/sing_box/sing-box
     - name: Execute bundled cores in the ephemeral runner
       shell: pwsh
       run: |

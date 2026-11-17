@@ -23,7 +23,8 @@ public static class LinuxTunPermission
         if (!OperatingSystem.IsLinux() || !File.Exists(executable)) return false;
         try
         {
-            using var process = new Process { StartInfo = new ProcessStartInfo("getcap") {
+            var getcap = new[] { "/usr/sbin/getcap", "/sbin/getcap" }.FirstOrDefault(File.Exists) ?? "getcap";
+            using var process = new Process { StartInfo = new ProcessStartInfo(getcap) {
                 UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
                 ArgumentList = { executable }
             } };
