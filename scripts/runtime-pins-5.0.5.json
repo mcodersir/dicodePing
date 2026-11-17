@@ -35,8 +35,8 @@
     "xray_commit": "135f782bc238b3f7b043fe752c635c02592434c8"
   },
   "hev": {
-    "version": "2.19.3",
-    "source_commit": "c5584feca8f6df70ee53eb2879e034b849a3d15a"
+    "version": "2.20.0",
+    "source_commit": "75dbc1e9ace6c70d3d1b94df7c283efe1de7effc"
   },
   "android_geodata": [
     {

@@ -57,9 +57,9 @@ jobs:
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.19.3
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.20.0
         git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
-        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "c5584feca8f6df70ee53eb2879e034b849a3d15a"
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "75dbc1e9ace6c70d3d1b94df7c283efe1de7effc"
         git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
         bash native-upstream/compile-hevtun.sh
         cp -r native-upstream/libs apps/android/app/
