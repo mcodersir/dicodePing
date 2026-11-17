@@ -243,8 +243,10 @@ func remoteDo(req *http.Request) (*http.Response, error) {
 	relayClient.Jar = nil
 	relayClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	for _, name := range names {
-		next, e := cloneRequest(req, req.Context())
+		relayContext, relayCancel := context.WithTimeout(req.Context(), 8*time.Second)
+		next, e := cloneRequest(req, relayContext)
 		if e != nil {
+			relayCancel()
 			return nil, e
 		}
 		apply(next)
@@ -260,8 +262,10 @@ func remoteDo(req *http.Request) (*http.Response, error) {
 		next.Host = ""
 		response, e := relayClient.Do(next)
 		if e == nil && response.Header.Get("X-Relay-Error") == "" && !blocked(response.StatusCode) {
+			response.Body = &cancelBody{response.Body, relayCancel}
 			return response, nil
 		}
+		relayCancel()
 		if response != nil {
 			response.Body.Close()
 		}
