@@ -180,6 +180,12 @@ jobs:
         if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
     - name: Build Fox helper from source
       run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
+    - name: Exercise Linux TUN without a root GUI
+      if: runner.os == 'Linux'
+      run: |
+        sudo setcap cap_net_admin,cap_net_raw,cap_net_bind_service=+ep publish/bin/xray/xray
+        python scripts/verify-linux-tun.py --xray publish/bin/xray/xray
+        sudo setcap -r publish/bin/xray/xray
     - name: Validate Serverless v62 with the packaged Xray
       run: python scripts/verify-serverless-runtime.py --xray publish/bin/xray/${{ matrix.xray_binary }}
     - name: Run runtime preservation and startup regression checks
