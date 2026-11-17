@@ -39,10 +39,10 @@ public class Release499Tests
     }
 
     [Fact]
-    public async Task SavedFoxSocksProfileUsesXrayTunWithoutAnExtraRuntime()
+    public async Task SavedFoxSocksProfileUsesNativeXrayTunByDefault()
     {
         var config = CoreConfigTestFactory.CreateConfigWithTun(ECoreType.Xray, false);
-        config.TunModeItem.EnableLegacyProtect = true;
+        config.TunModeItem.EnableLegacyProtect = false;
         CoreConfigTestFactory.BindAppManagerConfig(config);
         var node = new ProfileItem { IndexId = "saved", ConfigType = EConfigType.SOCKS, CoreType = ECoreType.sing_box,
             Address = "127.0.0.1", Port = 7854 };

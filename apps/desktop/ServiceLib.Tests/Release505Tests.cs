@@ -31,6 +31,37 @@ public class Release505Tests
     }
 
     [Fact]
+    public void LegacyTunBridgeRequiresExplicitOptInAndUsesActualProxyPort()
+    {
+        var config = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateConfig();
+        config.Inbound.First().LocalPort = 21080;
+        var node = new ProfileItem { ConfigType = EConfigType.SOCKS, CoreType = ECoreType.Xray, Address = "127.0.0.1", Port = 7854 };
+        config.TunModeItem.EnableTun = true;
+        Assert.Null(ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray));
+        config.TunModeItem.EnableLegacyProtect = true;
+        var bridge = ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray);
+        Assert.NotNull(bridge); Assert.Equal(ECoreType.sing_box, bridge.CoreType); Assert.Equal(21080, bridge.Port);
+        Assert.Null(ConfigHandler.GetPreSocksItem(config, node, ECoreType.sing_box));
+        config.TunModeItem.EnableTun = false;
+        Assert.Null(ConfigHandler.GetPreSocksItem(config, node, ECoreType.Xray));
+    }
+
+    [Fact]
+    public async Task LegacyTunUsesOneProxyListenerAndSeparateSingboxTunContext()
+    {
+        var config = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateConfig();
+        config.TunModeItem.EnableTun = true; config.TunModeItem.EnableLegacyProtect = true;
+        ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.BindAppManagerConfig(config);
+        var node = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateSocksNode(ECoreType.Xray, "");
+        var result = await ServiceLib.Handler.Builder.CoreConfigContextBuilder.BuildAll(config, node);
+        Assert.True(result.Success);
+        Assert.False(result.MainResult.Context.IsTunEnabled);
+        Assert.NotNull(result.PreSocksResult); Assert.True(result.PreSocksResult.Context.IsTunEnabled);
+        Assert.Equal(ECoreType.sing_box, result.PreSocksResult.Context.RunCoreType);
+        Assert.Equal(result.MainResult.Context.AppConfig.Inbound.First().LocalPort, result.PreSocksResult.Context.Node.Port);
+    }
+
+    [Fact]
     public async Task RecoverableErrorBeforeStartupDoesNotKillHealthyCore()
     {
         if (OperatingSystem.IsWindows()) return;

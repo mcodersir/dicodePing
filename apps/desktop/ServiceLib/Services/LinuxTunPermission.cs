@@ -2,15 +2,18 @@ namespace ServiceLib.Services;
 
 public static class LinuxTunPermission
 {
-    public static bool HasConfiguredCapabilities(Config config)
+    public static async Task<bool> HasConfiguredCapabilitiesAsync(Config config)
     {
         if (!OperatingSystem.IsLinux()) return false;
         try
         {
-            var type = config.TunModeItem.EnableLegacyProtect ? ECoreType.sing_box : ECoreType.Xray;
+            var node = await AppManager.Instance.GetProfileItem(config.IndexId);
+            if (node is null) return false;
+            var type = AppManager.Instance.GetCoreType(node, node.ConfigType);
+            if (ConfigHandler.GetPreSocksItem(config, node, type) is not null) type = ECoreType.sing_box;
             var info = CoreInfoManager.Instance.GetCoreInfo(type);
             var executable = CoreInfoManager.Instance.GetCoreExecFile(info, out _);
-            return HasCapabilities(executable);
+            return await Task.Run(() => HasCapabilities(executable));
         }
         catch { return false; }
     }

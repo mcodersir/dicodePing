@@ -1613,9 +1613,15 @@ public static class ConfigHandler
     /// <returns>A SOCKS profile item or null if not needed</returns>
     public static ProfileItem? GetPreSocksItem(Config config, ProfileItem node, ECoreType coreType)
     {
-        // Every supported runtime owns its TUN directly. Legacy PreSocksPort
-        // metadata must not start an extra tunnel or resurrect a removed engine.
-        return null;
+        // Create the compatibility bridge only for an explicit TUN opt-in.
+        // Ordinary connections never resurrect old PreSocksPort metadata.
+        if (!config.TunModeItem.EnableTun || !config.TunModeItem.EnableLegacyProtect
+            || coreType == ECoreType.sing_box) return null;
+        var port = config.Inbound.FirstOrDefault(i => i.Protocol == nameof(EInboundProtocol.socks))?.LocalPort ?? 0;
+        if (node.ConfigType == EConfigType.Custom) port = node.PreSocksPort ?? 0;
+        if (port is < 1 or > 65535) return null;
+        return new ProfileItem { CoreType = ECoreType.sing_box, ConfigType = EConfigType.SOCKS,
+            Address = Global.Loopback, Port = port };
     }
 
     /// <summary>

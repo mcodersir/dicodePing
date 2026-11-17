@@ -48,8 +48,9 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth
-          xvfb-run -a dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
+          sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth gdb
+          dotnet build apps/desktop/DicodeBrowser.Smoke -c Release
+          xvfb-run -a gdb -q --batch --return-child-result -ex 'set pagination off' -ex 'handle SIGPIPE nostop noprint pass' -ex 'handle SIG34 nostop noprint pass' -ex run -ex 'thread apply all bt 12' --args dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll
       - name: Build independent CLI
         run: |
           dotnet build apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release

@@ -132,7 +132,7 @@ public partial class StatusBarViewModel : MyReactiveObject
         BlSystemProxyPacVisible = Utils.IsWindows();
         BlIsNonWindows = Utils.IsNonWindows();
 
-        if (_config.TunModeItem.EnableTun && AllowEnableTun())
+        if (_config.TunModeItem.EnableTun)
         {
             EnableTun = true;
         }
@@ -489,7 +489,7 @@ public partial class StatusBarViewModel : MyReactiveObject
 
         _config.TunModeItem.EnableTun = EnableTun;
 
-        if (EnableTun && AllowEnableTun() == false)
+        if (EnableTun && !await AllowEnableTunAsync())
         {
             // When running as a non-administrator, reboot to administrator mode
             if (Utils.IsWindows())
@@ -516,14 +516,14 @@ public partial class StatusBarViewModel : MyReactiveObject
     public async Task<bool> EnsureTunPermissionAsync()
     {
         if (!_config.TunModeItem.EnableTun || Utils.IsWindows() || Utils.IsAdministrator()
-            || AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || LinuxTunPermission.HasConfiguredCapabilities(_config)) return true;
+            || AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || await LinuxTunPermission.HasConfiguredCapabilitiesAsync(_config)) return true;
         var password = await PasswordInputInteraction.HandleSafe(RxVoid.Default);
         if (password.IsNullOrEmpty()) return false;
         AppManager.Instance.LinuxSudoPwd = password;
         return true;
     }
 
-    private bool AllowEnableTun()
+    private async Task<bool> AllowEnableTunAsync()
     {
         if (Utils.IsWindows())
         {
@@ -531,7 +531,7 @@ public partial class StatusBarViewModel : MyReactiveObject
         }
         else if (Utils.IsLinux())
         {
-            return AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || LinuxTunPermission.HasConfiguredCapabilities(_config);
+            return AppManager.Instance.LinuxSudoPwd.IsNotEmpty() || await LinuxTunPermission.HasConfiguredCapabilitiesAsync(_config);
         }
         else if (Utils.IsMacOS())
         {
