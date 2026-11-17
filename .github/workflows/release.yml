@@ -157,8 +157,8 @@ jobs:
         }
         # Replace the archive defaults with the newest verified routing
         # database release so both the bundled runtime and Geo updater agree.
-        $geoRelease = '202611042203'
-        $geoHashes = @{ 'geoip.dat' = '06c1d50d0013af57ffe78c5af93f0dc6aa998890f3ee231393816f9117810c4a'; 'geosite.dat' = '916fea0cea925cc47f09001dfac652d5e8edb6db69ff13ad68e2b4ac9e8ecc1b' }
+        $geoRelease = '202611172204'
+        $geoHashes = @{ 'geoip.dat' = '304ac8a1cbcc8166e4f5a4f32955e4d0fb77a1bd713583e371b30ee27f3659d8'; 'geosite.dat' = '118d2e1358b892129be6aaf47e1f0c19d48944cf8f979980c65c7de423947883' }
         foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
           $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
           Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
