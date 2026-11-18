@@ -8,8 +8,12 @@ using System.Text.Json;
 
 public static class Program
 {
+ public static bool ExpectLoadFailure { get; private set; }
  [STAThread]
- public static void Main(string[] args) => AppBuilder.Configure<BrowserSmokeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+ public static void Main(string[] args) {
+  ExpectLoadFailure = args.Contains("--test-load-failure");
+  AppBuilder.Configure<BrowserSmokeApp>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+ }
 }
 
 public sealed class BrowserSmokeApp : Application
@@ -70,21 +74,12 @@ public sealed class BrowserSmokeApp : Application
    if(session is null){Finish(2,"FAIL native origin/session contract");return;}
    Finish(0,"PASS actual native browser: document-start WebChannel, status reply and session handoff to the native confirmation core");
   });
-  bool recovered = !OperatingSystem.IsLinux();
-  bool failedNavigationObserved = false;
   web.NavigationCompleted += (_, e) => {
-   if (!recovered && !e.IsSuccess) failedNavigationObserved = true;
-  };
-  web.LoadingStateChanged += (_, e) => {
-   // WebKit emits load-failed before load-changed(FINISHED). Starting the
-   // retry inside load-failed can let the previous finish clobber the new URL.
-   if (!recovered && failedNavigationObserved && !e.IsLoading) {
-    recovered = true;
-    Dispatcher.UIThread.Post(() => web.Navigate("https://accounts.firefox.com/dicode-local-fixture"));
-   }
+   if (Program.ExpectLoadFailure && !e.IsSuccess)
+    Dispatcher.UIThread.Post(() => DispatcherTimer.RunOnce(() => Finish(0, "PASS failed native WebKit navigation survives without freeing the borrowed GError"), TimeSpan.FromMilliseconds(500)));
   };
   window.Opened+=async(_,_)=>{
-   try{await web.InitializeAsync();web.Navigate(OperatingSystem.IsLinux() ? "https://accounts.firefox.com/dicode-intentional-failure" : "https://accounts.firefox.com/dicode-local-fixture");}
+   try{await web.InitializeAsync();web.Navigate(Program.ExpectLoadFailure ? "https://accounts.firefox.com/dicode-intentional-failure" : "https://accounts.firefox.com/dicode-local-fixture");}
    catch(Exception e){Finish(3,"FAIL native browser initialization: "+e.GetType().Name+": "+e.Message);}
   };
   var timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(45)};

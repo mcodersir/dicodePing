@@ -109,7 +109,9 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth
         bash scripts/prepare-browser-fixture.sh
-        timeout 90s xvfb-run -a dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
+        dotnet build apps/desktop/DicodeBrowser.Smoke -c Release
+        timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll --test-load-failure
+        timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll --test-success
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
         true -p:Version=5.0.5 -o publish
