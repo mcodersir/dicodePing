@@ -7,6 +7,7 @@ runtime/
 coverage/
 *.log
 *.pem
+!/apps/android/app/src/main/assets/mozilla_roots.pem
 *.jks
 *.keystore
 .env

@@ -52,7 +52,7 @@ class FoxNativeTest {
             assertTrue(process.waitFor(15, TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()
             assertEquals(output, 0, process.exitValue())
-            assertTrue(output, output.contains("1.15.0-alpha.13"))
+            assertTrue(output, output.contains("sing-box version 1.14.4"))
         } finally { if (process.isAlive) process.destroyForcibly() }
     }
 
@@ -90,7 +90,8 @@ class FoxNativeTest {
         assertTrue(FoxAccounts.roots().contains("BEGIN CERTIFICATE"))
         // Invalid input fails privately without making an authentication request.
         val error = runCatching { FoxAccounts.request(context, JSONObject().put("operation", "login").put("email", "invalid").put("password", "sentinel-never-saved")) }.exceptionOrNull()
-        assertTrue(error is FoxError); assertEquals("input", (error as FoxError).code)
+        assertTrue("Expected a private input error, received: $error", error is FoxError)
+        assertEquals("input", (error as FoxError).code)
     }
     @Test fun nativeXrayBridgeMovesAnHttpRequestThroughTheSocksEndpoint() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
