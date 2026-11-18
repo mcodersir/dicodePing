@@ -53,6 +53,11 @@ public class Release505Tests
         config.TunModeItem.EnableTun = true; config.TunModeItem.EnableLegacyProtect = true;
         ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.BindAppManagerConfig(config);
         var node = ServiceLib.Tests.CoreConfig.CoreConfigTestFactory.CreateSocksNode(ECoreType.Xray, "");
+        // This test also runs alone in release qualification on a clean runner.
+        SQLiteHelper.Instance.CreateTable<FullConfigTemplateItem>();
+        SQLiteHelper.Instance.CreateTable<DNSItem>();
+        SQLiteHelper.Instance.CreateTable<RoutingItem>();
+        SQLiteHelper.Instance.CreateTable<ProfileItem>();
         var result = await ServiceLib.Handler.Builder.CoreConfigContextBuilder.BuildAll(config, node);
         Assert.True(result.Success);
         Assert.False(result.MainResult.Context.IsTunEnabled);
