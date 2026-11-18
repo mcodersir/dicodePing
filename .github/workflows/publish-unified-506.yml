@@ -1,0 +1,90 @@
+name: Publish unified 5.0.6 and update download site
+on:
+  push:
+    branches: [codex/pages-download-refresh]
+    paths: [.github/workflows/publish-unified-506.yml]
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DESKTOP_RUN: '44217651998'
+      DESKTOP_SOURCE: 4faafe49a1b6d43f8b0fc0640f246d7877c85494
+    steps:
+      - uses: actions/checkout@v7
+      - name: Wait for all four desktop variants and check their source
+        run: |
+          gh run watch "$DESKTOP_RUN" --exit-status --interval 25
+          test "$(gh run view "$DESKTOP_RUN" --json headSha --jq .headSha)" = "$DESKTOP_SOURCE"
+      - uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.DESKTOP_RUN }}
+          pattern: '{linux-x64,windows-x64,macos-x64,macos-arm64}'
+          merge-multiple: true
+          path: desktop
+      - name: Verify desktop checksums and attach packages to the existing Android release
+        run: |
+          (cd desktop && sha256sum --check SHA256SUMS-*.txt)
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v5.0.6" > before.json
+          python3 - <<'PY'
+          import json, pathlib, re
+          html = pathlib.Path('web/index.html').read_text()
+          expected = {'DicodePing-5.0.6-' + suffix for suffix in re.findall(r'data-asset="([^"]+)"', html)}
+          apk = {a['name'] for a in json.loads(pathlib.Path('before.json').read_text())['assets'] if a['name'].endswith('.apk')}
+          assert len(expected) == 16 and len(apk) == 6
+          assert {p.name for p in pathlib.Path('desktop').iterdir() if not p.name.startswith('SHA256SUMS-')} == expected - apk
+          PY
+          for path in desktop/*; do
+            name=${path##*/}
+            digest=$(sha256sum "$path" | cut -d' ' -f1)
+            existing=$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .digest' before.json)
+            if [ -n "$existing" ]; then
+              test "$existing" = "sha256:$digest"
+            else
+              gh release upload v5.0.6 "$path"
+            fi
+          done
+      - name: Verify the complete release and keep both source revisions visible
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v5.0.6" > published.json
+          python3 scripts/verify-website-release.py published.json v5.0.6
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          before = json.loads(pathlib.Path('before.json').read_text())
+          actual = {a['name']: a for a in json.loads(pathlib.Path('published.json').read_text())['assets']}
+          for asset in before['assets']:
+              assert actual[asset['name']]['digest'] == asset['digest']
+          for path in pathlib.Path('desktop').iterdir():
+              with path.open('rb') as stream:
+                  assert actual[path.name]['digest'] == 'sha256:' + hashlib.file_digest(stream, 'sha256').hexdigest()
+          assert len(actual) == 25
+          PY
+          gh release edit v5.0.6 --title "DicodePing 5.0.6 — Desktop & Android" --notes-file docs/UNIFIED-5.0.6.md --latest
+  site:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
