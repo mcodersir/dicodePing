@@ -1,0 +1,288 @@
+name: Android 5.0.6 hotfix
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the Android hotfix after upgrade tests
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.15"
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.3
+        cache: false
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 27
+    - uses: android-actions/setup-android@v4
+    - name: Install SDK and NDK
+      run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
+    - name: Compute Android native payload cache key
+      id: android-native-key
+      run: |
+        python scripts/test-android-native-cache-key.py
+        python scripts/android-native-cache-key.py >> "$GITHUB_OUTPUT"
+    - name: Restore pinned Android native payloads
+      id: android-native
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          apps/android/app/libs
+          apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/singbox
+          apps/android/app/src/main/assets/geo*.dat
+          apps/android/app/src/main/assets/psiphon_servers.*
+        key: ${{ steps.android-native-key.outputs.key }}
+    - name: Build pinned hev TUN
+      if: steps.android-native.outputs.cache-hit != 'true'
+      env:
+        NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+      run: |
+        git config --global http.version HTTP/1.1
+        for attempt in 1 2 3 4; do
+          if git clone --branch 2.4.0-P73 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+            break
+          fi
+          rm -rf native-upstream
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        test "$(git -C native-upstream rev-parse HEAD)" = "b968895101455e2866be3994b3e4cb5265895972"
+        for attempt in 1 2 3 4; do
+          if git -C native-upstream submodule update --init --recursive --depth 1; then
+            break
+          fi
+          test "$attempt" -lt 4
+          sleep $((attempt * 5))
+        done
+        git -C native-upstream/hev-socks5-tunnel fetch --depth 1 origin refs/tags/2.20.0
+        git -C native-upstream/hev-socks5-tunnel checkout --detach FETCH_HEAD
+        test "$(git -C native-upstream/hev-socks5-tunnel rev-parse HEAD)" = "75dbc1e9ace6c70d3d1b94df7c283efe1de7effc"
+        git -C native-upstream/hev-socks5-tunnel submodule update --init --recursive --depth 1
+        bash native-upstream/compile-hevtun.sh
+        cp -r native-upstream/libs apps/android/app/
+    - name: Bundle verified Android Aether and Psiphon helpers
+      if: steps.android-native.outputs.cache-hit != 'true'
+      run: |
+        python scripts/stage-aether.py --android --output apps/android/app/libs
+        bash native-upstream/fetch-psiphon-servers.sh
+        cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
+    - name: Build Fox helper for all Android architectures
+      if: steps.android-native.outputs.cache-hit != 'true'
+      run: python scripts/stage-fox.py --android --output apps/android/app/libs
+    - name: Bundle independent sing-box for all Android architectures
+      if: steps.android-native.outputs.cache-hit != 'true'
+      run: python scripts/stage-singbox.py --android --output apps/android/app/libs
+    - name: Build pinned Android runtime with strict HTTP probes
+      if: steps.android-native.outputs.cache-hit != 'true'
+      run: bash scripts/build-android-core.sh
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+    - name: Save verified Android native payloads
+      if: steps.android-native.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          apps/android/app/libs
+          apps/android/app/src/main/assets/fox
+          apps/android/app/src/main/assets/singbox
+          apps/android/app/src/main/assets/geo*.dat
+          apps/android/app/src/main/assets/psiphon_servers.*
+        key: ${{ steps.android-native-key.outputs.key }}
+    - name: Build signed installable APKs
+      env:
+        POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
+        DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        DICODE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        DICODE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      working-directory: apps/android
+      run: |
+        python3 ../../scripts/check-pool-sources.py "$POOL_LIVE_FIXTURES"
+        echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
+        export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
+        chmod +x gradlew
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=5.0.6
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.6
+        ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.6
+    - name: Stage APK and checksums
+      run: |
+        mkdir -p dist-android
+        find apps/android/app/build/outputs/apk/{fdroid,tv}/release -type f -name '*.apk' -exec cp {} dist-android/ \;
+        # The standalone TV edition is Universal; avoid publishing redundant
+        # ABI variants that are not listed on the download page.
+        find dist-android -name '*-tv-*.apk' ! -name '*-tv-universal.apk' -delete
+        # AGP may keep the internal compatibility flavor in the generated
+        # filename; never expose that implementation detail in releases.
+        for apk in dist-android/*-fdroid-*.apk; do
+          [ -e "$apk" ] || continue
+          clean="$(printf '%s' "$apk" | sed 's/-fdroid-/-/')"
+          mv "$apk" "$clean"
+        done
+        cd dist-android
+        sha256sum *.apk > SHA256SUMS-android.txt
+    - name: Validate APK identity, signature and bundled native cores
+      run: python scripts/verify-release-apks.py --version 5.0.6 --code 55000600
+    - uses: actions/upload-artifact@v7
+      with:
+        name: android
+        path: dist-android/*
+    timeout-minutes: 60
+  install:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "5.0.3 5.0.5"}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "5.0.3 5.0.5"}
+          - {api: 36, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 27
+      - uses: android-actions/setup-android@v4
+      - name: Download published upgrade baselines
+        run: |
+          mkdir -p install-check
+          for version in ${{ matrix.baseline }}; do
+            curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-${{ matrix.apkAbi }}.apk" --output "install-check/$version.apk"
+          done
+      - name: Prepare actual Android installer UI test
+        if: matrix.baseline != ''
+        run: |
+          sdkmanager "build-tools;37.0.0" "platforms;android-36"
+          bash scripts/build-apk-install-probe.sh
+      - name: Enable emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test actual release installation, retained data and startup
+        env:
+          DICODE_INSTALL_TARGET: ${{ matrix.target }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          ram-size: 4096M
+          disable-animations: true
+          script: |
+            python3 scripts/verify-android-installation.py --version 5.0.6 --code 55000600 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.6-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.6-${{ matrix.alternate }}.apk
+            if [ -n "${{ matrix.baseline }}" ]; then
+              for baseline in ${{ matrix.baseline }}; do
+                python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.6 --baseline "install-check/$baseline.apk"
+                mv installer-ui-evidence "installer-ui-evidence-$baseline"
+              done
+            fi
+      - name: Preserve installation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-installation-${{ matrix.api }}-${{ matrix.apkAbi }}-${{ matrix.target }}
+          path: |
+            install-check/installation-results.json
+            install-check/package-manager-logcat.txt
+            installer-ui-evidence*/
+  tv-install:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+      - uses: actions/download-artifact@v8
+        with:
+          name: android
+          path: dist-android
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 27
+      - uses: android-actions/setup-android@v4
+      - run: sudo chmod a+rw /dev/kvm
+      - name: Download signed TV upgrade baselines
+        run: |
+          mkdir -p install-check
+          for version in 5.0.3 5.0.5; do
+            curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-tv-universal.apk" --output "install-check/$version.apk"
+          done
+      - name: Launch signed TV build on an Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # API 36 TV revision 1 crashes SystemUI before our APK is installed
+          # (VectorDrawable resource inflation), leaving every app without focus.
+          # Use the stable Android 14 TV image for the signed remote-control gate.
+          api-level: 34
+          arch: x86
+          target: android-tv
+          profile: tv_1080p
+          # Use GLES in the headless TV guest after its observed restart.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
+          ram-size: 4096M
+          disable-animations: true
+          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 5.0.6 --code 55000600 --baselines 5.0.3 5.0.5 --candidate dist-android/DicodePing-5.0.6-tv-universal.apk
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tv-installation-evidence
+          path: install-check/
+  publish:
+    if: inputs.publish
+    needs: [android, install, tv-install]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v8
+      with:
+        name: android
+        path: dist-android
+    - name: Verify the artifacts and create a draft
+      id: draft
+      run: |
+        (cd dist-android && sha256sum --check SHA256SUMS-android.txt)
+        gh release create v5.0.6 dist-android/* --target "$GITHUB_SHA" --draft --title "DicodePing 5.0.6 — Android hotfix" --notes-file docs/RELEASE-5.0.6.md
+        release_id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.tag_name == "v5.0.6" and .draft) | .id')
+        test -n "$release_id"
+        echo "id=$release_id" >> "$GITHUB_OUTPUT"
+    - name: Verify uploaded files and publish without replacing the desktop release
+      env:
+        RELEASE_ID: ${{ steps.draft.outputs.id }}
+      run: |
+        gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release.json
+        python3 - <<'PYVERIFY'
+        import hashlib, json, pathlib
+        release = json.loads(pathlib.Path("release.json").read_text())
+        files = {p.name: p for p in pathlib.Path("dist-android").iterdir()}
+        assets = {a["name"]: a for a in release["assets"]}
+        assert len(files) == 7 and files.keys() == assets.keys()
+        for name, path in files.items():
+            with path.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
+            assert assets[name]["digest"] == "sha256:" + digest
+        PYVERIFY
+        gh release edit v5.0.6 --draft=false --latest=false

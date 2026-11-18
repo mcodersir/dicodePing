@@ -16,8 +16,8 @@ android {
         // SDK made installers on stable devices report compatibility problems.
         targetSdk = 36
         // Monotonic shared version code permits switching architecture without a downgrade.
-        versionCode = 500005
-        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "5.0.5"
+        versionCode = 500006
+        versionName = (project.findProperty("dicodeVersion") as? String)?.takeIf { it.isNotBlank() } ?: "5.0.6"
         buildConfigField("boolean", "TV_BUILD", "false")
 
         val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')

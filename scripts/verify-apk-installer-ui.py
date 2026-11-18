@@ -1,7 +1,11 @@
 """Install via a granting content provider and the native PackageInstaller UI."""
 import argparse,hashlib,json,pathlib,re,subprocess,time,xml.etree.ElementTree as ET
 from installer_ui_controls import is_install_source_toggle
-p=argparse.ArgumentParser();p.add_argument('--abi',required=True);p.add_argument('--version',default='4.9.991');args=p.parse_args()
+p = argparse.ArgumentParser()
+p.add_argument('--abi', required=True)
+p.add_argument('--version', default='4.9.991')
+p.add_argument('--baseline', type=pathlib.Path)
+args = p.parse_args()
 ROOT=pathlib.Path('installer-ui-evidence');ROOT.mkdir(exist_ok=True)
 PACKAGE='ir.dicode.ping.fdroid';PROBE='ir.dicode.installprobe';records=[]
 def adb(*parts,check=True,stdin=None):
@@ -64,18 +68,18 @@ try:
  adb('install','-r','install-probe-build/probe.apk')
  adb('shell','appops','set',PROBE,'REQUEST_INSTALL_PACKAGES','allow')
  adb('shell','input','keyevent','KEYCODE_WAKEUP');adb('shell','wm','dismiss-keyguard',check=False)
- old=pathlib.Path('install-input991')/('DicodePing-4.9.991-'+args.abi+'.apk')
+ old=args.baseline or pathlib.Path('install-input991')/('DicodePing-4.9.991-'+args.abi+'.apk')
  new=pathlib.Path('dist-android')/('DicodePing-'+args.version+'-'+args.abi+'.apk')
  adb('uninstall',PACKAGE,check=False)
  before=install_ui(old,'original-fresh')
  print('Original public APK through native installer:',before,flush=True)
  adb('uninstall',PACKAGE,check=False)
- assert install_ui(new,'repacked-fresh'),'Repacked APK failed native PackageInstaller'
+ assert install_ui(new,'repacked-fresh'),'Release APK failed native PackageInstaller'
  assert 'Status: ok' in adb('shell','am','start','-W','-n',PACKAGE+'/com.v2ray.ang.ui.main.MainActivity')
  time.sleep(3);assert adb('shell','pidof',PACKAGE).strip()
  adb('uninstall',PACKAGE)
  adb('install','--no-streaming',str(old))
- assert install_ui(new,'repacked-update'),'Repacked APK failed native update flow'
+ assert install_ui(new,'repacked-update'),'Release APK failed native update flow'
  assert installed_hash()==sha(new)
  print('PASS native PackageInstaller: fresh install, actual installed bytes, launch and update',flush=True)
 finally:

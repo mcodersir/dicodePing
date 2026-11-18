@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """Check upgrade identity, signing certificate and native Xray/Fox packaging."""
-import os, pathlib, re, subprocess, zipfile, json, hashlib
+import argparse, os, pathlib, re, subprocess, zipfile, json, hashlib
 from verify_elf_alignment import verify_elf
+parser = argparse.ArgumentParser()
+parser.add_argument("--version", default="5.0.5")
+parser.add_argument("--code", type=int, default=55000500)
+args = parser.parse_args()
 root = pathlib.Path("dist-android")
 tools = pathlib.Path(os.environ["ANDROID_HOME"]) / "build-tools" / "37.0.0"
 expected_cert = "0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0"
 abis = {"universal": 0, "arm64-v8a": 1, "armeabi-v7a": 2, "x86_64": 3, "x86": 4}
 for abi, suffix in list(abis.items()) + [("tv-universal", 0)]:
-    apk = root / f"DicodePing-5.0.5-{abi}.apk"
+    apk = root / f"DicodePing-{args.version}-{abi}.apk"
     signer = subprocess.run([str(tools / "apksigner"), "verify", "--print-certs", str(apk)], check=True, capture_output=True, text=True).stdout
     certs = re.findall(r"certificate SHA-256 digest: ([0-9a-fA-F]+)", signer)
     assert certs and all(c.lower() == expected_cert for c in certs), "APK signing identity changed"
     manifest = subprocess.run([str(tools / "aapt2"), "dump", "badging", str(apk)], check=True, capture_output=True, text=True).stdout
     expected_id = 'ir.dicode.ping.tv' if abi == 'tv-universal' else 'ir.dicode.ping.fdroid'
     assert f"name='{expected_id}'" in manifest, "Android application ID changed"
-    assert "versionName='5.0.5'" in manifest and "versionCode='55000500'" in manifest, "APK version mismatch"
+    assert f"versionName='{args.version}'" in manifest and f"versionCode='{args.code}'" in manifest, "APK version mismatch"
     assert "targetSdkVersion:'36'" in manifest, "APK targets a preview SDK"
     subprocess.run([str(tools / "zipalign"), "-c", "-P", "16", "-v", "4", str(apk)], check=True, stdout=subprocess.DEVNULL)
     with zipfile.ZipFile(apk) as archive:
@@ -35,20 +39,21 @@ for abi, suffix in list(abis.items()) + [("tv-universal", 0)]:
             assert singbox[:4] == b"\x7fELF" and singbox[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "sing-box missing or wrong architecture"
             fox = archive.read(f"lib/{architecture}/libdicodefox.so")
             assert fox[:4] == b"\x7fELF" and fox[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Fox helper architecture mismatch"
+        assert b"-----BEGIN CERTIFICATE-----" in archive.read("assets/mozilla_roots.pem"), "Fox trust bundle missing"
         for notice in ["LICENSE-FoxyVPN.txt", "LICENSE-ArmanVPN.txt", "LICENSE-Go.txt", "LICENSE-DicodePing.txt"]:
             assert "assets/fox/" + notice in archive.namelist(), "Fox license is missing: " + notice
     print("Verified signed upgrade and native core:", apk.name)
 
 # An architecture-specific APK must contain the exact native payload tested in
 # the universal APK. Compare every library, including gomobile and TUN JNI.
-with zipfile.ZipFile(root / 'DicodePing-5.0.5-universal.apk') as universal:
+with zipfile.ZipFile(root / f'DicodePing-{args.version}-universal.apk') as universal:
     for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'):
         prefix = f'lib/{abi}/'
         expected = {n for n in universal.namelist() if n.startswith(prefix) and n.endswith('.so')}
         assert expected, 'Universal APK has no native libraries for ' + abi
         for required in ('libgojni.so', 'libhev-socks5-tunnel.so', 'libdicodefox.so', 'libsingbox.so'):
             assert prefix + required in expected, 'Required native component missing: ' + abi + '/' + required
-        with zipfile.ZipFile(root / f'DicodePing-5.0.5-{abi}.apk') as split:
+        with zipfile.ZipFile(root / f'DicodePing-{args.version}-{abi}.apk') as split:
             actual = {n for n in split.namelist() if n.startswith('lib/') and n.endswith('.so')}
             assert actual == expected, 'Split/universal native library mismatch: ' + abi
             for name in expected:
