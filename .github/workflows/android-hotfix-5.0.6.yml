@@ -10,32 +10,65 @@ on:
         default: false
 permissions:
   contents: read
+  actions: read
 jobs:
   android:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Check whether this revision changes any Android build inputs
+      id: reuse
+      run: |
+        if git diff --quiet 4f27d91978e2e645a3b8fd222ac89e914f3b0427 HEAD -- . ':(exclude).github/workflows/android-hotfix-5.0.6.yml'; then
+          echo matched=true >> "$GITHUB_OUTPUT"
+        fi
+    - uses: actions/download-artifact@v8
+      if: steps.reuse.outputs.matched == 'true'
+      with:
+        name: android
+        path: dist-android
+        github-token: ${{ github.token }}
+        run-id: 44213232514
+    - name: Check the previously validated signed payload
+      if: steps.reuse.outputs.matched == 'true'
+      run: |
+        cd dist-android
+        sha256sum --check SHA256SUMS-android.txt
+    - uses: actions/upload-artifact@v7
+      if: steps.reuse.outputs.matched == 'true'
+      with:
+        name: android
+        path: dist-android/*
     - uses: actions/setup-python@v6
+      if: steps.reuse.outputs.matched != 'true'
       with:
         python-version: "3.15"
     - uses: actions/setup-go@v6
+      if: steps.reuse.outputs.matched != 'true'
       with:
         go-version: 1.27.3
         cache: false
     - uses: actions/setup-java@v5
+      if: steps.reuse.outputs.matched != 'true'
       with:
         distribution: temurin
         java-version: 27
     - uses: android-actions/setup-android@v4
+      if: steps.reuse.outputs.matched != 'true'
     - name: Install SDK and NDK
+      if: steps.reuse.outputs.matched != 'true'
       run: yes | sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "ndk;29.0.14206865"
     - name: Compute Android native payload cache key
       id: android-native-key
+      if: steps.reuse.outputs.matched != 'true'
       run: |
         python scripts/test-android-native-cache-key.py
         python scripts/android-native-cache-key.py >> "$GITHUB_OUTPUT"
     - name: Restore pinned Android native payloads
       id: android-native
+      if: steps.reuse.outputs.matched != 'true'
       uses: actions/cache/restore@v5
       with:
         path: |
@@ -46,7 +79,7 @@ jobs:
           apps/android/app/src/main/assets/psiphon_servers.*
         key: ${{ steps.android-native-key.outputs.key }}
     - name: Build pinned hev TUN
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       env:
         NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
       run: |
@@ -74,24 +107,24 @@ jobs:
         bash native-upstream/compile-hevtun.sh
         cp -r native-upstream/libs apps/android/app/
     - name: Bundle verified Android Aether and Psiphon helpers
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       run: |
         python scripts/stage-aether.py --android --output apps/android/app/libs
         bash native-upstream/fetch-psiphon-servers.sh
         cp native-upstream/V2rayNG/app/src/main/assets/psiphon_servers.* apps/android/app/src/main/assets/
     - name: Build Fox helper for all Android architectures
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       run: python scripts/stage-fox.py --android --output apps/android/app/libs
     - name: Bundle independent sing-box for all Android architectures
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       run: python scripts/stage-singbox.py --android --output apps/android/app/libs
     - name: Build pinned Android runtime with strict HTTP probes
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       run: bash scripts/build-android-core.sh
       env:
         ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
     - name: Save verified Android native payloads
-      if: steps.android-native.outputs.cache-hit != 'true'
+      if: steps.reuse.outputs.matched != 'true' && steps.android-native.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5
       with:
         path: |
@@ -102,6 +135,7 @@ jobs:
           apps/android/app/src/main/assets/psiphon_servers.*
         key: ${{ steps.android-native-key.outputs.key }}
     - name: Build signed installable APKs
+      if: steps.reuse.outputs.matched != 'true'
       env:
         POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
         DICODE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -117,6 +151,7 @@ jobs:
         ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.6
         ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.6
     - name: Stage APK and checksums
+      if: steps.reuse.outputs.matched != 'true'
       run: |
         mkdir -p dist-android
         find apps/android/app/build/outputs/apk/{fdroid,tv}/release -type f -name '*.apk' -exec cp {} dist-android/ \;
@@ -133,8 +168,10 @@ jobs:
         cd dist-android
         sha256sum *.apk > SHA256SUMS-android.txt
     - name: Validate APK identity, signature and bundled native cores
+      if: steps.reuse.outputs.matched != 'true'
       run: python scripts/verify-release-apks.py --version 5.0.6 --code 55000600
     - uses: actions/upload-artifact@v7
+      if: steps.reuse.outputs.matched != 'true'
       with:
         name: android
         path: dist-android/*
@@ -189,12 +226,7 @@ jobs:
           disable-animations: true
           script: |
             python3 scripts/verify-android-installation.py --version 5.0.6 --code 55000600 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.6-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.6-${{ matrix.alternate }}.apk
-            if [ -n "${{ matrix.baseline }}" ]; then
-              for baseline in ${{ matrix.baseline }}; do
-                python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.6 --baseline "install-check/$baseline.apk"
-                mv installer-ui-evidence "installer-ui-evidence-$baseline"
-              done
-            fi
+            for baseline in ${{ matrix.baseline }}; do python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.6 --baseline "install-check/$baseline.apk" && mv installer-ui-evidence "installer-ui-evidence-$baseline" || exit 1; done
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7
