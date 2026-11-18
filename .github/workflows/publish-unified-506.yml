@@ -37,14 +37,25 @@ jobs:
           (cd desktop && sha256sum --check SHA256SUMS-*.txt)
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/v5.0.6" > before.json
           python3 - <<'PY'
-          import json, pathlib, re
+          import json, pathlib, re, shutil
           html = pathlib.Path('web/index.html').read_text()
           expected = {'DicodePing-5.0.6-' + suffix for suffix in re.findall(r'data-asset="([^"]+)"', html)}
           apk = {a['name'] for a in json.loads(pathlib.Path('before.json').read_text())['assets'] if a['name'].endswith('.apk')}
           assert len(expected) == 16 and len(apk) == 6
-          assert {p.name for p in pathlib.Path('desktop').iterdir() if not p.name.startswith('SHA256SUMS-')} == expected - apk
+          assert apk <= expected
+          packages = expected - apk
+          manifests = sorted(pathlib.Path('desktop').glob('SHA256SUMS-*.txt'))
+          assert len(manifests) == 8
+          checked = {line.split(maxsplit=1)[1].strip().lstrip('*')
+                     for manifest in manifests for line in manifest.read_text(encoding='utf-8-sig').splitlines()
+                     if line.strip()}
+          assert checked == packages
+          staging = pathlib.Path('release-assets')
+          staging.mkdir()
+          for source in [*(pathlib.Path('desktop') / name for name in sorted(packages)), *manifests]:
+              shutil.copyfile(source, staging / source.name)
           PY
-          for path in desktop/*; do
+          for path in release-assets/*; do
             name=${path##*/}
             digest=$(sha256sum "$path" | cut -d' ' -f1)
             existing=$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .digest' before.json)
@@ -64,7 +75,7 @@ jobs:
           actual = {a['name']: a for a in json.loads(pathlib.Path('published.json').read_text())['assets']}
           for asset in before['assets']:
               assert actual[asset['name']]['digest'] == asset['digest']
-          for path in pathlib.Path('desktop').iterdir():
+          for path in pathlib.Path('release-assets').iterdir():
               with path.open('rb') as stream:
                   assert actual[path.name]['digest'] == 'sha256:' + hashlib.file_digest(stream, 'sha256').hexdigest()
           assert len(actual) == 25
