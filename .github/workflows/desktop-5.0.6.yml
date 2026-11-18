@@ -1,0 +1,272 @@
+name: Desktop 5.0.6
+on:
+  push:
+    branches: [codex/desktop-5.0.6]
+permissions:
+  contents: read
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - runner: windows-latest
+          rid: win-x64
+          xray_asset: Xray-windows-64.zip
+          xray_sha256: 88219c2f5f3b406484adb17de015c5b7e7512968d1ec27ec409a6b17d049ecd6
+          xray_binary: xray.exe
+          mihomo_asset: mihomo-windows-amd64-v1-v1.19.34.zip
+          mihomo_binary: mihomo.exe
+          mihomo_sha256: 703e325bfeee582f874b06d054eaae55ab7c194645d1835411685aafa85da5ea
+          artifact: windows-x64
+        - runner: ubuntu-latest
+          rid: linux-x64
+          xray_asset: Xray-linux-64.zip
+          xray_sha256: 46862c925c02f3f480803bf9ea81c3d4ec61c62b5f6830a3493fc698ce8e5f19
+          xray_binary: xray
+          mihomo_asset: mihomo-linux-amd64-v1-v1.19.34.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: 0c07340a01408d033dda4088ea2a4c1e4d82aeed7b2f84f7c046e93b6ff3290c
+          artifact: linux-x64
+        - runner: macos-15-intel
+          rid: osx-x64
+          xray_asset: Xray-macos-64.zip
+          xray_sha256: b2a66479e199db20d0ef3dc313e4780b97ab01fed9166708165994f4ff5c4309
+          xray_binary: xray
+          mihomo_asset: mihomo-darwin-amd64-v1-v1.19.34.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: 84af3a9ffd4699e02f14b89859c58b4fc380f6a2135037c6e88e6822347ae657
+          artifact: macos-x64
+        - runner: macos-15
+          rid: osx-arm64
+          xray_asset: Xray-macos-arm64-v8a.zip
+          xray_sha256: 032eeea6ee11dab2a2ee7517bfce1441aacb687bca0b9bbda25b03b12244bd61
+          xray_binary: xray
+          mihomo_asset: mihomo-darwin-arm64-v1.19.34.gz
+          mihomo_binary: mihomo
+          mihomo_sha256: 1a7a20eca63fbbaec90137717465bfde488d0db2a3a79b8fadebf9b2545b6e4c
+          artifact: macos-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.15"
+    - uses: actions/setup-go@v6
+      with:
+        go-version: 1.27.3
+        cache: false
+    - uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+    - name: Restore and build the independent desktop client
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.6
+    - name: Render desktop layout on Linux
+      if: runner.os == 'Linux'
+      run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
+    - name: Run desktop regression tests on isolated Windows
+      if: runner.os == 'Windows'
+      env:
+        POOL_LIVE_FIXTURES: ${{ github.workspace }}/pool-live-fixtures
+      run: |
+        python scripts/check-pool-sources.py "$env:POOL_LIVE_FIXTURES"
+        if ($LASTEXITCODE -ne 0) { throw 'Could not capture Telegram source fixtures' }
+        dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release
+    - name: Verify actual native Firefox WebChannel handoff
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        dotnet run --project apps/desktop/DicodeBrowser.Smoke -c Release
+        if ($LASTEXITCODE -ne 0) { throw 'Native browser sign-in handoff failed' }
+    - name: Verify the native Linux sign-in browser with WebKitGTK
+      timeout-minutes: 6
+      if: runner.os == 'Linux'
+      env:
+        GDK_BACKEND: x11
+        WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+        WEBKIT_DISABLE_COMPOSITING_MODE: '1'
+        LIBGL_ALWAYS_SOFTWARE: '1'
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y libwebkit2gtk-4.1-0 xvfb xauth
+        bash scripts/prepare-browser-fixture.sh
+        dotnet build apps/desktop/DicodeBrowser.Smoke -c Release
+        timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll --test-load-failure
+        timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll --test-success
+    - name: Publish DicodePing desktop
+      run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
+        true -p:Version=5.0.6 -o publish
+    - name: Publish the standalone desktop updater
+      shell: pwsh
+      run: |
+        dotnet publish apps/desktop/AmazTool/AmazTool.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o updater-publish
+        if ($LASTEXITCODE -ne 0) { throw 'Updater publish failed' }
+        $name = if ('${{ matrix.rid }}' -eq 'win-x64') { 'AmazTool.exe' } else { 'AmazTool' }
+        Copy-Item "updater-publish/$name" "publish/$name"
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/$name" }
+    - name: Exercise the published updater in an isolated installation
+      shell: pwsh
+      run: |
+        $name = if ('${{ matrix.rid }}' -eq 'win-x64') { 'AmazTool.exe' } else { 'AmazTool' }
+        python scripts/verify-desktop-updater.py --tool "publish/$name"
+        if ($LASTEXITCODE -ne 0) { throw 'Native updater integration failed' }
+    - name: Bundle verified Xray and Mihomo runtimes
+      shell: pwsh
+      run: |
+        $url = "https://github.com/patterniha/Xray-core/releases/download/v26.11.21/${{ matrix.xray_asset }}"
+        Invoke-WebRequest -Uri $url -OutFile xray.zip
+        $expected = '${{ matrix.xray_sha256 }}'
+        $actual = (Get-FileHash xray.zip -Algorithm SHA256).Hash.ToLower()
+        if (-not $expected -or $actual -ne $expected) { throw "Xray SHA-256 verification failed" }
+        Expand-Archive xray.zip -DestinationPath xray-runtime -Force
+        if (-not (Test-Path "xray-runtime/${{ matrix.xray_binary }}")) { throw "Xray binary missing from archive" }
+        $xrayDir = New-Item -ItemType Directory -Force publish/bin/xray
+        $xray = Get-ChildItem xray-runtime -Recurse -File -Filter '${{ matrix.xray_binary }}' | Select-Object -First 1
+        if ($null -eq $xray) { throw "Xray binary missing from archive" }
+        Copy-Item $xray.FullName "$xrayDir/${{ matrix.xray_binary }}" -Force
+        # Xray loads wintun beside its executable; keep the signed driver from
+        # the checksum-verified upstream archive in every Windows package.
+        if ('${{ matrix.rid }}' -eq 'win-x64') {
+          $wintun = Get-ChildItem xray-runtime -Recurse -File -Filter 'wintun.dll' | Select-Object -First 1
+          if ($null -eq $wintun) { throw 'wintun.dll missing from verified Xray archive' }
+          Copy-Item $wintun.FullName "$xrayDir/wintun.dll" -Force
+          Copy-Item $wintun.FullName 'publish/wintun.dll' -Force
+          Copy-Item 'xray-runtime/LICENSE-Wintun' 'publish/bin/xray/LICENSE-Wintun' -Force
+        }
+        # Routing rules such as geosite:google need Xray's data files beside
+        # the executable root. Without these files the main TUN core cannot
+        # start, even though temporary speed-test cores appear to work.
+        $dataDir = New-Item -ItemType Directory -Force publish/bin
+        foreach ($dataName in @('geosite.dat', 'geoip.dat')) {
+          $dataFile = Get-ChildItem xray-runtime -Recurse -File -Filter $dataName | Select-Object -First 1
+          if ($null -eq $dataFile) { throw "$dataName missing from Xray archive" }
+          Copy-Item $dataFile.FullName "$dataDir/$dataName" -Force
+        }
+        # Replace the archive defaults with the newest verified routing
+        # database release so both the bundled runtime and Geo updater agree.
+        $geoRelease = '202611172204'
+        $geoHashes = @{ 'geoip.dat' = '304ac8a1cbcc8166e4f5a4f32955e4d0fb77a1bd713583e371b30ee27f3659d8'; 'geosite.dat' = '118d2e1358b892129be6aaf47e1f0c19d48944cf8f979980c65c7de423947883' }
+        foreach ($dataName in @('geoip.dat', 'geosite.dat')) {
+          $geoUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$geoRelease/$dataName"
+          Invoke-WebRequest -Uri $geoUrl -OutFile "publish/bin/$dataName"
+          $geoActual = (Get-FileHash "publish/bin/$dataName" -Algorithm SHA256).Hash.ToLower()
+          if ($geoActual -ne $geoHashes[$dataName]) { throw "$dataName SHA-256 verification failed" }
+        }
+        $mihomoUrl = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.34/${{ matrix.mihomo_asset }}"
+        Invoke-WebRequest -Uri $mihomoUrl -OutFile mihomo.archive
+        $mihomoActual = (Get-FileHash mihomo.archive -Algorithm SHA256).Hash.ToLower()
+        if ($mihomoActual -ne '${{ matrix.mihomo_sha256 }}') { throw "Mihomo SHA-256 verification failed" }
+        $mihomoDir = New-Item -ItemType Directory -Force publish/bin/mihomo
+        if ('${{ matrix.mihomo_asset }}'.EndsWith('.zip')) {
+          Expand-Archive mihomo.archive -DestinationPath mihomo-runtime -Force
+          $mihomo = Get-ChildItem mihomo-runtime -Recurse -File | Where-Object { $_.Name -like 'mihomo*.exe' } | Select-Object -First 1
+          if ($null -eq $mihomo) { throw "Mihomo binary missing from archive" }
+          Copy-Item $mihomo.FullName "$mihomoDir/${{ matrix.mihomo_binary }}" -Force
+        } else {
+          $input = [IO.File]::OpenRead((Resolve-Path mihomo.archive))
+          try {
+            $gzip = [IO.Compression.GZipStream]::new($input, [IO.Compression.CompressionMode]::Decompress)
+            try {
+              $output = [IO.File]::Create((Join-Path $mihomoDir.FullName '${{ matrix.mihomo_binary }}'))
+              try { $gzip.CopyTo($output) } finally { $output.Dispose() }
+            } finally { $gzip.Dispose() }
+          } finally { $input.Dispose() }
+        }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/xray/${{ matrix.xray_binary }}" }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x "publish/bin/mihomo/${{ matrix.mihomo_binary }}" }
+    - name: Build Fox helper from source
+      run: python scripts/stage-fox.py --rid ${{ matrix.rid }} --output publish/bin/fox
+    - name: Exercise Linux TUN without a root GUI
+      if: runner.os == 'Linux'
+      run: |
+        sudo setcap cap_net_admin,cap_net_raw,cap_net_bind_service=+ep publish/bin/xray/xray
+        python scripts/verify-linux-tun.py --xray publish/bin/xray/xray
+        sudo setcap -r publish/bin/xray/xray
+    - name: Validate Serverless v62 with the packaged Xray
+      run: python scripts/verify-serverless-runtime.py --xray publish/bin/xray/${{ matrix.xray_binary }}
+    - name: Run runtime preservation and startup regression checks
+      if: runner.os == 'Linux'
+      run: dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter FullyQualifiedName~Release505Tests
+    - name: Bundle and execute independent sing-box engine
+      run: python scripts/stage-singbox.py --rid ${{ matrix.rid }} --output publish/bin/sing_box
+    - name: Exercise real traffic through independent sing-box
+      run: python scripts/verify-independent-singbox.py --root publish
+    - name: Bundle verified Aether and Psiphon helpers
+      run: python scripts/stage-aether.py --rid ${{ matrix.rid }} --output publish/bin/aether
+    - name: Exercise the Linux sing-box compatibility TUN
+      if: runner.os == 'Linux'
+      run: |
+        sudo setcap cap_net_admin,cap_net_raw,cap_net_bind_service=+ep publish/bin/sing_box/sing-box
+        python scripts/verify-linux-tun.py --singbox publish/bin/sing_box/sing-box
+        sudo setcap -r publish/bin/sing_box/sing-box
+    - name: Execute bundled cores in the ephemeral runner
+      shell: pwsh
+      run: |
+        $versions = @{}
+        $runtimePins = Get-Content scripts/runtime-pins-5.0.5.json -Raw | ConvertFrom-Json
+        $checks = @(
+          @{ name = 'fox'; path = 'publish/bin/fox/dicode-fox${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '5.0.5' },
+          @{ name = 'xray'; path = 'publish/bin/xray/${{ matrix.xray_binary }}'; arg = 'version'; version = '26.11.21' },
+          @{ name = 'aether'; path = 'publish/bin/aether/aether${{ matrix.rid == 'win-x64' && '.exe' || '' }}'; arg = '--version'; version = '2.4.0' },
+          @{ name = 'mihomo'; path = 'publish/bin/mihomo/${{ matrix.mihomo_binary }}'; arg = '-v'; version = $runtimePins.mihomo_version }
+        )
+        foreach ($check in $checks) {
+          $output = (& (Resolve-Path $check.path) $check.arg 2>&1 | Out-String)
+          if ($LASTEXITCODE -ne 0 -or $output -notmatch [regex]::Escape($check.version)) { throw "Bundled $($check.name) has an incorrect version: $output" }
+          $versions[$check.name] = @{ version = $check.version; sha256 = (Get-FileHash $check.path -Algorithm SHA256).Hash.ToLower(); output = $output.Trim() }
+          Write-Host $output
+        }
+        $versions | ConvertTo-Json -Depth 4 | Set-Content publish/runtime-versions.json
+    - name: Validate generated configurations with bundled native cores
+      shell: pwsh
+      run: |
+        $env:DICODE_RUNTIME_TEST_ROOT = (Resolve-Path publish).Path
+        dotnet test apps/desktop/ServiceLib.Tests/ServiceLib.Tests.csproj -c Release --filter "FullyQualifiedName~NativeRuntimeTests"
+        if ($LASTEXITCODE -ne 0) { throw 'Generated configurations failed native core validation' }
+    - name: Publish independent CLI with verified runtimes
+      shell: pwsh
+      run: |
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=5.0.6 -o cli-publish
+        if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
+        Copy-Item publish/bin cli-publish/bin -Recurse -Force
+        Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
+        if (Test-Path publish/wintun.dll) { Copy-Item publish/wintun.dll cli-publish/wintun.dll }
+        Copy-Item docs/CLI.md cli-publish/README.md
+        Copy-Item LICENSE cli-publish/LICENSE
+        $cli = (Resolve-Path ('cli-publish/dicodeping' + '${{ matrix.rid == 'win-x64' && '.exe' || '' }}')).Path
+        & $cli --version
+        if ($LASTEXITCODE -ne 0) { throw 'CLI version check failed' }
+        & $cli --help
+        if ($LASTEXITCODE -ne 0) { throw 'CLI help check failed' }
+        if ('${{ matrix.rid }}' -ne 'win-x64') { chmod +x cli-publish/bin/fox/dicode-fox cli-publish/dicodeping cli-publish/bin/xray/xray cli-publish/bin/mihomo/mihomo cli-publish/bin/aether/aether cli-publish/bin/aether/pt/lyrebird cli-publish/bin/aether/pt/psiphon-tunnel-core }
+        python scripts/package-desktop.py --root cli-publish --edition cli --platform ${{ matrix.artifact }}
+        if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed' }
+    - name: Exercise CLI with actual proxy traffic and cleanup
+      if: runner.os == 'Linux'
+      run: python scripts/verify-cli.py --root cli-publish
+    - name: Exercise Windows native VLESS TUN with TLS and WebSocket
+      if: runner.os == 'Windows'
+      run: python scripts/verify-windows-v2ray.py --root cli-publish
+    - name: Archive and checksum
+      run: python scripts/package-desktop.py --platform ${{ matrix.artifact }}
+    - name: Verify the published graphical Linux client opens without root
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        python scripts/verify-linux-desktop.py
+    - name: Build Windows installer
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install innosetup --no-progress --yes
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=5.0.6 .github\installer\DicodePing.iss
+        $installer = Get-Item dist\DicodePing-5.0.6-windows-x64-installer.exe
+        Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
+    - uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact }}
+        path: dist/*
