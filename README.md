@@ -13,9 +13,11 @@ https://t.me/dicodeping
 [![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.3/docs/CLI.md)**
+**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/CLI.md)**
 
-نسخهٔ پایدار فعلی: **۵.۰.۳**
+نسخهٔ پایدار فعلی: **۵.۰.۵**
+
+در نسخهٔ ۵.۰.۵: Serverless v62 و Xray 26.11.21، تنظیمات پویای FoxyConfig با حفظ هستهٔ انتقال روباه، اصلاح TUN و مرورگر ورود لینوکس، و بهبود بسته‌های اندروید. [تغییرات کامل دسکتاپ و اندروید](https://github.com/mcodersir/dicodePing/releases/tag/v5.0.5).
 
 </div>
 
@@ -61,9 +63,9 @@ https://t.me/dicodeping
 - **ARM64** به سیستم اندروید ۶۴بیتی نیاز دارد؛ ۶۴بیتی‌بودن پردازنده به‌تنهایی کافی نیست.
 - اگر معماری سیستم مشخص نیست، **Universal** را انتخاب کنید.
 - نسخهٔ تلویزیون جدا از نسخهٔ گوشی نصب می‌شود.
-- بسته‌های فعلی نسخهٔ ۵.۰.۳ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
+- بسته‌های فعلی نسخهٔ ۵.۰.۵ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
 
-**[ARM64 نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.3/DicodePing-5.0.3-arm64-v8a.apk)** · **[Universal نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.3/DicodePing-5.0.3-universal.apk)**
+**[ARM64 نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.5/DicodePing-5.0.5-arm64-v8a.apk)** · **[Universal نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.5/DicodePing-5.0.5-universal.apk)**
 
 در دسکتاپ، فعال‌کردن TUN یا تغییر مسیریابی سیستم ممکن است به دسترسی مدیر نیاز داشته باشد. در اندروید، اجازهٔ ایجاد اتصال VPN از طریق پنجرهٔ خود سیستم‌عامل گرفته می‌شود.
 
@@ -79,7 +81,7 @@ dicodeping ping
 dicodeping connect --best
 ```
 
-برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.3/docs/CLI.md) آمده است.
+برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/CLI.md) آمده است.
 
 ## منابع اتصال
 
@@ -87,12 +89,12 @@ dicodeping connect --best
 
 ## مستندات و توسعه
 
-سورس هر انتشار در Tag همان نسخه قرار دارد. برای بررسی یا ساخت نسخهٔ پایدار، از [سورس ۵.۰.۳](https://github.com/mcodersir/dicodePing/tree/v5.0.3) و راهنماهای همان Tag استفاده کنید.
+سورس هر انتشار در Tag همان نسخه قرار دارد. برای بررسی یا ساخت نسخهٔ پایدار، از [سورس ۵.۰.۵](https://github.com/mcodersir/dicodePing/tree/v5.0.5) و راهنماهای همان Tag استفاده کنید.
 
-- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.3/docs/ANDROID.md)
-- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.3/docs)
+- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/ANDROID.md)
+- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.5/docs)
 - [امنیت و گزارش آسیب‌پذیری](SECURITY.md)
-- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.3/PRIVACY.md)
+- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.5/PRIVACY.md)
 - [گزارش اشکال و پیشنهاد](https://github.com/mcodersir/dicodePing/issues)
 - [مجوزها و قدردانی از اجزای متن‌باز](THIRD_PARTY_NOTICES.md)
 
