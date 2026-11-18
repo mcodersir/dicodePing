@@ -1,5 +1,7 @@
 name: Android 5.0.6 hotfix
 on:
+  push:
+    branches: [codex/android-hotfix-5.0.6]
   workflow_dispatch:
     inputs:
       publish:
@@ -248,7 +250,7 @@ jobs:
           name: tv-installation-evidence
           path: install-check/
   publish:
-    if: inputs.publish
+    if: github.event_name == 'push' || inputs.publish
     needs: [android, install, tv-install]
     runs-on: ubuntu-latest
     permissions:
