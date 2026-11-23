@@ -13,11 +13,11 @@ https://t.me/dicodeping
 [![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.7/docs/CLI.md)**
+**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.8/docs/CLI.md)**
 
-نسخهٔ پایدار فعلی: **۵.۰.۷**
+نسخهٔ پایدار فعلی: **۵.۰.۸**
 
-نسخهٔ ۵.۰.۷ برای دسکتاپ و اندروید منتشر شده است و شامل AppImage لینوکس، DMG مک، Universal پیشنهادی برای گوشی و بسته‌های سبک Android TV است. [تغییرات کامل دسکتاپ و اندروید](https://github.com/mcodersir/dicodePing/releases/tag/v5.0.7).
+نسخهٔ ۵.۰.۸ سبک شیشهٔ مایع (بتا) را به دسکتاپ، اندروید و Android TV اضافه می‌کند. سبک کلاسیک از تنظیمات در دسترس است. در ویندوز، کلیک عادی یک پروفایل را انتخاب می‌کند و Ctrl انتخاب چندتایی را فعال می‌کند. [تغییرات کامل دسکتاپ و اندروید](https://github.com/mcodersir/dicodePing/releases/tag/v5.0.8).
 
 </div>
 
@@ -52,10 +52,10 @@ https://t.me/dicodeping
 | پلتفرم | بسته‌های ارائه‌شده |
 | --- | --- |
 | Windows 10/11، ۶۴بیتی | نصب‌کننده و نسخهٔ Portable |
-| Linux، x64 | بستهٔ DEB و نسخهٔ Portable |
-| macOS | نسخه‌های جداگانهٔ Apple Silicon و Intel |
+| Linux، x64 | AppImage، بستهٔ DEB و نسخهٔ Portable |
+| macOS | DMG و ZIP برای Apple Silicon و Intel |
 | Android 10 و جدیدتر | ARM64، ARM 32-bit، x86، x86_64 و Universal |
-| Android TV 10 و جدیدتر | بستهٔ مستقل Universal با پشتیبانی از ریموت |
+| Android TV 10 و جدیدتر | بسته‌های مستقل ARM64، ARM 32-bit و Universal با پشتیبانی از ریموت |
 | CLI | بسته‌های مستقل Windows، Linux و macOS |
 
 ### انتخاب APK اندروید
@@ -63,9 +63,9 @@ https://t.me/dicodeping
 - **ARM64** به سیستم اندروید ۶۴بیتی نیاز دارد؛ ۶۴بیتی‌بودن پردازنده به‌تنهایی کافی نیست.
 - اگر معماری سیستم مشخص نیست، **Universal** را انتخاب کنید.
 - نسخهٔ تلویزیون جدا از نسخهٔ گوشی نصب می‌شود.
-- بسته‌های فعلی نسخهٔ ۵.۰.۷ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
+- بسته‌های فعلی نسخهٔ ۵.۰.۸ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
 
-**[Universal پیشنهادی](https://github.com/mcodersir/dicodePing/releases/download/v5.0.7/DicodePing-5.0.7-universal.apk)** · **[ARM64](https://github.com/mcodersir/dicodePing/releases/download/v5.0.7/DicodePing-5.0.7-arm64-v8a.apk)**
+**[Universal پیشنهادی](https://github.com/mcodersir/dicodePing/releases/download/v5.0.8/DicodePing-5.0.8-universal.apk)** · **[ARM64](https://github.com/mcodersir/dicodePing/releases/download/v5.0.8/DicodePing-5.0.8-arm64-v8a.apk)**
 
 در دسکتاپ، فعال‌کردن TUN یا تغییر مسیریابی سیستم ممکن است به دسترسی مدیر نیاز داشته باشد. در اندروید، اجازهٔ ایجاد اتصال VPN از طریق پنجرهٔ خود سیستم‌عامل گرفته می‌شود.
 
@@ -81,7 +81,7 @@ dicodeping ping
 dicodeping connect --best
 ```
 
-برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.7/docs/CLI.md) آمده است.
+برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.8/docs/CLI.md) آمده است.
 
 ## منابع اتصال
 
@@ -89,12 +89,12 @@ dicodeping connect --best
 
 ## مستندات و توسعه
 
-سورس نسخهٔ پایدار ۵.۰.۷ برای [اندروید](https://github.com/mcodersir/dicodePing/tree/v5.0.7) و [دسکتاپ](https://github.com/mcodersir/dicodePing/tree/v5.0.7/apps/desktop) در دسترس است.
+سورس نسخهٔ پایدار ۵.۰.۸ برای [اندروید](https://github.com/mcodersir/dicodePing/tree/v5.0.8) و [دسکتاپ](https://github.com/mcodersir/dicodePing/tree/v5.0.8/apps/desktop) در دسترس است.
 
-- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.7/docs/ANDROID.md)
-- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.7/docs)
+- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.8/docs/ANDROID.md)
+- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.8/docs)
 - [امنیت و گزارش آسیب‌پذیری](SECURITY.md)
-- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.7/PRIVACY.md)
+- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.8/PRIVACY.md)
 - [گزارش اشکال و پیشنهاد](https://github.com/mcodersir/dicodePing/issues)
 - [مجوزها و قدردانی از اجزای متن‌باز](THIRD_PARTY_NOTICES.md)
 
