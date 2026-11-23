@@ -135,10 +135,10 @@
     </Style>
 
     <Style Selector="Border.DicodeCard">
-        <Setter Property="Background" Value="{DynamicResource DicodeSurface}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" />
+        <Setter Property="Background" Value="{DynamicResource DicodeSurfaceFinish}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DicodeSurfaceEdge}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="CornerRadius" Value="{DynamicResource DicodeSurfaceRadius}" />
     </Style>
 
     <Style Selector="Button.FabButton">
@@ -209,7 +209,7 @@
     <!-- Static skeletons: only the metric in flight is masked, without an infinite animation. -->
     <Style Selector="Border.DicodeSkeleton"><Setter Property="Background" Value="{DynamicResource DicodeBorder}" /><Setter Property="CornerRadius" Value="5" /><Setter Property="Opacity" Value="0.65" /></Style>
     <Style Selector="TextBlock.DicodeCaption"><Setter Property="FontSize" Value="11" /><Setter Property="Foreground" Value="{DynamicResource DicodeTextSecondary}" /></Style>
-    <Style Selector="Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSurface}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeBorder}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="14" /></Style>
+    <Style Selector="Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSurfaceFinish}" /><Setter Property="BorderBrush" Value="{DynamicResource DicodeSurfaceEdge}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="{DynamicResource DicodeSurfaceRadius}" /></Style>
     <Style Selector="Border.DicodeProfileCard.activeProfile"><Setter Property="BorderBrush" Value="{DynamicResource DicodeAccent}" /></Style>
     <Style Selector="ListBoxItem:selected Border.DicodeProfileCard"><Setter Property="Background" Value="{DynamicResource DicodeSelection}" /></Style>
     <Style Selector="Button.DicodeQuietButton"><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="MinHeight" Value="34" /><Setter Property="Padding" Value="10,6" /></Style>

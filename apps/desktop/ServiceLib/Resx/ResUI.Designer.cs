@@ -6802,5 +6802,13 @@ namespace ServiceLib.Resx {
         public static string DicodeExportDiagnostics => ResourceManager.GetString("DicodeExportDiagnostics", resourceCulture) ?? "Export diagnostic ZIP";
         public static string DicodeRemovedCore => ResourceManager.GetString("DicodeRemovedCore", resourceCulture) ?? "Unsupported custom engine";
 
+        public static string DicodeInterfaceStyle => ResourceManager.GetString("DicodeInterfaceStyle", resourceCulture) ?? "Interface style";
+        public static string DicodeGlassPromptTitle => ResourceManager.GetString("DicodeGlassPromptTitle", resourceCulture) ?? "Try Liquid Glass (beta)?";
+        public static string DicodeGlassPromptBody => ResourceManager.GetString("DicodeGlassPromptBody", resourceCulture) ?? "Try translucent panels and a new Graphite palette. You can switch styles anytime in Settings.";
+        public static string DicodeGlassTry => ResourceManager.GetString("DicodeGlassTry", resourceCulture) ?? "Try Liquid Glass (beta)";
+        public static string DicodeStyleClassic => ResourceManager.GetString("DicodeStyleClassic", resourceCulture) ?? "Classic";
+        public static string DicodeStyleGlass => ResourceManager.GetString("DicodeStyleGlass", resourceCulture) ?? "Liquid Glass (beta)";
+        public static string DicodeAppearanceSaveFailed => ResourceManager.GetString("DicodeAppearanceSaveFailed", resourceCulture) ?? "Could not save the interface style.";
+
 }
 }

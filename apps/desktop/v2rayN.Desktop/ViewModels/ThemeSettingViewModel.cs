@@ -1,6 +1,7 @@
 using Avalonia.Controls.Notifications;
 using Avalonia.Controls.Primitives;
 using AvaloniaEdit;
+using v2rayN.Desktop.Common;
 using Semi.Avalonia;
 
 namespace v2rayN.Desktop.ViewModels;
@@ -110,9 +111,26 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         }
     }
 
+    internal static void RefreshAppearance()
+    {
+        if (Application.Current is { } app)
+            ApplyDicodePalette(app, AppManager.Instance.Config.UiItem.CurrentTheme ?? nameof(ETheme.FollowSystem),
+                app.ActualThemeVariant == ThemeVariant.Dark);
+    }
+
     private static void ApplyDicodePalette(Application app, string themeName, bool systemIsDark)
     {
-        var palette = themeName switch
+        var glass = GlassAppearance.IsEnabled;
+        var dark = themeName switch
+        {
+            nameof(ETheme.Light) or nameof(ETheme.Desert) => false,
+            nameof(ETheme.FollowSystem) => systemIsDark,
+            _ => true,
+        };
+        var palette = glass ? (dark
+            ? ("#151517", "#202023", "#28282C", "#414148", "#FAFAFA", "#B9B9C1", "#363332", "#F2BE73")
+            : ("#F4F3F2", "#FBFAF9", "#FFFFFF", "#CFCDD2", "#212125", "#575761", "#E9E2DA", "#794719"))
+            : themeName switch
         {
             nameof(ETheme.Dark) => ("#101010", "#171717", "#202020", "#363636", "#F5F5F4", "#AEAEAA", "#30302C", "#F5BC63"),
             nameof(ETheme.Aquatic) => ("#071B20", "#0C252B", "#123139", "#24505A", "#EAFBFC", "#A9D0D4", "#164957", "#48C6D4"),
@@ -133,7 +151,34 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         SetBrush(app, "DicodeAccent", palette.Item8);
         SetBrush(app, "DicodeActionBackground", palette.Item5);
         SetBrush(app, "DicodeActionForeground", palette.Item1);
+        app.Resources["DicodeSurfaceRadius"] = new CornerRadius(glass ? 22 : 14);
+        if (!glass)
+        {
+            SetBrush(app, "DicodeSurfaceFinish", palette.Item2);
+            SetBrush(app, "DicodeSurfaceEdge", palette.Item4);
+            return;
+        }
+
+        // A reflective top edge and a translucent lower layer keep the glass
+        // within the app surface, independent of the desktop compositor.
+        app.Resources["DicodeSurfaceFinish"] = Layer(
+            dark ? "#E5323238" : "#FAFFFFFF", dark ? "#B8212126" : "#BDE9E5E1");
+        app.Resources["DicodeSurfaceEdge"] = Layer(
+            dark ? "#85FFFFFF" : "#FFFFFFFF", dark ? "#403F3F47" : "#80787680");
+        app.Resources["DicodePageBackground"] = Layer(
+            dark ? "#282528" : "#F6F4F0", dark ? "#111114" : "#E6E7ED");
     }
+
+    private static LinearGradientBrush Layer(string top, string bottom) => new()
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+        GradientStops = new GradientStops
+        {
+            new GradientStop(Color.Parse(top), 0),
+            new GradientStop(Color.Parse(bottom), 1),
+        },
+    };
 
     private static void SetBrush(Application app, string key, string color) =>
         app.Resources[key] = new SolidColorBrush(Color.Parse(color));
@@ -179,7 +224,7 @@ public partial class ThemeSettingViewModel : MyReactiveObject
 
     private void ModifyFontFamily()
     {
-        var currentFontFamily = "avares://DicodePing/Assets/Fonts#Open Sans, avares://DicodePing/Assets/Fonts#Vazirmatn";
+        var currentFontFamily = "avares://DicodePing/Assets/Fonts#Vazirmatn, avares://DicodePing/Assets/Fonts#Open Sans";
 
         try
         {

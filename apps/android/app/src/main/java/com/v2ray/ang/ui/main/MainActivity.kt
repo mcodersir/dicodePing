@@ -14,6 +14,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import com.v2ray.ang.ui.compose.ThemeManager
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.lifecycleScope
@@ -180,7 +182,24 @@ class MainActivity : HelperBaseComponentActivity() {
             },
             onNavigate = { route -> navigateTo(route) },
         )
-        if (showTelegramPrompt.value) {
+        val appearance = ThemeManager.appearanceStyle.collectAsState().value
+        if (appearance == null) {
+            AlertDialog(
+                onDismissRequest = { ThemeManager.useGlassAppearance(false) },
+                title = { Text(stringResource(R.string.dicode_glass_prompt_title)) },
+                text = { Text(stringResource(R.string.dicode_glass_prompt_body)) },
+                confirmButton = {
+                    TextButton(onClick = { ThemeManager.useGlassAppearance(true) }) {
+                        Text(stringResource(R.string.dicode_glass_try))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { ThemeManager.useGlassAppearance(false) }) {
+                        Text(stringResource(R.string.dicode_style_classic))
+                    }
+                },
+            )
+        } else if (showTelegramPrompt.value) {
             AlertDialog(
                 onDismissRequest = ::dismissTelegramPrompt,
                 title = { Text(stringResource(R.string.dicode_channel_title)) },

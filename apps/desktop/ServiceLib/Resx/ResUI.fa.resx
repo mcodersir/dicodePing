@@ -2439,4 +2439,11 @@ https://t.me/dicodeping‏</value>
   <data name="DicodePrimaryEmpty" xml:space="preserve"><value>ساب Dicode Config Checker فعلاً کانفیگی ندارد؛ در صورت نیاز ساب دیگری را جداگانه انتخاب کنید.</value></data>
   <data name="DicodeExportDiagnostics" xml:space="preserve"><value>دریافت ZIP گزارش خطا</value></data>
 <data name="DicodeRemovedCore" xml:space="preserve"><value>این کانفیگ اختصاصی به هستهٔ حذف‌شده نیاز دارد. لینک سرور یا کانفیگ Xray وارد کنید.</value></data>
+  <data name="DicodeInterfaceStyle" xml:space="preserve"><value>سبک رابط کاربری</value></data>
+  <data name="DicodeGlassPromptTitle" xml:space="preserve"><value>رابط شیشهٔ مایع را امتحان می‌کنید؟</value></data>
+  <data name="DicodeGlassPromptBody" xml:space="preserve"><value>پنل‌های نیمه‌شفاف و رنگ‌بندی گرافیت را امتحان کنید. هر زمان خواستید، سبک را از تنظیمات عوض کنید.</value></data>
+  <data name="DicodeGlassTry" xml:space="preserve"><value>امتحان شیشهٔ مایع (بتا)</value></data>
+  <data name="DicodeStyleClassic" xml:space="preserve"><value>کلاسیک</value></data>
+  <data name="DicodeStyleGlass" xml:space="preserve"><value>شیشهٔ مایع (بتا)</value></data>
+  <data name="DicodeAppearanceSaveFailed" xml:space="preserve"><value>ذخیرهٔ سبک رابط کاربری انجام نشد.</value></data>
 </root>

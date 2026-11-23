@@ -31,6 +31,14 @@ public partial class App : Application
                 var mainWindow = (MainWindow)viewLocator.Build(mainWindowViewModel);
                 mainWindow.ViewModel = mainWindowViewModel;
                 desktop.MainWindow = mainWindow;
+                if (!Design.IsDesignMode && AppManager.Instance.Config.UiItem.AppearanceStyle is null)
+                {
+                    mainWindow.Opened += (_, _) => Dispatcher.UIThread.Post(async () =>
+                    {
+                        if (mainWindow.IsVisible && AppManager.Instance.Config.UiItem.AppearanceStyle is null)
+                            await GlassAppearance.PromptAsync(mainWindow);
+                    });
+                }
                 if (show) mainWindow.Show();
             }
             if (!Design.IsDesignMode && !System.IO.File.Exists(AppearanceSetupWindow.MarkerPath))

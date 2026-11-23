@@ -3,6 +3,9 @@ package com.v2ray.ang.ui.compose
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +77,39 @@ private val DarkColor = darkColorScheme(
     surfaceContainerHigh = Color(0xFF151C24), surfaceContainerHighest = Color(0xFF1A222C),
 )
 
+private val DarkGlass = DarkColor.copy(
+    background = Color(0xFF141416), onBackground = Color(0xFFF8F7F5),
+    surface = Color(0xFF202022), onSurface = Color(0xFFF8F7F5),
+    primary = Color(0xFFF8F7F5), onPrimary = Color(0xFF1D1C1A),
+    primaryContainer = Color(0xFF3D3123), onPrimaryContainer = Color(0xFFFFD9AA),
+    secondaryContainer = Color(0xFF37342F), onSecondaryContainer = Color(0xFFF3DEBF),
+    surfaceVariant = Color(0xFF302F32), onSurfaceVariant = Color(0xFFCCC9C7),
+    outline = Color(0xFF989492), outlineVariant = Color(0xFF4C4849),
+    surfaceTint = Color(0xFFDCCBB5), surfaceContainer = Color(0xFF232225),
+    surfaceContainerLowest = Color(0xFF141416), surfaceContainerLow = Color(0xFF1C1B1E),
+    surfaceContainerHigh = Color(0xFF2B2A2D), surfaceContainerHighest = Color(0xFF333235),
+)
+
+private val LightGlass = LightColor.copy(
+    background = Color(0xFFF3F1EE), onBackground = Color(0xFF222120),
+    surface = Color(0xFFFBFAF8), onSurface = Color(0xFF222120),
+    primary = Color(0xFF272522), onPrimary = Color.White,
+    primaryContainer = Color(0xFFFCE2C4), onPrimaryContainer = Color(0xFF452D17),
+    secondaryContainer = Color(0xFFF2E5D5), onSecondaryContainer = Color(0xFF453727),
+    surfaceVariant = Color(0xFFEBE7E2), onSurfaceVariant = Color(0xFF5E5752),
+    outline = Color(0xFF746D65), outlineVariant = Color(0xFFD6CEC4),
+    surfaceTint = Color(0xFF8C6D4E), surfaceContainer = Color(0xFFEFECE8),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7F5F2),
+    surfaceContainerHigh = Color(0xFFE9E5DF), surfaceContainerHighest = Color(0xFFE4DED6),
+)
+
+private val ClassicShapes = Shapes()
+private val GlassShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp), small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp), large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp),
+)
+
 // Semantic Colors
 val colorPing = Color(0xFF22A878)
 val colorPingRed = Color(0xFFE45D70)
@@ -94,6 +130,18 @@ val toastIconCircleBg = Color(0x33FFFFFF) // Semi-transparent White
 val toastTextColor = Color.White // White
 
 object ThemeManager {
+    private const val AppearanceKey = "dicode-appearance-style"
+    private fun storedAppearance() = MmkvManager.decodeSettingsString(AppearanceKey, "")
+        ?.takeIf { it == "classic" || it == "glass" }
+    private val _appearanceStyle = MutableStateFlow(storedAppearance())
+    val appearanceStyle: StateFlow<String?> = _appearanceStyle.asStateFlow()
+
+    fun useGlassAppearance(enabled: Boolean) {
+        val style = if (enabled) "glass" else "classic"
+        MmkvManager.encodeSettings(AppearanceKey, style)
+        _appearanceStyle.value = style
+    }
+
     private val _themeMode = MutableStateFlow(
         MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") ?: "0"
     )
@@ -115,6 +163,7 @@ object ThemeManager {
     }
 
     fun refresh() {
+        _appearanceStyle.value = storedAppearance()
         _themeMode.value =
             MmkvManager.decodeSettingsString(AppConfig.PREF_UI_MODE_NIGHT, "0") ?: "0"
         _dynamicColorEnabled.value =
@@ -133,6 +182,7 @@ fun resolveDarkTheme(): Boolean {
 }
 
 val LocalDarkTheme = compositionLocalOf { false }
+val LocalGlassAppearance = compositionLocalOf { false }
 
 private val VazirmatnFamily = FontFamily(
     Font(com.v2ray.ang.R.font.vazirmatn_regular, FontWeight.Normal),
@@ -173,7 +223,10 @@ fun AppTheme(
 ) {
     val dynamicColor by ThemeManager.dynamicColorEnabled.collectAsState()
     val context = LocalContext.current
+    val appearance by ThemeManager.appearanceStyle.collectAsState()
+    val useGlass = appearance == "glass"
     val colorScheme = when {
+        useGlass -> if (darkTheme) DarkGlass else LightGlass
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
@@ -202,11 +255,13 @@ fun AppTheme(
 
     CompositionLocalProvider(
         LocalDarkTheme provides darkTheme,
+        LocalGlassAppearance provides useGlass,
         LocalAppSnackbar provides snackbarController
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = typography,
+            shapes = if (useGlass) GlassShapes else ClassicShapes,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AppSnackbarBridge(controller = snackbarController)

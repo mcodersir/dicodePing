@@ -1,4 +1,4 @@
-name: Release 5.0.7 Stable
+name: Release 5.0.8 Stable
 env:
   AVALONIA_TELEMETRY_OPTOUT: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
@@ -79,7 +79,7 @@ jobs:
       with:
         dotnet-version: 10.0.x
     - name: Restore and build the independent desktop client
-      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.7
+      run: dotnet build apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -p:Version=5.0.8
     - name: Render desktop layout on Linux
       if: runner.os == 'Linux'
       run: dotnet run --project apps/desktop/DicodeUi.Smoke -c Release
@@ -114,7 +114,7 @@ jobs:
         timeout 80s xvfb-run -a dotnet apps/desktop/DicodeBrowser.Smoke/bin/Release/net10.0/DicodeBrowser.Smoke.dll --test-success
     - name: Publish DicodePing desktop
       run: dotnet publish apps/desktop/v2rayN.Desktop/v2rayN.Desktop.csproj -c Release -r ${{ matrix.rid }} --self-contained
-        true -p:Version=5.0.7 -o publish
+        true -p:Version=5.0.8 -o publish
     - name: Publish the standalone desktop updater
       shell: pwsh
       run: |
@@ -245,7 +245,7 @@ jobs:
     - name: Publish independent CLI with verified runtimes
       shell: pwsh
       run: |
-        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=5.0.7 -o cli-publish
+        dotnet publish apps/desktop/DicodePing.Cli/DicodePing.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:Version=5.0.8 -o cli-publish
         if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
         Copy-Item publish/bin cli-publish/bin -Recurse -Force
         Copy-Item publish/runtime-versions.json cli-publish/runtime-versions.json
@@ -286,8 +286,8 @@ jobs:
       shell: pwsh
       run: |
         choco install innosetup --no-progress --yes
-        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=5.0.7 .github\installer\DicodePing.iss
-        $installer = Get-Item dist\DicodePing-5.0.7-windows-x64-installer.exe
+        & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /DMyAppVersion=5.0.8 .github\installer\DicodePing.iss
+        $installer = Get-Item dist\DicodePing-5.0.8-windows-x64-installer.exe
         Add-Content dist\SHA256SUMS-windows-x64.txt ("{0}  {1}" -f (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower(), $installer.Name)
     - uses: actions/upload-artifact@v7
       with:
@@ -395,9 +395,9 @@ jobs:
         echo '${{ secrets.ANDROID_KEYSTORE_BASE64 }}' | base64 --decode > dicodeping-release.jks
         export DICODE_KEYSTORE_PATH="$PWD/dicodeping-release.jks"
         chmod +x gradlew
-        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=5.0.7
-        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.7
-        ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.7
+        ./gradlew testFdroidDebugUnitTest --no-daemon -PdicodeVersion=5.0.8
+        ./gradlew assembleFdroidRelease --no-daemon -PdicodeVersion=5.0.8
+        ./gradlew assembleTvRelease --no-daemon -PdicodeVersion=5.0.8
     - name: Stage APK and checksums
       run: |
         mkdir -p dist-android
@@ -415,7 +415,7 @@ jobs:
         cd dist-android
         sha256sum *.apk > SHA256SUMS-android.txt
     - name: Validate APK identity, signature and bundled native cores
-      run: python scripts/verify-release-apks.py --version 5.0.7 --code 55000700 --tv-splits
+      run: python scripts/verify-release-apks.py --version 5.0.8 --code 55000800 --tv-splits
     - uses: actions/upload-artifact@v7
       with:
         name: android
@@ -429,9 +429,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "5.0.3 5.0.6"}
-          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "5.0.3 5.0.5 5.0.6"}
-          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "5.0.3 5.0.5 5.0.6"}
+          - {api: 29, apkAbi: x86_64, alternate: universal, target: default, baseline: "5.0.6 5.0.7"}
+          - {api: 36, apkAbi: arm64-v8a, alternate: universal, target: google_apis, baseline: "5.0.5 5.0.6 5.0.7"}
+          - {api: 36, apkAbi: universal, alternate: arm64-v8a, target: google_apis, baseline: "5.0.5 5.0.6 5.0.7"}
           - {api: 36, apkAbi: x86_64, alternate: universal, target: google_apis_ps16k, baseline: ""}
     steps:
       - uses: actions/checkout@v7
@@ -471,8 +471,8 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           script: |
-            python3 scripts/verify-android-installation.py --version 5.0.7 --code 55000700 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.7-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.7-${{ matrix.alternate }}.apk
-            if [ "${{ matrix.api }}" = 36 ]; then for baseline in ${{ matrix.baseline }}; do python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.7 --baseline "install-check/$baseline.apk" && mv installer-ui-evidence "installer-ui-evidence-$baseline" || exit 1; done; fi
+            python3 scripts/verify-android-installation.py --version 5.0.8 --code 55000800 --baselines ${{ matrix.baseline }} --candidate dist-android/DicodePing-5.0.8-${{ matrix.apkAbi }}.apk --alternate dist-android/DicodePing-5.0.8-${{ matrix.alternate }}.apk
+            if [ "${{ matrix.api }}" = 36 ]; then for baseline in ${{ matrix.baseline }}; do python3 scripts/verify-apk-installer-ui.py --abi ${{ matrix.apkAbi }} --version 5.0.8 --baseline "install-check/$baseline.apk" && mv installer-ui-evidence "installer-ui-evidence-$baseline" || exit 1; done; fi
       - name: Preserve installation evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -504,7 +504,7 @@ jobs:
       - name: Download signed TV upgrade baselines
         run: |
           mkdir -p install-check
-          for version in 5.0.5 5.0.6; do
+          for version in 5.0.6 5.0.7; do
             curl --fail --location --retry 3 "https://github.com/mcodersir/dicodePing/releases/download/v$version/DicodePing-$version-tv-universal.apk" --output "install-check/$version.apk"
           done
       - name: Launch signed TV build on an Android TV emulator
@@ -521,7 +521,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -feature -Vulkan
           ram-size: 4096M
           disable-animations: true
-          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 5.0.7 --code 55000700 --baselines 5.0.5 5.0.6 --candidate dist-android/DicodePing-5.0.7-tv-universal.apk
+          script: python3 scripts/verify-android-installation.py --package ir.dicode.ping.tv --remote --no-data-fixture --version 5.0.8 --code 55000800 --baselines 5.0.6 5.0.7 --candidate dist-android/DicodePing-5.0.8-tv-universal.apk
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -554,34 +554,34 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/codex/release-5.0.7" --jq .object.sha)
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/codex/release-5.0.8" --jq .object.sha)
         test "$actual" = "$GITHUB_SHA"
     - name: Stage only signed APKs and checksummed desktop packages
       run: |
-        python scripts/stage-release-assets.py artifacts web/index.html 5.0.7
+        python scripts/stage-release-assets.py artifacts web/index.html 5.0.8
     - uses: softprops/action-gh-release@v2
       id: draft_release
       with:
-        tag_name: v5.0.7
+        tag_name: v5.0.8
         target_commitish: ${{ github.sha }}
-        name: DicodePing 5.0.7 — Stable
+        name: DicodePing 5.0.8 — Stable
         draft: true
         prerelease: false
         make_latest: false
         generate_release_notes: false
-        body_path: docs/RELEASE-5.0.7.md
+        body_path: docs/RELEASE-5.0.8.md
         files: release-assets/*
     - name: Verify every uploaded package before publishing the stable release
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         gh api repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} > release-metadata.json
-        gh release download v5.0.7 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
+        gh release download v5.0.8 --repo "${{ github.repository }}" --pattern 'SHA256SUMS-*.txt' --dir release-checksums --clobber
         python - <<'PYVERIFY'
         import json, pathlib, re
         release = json.loads(pathlib.Path('release-metadata.json').read_text())
         assets = {a['name']: a for a in release['assets']}
-        expected = {'DicodePing-5.0.7-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
+        expected = {'DicodePing-5.0.8-' + suffix for suffix in re.findall('data-asset="([^"]+)"', pathlib.Path('web/index.html').read_text())}
         assert len(expected) == 21 and len(assets) == 30 and expected <= assets.keys()
         checks = {}
         for file in pathlib.Path('release-checksums').glob('SHA256SUMS-*.txt'):
@@ -597,7 +597,7 @@ jobs:
         gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
 on:
   push:
-    branches: [codex/release-5.0.7]
+    branches: [codex/release-5.0.8]
   workflow_dispatch:
     inputs:
       publish:

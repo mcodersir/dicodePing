@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.ui.compose.glassPanel
+import com.v2ray.ang.ui.compose.LocalGlassAppearance
 import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.ui.compose.ItemDivider
@@ -337,6 +339,9 @@ private fun ServerListItem(
     } else {
         stringResource(R.string.server_test_delay_value, row.testDelayMillis)
     }
+    val glass = LocalGlassAppearance.current
+    val panel = if (glass) Modifier.padding(horizontal = 6.dp, vertical = 4.dp).glassPanel(isSelected)
+        else Modifier
     val selectedStateDescription = if (isSelected) {
         stringResource(R.string.acc_selected_server)
     } else {
@@ -346,6 +351,7 @@ private fun ServerListItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
+            .then(panel)
             .semantics {
                 if (selectedStateDescription != null) {
                     stateDescription = selectedStateDescription

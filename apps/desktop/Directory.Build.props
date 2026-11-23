@@ -1,9 +1,9 @@
 <Project>
 
     <PropertyGroup>
-    <Version>5.0.7</Version>
-    <FileVersion>5.0.7.0</FileVersion>
-    <InformationalVersion>5.0.7</InformationalVersion>
+    <Version>5.0.8</Version>
+    <FileVersion>5.0.8.0</FileVersion>
+    <InformationalVersion>5.0.8</InformationalVersion>
     </PropertyGroup>
 
     <PropertyGroup>

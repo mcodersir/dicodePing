@@ -1,6 +1,9 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Replaced atomically at runtime so all built-in and custom variants stay coherent. -->
     <SolidColorBrush x:Key="DicodePageBackground" Color="#FFF6F7FB" />
+    <CornerRadius x:Key="DicodeSurfaceRadius">14</CornerRadius>
+    <SolidColorBrush x:Key="DicodeSurfaceFinish" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="DicodeSurfaceEdge" Color="#FFE0E4EE" />
     <SolidColorBrush x:Key="DicodeSurface" Color="#FFFFFFFF" />
     <SolidColorBrush x:Key="DicodeSurfaceElevated" Color="#FFF0F2F8" />
     <SolidColorBrush x:Key="DicodeBorder" Color="#FFE0E4EE" />

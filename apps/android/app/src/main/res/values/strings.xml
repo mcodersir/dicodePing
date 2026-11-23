@@ -886,4 +886,10 @@
     <string name="dicode_primary_empty">Dicode Config Checker returned no configs. The primary subscription stays selected; choose another subscription separately if needed.</string>
 <string name="dicode_removed_core">This custom configuration requires a removed engine. Import an Xray configuration or a protocol share link.</string>
 <string name="fox_start_error">Fox could not start (%1$s). Share the diagnostic ZIP from Reports for investigation.</string>
+    <string name="dicode_interface_style">Interface style</string>
+    <string name="dicode_glass_prompt_title">Try Liquid Glass (beta)?</string>
+    <string name="dicode_glass_prompt_body">Try translucent panels and a new Graphite palette. You can switch styles anytime in Settings.</string>
+    <string name="dicode_glass_try">Try Liquid Glass (beta)</string>
+    <string name="dicode_style_classic">Classic</string>
+    <string name="dicode_style_glass">Liquid Glass (beta)</string>
 </resources>

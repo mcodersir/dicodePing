@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import com.v2ray.ang.ui.compose.AppDivider
+import com.v2ray.ang.ui.compose.LocalGlassAppearance
+import com.v2ray.ang.ui.compose.glassPanel
 
 @Composable
 fun MainBottomBar(
@@ -34,13 +36,17 @@ fun MainBottomBar(
     trafficText: String,
     onClick: () -> Unit,
 ) {
+    val glass = LocalGlassAppearance.current
+    val chrome = if (glass) Modifier.padding(horizontal = 8.dp, vertical = 4.dp).glassPanel()
+        else Modifier
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .then(if (glass) Modifier else Modifier.background(MaterialTheme.colorScheme.surface))
             .windowInsetsPadding(WindowInsets.navigationBars)
+            .then(chrome)
     ) {
-        AppDivider()
+        if (!glass) AppDivider()
         Row(
             modifier = Modifier
                 .fillMaxWidth()

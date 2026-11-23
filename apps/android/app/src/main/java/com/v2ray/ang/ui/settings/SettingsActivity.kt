@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -241,6 +242,17 @@ fun SettingsScreen(
                 onExpandedChange = { uiSettingsExpanded = it }
             )
             if (uiSettingsExpanded) {
+                val appearance = ThemeManager.appearanceStyle.collectAsState().value
+                SettingsListItem(
+                    title = stringResource(R.string.dicode_interface_style),
+                    entries = listOf(
+                        stringResource(R.string.dicode_style_classic),
+                        stringResource(R.string.dicode_style_glass),
+                    ),
+                    values = listOf("classic", "glass"),
+                    selectedValue = appearance ?: "classic",
+                    onSelected = { ThemeManager.useGlassAppearance(it == "glass") },
+                )
                 SettingsSwitchItem(title = stringResource(R.string.dicode_aether_auto), checked = aetherAuto, onCheckedChange = { aetherAuto = it })
                 SettingsSwitchItem(title = stringResource(R.string.dicode_aether_best), checked = aetherBest, onCheckedChange = { aetherBest = it })
                 SettingsSwitchItem(title = stringResource(R.string.dicode_auto_prepare), checked = defaultAutoTest, onCheckedChange = { defaultAutoTest = it })
@@ -273,7 +285,7 @@ fun SettingsScreen(
                     title = stringResource(R.string.title_pref_dynamic_color),
                     summary = stringResource(R.string.summary_pref_dynamic_color),
                     checked = dynamicColor,
-                    enabled = dynamicColorSupported,
+                    enabled = dynamicColorSupported && appearance != "glass",
                     onCheckedChange = {
                         dynamicColor = it
                         ThemeManager.setDynamicColorEnabled(it)

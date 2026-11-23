@@ -227,7 +227,7 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         lstProfiles.SelectAll();
     }
 
-    private void LstProfiles_KeyDown(object? sender, KeyEventArgs e)
+    private async void LstProfiles_KeyDown(object? sender, KeyEventArgs e)
     {
         if (e.KeyModifiers is KeyModifiers.Control or KeyModifiers.Meta)
         {
@@ -270,9 +270,14 @@ public partial class ProfilesView : ReactiveUserControl<ProfilesViewModel>
         {
             switch (e.Key)
             {
-                case Key.Enter:
-                    //case Key.Return:
-                    ViewModel?.SetDefaultServer();
+                case Key.Enter when e.KeyModifiers == KeyModifiers.None:
+                    if (lstProfiles.SelectedItems is { Count: 1 } &&
+                        lstProfiles.SelectedItem is ProfileItemModel profile && ViewModel is { } model)
+                    {
+                        e.Handled = true;
+                        try { await model.SetDefaultServer(profile.IndexId); }
+                        catch (Exception error) { Logging.SaveLog(_tag, error); }
+                    }
                     break;
 
                 case Key.Delete:

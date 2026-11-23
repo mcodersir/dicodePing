@@ -243,6 +243,9 @@
                                 </StackPanel>
                             </Border>
                             <TabControl x:Name="settingsTabs" Grid.Row="1" TabStripPlacement="Left">
+                                <TabItem Header="{x:Static resx:ResUI.DicodeInterfaceStyle}">
+                                    <views:GlassAppearanceOptions />
+                                </TabItem>
                                 <TabItem Header="{x:Static resx:ResUI.menuOptionSetting}">
                                     <views:OptionSettingView x:Name="embeddedOptionSetting" />
                                 </TabItem>

@@ -75,7 +75,9 @@ fun AppTopBar(
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
-    Column {
+    val glass = LocalGlassAppearance.current
+    val chrome = if (glass) Modifier.padding(horizontal = 8.dp).glassPanel() else Modifier
+    Column(modifier = chrome) {
         TopAppBar(
             title = {
                 if (isSearchActive) {
@@ -102,7 +104,7 @@ fun AppTopBar(
             },
             actions = actions,
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.surface,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
                 navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                 actionIconContentColor = MaterialTheme.colorScheme.onSurface
