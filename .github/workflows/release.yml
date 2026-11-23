@@ -550,6 +550,12 @@ jobs:
         path: artifacts
         pattern: '{android,windows-x64,linux-x64,macos-x64,macos-arm64}'
         merge-multiple: true
+    - name: Confirm this is still the release branch revision
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/codex/release-5.0.7" --jq .object.sha)
+        test "$actual" = "$GITHUB_SHA"
     - name: Stage only signed APKs and checksummed desktop packages
       run: |
         python scripts/stage-release-assets.py artifacts web/index.html 5.0.7
