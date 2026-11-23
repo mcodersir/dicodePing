@@ -113,7 +113,7 @@
  <TextBlock x:Name="listHint" Text="{x:Static resx:ResUI.DicodeListHint}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="16,0" Opacity="0.65" />
  </WrapPanel>
  <StackPanel Grid.Row="1" Spacing="6"><Border Classes="DicodeCard" Padding="14,12"><TextBlock Text="{Binding SubscriptionQuota}" TextWrapping="Wrap" /></Border><TextBlock Text="{x:Static resx:ResUI.DicodeTestScope}" FontSize="11" Opacity="0.65" TextWrapping="Wrap" /><ItemsControl x:Name="diagnosticRuns" ItemsSource="{Binding ProbeRuns}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="dto:ProbeRunModel"><Border IsVisible="{Binding IsRunning}" Padding="14,10" Margin="0,0,0,5" CornerRadius="12" Background="{DynamicResource DicodeSurfaceElevated}"><StackPanel Spacing="8"><WrapPanel><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" FontSize="12" Margin="0,0,12,0" /><TextBlock Text="{Binding Counter}" FlowDirection="LeftToRight" FontSize="12" FontWeight="SemiBold" /></WrapPanel><ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" Height="6" CornerRadius="3" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></StackPanel>
- <ListBox x:Name="lstProfiles" Grid.Row="2" SelectionMode="Multiple" ItemsSource="{Binding ProfileItems}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+ <local:ProfileSelectionList x:Name="lstProfiles" Grid.Row="2" SelectionMode="Multiple" ItemsSource="{Binding ProfileItems}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                  <ListBox.KeyBindings>
                     <KeyBinding Command="{Binding Export2ShareUrlCmd}" Gesture="Ctrl+C" />
                 </ListBox.KeyBindings>
@@ -244,7 +244,7 @@
  </Grid></Border>
  </DataTemplate>
  </ListBox.ItemTemplate>
- </ListBox>
+ </local:ProfileSelectionList>
  <Border x:Name="emptyProfiles" Grid.Row="2" IsVisible="{Binding !HasProfiles}" Classes="DicodeCard" Padding="32" VerticalAlignment="Center"><StackPanel Spacing="12"><TextBlock Text="{x:Static resx:ResUI.DicodeEmptyProfilesTitle}" FontSize="20" FontWeight="SemiBold" /><TextBlock Text="{x:Static resx:ResUI.DicodeEmptyProfilesHint}" TextWrapping="Wrap" Opacity="0.7" /></StackPanel></Border>
  <Grid Grid.Row="3" ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding ProfileItems.Count}" /><TextBlock Text="{x:Static resx:ResUI.DicodeProfilesCount}" Opacity="0.65" /></StackPanel><Button Grid.Column="1" Click="StopDiagnostics" Content="{x:Static resx:ResUI.DicodeStopDiagnostics}" Classes="DicodeQuietButton" /></Grid>
  </Grid>

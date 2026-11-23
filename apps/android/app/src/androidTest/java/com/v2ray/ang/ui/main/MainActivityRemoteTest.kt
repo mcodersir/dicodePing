@@ -14,6 +14,7 @@ import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.util.Utils
+import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.MmkvManager
 import org.junit.Rule
@@ -54,6 +55,7 @@ class MainActivityRemoteTest {
         MmkvManager.encodeSettings(APPEARANCE_SETUP_503, true)
         MmkvManager.encodeSettings(AppConfig.PREF_DICODE_AUTO_TEST, false)
         MmkvManager.encodeSettings(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 3)
+        ThemeManager.useGlassAppearance(true)
         val previousGroup = MmkvManager.decodeSettingsString(AppConfig.CACHE_SUBSCRIPTION_ID, "").orEmpty()
         val group = Utils.getUuid()
         val groupName = "Remote navigation test"

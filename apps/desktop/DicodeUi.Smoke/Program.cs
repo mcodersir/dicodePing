@@ -5,6 +5,8 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using ServiceLib.Manager;
@@ -25,6 +27,8 @@ foreach (var width in new[] { 320, 360, 480, 800, 1180 })
 foreach (var rtl in new[] { false, true })
 foreach (var dark in new[] { false, true })
 {
+    var glass = width is 360 or 1180;
+    AppManager.Instance.Config.UiItem.AppearanceStyle = glass ? "glass" : "classic";
     Application.Current!.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
     ServiceLib.Resx.ResUI.Culture = new CultureInfo(rtl ? "fa-IR" : "en-US");
     typeof(v2rayN.Desktop.ViewModels.ThemeSettingViewModel).GetMethod("ApplyDicodePalette", BindingFlags.Static | BindingFlags.NonPublic)!
@@ -47,6 +51,38 @@ foreach (var dark in new[] { false, true })
     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
     Console.WriteLine($"Viewport: {list.Bounds}, realized {list.GetVisualDescendants().OfType<ListBoxItem>().Count()}");
     if (list.GetVisualDescendants().OfType<ListBoxItem>().Count() == 0) throw new Exception("Profile rows were not realized");
+    if (width == 1180 && !rtl && !dark)
+    {
+        void ClickRow(int index, RawInputModifiers modifiers = RawInputModifiers.None)
+        {
+            var container = list.ContainerFromIndex(index) ?? throw new Exception("Profile row was not realized");
+            var target = container.TranslatePoint(new Point(100, container.Bounds.Height / 2), window)
+                ?? throw new Exception("Profile row is outside the window");
+            window.MouseDown(target, MouseButton.Left, modifiers);
+            window.MouseUp(target, MouseButton.Left, modifiers);
+        }
+
+        void ExpectRows(params int[] expected)
+        {
+            var actual = list.SelectedItems!.Cast<ProfileItemModel>().Select(x => x.RowNumber).Order();
+            if (!actual.SequenceEqual(expected)) throw new Exception("Profile click selected an unexpected set");
+        }
+
+        ClickRow(0);
+        ClickRow(1);
+        ExpectRows(2);
+        ClickRow(0, RawInputModifiers.Control);
+        ExpectRows(1, 2);
+        ClickRow(0, RawInputModifiers.Control);
+        ExpectRows(2);
+        ClickRow(2, RawInputModifiers.Shift);
+        ExpectRows(3);
+        ClickRow(1, RawInputModifiers.Control);
+        ExpectRows(2, 3);
+        ClickRow(2);
+        ExpectRows(3);
+        Console.WriteLine("PASS profile single-click, Ctrl toggle and Shift click");
+    }
     using var bitmap = new RenderTargetBitmap(new PixelSize(width, 720));
     bitmap.Render(view);
     bitmap.Save($"desktop-qa/profiles-{width}-{(rtl ? "rtl" : "ltr")}-{(dark ? "dark" : "light")}.png");
