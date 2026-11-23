@@ -1,0 +1,35 @@
+name: Deploy verified 5.0.7 downloads
+on:
+  push:
+    branches: [codex/pages-download-refresh]
+    paths: [.github/workflows/deploy-5.0.7.yml]
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Wait for the approved release and check every download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run watch 45164936105 --exit-status --interval 25
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v5.0.7" > published-release.json
+          python scripts/verify-website-release.py published-release.json v5.0.7
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
