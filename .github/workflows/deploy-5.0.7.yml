@@ -24,7 +24,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run watch 45164936105 --exit-status --interval 25
+          gh run watch 45165949137 --exit-status --interval 25
+          tag_source=$(gh api "repos/$GITHUB_REPOSITORY/commits/v5.0.7" --jq .sha)
+          test "$tag_source" = b2025f59dd607b6260056698f93b7d4db82301a8
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/v5.0.7" > published-release.json
           python scripts/verify-website-release.py published-release.json v5.0.7
       - uses: actions/configure-pages@v5
@@ -33,3 +35,18 @@ jobs:
           path: web
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  close-appimage-request:
+    needs: website
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Confirm the public AppImage link before marking issue 121 complete
+        run: |
+          curl --fail --location --retry 4 "https://mcodersir.github.io/dicodePing/?verify=5.0.7" -o site.html
+          grep -Fq 'releases/download/v5.0.7/DicodePing-5.0.7-linux-x64.AppImage' site.html
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/121" -f state=closed -f state_reason=completed --jq .state
