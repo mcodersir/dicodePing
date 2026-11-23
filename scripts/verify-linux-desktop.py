@@ -3,11 +3,12 @@
 import os, pathlib, subprocess, tempfile, time
 
 assert os.geteuid() != 0, 'The GUI test must run as an ordinary desktop user'
-assert pathlib.Path('dist/DicodePing-5.0.6-linux-x64.deb').is_file()
+assert pathlib.Path('dist/DicodePing-5.0.7-linux-x64.deb').is_file()
 with tempfile.TemporaryDirectory(prefix='dicode-desktop-launch-') as temp:
     env = os.environ.copy(); env['DICODE_DATA_DIR'] = temp
+    env["APPIMAGE_EXTRACT_AND_RUN"] = "1"
     with open(pathlib.Path(temp) / 'gui.log', 'w+') as output:
-        process = subprocess.Popen(['xvfb-run', '-a', str(pathlib.Path('publish/DicodePing').resolve())], env=env, stdout=output, stderr=output, start_new_session=True)
+        process = subprocess.Popen(['xvfb-run', '-a', str(pathlib.Path('dist/DicodePing-5.0.7-linux-x64.AppImage').resolve())], env=env, stdout=output, stderr=output, start_new_session=True)
         try:
             time.sleep(8)
             output.seek(0); log = output.read()

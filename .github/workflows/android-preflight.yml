@@ -42,14 +42,14 @@ jobs:
       run: |
         git config --global http.version HTTP/1.1
         for attempt in 1 2 3 4; do
-          if git clone --branch 2.4.0-P73 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
+          if git clone --branch 2.4.0-P74 --depth 1 https://github.com/patterniha/PattNG.git native-upstream; then
             break
           fi
           rm -rf native-upstream
           test "$attempt" -lt 4
           sleep $((attempt * 5))
         done
-        test "$(git -C native-upstream rev-parse HEAD)" = "b968895101455e2866be3994b3e4cb5265895972"
+        test "$(git -C native-upstream rev-parse HEAD)" = "afcb443215361c6f891a30673b5e71cd28cfcac8"
         for attempt in 1 2 3 4; do
           if git -C native-upstream submodule update --init --recursive --depth 1; then
             break

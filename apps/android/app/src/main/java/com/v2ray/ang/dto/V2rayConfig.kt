@@ -353,6 +353,7 @@ data class V2rayConfig(
         var hosts: Map<String, Any>? = null,
         val clientIp: String? = null,
         val disableCache: Boolean? = null,
+        val disableFallbackIfMatch: Boolean? = null,
         val queryStrategy: String? = null,
         val enableParallelQuery: Boolean? = null,
         val tag: String? = null

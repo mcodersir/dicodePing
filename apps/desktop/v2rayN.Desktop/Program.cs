@@ -33,6 +33,12 @@ internal class Program
             return;
         }
 
+        if (OperatingSystem.IsLinux() && !LinuxStartupAccess.CanStart())
+        {
+            Environment.ExitCode = 1;
+            return;
+        }
+
         if (OnStartup(args) == false)
         {
             Environment.Exit(0);

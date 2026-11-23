@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Archive the published client with Unix executable permissions intact."""
 import argparse
+import os
 import hashlib
 import pathlib
 import stat
@@ -26,8 +27,8 @@ def desktop_bundle(root: pathlib.Path, platform: str, output: pathlib.Path) -> p
         (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
             'CFBundleName': 'DicodePing', 'CFBundleDisplayName': 'DicodePing',
             'CFBundleIdentifier': 'ir.dicode.ping.desktop', 'CFBundlePackageType': 'APPL',
-            'CFBundleExecutable': 'DicodePing', 'CFBundleShortVersionString': '5.0.6',
-            'CFBundleVersion': '500006', 'NSHighResolutionCapable': True,
+            'CFBundleExecutable': 'DicodePing', 'CFBundleShortVersionString': '5.0.7',
+            'CFBundleVersion': '500007', 'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '12.0',
         }))
         subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(app)], check=True)
@@ -63,11 +64,39 @@ chmod +x "$dest/DicodePing.desktop"
             stage = pathlib.Path(tmp)
             shutil.copytree(root, stage / 'opt/dicodeping')
             control = stage / 'DEBIAN'; control.mkdir()
-            (control / 'control').write_text('Package: dicodeping\nVersion: 5.0.6\nArchitecture: amd64\nMaintainer: DicodePing\nDepends: libx11-6, libice6, libsm6, libfontconfig1, libglib2.0-0, libgtk-3-0, libwebkit2gtk-4.1-0, sudo\nDescription: DicodePing graphical VPN client\n')
+            (control / 'control').write_text('Package: dicodeping\nVersion: 5.0.7\nArchitecture: amd64\nMaintainer: DicodePing\nDepends: libx11-6, libice6, libsm6, libfontconfig1, libglib2.0-0, libgtk-3-0, libwebkit2gtk-4.1-0, sudo\nDescription: DicodePing graphical VPN client\n')
             entries = stage / 'usr/share/applications'; entries.mkdir(parents=True)
             (entries / 'dicodeping.desktop').write_text(entry)
-            subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(stage), str(output / 'DicodePing-5.0.6-linux-x64.deb')], check=True)
+            subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(stage), str(output / 'DicodePing-5.0.7-linux-x64.deb')], check=True)
     return root
+
+
+def image_bundle(root: pathlib.Path, platform: str, output: pathlib.Path) -> pathlib.Path:
+    if platform.startswith("macos"):
+        image = output / f"DicodePing-5.0.7-{platform}.dmg"
+        subprocess.run(["hdiutil", "create", "-ov", "-format", "UDZO", "-volname",
+                        "DicodePing", "-srcfolder", str(root), str(image)], check=True)
+        subprocess.run(["hdiutil", "verify", str(image)], check=True)
+        return image
+
+    image = output / "DicodePing-5.0.7-linux-x64.AppImage"
+    with tempfile.TemporaryDirectory(prefix="dicode-appimage-") as tmp:
+        appdir = pathlib.Path(tmp) / "DicodePing.AppDir"
+        shutil.copytree(root, appdir / "usr/lib/dicodeping")
+        shutil.copy2(root / "DicodePing.png", appdir / "DicodePing.png")
+        (appdir / ".DirIcon").symlink_to("DicodePing.png")
+        entry = (root / "DicodePing.desktop").read_text()
+        entry = entry.replace("Exec=/opt/dicodeping/DicodePing", "Exec=DicodePing")
+        entry = entry.replace("Icon=/opt/dicodeping/DicodePing.png", "Icon=DicodePing")
+        (appdir / "DicodePing.desktop").write_text(entry)
+        launcher = appdir / "AppRun"
+        launcher.write_text('#!/bin/sh\ncd -- "$(dirname -- "$0")/usr/lib/dicodeping" || exit 1\nexec ./DicodePing "$@"\n')
+        launcher.chmod(0o755)
+        env = {**os.environ, "ARCH": "x86_64", "APPIMAGE_EXTRACT_AND_RUN": "1"}
+        tool = str(pathlib.Path(os.environ["DICODE_APPIMAGETOOL"]).resolve())
+        subprocess.run([tool, str(appdir), str(image)], env=env, check=True)
+    image.chmod(0o755)
+    return image
 
 
 def package(root: pathlib.Path, archive: pathlib.Path, windows: bool, cli: bool = False) -> None:
@@ -104,7 +133,7 @@ if __name__ == "__main__":
     args.output.mkdir(parents=True, exist_ok=True)
     if args.edition == 'desktop' and args.platform != 'windows-x64':
         args.root = desktop_bundle(args.root, args.platform, args.output)
-    archive = args.output / ("DicodePing-5.0.6-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
+    archive = args.output / ("DicodePing-5.0.7-" + args.platform + ("-cli.zip" if args.edition == "cli" else "-portable.zip"))
     package(args.root, archive, args.platform == "windows-x64", args.edition == "cli")
     hasher = hashlib.sha256()
     with archive.open("rb") as stream:
@@ -115,7 +144,13 @@ if __name__ == "__main__":
         digest + "  " + archive.name + "\n", encoding="utf-8"
     )
     if args.platform == 'linux-x64' and args.edition == 'desktop':
-        deb = args.output / 'DicodePing-5.0.6-linux-x64.deb'
+        deb = args.output / 'DicodePing-5.0.7-linux-x64.deb'
         with (args.output / 'SHA256SUMS-linux-x64.txt').open('a') as sums:
             sums.write(hashlib.sha256(deb.read_bytes()).hexdigest() + '  ' + deb.name + '\n')
+    if args.edition == 'desktop' and args.platform != 'windows-x64':
+        image = image_bundle(args.root, args.platform, args.output)
+        with image.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        with (args.output / f"SHA256SUMS-{args.platform}.txt").open("a") as sums:
+            sums.write(f"{digest}  {image.name}\n")
     print("Archived and verified", archive.name)

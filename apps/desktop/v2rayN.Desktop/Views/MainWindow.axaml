@@ -37,7 +37,7 @@
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
         <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
-            <Border x:Name="mainHeader" Grid.Row="0" Margin="16,14,16,8" Padding="10,8" Classes="DicodeCard" MaxHeight="130">
+            <Border x:Name="mainHeader" Grid.Row="0" Margin="16,14,16,8" Padding="12,8" Classes="DicodeCard" MaxHeight="144">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled"><Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" FlowDirection="LeftToRight">
                     <StackPanel x:Name="brandHeader" Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
                         <Image Width="28" Height="28" Source="/Assets/DicodePing.ico" />
@@ -98,7 +98,7 @@
             <!--  Persian (RTL) and on the visual left in English (LTR), because      -->
             <!--  Avalonia grids mirror their columns with the flow direction.       -->
             <Grid x:Name="mainBody" Grid.Row="1" Margin="16,0,16,16" ColumnDefinitions="Auto,*">
-                <Border x:Name="navRail" Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="48" Width="196" Padding="8" VerticalAlignment="Stretch">
+                <Border x:Name="navRail" Classes="DicodeCard" Classes.DicodeNavRail="True" MinWidth="48" Width="208" Padding="12" VerticalAlignment="Stretch">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"><StackPanel Spacing="4">
                         <RadioButton
                             x:Name="navHome"

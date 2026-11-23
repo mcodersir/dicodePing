@@ -366,8 +366,8 @@ private fun ServerListItem(
                         Modifier
                             .width(4.dp)
                             .fillMaxHeight()
-                            .padding(vertical = 10.dp)
-                            .background(MaterialTheme.colorScheme.primary)
+                            .padding(vertical = 12.dp)
+                            .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
                     )
                 }
             }
@@ -376,7 +376,7 @@ private fun ServerListItem(
         Column(
             Modifier
                 .weight(1f)
-                .padding(start = 8.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+                .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(row.remarks, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph), maxLines = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f) 3 else 2, overflow = TextOverflow.Ellipsis)

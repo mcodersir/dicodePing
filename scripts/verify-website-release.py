@@ -12,8 +12,8 @@ def verify(release, tag, html):
     if release.get("tag_name") != tag or release.get("draft") is not False or release.get("prerelease") is not False:
         raise ValueError("Release is not publicly stable")
     links = re.findall(r'data-asset="([^"]+)"', html)
-    if len(links) != 16 or len(set(links)) != 16:
-        raise ValueError("Download page must list all 16 distinct packages")
+    if len(links) != len(set(links)) or len(links) < 16:
+        raise ValueError("Download page must list at least 16 distinct packages")
     version = tag[1:]
     base = f"https://github.com/mcodersir/dicodePing/releases/download/{tag}/"
     assets = {asset["name"]: asset for asset in release.get("assets", [])}

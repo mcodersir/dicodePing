@@ -5,18 +5,20 @@ from verify_elf_alignment import verify_elf
 parser = argparse.ArgumentParser()
 parser.add_argument("--version", default="5.0.5")
 parser.add_argument("--code", type=int, default=55000500)
+parser.add_argument("--tv-splits", action="store_true")
 args = parser.parse_args()
 root = pathlib.Path("dist-android")
 tools = pathlib.Path(os.environ["ANDROID_HOME"]) / "build-tools" / "37.0.0"
 expected_cert = "0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0"
 abis = {"universal": 0, "arm64-v8a": 1, "armeabi-v7a": 2, "x86_64": 3, "x86": 4}
-for abi, suffix in list(abis.items()) + [("tv-universal", 0)]:
+tv_abis = ["tv-universal"] + (["tv-arm64-v8a", "tv-armeabi-v7a"] if args.tv_splits else [])
+for abi in [*abis, *tv_abis]:
     apk = root / f"DicodePing-{args.version}-{abi}.apk"
     signer = subprocess.run([str(tools / "apksigner"), "verify", "--print-certs", str(apk)], check=True, capture_output=True, text=True).stdout
     certs = re.findall(r"certificate SHA-256 digest: ([0-9a-fA-F]+)", signer)
     assert certs and all(c.lower() == expected_cert for c in certs), "APK signing identity changed"
     manifest = subprocess.run([str(tools / "aapt2"), "dump", "badging", str(apk)], check=True, capture_output=True, text=True).stdout
-    expected_id = 'ir.dicode.ping.tv' if abi == 'tv-universal' else 'ir.dicode.ping.fdroid'
+    expected_id = 'ir.dicode.ping.tv' if abi.startswith('tv-') else 'ir.dicode.ping.fdroid'
     assert f"name='{expected_id}'" in manifest, "Android application ID changed"
     assert f"versionName='{args.version}'" in manifest and f"versionCode='{args.code}'" in manifest, "APK version mismatch"
     assert "targetSdkVersion:'36'" in manifest, "APK targets a preview SDK"
@@ -31,7 +33,11 @@ for abi, suffix in list(abis.items()) + [("tv-universal", 0)]:
             assert hashlib.sha256(content).hexdigest() == item["sha256"], "Missing or altered Android Geo asset: " + item["name"]
         for notice in ["NOTICE.txt", "LICENSE-GPL-3.0.txt", "LICENSE-CC-BY-SA-4.0.txt"]:
             assert "assets/routing-data/" + notice in archive.namelist(), "Routing data attribution is missing"
-        packaged = [a for a in abis if a != "universal"] if abi.endswith("universal") else [abi]
+        packaged = [a for a in abis if a != "universal"] if abi.endswith("universal") else [abi.removeprefix("tv-")]
+        actual_abis = {name.split("/")[1] for name in archive.namelist()
+                       if name.startswith("lib/") and name.endswith(".so")}
+        assert actual_abis == set(packaged), f"{apk.name}: unexpected native ABI set {actual_abis}"
+        assert "<uses-split" not in manifest and "split='" not in manifest
         for architecture in packaged:
             storage = archive.read(f"lib/{architecture}/libmmkv.so")
             assert storage[:4] == b"\x7fELF" and storage[4] == (2 if architecture in ("arm64-v8a", "x86_64") else 1), "Storage native library missing or architecture mismatch"
@@ -59,3 +65,13 @@ with zipfile.ZipFile(root / f'DicodePing-{args.version}-universal.apk') as unive
             for name in expected:
                 assert hashlib.sha256(universal.read(name)).digest() == hashlib.sha256(split.read(name)).digest(), 'Different native payload: ' + name
         print('Verified identical split/universal native payload:', abi)
+
+if args.tv_splits:
+    with zipfile.ZipFile(root / f"DicodePing-{args.version}-tv-universal.apk") as tv:
+        for abi in ("arm64-v8a", "armeabi-v7a"):
+            with zipfile.ZipFile(root / f"DicodePing-{args.version}-tv-{abi}.apk") as split:
+                prefix = f"lib/{abi}/"
+                libraries = {name for name in tv.namelist() if name.startswith(prefix) and name.endswith(".so")}
+                assert libraries == {name for name in split.namelist() if name.startswith(prefix) and name.endswith(".so")}
+                for name in libraries:
+                    assert tv.read(name) == split.read(name), name

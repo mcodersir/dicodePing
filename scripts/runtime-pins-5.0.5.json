@@ -1,12 +1,12 @@
 {
-  "xray": "v26.11.21",
-  "android": "v26.11.21",
+  "xray": "v26.11.23",
+  "android": "v26.11.23",
   "aether": "v2.4.0",
   "assets": {
-    "Xray-linux-64.zip": "46862c925c02f3f480803bf9ea81c3d4ec61c62b5f6830a3493fc698ce8e5f19",
-    "Xray-macos-64.zip": "b2a66479e199db20d0ef3dc313e4780b97ab01fed9166708165994f4ff5c4309",
-    "Xray-macos-arm64-v8a.zip": "032eeea6ee11dab2a2ee7517bfce1441aacb687bca0b9bbda25b03b12244bd61",
-    "Xray-windows-64.zip": "88219c2f5f3b406484adb17de015c5b7e7512968d1ec27ec409a6b17d049ecd6",
+    "Xray-linux-64.zip": "a24261217cfee0110412183b4fd5225e9595c736edede7537d07341c6dc9d579",
+    "Xray-macos-64.zip": "3e7458974ad7da3b52714093422883ef7c9676fa6f1ec183799434fea23eebd6",
+    "Xray-macos-arm64-v8a.zip": "0cc006bdf392ed94ae0ff419b5f5786d5052bd144e2b9e17441b651c4badd9fe",
+    "Xray-windows-64.zip": "c0191caf477c8f7370f1c8eecbc1a0f82a4c0a5ef7804f05f2f0acfb1f6b1206",
     "aether-android-arm64.tar.gz": "02f1a1d673cf2f3e5592c90ce7ef4d6f03e218d41a333bdd175e0da92ce2073c",
     "aether-android-armv7.tar.gz": "13a170d175eab5a64d69c6fa3c174430754f01171d616a00eba0b3598315da1d",
     "aether-android-x86_64.tar.gz": "b8d18baf6b1efe120d04109f819d08ca822c1fafeb3d61297b0e035cf095ae07",
@@ -30,9 +30,9 @@
     }
   },
   "android_build": {
-    "source_commit": "dc808073d3faf65819a1925b18f92df9af91cddd",
+    "source_commit": "ff68169d2191455c0f93296d8a9867b9ae44fb1b",
     "health_patch_sha256": "9719a829a6f0b732e40727eb97332af54bb5bd7118659d367c26fd119c378f7c",
-    "xray_commit": "135f782bc238b3f7b043fe752c635c02592434c8"
+    "xray_commit": "40fd599029e19f439f192b77cf428ac500b3372a"
   },
   "hev": {
     "version": "2.20.0",
@@ -58,8 +58,8 @@
   "mihomo": "v1.19.34",
   "reference_sources": {
     "android": {
-      "tag": "2.4.0-P73",
-      "commit": "b968895101455e2866be3994b3e4cb5265895972"
+      "tag": "2.4.0-P74",
+      "commit": "afcb443215361c6f891a30673b5e71cd28cfcac8"
     },
     "desktop": {
       "tag": "7.25.6-P42",
@@ -167,7 +167,7 @@
   },
   "mihomo_source_commit": "0455d0d28c4526937380505153e65a843d8612e8",
   "serverless": {
-    "version": 62,
-    "commit": "946ed8945c9202217376818db061bcb2e204a9e1"
+    "version": 65,
+    "commit": "9b62ddf9e8bc83432d4b0bcf8be4c963bc8cb300"
   }
 }
