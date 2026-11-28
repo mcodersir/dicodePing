@@ -22,6 +22,7 @@ concurrency:
 jobs:
   website:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -38,7 +39,18 @@ jobs:
           if [ -z "$RELEASE_TAG" ]; then
             RELEASE_TAG=$(python -c 'import pathlib,re; print(re.search(r"/releases/download/(v[0-9]+[.][0-9]+[.][0-9]+)/", pathlib.Path("web/index.html").read_text())[1])')
           fi
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > published-release.json
+          for attempt in $(seq 1 80); do
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > published-release.json 2> release-check.log &&
+               python -c 'import json; r=json.load(open("published-release.json")); assert not r["draft"] and not r["prerelease"]' 2>> release-check.log; then
+              break
+            fi
+            if [ "$attempt" -eq 80 ]; then
+              cat release-check.log
+              echo "No stable release is available for $RELEASE_TAG"
+              exit 1
+            fi
+            sleep 15
+          done
           if [ -n "$SOURCE_SHA" ]; then
             tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
             test "$tag_sha" = "$SOURCE_SHA"
