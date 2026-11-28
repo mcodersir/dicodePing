@@ -8,7 +8,7 @@ PIN_FILE='scripts/runtime-pins-5.0.5.json'
 WORKFLOWS=['.github/workflows/release.yml','.github/workflows/android-preflight.yml']
 
 def source_files():
-    return sorted(filter(None,subprocess.check_output(['git','ls-files','-z','--','scripts/stage-*.py','scripts/build-android-core.sh','scripts/singbox-android-pins.json','scripts/patches','apps/fox-helper'],cwd=ROOT).decode().split('\0')))
+    return sorted(filter(None,subprocess.check_output(['git','ls-files','-z','--','scripts/stage-*.py','scripts/geodata-pins-*.json','scripts/build-android-core.sh','scripts/singbox-android-pins.json','scripts/patches','apps/fox-helper'],cwd=ROOT).decode().split('\0')))
 
 def inputs(read=None):
     read=read or (lambda name:(ROOT/name).read_bytes())

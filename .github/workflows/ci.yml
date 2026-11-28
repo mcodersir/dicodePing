@@ -111,7 +111,7 @@ jobs:
           python-version: "3.15"
       - name: Check release version and Android UI source
         run: |
-          grep -q 'versionName.*5.0.8' apps/android/app/build.gradle.kts
+          grep -Fq '?: "5.0.9"' apps/android/app/build.gradle.kts
           test -f apps/android/app/src/main/java/com/v2ray/ang/ui/main/MainScreen.kt
           python scripts/test_elf_alignment.py
 

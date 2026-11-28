@@ -2,11 +2,12 @@
 """Stage immutable, checksum-verified routing data required by the Android APK."""
 import hashlib
 import json
+import os
 import pathlib
 import urllib.request
 
 root = pathlib.Path(__file__).resolve().parent.parent
-pins = json.loads((root / "scripts/runtime-pins-5.0.5.json").read_text())
+pins = json.loads((root / os.environ.get("DICODE_GEODATA_PINS", "scripts/runtime-pins-5.0.5.json")).read_text())
 output = root / "apps/android/app/src/main/assets"
 output.mkdir(parents=True, exist_ok=True)
 for item in pins["android_geodata"]:

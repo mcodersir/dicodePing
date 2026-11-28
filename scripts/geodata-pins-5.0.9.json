@@ -1,0 +1,31 @@
+{
+  "desktop_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611272204/geoip.dat",
+      "sha256": "9dc8e7de8db8300ce27b606f4a30632265713d2f33bcc568c0d2c44c825c8687"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/202611272204/geosite.dat",
+      "sha256": "807f88fbdb144a41b3fc9fcb8a9d3fdbc45dee1e6c112a232cff91dda70f4055"
+    }
+  ],
+  "android_geodata": [
+    {
+      "name": "geoip.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611271415/geoip.dat",
+      "sha256": "2c8b3f92780e6d7409bd5b5ec9fd049cf3965c5c474ee8caed50715050b17bd4"
+    },
+    {
+      "name": "geosite.dat",
+      "url": "https://github.com/Chocolate4U/Iran-v2ray-rules/releases/download/202611271415/geosite.dat",
+      "sha256": "1ea5255b0b110aca3da839367b19d14a1c6c9ef257d4e26606e492e3062b67a5"
+    },
+    {
+      "name": "geoip-only-cn-private.dat",
+      "url": "https://github.com/Loyalsoldier/geoip/releases/download/202611260018/geoip-only-cn-private.dat",
+      "sha256": "1fa57f750a091a1d721c47ebd1292518da0cb2d7e7c2a422f5d240f98f833bdc"
+    }
+  ]
+}

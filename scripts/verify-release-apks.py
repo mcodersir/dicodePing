@@ -28,7 +28,7 @@ for abi in [*abis, *tv_abis]:
             parts = name.split('/')
             if len(parts) == 3 and parts[0] == 'lib' and name.endswith('.so'):
                 verify_elf(archive.read(name), parts[1], name)
-        for item in json.loads(pathlib.Path("scripts/runtime-pins-5.0.5.json").read_text())["android_geodata"]:
+        for item in json.loads(pathlib.Path(os.environ.get("DICODE_GEODATA_PINS", "scripts/runtime-pins-5.0.5.json")).read_text())["android_geodata"]:
             content = archive.read("assets/" + item["name"])
             assert hashlib.sha256(content).hexdigest() == item["sha256"], "Missing or altered Android Geo asset: " + item["name"]
         for notice in ["NOTICE.txt", "LICENSE-GPL-3.0.txt", "LICENSE-CC-BY-SA-4.0.txt"]:
