@@ -14,8 +14,8 @@ args = parser.parse_args()
 if not args.android and not args.rid: parser.error('--rid or --android is required')
 if args.release_build:
     pins = {
-        'version': '1.15.0-alpha.15',
-        'source_commit': '64417bc8e802367a2fb25edaddf6dee06bbed29c',
+        'version': '1.14.6',
+        'source_commit': 'a713aee3058f97f3facc98e85244a3e73c82dca1',
     }
     if not args.android:
         version = pins['version']

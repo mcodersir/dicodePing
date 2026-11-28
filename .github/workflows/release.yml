@@ -558,7 +558,7 @@ jobs:
           image=dicodeping-router:5.0.9
           platform=linux/${{ matrix.arch }}
           docker run --rm --platform "$platform" --entrypoint dicode-fox "$image" --version | grep -F '5.0.9'
-          docker run --rm --platform "$platform" --entrypoint sing-box "$image" version | grep -F '1.15.0-alpha.15'
+          docker run --rm --platform "$platform" --entrypoint sing-box "$image" version | grep -F '1.14.6'
           docker run -d --name router-startup --platform "$platform" "$image"
           trap 'docker rm -f router-startup >/dev/null' EXIT
           sleep 2
@@ -644,12 +644,6 @@ jobs:
         print('All 23 packages and 11 checksum files verified; safe to publish.')
         PYVERIFY
         gh api --method PATCH repos/${{ github.repository }}/releases/${{ steps.draft_release.outputs.id }} -F draft=false -f make_latest=true > /dev/null
-  website:
-    needs: publish
-    uses: ./.github/workflows/website.yml
-    with:
-      release_tag: v5.0.9
-      source_sha: ${{ github.sha }}
 on:
   push:
     branches: [codex/release-5.0.9]

@@ -5,11 +5,11 @@ WORKDIR /fox
 COPY apps/fox-helper/ .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build -mod=readonly -trimpath -ldflags="-s -w -X main.version=5.0.9" -o /out/dicode-fox .
 WORKDIR /sing-box
-RUN git init && git fetch --depth 1 https://github.com/SagerNet/sing-box.git 64417bc8e802367a2fb25edaddf6dee06bbed29c \
+RUN git init && git fetch --depth 1 https://github.com/SagerNet/sing-box.git a713aee3058f97f3facc98e85244a3e73c82dca1 \
     && git checkout --detach FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = 64417bc8e802367a2fb25edaddf6dee06bbed29c \
+    && test "$(git rev-parse HEAD)" = a713aee3058f97f3facc98e85244a3e73c82dca1 \
     && CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build -mod=readonly -trimpath \
-    -ldflags='-s -w -X github.com/sagernet/sing-box/constant.Version=1.15.0-alpha.15' \
+    -ldflags='-s -w -X github.com/sagernet/sing-box/constant.Version=1.14.6' \
     -o /out/sing-box ./cmd/sing-box
 
 FROM python:3.14-alpine
