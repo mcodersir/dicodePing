@@ -74,8 +74,13 @@ chmod +x "$dest/DicodePing.desktop"
 def image_bundle(root: pathlib.Path, platform: str, output: pathlib.Path) -> pathlib.Path:
     if platform.startswith("macos"):
         image = output / f"DicodePing-5.0.9-{platform}.dmg"
+        mebibyte = 1024 * 1024
+        source_size = sum(file.stat().st_size for file in root.rglob("*") if file.is_file())
+        # Allow for filesystem metadata and allocation overhead in the temporary volume.
+        volume_mebibytes = (source_size * 2 + mebibyte - 1) // mebibyte + 128
         subprocess.run(["hdiutil", "create", "-ov", "-format", "UDZO", "-volname",
-                        "DicodePing", "-srcfolder", str(root), str(image)], check=True)
+                        "DicodePing", "-size", f"{volume_mebibytes}m", "-srcfolder",
+                        str(root), str(image)], check=True)
         subprocess.run(["hdiutil", "verify", str(image)], check=True)
         return image
 

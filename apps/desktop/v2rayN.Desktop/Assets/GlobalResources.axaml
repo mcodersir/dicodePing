@@ -6,6 +6,10 @@
     <SolidColorBrush x:Key="DicodeSurfaceEdge" Color="#FFE0E4EE" />
     <SolidColorBrush x:Key="DicodeSurface" Color="#FFFFFFFF" />
     <SolidColorBrush x:Key="DicodeSurfaceElevated" Color="#FFF0F2F8" />
+    <SolidColorBrush x:Key="DicodeMenuSurface" Color="#FFF0F2F8" />
+    <SolidColorBrush x:Key="DicodeSelectionSurface" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="DicodeSwitchTrack" Color="#FFE0E4EE" />
+    <SolidColorBrush x:Key="DicodeSwitchActive" Color="#FF6465D8" />
     <SolidColorBrush x:Key="DicodeBorder" Color="#FFE0E4EE" />
     <SolidColorBrush x:Key="DicodeTextPrimary" Color="#FF222535" />
     <SolidColorBrush x:Key="DicodeTextSecondary" Color="#FF70758A" />

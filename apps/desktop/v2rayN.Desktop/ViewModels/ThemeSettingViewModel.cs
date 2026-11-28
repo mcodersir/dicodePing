@@ -149,6 +149,10 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         SetBrush(app, "DicodeTextSecondary", palette.Item6);
         SetBrush(app, "DicodeSelection", palette.Item7);
         SetBrush(app, "DicodeAccent", palette.Item8);
+        SetBrush(app, "DicodeMenuSurface", palette.Item3);
+        SetBrush(app, "DicodeSelectionSurface", palette.Item2);
+        SetBrush(app, "DicodeSwitchTrack", palette.Item4);
+        SetBrush(app, "DicodeSwitchActive", palette.Item8);
         SetBrush(app, "DicodeActionBackground", palette.Item5);
         SetBrush(app, "DicodeActionForeground", palette.Item1);
         app.Resources["DicodeBackdropOpacity"] = glass ? 1d : 0d;
@@ -166,6 +170,13 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         // within the app surface, independent of the desktop compositor.
         app.Resources["DicodeSurfaceFinish"] = Layer(
             dark ? "#961C2B43" : "#AAFFFFFF", dark ? "#751A273F" : "#64EFF7FF");
+        app.Resources["DicodeMenuSurface"] = Layer(
+            dark ? "#F0314361" : "#F5FFFFFF", dark ? "#EB1E2B43" : "#F4E0EEF9");
+        app.Resources["DicodeSelectionSurface"] = app.Resources["DicodeMenuSurface"];
+        app.Resources["DicodeSwitchTrack"] = Layer(
+            dark ? "#9C7092AC" : "#C4EAF6FF", dark ? "#82192338" : "#9ABDD3E6");
+        app.Resources["DicodeSwitchActive"] = Layer(
+            dark ? "#DDC7F8FE" : "#E1307495", dark ? "#CD5EB9D4" : "#DF1F4F71");
         app.Resources["DicodeSurfaceEdge"] = Layer(
             dark ? "#85FFFFFF" : "#FFFFFFFF", dark ? "#403F3F47" : "#80787680");
     }

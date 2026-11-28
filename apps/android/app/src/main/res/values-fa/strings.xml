@@ -888,7 +888,7 @@
 <string name="fox_start_error">روباه شروع نشد (کد %1$s). فایل ZIP گزارش خطا را از بخش گزارش‌ها ارسال کنید.</string>
     <string name="dicode_interface_style">سبک رابط کاربری</string>
     <string name="dicode_glass_prompt_title">رابط شیشهٔ مایع را امتحان می‌کنید؟</string>
-    <string name="dicode_glass_prompt_body">پنل‌های نیمه‌شفاف و رنگ‌بندی گرافیت را امتحان کنید. هر زمان خواستید، سبک را از تنظیمات عوض کنید.</string>
+    <string name="dicode_glass_prompt_body">پنل‌های شیشه‌ای را با پس‌زمینهٔ مخصوص تم روشن و تیره امتحان کنید. هر زمان خواستید، سبک را از تنظیمات عوض کنید.</string>
     <string name="dicode_glass_try">امتحان شیشهٔ مایع (بتا)</string>
     <string name="dicode_style_classic">کلاسیک</string>
     <string name="dicode_style_glass">شیشهٔ مایع (بتا)</string>
