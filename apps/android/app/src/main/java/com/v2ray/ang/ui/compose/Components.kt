@@ -87,7 +87,7 @@ fun AppTopBar(
                         placeholder = searchPlaceholder
                     )
                 } else {
-                    Text(text = title)
+                    Text(text = title, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 }
             },
             navigationIcon = {

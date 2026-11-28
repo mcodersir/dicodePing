@@ -8,9 +8,37 @@ pins = json.loads((ROOT / 'scripts/runtime-pins-5.0.5.json').read_text())['singb
 parser = argparse.ArgumentParser()
 parser.add_argument('--rid', choices=['win-x64', 'linux-x64', 'osx-x64', 'osx-arm64'])
 parser.add_argument('--android', action='store_true')
+parser.add_argument('--release-build', action='store_true')
 parser.add_argument('--output', type=pathlib.Path, required=True)
 args = parser.parse_args()
 if not args.android and not args.rid: parser.error('--rid or --android is required')
+if args.release_build:
+    pins = {
+        'version': '1.15.0-alpha.15',
+        'source_commit': '64417bc8e802367a2fb25edaddf6dee06bbed29c',
+    }
+    if not args.android:
+        version = pins['version']
+        suffix = {
+            'win-x64': 'windows-amd64.zip',
+            'linux-x64': 'linux-amd64.tar.gz',
+            'osx-x64': 'darwin-amd64.tar.gz',
+            'osx-arm64': 'darwin-arm64.tar.gz',
+        }[args.rid]
+        name = f'sing-box-{version}-{suffix}'
+        release = json.loads(subprocess.check_output(
+            ['gh', 'api', f'repos/SagerNet/sing-box/releases/tags/v{version}'],
+            text=True,
+        ))
+        asset = next(a for a in release['assets'] if a['name'] == name)
+        digest = (asset.get('digest') or '').removeprefix('sha256:')
+        if len(digest) != 64 or any(char not in '0123456789abcdef' for char in digest):
+            raise RuntimeError(f'Missing release SHA-256 for {name}')
+        pins['assets'] = {args.rid: {
+            'name': name,
+            'url': f'https://github.com/SagerNet/sing-box/releases/download/v{version}/{name}',
+            'sha256': digest,
+        }}
 platforms = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'] if args.android else [args.rid]
 if args.android:
     # Upstream prebuilt executables still use 4 KB LOAD alignment. Build the

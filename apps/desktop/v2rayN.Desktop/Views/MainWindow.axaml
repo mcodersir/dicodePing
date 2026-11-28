@@ -36,7 +36,15 @@
         <StreamGeometry x:Key="DicodeIconRefresh">M20.5,12 A8.5,8.5 0 1,1 17.8,5.9 M20.5,3.2 V7.4 H16.3</StreamGeometry>
     </Window.Resources>
     <dialogHost:DialogHost Background="{DynamicResource DicodePageBackground}" CloseOnClickAway="True" DisableOpeningAnimation="True">
-        <Grid Background="{DynamicResource DicodePageBackground}" RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,*">
+            <Grid Grid.RowSpan="2" ClipToBounds="True" IsHitTestVisible="False"
+                  Opacity="{DynamicResource DicodeBackdropOpacity}">
+                <Grid.Effect><BlurEffect Radius="52" /></Grid.Effect>
+                <Ellipse Width="740" Height="340" Fill="{DynamicResource DicodeBackdropLight}"
+                         HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-235,-115,0,0" />
+                <Ellipse Width="820" Height="390" Fill="{DynamicResource DicodeBackdropBand}"
+                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-180,-130" />
+            </Grid>
             <Border x:Name="mainHeader" Grid.Row="0" Margin="16,14,16,8" Padding="12,8" Classes="DicodeCard" MaxHeight="144">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled"><Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" FlowDirection="LeftToRight">
                     <StackPanel x:Name="brandHeader" Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">

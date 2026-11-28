@@ -1,5 +1,5 @@
 """Canonical APK containers; application payload and signing identity stay unchanged."""
-import concurrent.futures,hashlib,json,os,pathlib,re,shutil,subprocess,urllib.request,zipfile
+import argparse,concurrent.futures,hashlib,json,os,pathlib,re,shutil,subprocess,urllib.request,zipfile
 ROOT=pathlib.Path(__file__).resolve().parents[1];PIN={'certificate_sha256':'0a483317ee0bd0e2aea48d2be72c30f206d3cceb3f178ea18ca22a17d6cdfcc0'}
 INPUT=ROOT/'canonical-apk-input';OUT=ROOT/'dist-android';TOOLS=pathlib.Path(os.environ['ANDROID_HOME'])/'build-tools/37.0.0'
 SIG=re.compile(r'META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC))$',re.I)
@@ -8,7 +8,7 @@ def sha(path):
  with open(path,'rb') as f:
   for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
  return h.hexdigest()
-def rebuild(item):
+def rebuild(item, version, code):
  name,expected=item;original=INPUT/name
  assert sha(original)==expected,'Published input changed'
  unsigned=INPUT/(name+'.unsigned');aligned=INPUT/(name+'.aligned');target=OUT/name
@@ -34,17 +34,22 @@ def rebuild(item):
   assert after.infolist()[0].filename=='AndroidManifest.xml'
   assert after.getinfo('AndroidManifest.xml').compress_type==0 and after.getinfo('resources.arsc').compress_type==0
  badging=subprocess.run([str(TOOLS/'aapt2'),'dump','badging',str(target)],check=True,capture_output=True,text=True).stdout
- assert "versionName='5.0.5'" in badging and "versionCode='55000500'" in badging
+ assert f"versionName='{version}'" in badging and f"versionCode='{code}'" in badging
  print('PASS canonical ZIP, identical application payload, same signing key and V1/V2/V3:',name,flush=True)
  unsigned.unlink();aligned.unlink()
  return {'name':name,'original_sha256':expected,'sha256':sha(target),'size':target.stat().st_size}
 def main():
+ parser = argparse.ArgumentParser()
+ parser.add_argument('--version', default='5.0.5')
+ parser.add_argument('--code', type=int, default=55000500)
+ parser.add_argument('--count', type=int, default=6)
+ args = parser.parse_args()
  INPUT.mkdir(exist_ok=True);OUT.mkdir(exist_ok=True)
  inputs={}
  for file in sorted(OUT.glob('*.apk')):
   inputs[file.name]=sha(file)
   shutil.copy2(file,INPUT/file.name)
- assert len(inputs)==6,'Expected all six final signed APKs'
- with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:records=list(pool.map(rebuild,inputs.items()))
+ assert len(inputs)==args.count,'Unexpected number of final APKs'
+ with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:records=list(pool.map(lambda item: rebuild(item, args.version, args.code), inputs.items()))
  (OUT/'SHA256SUMS-android.txt').write_text(''.join(r['sha256']+'  '+r['name']+'\n' for r in sorted(records,key=lambda r:r['name'])))
 if __name__=='__main__':main()

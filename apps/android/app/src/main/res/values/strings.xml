@@ -892,4 +892,10 @@
     <string name="dicode_glass_try">Try Liquid Glass (beta)</string>
     <string name="dicode_style_classic">Classic</string>
     <string name="dicode_style_glass">Liquid Glass (beta)</string>
+
+
+
+    <string name="dicode_update_available">Update available</string>
+    <string name="dicode_update_version">Version %1$s is ready to download.</string>
+    <string name="dicode_update_open">Update</string>
 </resources>

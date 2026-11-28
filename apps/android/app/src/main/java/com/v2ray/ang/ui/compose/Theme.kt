@@ -263,7 +263,7 @@ fun AppTheme(
             typography = typography,
             shapes = if (useGlass) GlassShapes else ClassicShapes,
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().then(if (useGlass) Modifier.glassBackdrop() else Modifier)) {
                 AppSnackbarBridge(controller = snackbarController)
                 content()
                 AppSnackbarHost(hostState = snackbarController.hostState)

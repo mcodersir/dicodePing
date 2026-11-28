@@ -243,6 +243,7 @@ fun SettingsSwitchItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val glass = LocalGlassAppearance.current
     SettingsItemRow(
         icon = icon,
         title = title,
@@ -256,10 +257,10 @@ fun SettingsSwitchItem(
             Switch(
                 checked = checked,
                 onCheckedChange = if (enabled) onCheckedChange else null,
-                modifier = Modifier.scale(0.8f),
+                modifier = if (glass) Modifier.scale(0.8f).glassPanel(checked) else Modifier.scale(0.8f),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.onSecondary,
-                    checkedTrackColor = MaterialTheme.colorScheme.secondary
+                    checkedTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = if (glass) 0.7f else 1f)
                 ),
                 enabled = enabled
             )

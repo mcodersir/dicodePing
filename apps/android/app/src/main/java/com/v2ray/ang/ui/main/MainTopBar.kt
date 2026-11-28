@@ -9,11 +9,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.DropdownMenu
+import com.v2ray.ang.ui.compose.GlassDropdownMenu
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.LaunchedEffect
@@ -105,7 +104,7 @@ fun MainTopBar(
                         if (isAutoConnecting) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         else Icon(painterResource(R.drawable.ic_flash_on_24dp), contentDescription = stringResource(R.string.connect_menu))
                     }
-                    DropdownMenu(expanded = showConnectMenu, onDismissRequest = { showConnectMenu = false }) {
+                    GlassDropdownMenu(expanded = showConnectMenu, onDismissRequest = { showConnectMenu = false }) {
                         androidx.compose.material3.DropdownMenuItem(
                             text = { androidx.compose.material3.Text(stringResource(R.string.connect_quick)) },
                             onClick = { showConnectMenu = false; onSmartConnect(true) })
@@ -119,11 +118,10 @@ fun MainTopBar(
                 IconButton(onClick = { showImportMenu = true }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_add_24dp), contentDescription = stringResource(R.string.acc_add))
                 }
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = showImportMenu,
                     onDismissRequest = { showImportMenu = false },
                     scrollState = importMenuScrollState,
-                    containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(importMenuScrollState)
@@ -147,11 +145,10 @@ fun MainTopBar(
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.remoteFocus()) {
                     Icon(painterResource(R.drawable.ic_more_vert_24dp), contentDescription = stringResource(R.string.acc_more))
                 }
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
                     scrollState = moreMenuScrollState,
-                    containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
                         .heightIn(max = maxMenuHeight)
                         .verticalScrollbar(moreMenuScrollState)

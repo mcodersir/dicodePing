@@ -1,4 +1,6 @@
 # DicodePing V5
+# کانال دیکد پینگ برای آموزشات و اطلاعیه ها راجع بروزرسانی ها حتما دنبال کنید:
+https://t.me/dicodeping
 
 <div align="center">
 
@@ -11,9 +13,11 @@
 [![Release](https://img.shields.io/github/v/release/mcodersir/dicodePing)](https://github.com/mcodersir/dicodePing/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/CLI.md)**
+**[دریافت برنامه](https://mcodersir.github.io/dicodePing/#download)** · **[آخرین انتشار پایدار](https://github.com/mcodersir/dicodePing/releases/latest)** · **[راهنمای خط فرمان](https://github.com/mcodersir/dicodePing/blob/v5.0.9/docs/CLI.md)**
 
-نسخهٔ پایدار فعلی: **۵.۰.۵**
+نسخهٔ پایدار فعلی: **۵.۰.۹**
+
+نسخهٔ ۵.۰.۹ سبک شیشهٔ مایع (بتا) را به دسکتاپ، اندروید و Android TV اضافه می‌کند. سبک کلاسیک از تنظیمات در دسترس است. در ویندوز، کلیک عادی یک پروفایل را انتخاب می‌کند و Ctrl انتخاب چندتایی را فعال می‌کند. [تغییرات کامل دسکتاپ و اندروید](https://github.com/mcodersir/dicodePing/releases/tag/v5.0.9).
 
 </div>
 
@@ -41,6 +45,10 @@
 
 روباه اتصال غیررسمی Firefox VPN است. دسترسی، سهمیه و موقعیت‌های مجاز را Mozilla تعیین می‌کند؛ اتصال در همهٔ شبکه‌ها تضمین نمی‌شود. این روش از TCP و DNS رمزگذاری‌شده پشتیبانی می‌کند و برای UDP عمومی در نظر گرفته نشده است.
 
+## روباه روی روتر
+
+[راهنمای RouterOS](https://mcodersir.github.io/dicodePing/routeros.html) نصب کانتینر بتای ARM64 و x86_64 را برای اشتراک‌گذاری پراکسی احراز هویت‌شدهٔ LAN توضیح می‌دهد. در شبکه‌های Cisco، کانتینر روی میزبان لینوکس اجرا می‌شود.
+
 ## دریافت و نصب
 
 **[صفحهٔ دانلود](https://mcodersir.github.io/dicodePing/#download)** فایل مناسب هر دستگاه را معرفی می‌کند. فایل‌ها و checksumها در [انتشارهای GitHub](https://github.com/mcodersir/dicodePing/releases) هم در دسترس‌اند.
@@ -48,10 +56,10 @@
 | پلتفرم | بسته‌های ارائه‌شده |
 | --- | --- |
 | Windows 10/11، ۶۴بیتی | نصب‌کننده و نسخهٔ Portable |
-| Linux، x64 | بستهٔ DEB و نسخهٔ Portable |
-| macOS | نسخه‌های جداگانهٔ Apple Silicon و Intel |
+| Linux، x64 | AppImage، بستهٔ DEB و نسخهٔ Portable |
+| macOS | DMG و ZIP برای Apple Silicon و Intel |
 | Android 10 و جدیدتر | ARM64، ARM 32-bit، x86، x86_64 و Universal |
-| Android TV 10 و جدیدتر | بستهٔ مستقل Universal با پشتیبانی از ریموت |
+| Android TV 10 و جدیدتر | بسته‌های مستقل ARM64، ARM 32-bit و Universal با پشتیبانی از ریموت |
 | CLI | بسته‌های مستقل Windows، Linux و macOS |
 
 ### انتخاب APK اندروید
@@ -59,9 +67,9 @@
 - **ARM64** به سیستم اندروید ۶۴بیتی نیاز دارد؛ ۶۴بیتی‌بودن پردازنده به‌تنهایی کافی نیست.
 - اگر معماری سیستم مشخص نیست، **Universal** را انتخاب کنید.
 - نسخهٔ تلویزیون جدا از نسخهٔ گوشی نصب می‌شود.
-- بسته‌های فعلی نسخهٔ ۵.۰.۵ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
+- بسته‌های فعلی نسخهٔ ۵.۰.۹ هستند. فایل جدید را دوباره دانلود و برای به‌روزرسانی روی نصب فعلی نصب کنید؛ حذف برنامه لازم نیست.
 
-**[ARM64 نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.5/DicodePing-5.0.5-arm64-v8a.apk)** · **[Universal نسخهٔ ۵](https://github.com/mcodersir/dicodePing/releases/download/v5.0.5/DicodePing-5.0.5-universal.apk)**
+**[Universal پیشنهادی](https://github.com/mcodersir/dicodePing/releases/download/v5.0.9/DicodePing-5.0.9-universal.apk)** · **[ARM64](https://github.com/mcodersir/dicodePing/releases/download/v5.0.9/DicodePing-5.0.9-arm64-v8a.apk)**
 
 در دسکتاپ، فعال‌کردن TUN یا تغییر مسیریابی سیستم ممکن است به دسترسی مدیر نیاز داشته باشد. در اندروید، اجازهٔ ایجاد اتصال VPN از طریق پنجرهٔ خود سیستم‌عامل گرفته می‌شود.
 
@@ -77,7 +85,7 @@ dicodeping ping
 dicodeping connect --best
 ```
 
-برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/CLI.md) آمده است.
+برای توقف اتصال از `Ctrl+C` استفاده کنید. داده‌های CLI جدا از رابط گرافیکی نگهداری می‌شوند. جزئیات حالت‌های اتصال، انتخاب هسته و مدیریت حساب روباه در [راهنمای CLI](https://github.com/mcodersir/dicodePing/blob/v5.0.9/docs/CLI.md) آمده است.
 
 ## منابع اتصال
 
@@ -85,12 +93,12 @@ dicodeping connect --best
 
 ## مستندات و توسعه
 
-سورس هر انتشار در Tag همان نسخه قرار دارد. برای بررسی یا ساخت نسخهٔ پایدار، از [سورس ۵.۰.۵](https://github.com/mcodersir/dicodePing/tree/v5.0.5) و راهنماهای همان Tag استفاده کنید.
+سورس نسخهٔ پایدار ۵.۰.۹ برای [اندروید](https://github.com/mcodersir/dicodePing/tree/v5.0.9) و [دسکتاپ](https://github.com/mcodersir/dicodePing/tree/v5.0.9/apps/desktop) در دسترس است.
 
-- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.5/docs/ANDROID.md)
-- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.5/docs)
+- [راهنمای ساخت اندروید](https://github.com/mcodersir/dicodePing/blob/v5.0.9/docs/ANDROID.md)
+- [مستندات نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/tree/v5.0.9/docs)
 - [امنیت و گزارش آسیب‌پذیری](SECURITY.md)
-- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.5/PRIVACY.md)
+- [حریم خصوصی نسخهٔ پایدار](https://github.com/mcodersir/dicodePing/blob/v5.0.9/PRIVACY.md)
 - [گزارش اشکال و پیشنهاد](https://github.com/mcodersir/dicodePing/issues)
 - [مجوزها و قدردانی از اجزای متن‌باز](THIRD_PARTY_NOTICES.md)
 

@@ -369,6 +369,27 @@ public partial class MainWindow : WindowBase<MainWindowViewModel>
         ShowHideWindow(true);
     }
 
+    internal async Task PromptStartupUpdateAsync()
+    {
+        try
+        {
+            var service = new ServiceLib.Services.UpdateService(_config, (_, _) => Task.CompletedTask);
+            var release = await service.CheckHasUpdateOnly(ECoreType.v2rayN, false);
+            if (!release.Success || !IsVisible)
+                return;
+
+            var message = FoxUi.T(
+                $"نسخهٔ {release.Version} آمادهٔ دریافت است. صفحهٔ بروزرسانی باز شود؟",
+                $"Version {release.Version} is ready to download. Open the update page?");
+            if (await UI.ShowYesNo(message) == ButtonResult.Yes && IsVisible)
+                MenuCheckUpdate_Click(this, new RoutedEventArgs());
+        }
+        catch (Exception ex)
+        {
+            Logging.SaveLog("Startup release check failed", ex);
+        }
+    }
+
     private void MenuCheckUpdate_Click(object? sender, RoutedEventArgs e)
     {
         _checkUpdateView ??= new CheckUpdateView();

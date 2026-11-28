@@ -892,4 +892,7 @@
     <string name="dicode_glass_try">امتحان شیشهٔ مایع (بتا)</string>
     <string name="dicode_style_classic">کلاسیک</string>
     <string name="dicode_style_glass">شیشهٔ مایع (بتا)</string>
+    <string name="dicode_update_available">نسخهٔ جدید موجود است</string>
+    <string name="dicode_update_version">نسخهٔ %1$s آمادهٔ دریافت است.</string>
+    <string name="dicode_update_open">بروزرسانی</string>
 </resources>

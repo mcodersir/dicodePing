@@ -128,8 +128,8 @@ public partial class ThemeSettingViewModel : MyReactiveObject
             _ => true,
         };
         var palette = glass ? (dark
-            ? ("#151517", "#202023", "#28282C", "#414148", "#FAFAFA", "#B9B9C1", "#363332", "#F2BE73")
-            : ("#F4F3F2", "#FBFAF9", "#FFFFFF", "#CFCDD2", "#212125", "#575761", "#E9E2DA", "#794719"))
+            ? ("#0C1426", "#18283C", "#243951", "#48677B", "#F0F6FD", "#BCCFE3", "#244A5D", "#A2E2F1")
+            : ("#EFF5FC", "#F6FAFF", "#FFFFFF", "#B3CADA", "#18293B", "#42566F", "#D4E8F4", "#235B76"))
             : themeName switch
         {
             nameof(ETheme.Dark) => ("#101010", "#171717", "#202020", "#363636", "#F5F5F4", "#AEAEAA", "#30302C", "#F5BC63"),
@@ -151,6 +151,9 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         SetBrush(app, "DicodeAccent", palette.Item8);
         SetBrush(app, "DicodeActionBackground", palette.Item5);
         SetBrush(app, "DicodeActionForeground", palette.Item1);
+        app.Resources["DicodeBackdropOpacity"] = glass ? 1d : 0d;
+        SetBrush(app, "DicodeBackdropBand", dark ? "#805169AE" : "#B0B8C9EE");
+        SetBrush(app, "DicodeBackdropLight", dark ? "#92418BA5" : "#C89CCFDF");
         app.Resources["DicodeSurfaceRadius"] = new CornerRadius(glass ? 22 : 14);
         if (!glass)
         {
@@ -162,11 +165,9 @@ public partial class ThemeSettingViewModel : MyReactiveObject
         // A reflective top edge and a translucent lower layer keep the glass
         // within the app surface, independent of the desktop compositor.
         app.Resources["DicodeSurfaceFinish"] = Layer(
-            dark ? "#E5323238" : "#FAFFFFFF", dark ? "#B8212126" : "#BDE9E5E1");
+            dark ? "#961C2B43" : "#AAFFFFFF", dark ? "#751A273F" : "#64EFF7FF");
         app.Resources["DicodeSurfaceEdge"] = Layer(
             dark ? "#85FFFFFF" : "#FFFFFFFF", dark ? "#403F3F47" : "#80787680");
-        app.Resources["DicodePageBackground"] = Layer(
-            dark ? "#282528" : "#F6F4F0", dark ? "#111114" : "#E6E7ED");
     }
 
     private static LinearGradientBrush Layer(string top, string bottom) => new()

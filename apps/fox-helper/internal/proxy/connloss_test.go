@@ -149,9 +149,10 @@ func watchedH2Session(t *testing.T) (*h2ProxySession, *cuttableConn) {
 
 func shortKeepAlive(t *testing.T) {
 	t.Helper()
-	interval, timeout := upstreamKeepAliveInterval, upstreamKeepAlivePingTimeout
+	interval, timeout, retry := upstreamKeepAliveInterval, upstreamKeepAlivePingTimeout, upstreamKeepAliveRetry
 	upstreamKeepAliveInterval, upstreamKeepAlivePingTimeout = 50*time.Millisecond, 50*time.Millisecond
-	t.Cleanup(func() { upstreamKeepAliveInterval, upstreamKeepAlivePingTimeout = interval, timeout })
+	upstreamKeepAliveRetry = 15 * time.Millisecond
+	t.Cleanup(func() { upstreamKeepAliveInterval, upstreamKeepAlivePingTimeout, upstreamKeepAliveRetry = interval, timeout, retry })
 }
 
 // A connection the network stops carrying is found by the keepalive

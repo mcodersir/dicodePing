@@ -13,6 +13,7 @@ import androidx.activity.viewModels
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import com.v2ray.ang.ui.compose.ThemeManager
@@ -29,6 +30,8 @@ import com.v2ray.ang.enums.PermissionType
 import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.extension.toastSuccess
+import com.v2ray.ang.dto.CheckUpdateResult
+import com.v2ray.ang.handler.UpdateCheckerManager
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
@@ -146,6 +149,16 @@ class MainActivity : HelperBaseComponentActivity() {
             }
             return
         }
+        val update = remember { mutableStateOf<CheckUpdateResult?>(null) }
+        LaunchedEffect(Unit) {
+            try {
+                update.value = UpdateCheckerManager.checkForUpdate().takeIf { it.hasUpdate }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                LogUtil.i(AppConfig.TAG, "Startup update check failed: ${failure.javaClass.simpleName}")
+            }
+        }
         val promptCount = remember {
             MmkvManager.decodeSettingsInt(AppConfig.PREF_TELEGRAM_PROMPT_COUNT, 0)
         }
@@ -198,6 +211,24 @@ class MainActivity : HelperBaseComponentActivity() {
                         Text(stringResource(R.string.dicode_style_classic))
                     }
                 },
+            )
+        } else if (update.value != null) {
+            val version = update.value?.latestVersion.orEmpty()
+            AlertDialog(
+                onDismissRequest = { update.value = null },
+                title = { Text(stringResource(R.string.dicode_update_available)) },
+                text = { Text(stringResource(R.string.dicode_update_version, version)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        update.value = null
+                        startActivity(Intent(this, CheckUpdateActivity::class.java))
+                    }) { Text(stringResource(R.string.dicode_update_open)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { update.value = null }) {
+                        Text(stringResource(R.string.dicode_channel_later))
+                    }
+                }
             )
         } else if (showTelegramPrompt.value) {
             AlertDialog(

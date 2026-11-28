@@ -8,7 +8,7 @@ import sys
 root, page, version = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
 expected = {f"DicodePing-{version}-{name}" for name in re.findall(r'data-asset="([^"]+)"', page.read_text())}
 manifests = sorted(root.glob("SHA256SUMS-*.txt"))
-assert len(expected) == 21 and len(manifests) == 9
+assert len(expected) == 23 and len(manifests) == 11
 checksums = {}
 for manifest in manifests:
     for line in manifest.read_text(encoding="utf-8-sig").splitlines():

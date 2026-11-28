@@ -207,6 +207,7 @@ fun MainScreen(
         }
     ) {
         Scaffold(
+            containerColor = if (com.v2ray.ang.ui.compose.LocalGlassAppearance.current) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.background,
             contentWindowInsets = ScaffoldDefaults.contentWindowInsets,
             topBar = {
                 MainTopBar(

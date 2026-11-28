@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const version = "5.0.5"
+var version = "5.0.5"
 
 type State struct {
 	Email              string `json:"email"`
@@ -499,7 +499,7 @@ func run(ctx context.Context, req Request, reader *json.Decoder, cancel context.
 }
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.18)")
+		fmt.Println("DicodePing Fox " + version + " (Arman VPN v1.0.18 with v1.0.20 keepalive)")
 		return
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

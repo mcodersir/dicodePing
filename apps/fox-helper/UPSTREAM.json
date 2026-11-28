@@ -101,7 +101,7 @@
     "proxy/relogin_test.go": "4b5c5cae49b53dca2b61e0353a22021b3b0f22fd1ec781dbed3523fa85686bd7",
     "proxy/connections_test.go": "48a1501382669d40f913c7bc0b3b231d7cea3db8198bcc4ca3a793911177923b",
     "proxy/session.go": "6aaa7047f23383e17930013f026caffdba3edc7b523b6177a4978b3dad8173d3",
-    "proxy/upstream_h2.go": "d31769a8d3a5ce17f7c32754a9a7ac46d63a18540c5aa8744dbf68c7abecab7c",
+    "proxy/upstream_h2.go": "3584aa37c90e8aa93859a7e111ed5734bb72fffff12fac4f642905581ba8141a",
     "proxy/loop.go": "9c3769346691c90c36731980336495d668d672df7d1ef92519242a8897b2a189",
     "proxy/failure_test.go": "b89b5c6dfff7df24013170d71b4e43e0db622f2007b7eaa7cc2462c323b5543a",
     "proxy/selection.go": "87c0f96164ea8d83eabb01dbc75da53ddd05b076df156afe7799f777445e7d0f",
@@ -187,16 +187,26 @@
     "controlplane/headers.go": "d58283e893266992aed864145c38d0ab35892c3739de0b221a18d599dbb2886f",
     "controlplane/headers_test.go": "2d0eadc1bd462b57bbe107d1a491189af956a037a2d496149095de621e30cd13",
     "proxy/proxypass.go": "30862601fd72fc3fd9740c51f43b942825c3f7b16d23d0cc471cb03ff914d53f",
-    "proxy/pool.go": "09bf6b11e118888b67b57d1df136ee2bb3b6f56c3d03857c0bf63e010d2f05f1"
+    "proxy/pool.go": "09bf6b11e118888b67b57d1df136ee2bb3b6f56c3d03857c0bf63e010d2f05f1",
+    "proxy/connloss_test.go": "8d425250b41ec8919a12f722efc98ab2be99f18d3ac72efe7d402357e853891c"
   },
   "excluded_files": {
     "proxy/socks_udp_test.go": "Tests upstream TUN integration, which DicodePing supplies through its Android/desktop native VPN instead."
   },
   "control_plane_reference": {
     "repository": "Vauth/FoxyVPN",
-    "tag": "v2.0.4",
-    "commit": "48ffd4693de9071eb3e313c002f2048521c4a75b",
+    "tag": "v2.0.5",
+    "commit": "c3ebf6c5abca7fdf6653e4d9d16b5b5dbcbc81a2",
     "config_repository": "Vauth/FoxyConfig",
     "config_commit": "9bf80f35100484793d51fb6a6538563322a47f22"
+  },
+  "backports": {
+    "armanlife/arman-vpn-client": {
+      "tag": "v1.0.20",
+      "commit": "6692c4f5da016ebcf75e4fd7732991ee46cb1ca5",
+      "changes": [
+        "HTTP/2 keepalive uses a short retry after an unanswered PING"
+      ]
+    }
   }
 }
