@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>راهنمای روباه روی MikroTik و Cisco | DicodePing</title>
+<link rel="stylesheet" href="style.css?v=5.0.9">
+<link rel="stylesheet" href="routeros.css">
+</head>
+<body>
+<main class="shell router-guide">
+<a href="./#routers">بازگشت به دانلودها</a>
+<h1>روباه روی روتر MikroTik</h1>
+<p>کانتینر آزمایشی DicodePing روی شبکهٔ محلی یک پراکسی HTTP و SOCKS5 با نام کاربری و رمز ارائه می‌کند. هر دستگاهی که پراکسی را در تنظیمات خودش قرار دهد می‌تواند از روباه استفاده کند. این مسیر ترافیک TCP را حمل می‌کند و مسیر پیش‌فرض شبکه را تغییر نمی‌دهد.</p>
+<h2>۱. دستگاه و بسته را بررسی کنید</h2>
+<pre dir="ltr"><code>/system/resource/print
+/system/package/print
+/system/device-mode/print</code></pre>
+<p>بستهٔ <code>container</code> هم‌نسخه با RouterOS را نصب کنید. برای RouterOS روی ARM64 یا x86_64 شامل CHR، TAR هماهنگ با همان معماری را بگیرید. به دیسک خارجی و دسترسی فیزیکی برای تأیید Device Mode نیاز دارید. در صورت غیرفعال‌بودن Container فرمان زیر را اجرا کنید و طبق خروجی روتر، تغییر را با دسترسی فیزیکی تأیید کنید. روتر راه‌اندازی مجدد می‌شود.</p>
+<pre dir="ltr"><code>/system/device-mode/update container=yes</code></pre>
+<h2>۲. شبکهٔ کانتینر را بسازید</h2>
+<p>نمونه از <code>172.30.91.0/24</code> برای کانتینر، <code>192.168.88.0/24</code> برای LAN و <code>disk1</code> برای دیسک استفاده می‌کند. مقادیر را با شبکهٔ خود تطبیق دهید. نام <code>WAN</code> باید فهرست رابط اینترنت روتر شما باشد. هنگام اعمال تغییرات از WinBox Safe Mode استفاده کنید.</p>
+<pre dir="ltr"><code>/interface/bridge/add name=dicode-fox-bridge
+/ip/address/add address=172.30.91.1/24 interface=dicode-fox-bridge comment=dicode-fox
+/interface/veth/add name=dicode-fox-veth address=172.30.91.2/24 gateway=172.30.91.1
+/interface/bridge/port/add bridge=dicode-fox-bridge interface=dicode-fox-veth
+/ip/firewall/nat/add chain=srcnat src-address=172.30.91.0/24 out-interface-list=WAN action=masquerade comment=dicode-fox</code></pre>
+<p>در زنجیرهٔ <code>forward</code> فایروال، اتصال TCP به <code>172.30.91.2:10810</code> را فقط برای VLAN یا رابط LAN مورد اعتماد باز کنید. این محدودیت باید پیش از قواعد عمومی و FastTrack قرار بگیرد. این پورت را روی WAN منتشر نکنید.</p>
+<p>فایل TAR را در Files روی دیسک روتر بگذارید. برای نسخهٔ CHR نام فایل را به <code>DicodePing-5.0.9-routeros-x86_64.tar</code> تغییر دهید.</p>
+<pre dir="ltr"><code>/container/mounts/add list=dicode-fox-data src=disk1/dicode-fox-data dst=/data
+/container/add file=disk1/DicodePing-5.0.9-routeros-arm64.tar interface=dicode-fox-veth root-dir=disk1/dicode-fox-root mountlists=dicode-fox-data logging=yes start-on-boot=no
+/container/print</code></pre>
+<h2>۳. وارد حساب Firefox شوید و اتصال را بگیرید</h2>
+<p>پس از آماده‌شدن ایمیج، شمارهٔ کانتینر را از خروجی <code>/container/print</code> بردارید. این مثال شمارهٔ صفر را به کار می‌برد.</p>
+<pre dir="ltr"><code>/container/start 0
+/container/shell 0
+dicode-router login</code></pre>
+<p>ایمیل و رمز حساب Firefox، کشور و در صورت نیاز کد تأیید را در ترمینال تعاملی وارد کنید. برای پراکسی LAN نام کاربری و رمز جداگانه تعریف کنید. پوشهٔ نشست حساب و رمز پراکسی را خصوصی نگه دارید.</p>
+<p>در دستگاه کلاینت، از پراکسی <code>172.30.91.2</code> روی پورت <code>10810</code> استفاده کنید. curl رمز پراکسی را جداگانه می‌پرسد. IP خروجی را با اجرای URL بدون پراکسی مقایسه کنید.</p>
+<pre dir="ltr"><code>curl --proxy socks5h://172.30.91.2:10810 --proxy-user YOUR_PROXY_USER https://api.ipify.org</code></pre>
+<p>برای توقف آزمایش <code>/container/stop 0</code> را اجرا کنید و پراکسی را از کلاینت‌ها بردارید. پس از تأیید اتصال می‌توانید <code>start-on-boot=yes</code> را برای همان کانتینر فعال کنید.</p>
+<h2 id="cisco">روباه در شبکهٔ Cisco</h2>
+<p>روی میزبان Linux داخل LAN سیسکو، TAR هماهنگ با معماری میزبان را در Docker بار کنید. در این مثال <code>192.168.88.20</code> آدرس میزبان Linux است. در ACL یا فایروال میزبان، پورت <code>10810</code> را به شبکهٔ مجاز محدود کنید.</p>
+<pre dir="ltr"><code>docker load --input DicodePing-5.0.9-routeros-x86_64.tar
+docker run -d --name dicode-fox --restart unless-stopped -p 192.168.88.20:10810:10810/tcp -v dicode-fox:/data dicodeping-router:5.0.9
+docker exec -it dicode-fox dicode-router login
+curl --proxy socks5h://192.168.88.20:10810 --proxy-user YOUR_PROXY_USER https://api.ipify.org</code></pre>
+<p>اجرای مستقیم IOS XE به مدل دستگاه و App Hosting وابسته است. این روش به میزبان Linux نیاز دارد. کانتینر آزمایشی فقط برای برنامه‌های سازگار با پراکسی است.</p>
+<p><a href="https://manual.mikrotik.com/docs/containers/">مستندات رسمی Container در RouterOS</a> · <a href="https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/26x/26x-programmability-cg/application-hosting.html">راهنمای Cisco Application Hosting</a></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,7 @@
+.router-guide { max-width: 52rem; margin-inline: auto; padding-block: clamp(2rem, 7vw, 5rem); }
+.router-guide h1 { margin-block: .7em .3em; font-size: clamp(1.65rem, 5vw, 2.75rem); }
+.router-guide h2 { margin-block: 1.7em .45em; font-size: clamp(1.2rem, 4vw, 1.6rem); }
+.router-guide p { line-height: 1.95; overflow-wrap: anywhere; }
+.router-guide a { text-decoration: underline; text-underline-offset: .2em; }
+.router-guide pre { overflow: auto; border: 1px solid currentColor; border-radius: .65rem; padding: 1rem; margin: 1rem 0; }
+.router-guide code { unicode-bidi: isolate; direction: ltr; }

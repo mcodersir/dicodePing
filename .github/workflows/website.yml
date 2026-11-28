@@ -1,13 +1,9 @@
 name: Publish download website
 on:
+  push:
+    branches: [codex/pages-download-refresh]
+    paths: [web/**, .github/workflows/website.yml]
   workflow_dispatch:
-    inputs:
-      release_tag:
-        required: true
-        type: string
-      source_sha:
-        required: true
-        type: string
   workflow_call:
     inputs:
       release_tag:
@@ -34,15 +30,21 @@ jobs:
         with:
           ref: ${{ inputs.source_sha || github.sha }}
       - name: Require published packages before changing download links
-        if: inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
+          if [ -z "$RELEASE_TAG" ]; then
+            RELEASE_TAG=$(python -c 'import pathlib,re; print(re.search(r"/releases/download/(v[0-9]+[.][0-9]+[.][0-9]+)/", pathlib.Path("web/index.html").read_text())[1])')
+          fi
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > published-release.json
-          tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
-          test "$tag_sha" = "$SOURCE_SHA"
+          if [ -n "$SOURCE_SHA" ]; then
+            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+            test "$tag_sha" = "$SOURCE_SHA"
+          fi
+          git fetch --depth=1 origin "refs/tags/$RELEASE_TAG"
+          git diff --exit-code FETCH_HEAD -- web
           python scripts/verify-website-release.py published-release.json "$RELEASE_TAG"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
